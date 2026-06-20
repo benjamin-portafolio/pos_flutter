@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 /*import 'package:punto_venta/data/local/dao/espacio_dao.dart';
 import 'package:punto_venta/data/local/db_helper.dart';
@@ -9,6 +7,12 @@ import 'package:punto_venta/data/remote/synchronization/synchronization_api_serv
 import 'package:punto_venta/presentation/pages/alta_espacios/alta_espacios_screen.dart';
 import 'package:punto_venta/presentation/pages/pruebas_screen.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';*/
+
+import 'models/espacio_form_result.dart';
+import 'models/mesa_form_result.dart';
+import 'widgets/add_options_bottom_sheet.dart';
+import 'widgets/espacio_form_dialog.dart';
+import 'widgets/mesa_form_dialog.dart';
 
 class TableManagementScreen extends StatefulWidget {
   const TableManagementScreen({super.key});
@@ -22,7 +26,6 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   /*SynchronizationResponse? synchronizationResponse;
   final SynchronizationApiService synchronizationApiService =
       SynchronizationApiService();
-  // late PusherChannelsFlutter pusher;
 
   Future<void> cargarEspacios() async {
     EspacioDao espacioDao = EspacioDao();
@@ -33,8 +36,6 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
     setState(() {
       espacios = listaEspacios;
     });
-
-    // print("ejemplo de primer espacio: ${espacios[0].nombre}");
   }
 
   @override
@@ -63,62 +64,25 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   selected: true,
                   onSelected: (bool value) {},
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 ...espacios.map((espacio) {
                   return FilterChip(
                     label: Text(espacio),
                     selected: false,
-                    onSelected: (bool selected) {
-                      /*setState(() {
-                          if (selected) {
-                            selectedUsuarios.add(usuario);
-                          } else {
-                            selectedUsuarios.remove(usuario);
-                          }
-                        });*/
-                    },
-                    //   avatar: CircleAvatar(child: Text(usuario.nombre[0])),
+                    onSelected: (bool selected) {},
                   );
-                  SizedBox(width: 8);
                 }),
               ],
             ),
           ),
-
-          /*Wrap(
-            spacing: 8.0,
-            children: [
-              FilterChip(
-                label: const Text('TODO'),
-                selected: true,
-                onSelected: (bool value) {},
-              ),
-              ...espacios.map((espacio) {
-                return FilterChip(
-                  label: Text(espacio),
-                  // selected: selectedUsuarios.contains(usuario),
-                  onSelected: (bool selected) {
-                    /*setState(() {
-                          if (selected) {
-                            selectedUsuarios.add(usuario);
-                          } else {
-                            selectedUsuarios.remove(usuario);
-                          }
-                        });*/
-                  },
-                  //   avatar: CircleAvatar(child: Text(usuario.nombre[0])),
-                );
-              }),
-            ],
-          ),*/
           Expanded(
             child: ListView.builder(
               itemCount: 10,
               itemBuilder: (context, index) {
                 return ListTile(
                   title: Text('Mesa ${index + 1}'),
-                  subtitle: Text('Estado: Libre'),
-                  trailing: Icon(Icons.arrow_forward),
+                  subtitle: const Text('Estado: Libre'),
+                  trailing: const Icon(Icons.arrow_forward),
                   onTap: () {
                     // Navegar a la pantalla de detalles de la mesa
                   },
@@ -128,6 +92,45 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _mostrarMenuOpciones(context),
+        child: const Icon(Icons.add),
+      ),
     );
+  }
+
+  void _mostrarMenuOpciones(BuildContext context) {
+    AddOptionsBottomSheet.show(
+      context: context,
+      onAgregarMesa: () => _abrirFormularioMesa(context),
+      onAgregarEspacio: () => _abrirFormularioEspacio(context),
+    );
+  }
+
+  Future<void> _abrirFormularioEspacio(BuildContext context) async {
+    final resultado = await showDialog<EspacioFormResult>(
+      context: context,
+      builder: (_) => const EspacioFormDialog(),
+    );
+
+    if (resultado == null) return;
+
+    setState(() {
+      espacios.add(resultado.titulo);
+    });
+
+    // TODO: persistir resultado.identificacion y resultado.visibilidad
+    // cuando se integre con EspacioDao / SynchronizationApiService.
+  }
+
+  Future<void> _abrirFormularioMesa(BuildContext context) async {
+    final resultado = await showDialog<MesaFormResult>(
+      context: context,
+      builder: (_) => MesaFormDialog(espaciosDisponibles: espacios),
+    );
+
+    if (resultado == null) return;
+
+    // TODO: persistir la nueva mesa cuando exista el modelo/DAO de Mesa.
   }
 }
