@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-/*import 'package:punto_venta/data/local/dao/espacio_dao.dart';
-import 'package:punto_venta/data/local/db_helper.dart';
-import 'package:punto_venta/data/models/espacio_model.dart';
-import 'package:punto_venta/data/models/synchronization/synchronization_response.dart';
-import 'package:punto_venta/data/remote/synchronization/synchronization_api_service.dart';
-import 'package:punto_venta/presentation/pages/alta_espacios/alta_espacios_screen.dart';
-import 'package:punto_venta/presentation/pages/pruebas_screen.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';*/
 
+import '../../../application/commands/crear_espacio_command.dart';
+import '../../../application/commands/espacio_command_service.dart';
+import '../../../core/di/injection.dart';
+import '../../../domain/espacios/espacio.dart';
+import '../../../domain/repositories/espacio_repository.dart';
 import 'models/espacio_form_result.dart';
-import 'models/mesa_form_result.dart';
 import 'widgets/add_options_bottom_sheet.dart';
 import 'widgets/espacio_form_dialog.dart';
-import 'widgets/mesa_form_dialog.dart';
 
 class TableManagementScreen extends StatefulWidget {
   const TableManagementScreen({super.key});
@@ -22,27 +17,11 @@ class TableManagementScreen extends StatefulWidget {
 }
 
 class _TableManagementScreenState extends State<TableManagementScreen> {
-  List<String> espacios = {'Bar', 'Terraza', 'Salón Principal'}.toList();
-  /*SynchronizationResponse? synchronizationResponse;
-  final SynchronizationApiService synchronizationApiService =
-      SynchronizationApiService();
+  final EspacioRepository _espacioRepository = getIt<EspacioRepository>();
+  final EspacioCommandService _espacioCommandService =
+      getIt<EspacioCommandService>();
 
-  Future<void> cargarEspacios() async {
-    EspacioDao espacioDao = EspacioDao();
-    List<Espacio> listaEspacios = await espacioDao.obtenerEspacios(
-      await DBHelper.database,
-    );
-
-    setState(() {
-      espacios = listaEspacios;
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    cargarEspacios();
-  }*/
+  Espacio? _espacioSeleccionado;
 
   @override
   Widget build(BuildContext context) {
@@ -55,41 +34,43 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
         children: [
           SizedBox(
             height: 50,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                FilterChip(
-                  label: const Text('TODO'),
-                  selected: true,
-                  onSelected: (bool value) {},
-                ),
-                const SizedBox(width: 8),
-                ...espacios.map((espacio) {
-                  return FilterChip(
-                    label: Text(espacio),
-                    selected: false,
-                    onSelected: (bool selected) {},
-                  );
-                }),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: 10,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text('Mesa ${index + 1}'),
-                  subtitle: const Text('Estado: Libre'),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {
-                    // Navegar a la pantalla de detalles de la mesa
-                  },
+            child: StreamBuilder<List<Espacio>>(
+              stream: _espacioRepository.watchEspacios(),
+              builder: (context, snapshot) {
+                final espaciosList = snapshot.data ?? [];
+                return ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    FilterChip(
+                      label: const Text('TODO'),
+                      selected: _espacioSeleccionado == null,
+                      onSelected: (bool value) {
+                        setState(() => _espacioSeleccionado = null);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ...espaciosList.map((espacio) {
+                      final isSelected = _espacioSeleccionado?.id == espacio.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(espacio.nombre),
+                          selected: isSelected,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              _espacioSeleccionado = selected ? espacio : null;
+                            });
+                          },
+                        ),
+                      );
+                    }),
+                  ],
                 );
               },
             ),
           ),
+          const Expanded(child: SizedBox.shrink()),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -102,7 +83,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   void _mostrarMenuOpciones(BuildContext context) {
     AddOptionsBottomSheet.show(
       context: context,
-      onAgregarMesa: () => _abrirFormularioMesa(context),
+      onAgregarMesa: () {},
       onAgregarEspacio: () => _abrirFormularioEspacio(context),
     );
   }
@@ -115,22 +96,14 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
 
     if (resultado == null) return;
 
-    setState(() {
-      espacios.add(resultado.titulo);
-    });
-
-    // TODO: persistir resultado.identificacion y resultado.visibilidad
-    // cuando se integre con EspacioDao / SynchronizationApiService.
-  }
-
-  Future<void> _abrirFormularioMesa(BuildContext context) async {
-    final resultado = await showDialog<MesaFormResult>(
-      context: context,
-      builder: (_) => MesaFormDialog(espaciosDisponibles: espacios),
+    await _espacioCommandService.crearEspacio(
+      CrearEspacioCommand(
+        nombre: resultado.titulo,
+        identificacion: resultado.identificacion.isEmpty
+            ? null
+            : resultado.identificacion,
+        visibilidad: resultado.visibilidad,
+      ),
     );
-
-    if (resultado == null) return;
-
-    // TODO: persistir la nueva mesa cuando exista el modelo/DAO de Mesa.
   }
 }

@@ -1,0 +1,1 @@
+enum VisibilidadEspacio { sinRestriccion, soloRestringido }

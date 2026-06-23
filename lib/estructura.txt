@@ -1,0 +1,134 @@
+# Estructura actual del proyecto
+
+Referencia principal: flujo offline-first por eventos para `espacio_creado`.
+
+## Raiz
+
+AGENTS.md
+  Guia de alcance y convenciones para Codex en este proyecto.
+
+docs/
+  architecture/
+    offline_feature_flow.md
+      Explica el patron offline-first usado por `espacio_creado`.
+  templates/
+    new_offline_feature_checklist.md
+      Checklist para implementar nuevos agregados con el mismo patron.
+
+pubspec.yaml
+  Dependencias principales del proyecto Flutter.
+
+pubspec.lock
+  Versiones resueltas de las dependencias.
+
+ios/
+windows/
+  Configuracion de plataforma y archivos generados por plugins Flutter.
+
+## lib/
+
+main.dart
+  Inicializa Flutter, registra dependencias y monta `MainApp`.
+
+core/
+  di/
+    injection.dart
+      Registra AppDatabase, DAOs, repositories, handlers, EventProcessor y command services.
+
+domain/
+  espacios/
+    espacio.dart
+      Modelo de dominio para un espacio.
+    visibilidad_espacio.dart
+      Enum de negocio para visibilidad del espacio.
+  repositories/
+    espacio_repository.dart
+      Contrato de lectura para espacios.
+
+application/
+  commands/
+    crear_espacio_command.dart
+      Intencion de aplicacion para crear un espacio.
+    espacio_command_service.dart
+      Crea el evento local, guarda `events` y `event_refs`, y aplica el evento.
+    local_command_context.dart
+      Contexto local temporal con deviceId y userId.
+  sync/
+    event_processor.dart
+      Despacha eventos a handlers segun `eventType`.
+    models/
+      sync_event.dart
+        Modelo de evento local serializable.
+    handlers/
+      espacio_event_handler.dart
+        Aplica `espacio_creado` de forma idempotente sobre la proyeccion local.
+
+data/
+  local/
+    drift/
+      app_database.dart
+        Define AppDatabase, tablas, DAOs y conexion SQLite local.
+      app_database.g.dart
+        Codigo generado por Drift.
+      tables/
+        common_fields.dart
+          Campos comunes de trazabilidad y sincronizacion.
+        espacios.dart
+          Tabla local/proyeccion de espacios.
+        events.dart
+          Bitacora local de eventos.
+        event_refs.dart
+          Referencias de eventos para validacion/sincronizacion futura.
+      daos/
+        espacio_dao.dart
+          Lectura reactiva e insercion/actualizacion de espacios.
+        event_dao.dart
+          Persistencia y consulta de eventos pendientes.
+        event_ref_dao.dart
+          Persistencia y consulta de referencias de eventos.
+  repositories/
+    espacio_repository_impl.dart
+      Adapta filas Drift a modelos de dominio.
+
+presentation/
+  pages/
+    gestion_mesa/
+      table_management.dart
+        Pantalla de gestion; observa espacios y dispara `CrearEspacioCommand`.
+      models/
+        espacio_form_result.dart
+          Resultado del formulario de espacio.
+      widgets/
+        add_options_bottom_sheet.dart
+          Menu para acciones de administracion.
+        espacio_form_dialog.dart
+          Dialogo para capturar datos del espacio.
+    pantalla_principal/
+      home_screen.dart
+        Shell principal de la app.
+      menu_lateral.dart
+        Menu lateral de navegacion.
+  widgets/
+    dialogs/
+      labeled_underline_field.dart
+        Campo reutilizable de formularios.
+      management_dialog_header.dart
+        Encabezado reutilizable para dialogos de administracion.
+
+## Flujo implementado
+
+presentation
+  -> application/commands
+  -> crea SyncEvent
+  -> guarda events y event_refs
+  -> application/sync/EventProcessor.apply(event)
+  -> handler idempotente
+  -> tabla local/proyeccion Drift
+  -> repository mapea Drift a dominio
+  -> presentation observa repository
+
+## Alcance actual
+
+- El flujo completo implementado es `espacio_creado`.
+- `Agregar mesa` existe visualmente, pero no tiene flujo funcional.
+- No hay sincronizacion remota, push, pull, websocket ni servidor en este flujo.

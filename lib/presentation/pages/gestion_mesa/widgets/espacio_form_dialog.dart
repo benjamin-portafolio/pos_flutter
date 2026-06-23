@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../domain/espacios/visibilidad_espacio.dart';
 import '../../../widgets/dialogs/labeled_underline_field.dart';
 import '../../../widgets/dialogs/management_dialog_header.dart';
 import '../models/espacio_form_result.dart';
