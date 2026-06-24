@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
+import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,11 +13,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 2;
 
   final List<Widget> _screens = [
-    Center(child: Text('Informes')),
-    Center(child: Text('Hoy')),
-    // CajaScreen(),
-    Center(child: Text('Artículos')),
-    Center(child: Text('Más')),
+    const Center(child: Text('Informes')),
+    const Center(child: Text('Hoy')),
+    const Center(child: Text('Caja abierta')),
+    const Center(child: Text('Artículos')),
+    const SyncSettingsScreen(),
   ];
 
   void _onTabTapped(int index) {
