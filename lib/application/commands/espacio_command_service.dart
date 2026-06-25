@@ -5,6 +5,7 @@ import 'crear_espacio_command.dart';
 import 'local_command_context.dart';
 import '../sync/event_processor.dart';
 import '../sync/models/sync_event.dart';
+import '../sync/sync_push_service.dart';
 import '../../data/local/drift/app_database.dart';
 
 class EspacioCommandService {
@@ -14,17 +15,20 @@ class EspacioCommandService {
     required EventRefDao eventRefDao,
     required EventProcessor eventProcessor,
     required LocalCommandContext commandContext,
+    required SyncPushService syncPushService,
   }) : _db = db,
        _eventDao = eventDao,
        _eventRefDao = eventRefDao,
        _eventProcessor = eventProcessor,
-       _commandContext = commandContext;
+       _commandContext = commandContext,
+       _syncPushService = syncPushService;
 
   final AppDatabase _db;
   final EventDao _eventDao;
   final EventRefDao _eventRefDao;
   final EventProcessor _eventProcessor;
   final LocalCommandContext _commandContext;
+  final SyncPushService _syncPushService;
   final Uuid _uuid = const Uuid();
 
   Future<void> crearEspacio(CrearEspacioCommand command) async {
@@ -36,6 +40,7 @@ class EspacioCommandService {
       eventType: 'espacio_creado',
       deviceId: _commandContext.deviceId,
       userId: _commandContext.userId,
+      baseVersion: 1,
       createdAtLocal: DateTime.now(),
       payload: {
         'nombre': command.nombre,
@@ -43,9 +48,10 @@ class EspacioCommandService {
         'visibilidad': command.visibilidad.index,
       },
     );
+    late final SyncEvent eventToPush;
 
     await _db.transaction(() async {
-      await _eventDao.insertarEvento(
+      final localSequence = await _eventDao.insertarEvento(
         EventsCompanion.insert(
           eventId: event.eventId,
           aggregateType: event.aggregateType,
@@ -55,9 +61,11 @@ class EspacioCommandService {
           userId: event.userId,
           createdAtLocal: event.createdAtLocal,
           payload: event.payloadJson,
+          baseVersion: Value(event.baseVersion),
           syncStatus: Value(event.syncStatus),
         ),
       );
+      eventToPush = event.withLocalSequence(localSequence);
 
       await _eventRefDao.insertarReferencias([
         EventRefsCompanion.insert(
@@ -83,6 +91,10 @@ class EspacioCommandService {
       await _eventProcessor.apply(event);
     });
 
-    // TODO(sync): request push when remote synchronization is implemented.
+    try {
+      await _syncPushService.pushEvent(eventToPush);
+    } on SyncPushException {
+      // Offline-first: el evento queda pendiente para enviarse despues.
+    }
   }
 }

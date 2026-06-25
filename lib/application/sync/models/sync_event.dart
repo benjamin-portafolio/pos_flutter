@@ -35,6 +35,41 @@ class SyncEvent {
 
   String get payloadJson => jsonEncode(payload);
 
+  SyncEvent withLocalSequence(int value) {
+    return SyncEvent(
+      eventId: eventId,
+      aggregateType: aggregateType,
+      aggregateId: aggregateId,
+      eventType: eventType,
+      deviceId: deviceId,
+      userId: userId,
+      localSequence: value,
+      serverSequence: serverSequence,
+      baseServerSequence: baseServerSequence,
+      baseVersion: baseVersion,
+      createdAtLocal: createdAtLocal,
+      createdAtServer: createdAtServer,
+      payload: payload,
+      syncStatus: syncStatus,
+    );
+  }
+
+  Map<String, Object?> toPushJson() {
+    return {
+      'event_id': eventId,
+      'aggregate_type': aggregateType,
+      'aggregate_id': aggregateId,
+      'event_type': eventType,
+      'device_id': deviceId,
+      'user_id': userId,
+      'local_sequence': localSequence,
+      'base_server_sequence': baseServerSequence,
+      'base_version': baseVersion,
+      'created_at_local': createdAtLocal.toUtc().toIso8601String(),
+      'payload': payload,
+    };
+  }
+
   factory SyncEvent.fromJson(Map<String, Object?> json) {
     return SyncEvent(
       eventId: json['event_id']! as String,

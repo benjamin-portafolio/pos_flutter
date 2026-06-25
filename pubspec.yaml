@@ -15,6 +15,7 @@ dependencies:
   path: ^1.8.3
   uuid: ^4.3.3
   get_it: ^7.6.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
