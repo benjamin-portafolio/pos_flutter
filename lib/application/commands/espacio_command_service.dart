@@ -6,6 +6,7 @@ import 'local_command_context.dart';
 import '../sync/event_processor.dart';
 import '../sync/models/sync_event.dart';
 import '../../data/local/drift/app_database.dart';
+import '../../domain/espacios/visibilidad_espacio.dart';
 
 class EspacioCommandService {
   EspacioCommandService({
@@ -41,7 +42,7 @@ class EspacioCommandService {
       payload: {
         'nombre': command.nombre,
         'identificacion': command.identificacion,
-        'visibilidad': command.visibilidad.index,
+        'visibilidad': command.visibilidad.eventValue,
       },
     );
     await _db.transaction(() async {

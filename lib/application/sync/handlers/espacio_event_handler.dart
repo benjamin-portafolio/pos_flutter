@@ -27,7 +27,7 @@ class EspacioEventHandler {
         id: event.aggregateId,
         nombre: payload['nombre']! as String,
         identificacion: Value(payload['identificacion'] as String?),
-        visibilidad: VisibilidadEspacio.values[payload['visibilidad']! as int],
+        visibilidad: visibilidadEspacioFromEventValue(payload['visibilidad']),
         active: const Value(true),
         version: Value(event.baseVersion ?? 1),
         createdEventId: Value(event.eventId),

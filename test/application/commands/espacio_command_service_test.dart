@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/crear_espacio_command.dart';
@@ -52,10 +54,15 @@ void main() {
     expect(espacios, hasLength(1));
     expect(espacios.single.nombre, 'Terraza');
     expect(espacios.single.identificacion, 'terraza');
+    expect(espacios.single.visibilidad, VisibilidadEspacio.sinRestriccion);
 
     expect(events, hasLength(1));
     expect(events.single.eventType, 'espacio_creado');
     expect(events.single.syncStatus, 'pending');
+    expect(
+      jsonDecode(events.single.payload),
+      containsPair('visibilidad', 'sin_restriccion'),
+    );
 
     expect(
       refs.map((ref) => ref.refType),
