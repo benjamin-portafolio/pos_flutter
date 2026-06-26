@@ -23,10 +23,6 @@ class SyncPushService {
   final LocalCommandContext _commandContext;
   final http.Client _client;
 
-  Future<SyncPushReport> pushEvent(SyncEvent event) {
-    return _pushEvents([event]);
-  }
-
   Future<SyncPushReport> pushPendingEvents() async {
     final records = await _eventDao.obtenerEventosPendientes();
     final events = records.map(_eventFromRecord).toList();

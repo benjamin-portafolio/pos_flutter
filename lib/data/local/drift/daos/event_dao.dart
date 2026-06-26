@@ -18,6 +18,14 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
         .get();
   }
 
+  /// Observa la cola local de eventos pendientes de sincronización.
+  Stream<List<EventRecord>> watchEventosPendientes() {
+    return (select(events)
+          ..where((t) => t.syncStatus.equals('pending'))
+          ..orderBy([(t) => OrderingTerm(expression: t.localSequence)]))
+        .watch();
+  }
+
   /// Actualiza el estado de sincronización de un evento específico.
   Future<int> actualizarEstadoSincronizacion(
     String eventId,

@@ -56,6 +56,14 @@ application/
   sync/
     event_processor.dart
       Despacha eventos a handlers segun `eventType`.
+    sync_endpoint_config.dart
+      Configura y normaliza la URL del servidor de sincronizacion.
+    sync_orchestrator.dart
+      Orquesta el envio manual/automatico de pendientes y el listener realtime.
+    sync_push_service.dart
+      Envia eventos pendientes al servidor y actualiza su estado local.
+    sync_socket_listener.dart
+      Mantiene el websocket para avisos realtime de sincronizacion.
     models/
       sync_event.dart
         Modelo de evento local serializable.
@@ -108,6 +116,8 @@ presentation/
         Shell principal de la app.
       menu_lateral.dart
         Menu lateral de navegacion.
+      sync_settings_screen.dart
+        Pantalla para configurar servidor, probar conexion y enviar pendientes.
   widgets/
     dialogs/
       labeled_underline_field.dart
@@ -131,4 +141,6 @@ presentation
 
 - El flujo completo implementado es `espacio_creado`.
 - `Agregar mesa` existe visualmente, pero no tiene flujo funcional.
-- No hay sincronizacion remota, push, pull, websocket ni servidor en este flujo.
+- El comando de `espacio_creado` guarda y aplica el evento localmente.
+- La sincronizacion remota esta separada en `SyncOrchestrator` y actualmente se inicia automaticamente al arrancar la app.
+- Hay envio de pendientes por HTTP push y listener websocket; no hay pull completo implementado.

@@ -45,6 +45,14 @@ presentation
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.
 
+## Limpieza posterior a cambios
+
+- Despues de cada cambio, revisar si quedaron imports, metodos, clases, archivos, dependencias o helpers sin uso.
+- Eliminar codigo muerto o estructura futura que no tenga un proposito actual.
+- No dejar placeholders ni extensiones pendientes salvo que el usuario lo pida explicitamente.
+- Si se conserva algo sin uso directo porque fue solicitado como estructura pendiente, mencionarlo en la respuesta final.
+- Usar `dart analyze` y busquedas con `rg` cuando ayuden a confirmar que no quedan referencias rotas o piezas sin usar.
+
 ## Verificacion minima
 
 Despues de cambios de tablas Drift:

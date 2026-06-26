@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   setupDependencyInjection();
+  getIt<SyncOrchestrator>()
+    ..startAutoPush()
+    ..startRealtimeListener();
   runApp(const MainApp());
 }
 

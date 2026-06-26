@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../application/sync/sync_endpoint_config.dart';
-import '../../../application/sync/sync_push_service.dart';
+import '../../../application/sync/sync_orchestrator.dart';
+import '../../../application/sync/sync_push_service.dart'
+    show SyncPushException, SyncPushReport;
 import '../../../core/di/injection.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
@@ -14,7 +16,7 @@ class SyncSettingsScreen extends StatefulWidget {
 class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final SyncEndpointConfig _endpointConfig;
-  late final SyncPushService _syncPushService;
+  late final SyncOrchestrator _syncOrchestrator;
   late final TextEditingController _serverController;
 
   bool _isSyncing = false;
@@ -24,7 +26,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   void initState() {
     super.initState();
     _endpointConfig = getIt<SyncEndpointConfig>();
-    _syncPushService = getIt<SyncPushService>();
+    _syncOrchestrator = getIt<SyncOrchestrator>();
     _serverController = TextEditingController(text: _endpointConfig.baseUrl);
   }
 
@@ -120,7 +122,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     setState(() => _isTestingConnection = true);
 
     try {
-      final result = await _syncPushService.testConnection();
+      final result = await _syncOrchestrator.testConnection();
       if (!mounted) return;
 
       final message = result.isSuccessful
@@ -150,7 +152,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     });
 
     try {
-      final report = await _syncPushService.pushPendingEvents();
+      final report = await _syncOrchestrator.pushPendingEvents();
       if (!mounted) return;
 
       ScaffoldMessenger.of(
@@ -189,10 +191,16 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   bool _aplicarServidorActual() {
     if (!(_formKey.currentState?.validate() ?? false)) return false;
 
+    final previousBaseUrl = _endpointConfig.baseUrl;
+
     setState(() {
       _endpointConfig.updateFromInput(_serverController.text);
       _serverController.text = _endpointConfig.baseUrl;
     });
+
+    if (_endpointConfig.baseUrl != previousBaseUrl) {
+      _syncOrchestrator.reconnectRealtimeListenerIfActive();
+    }
 
     return true;
   }
