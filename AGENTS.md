@@ -45,6 +45,23 @@ presentation
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.
 
+## Validaciones por agregado
+
+En desarrollos offline-first similares a `crear espacio`, aplicar validaciones
+solo cuando correspondan al agregado solicitado.
+
+- En el command service, normalizar entradas antes de crear el `SyncEvent`:
+  - `trim` para textos.
+  - rechazar campos obligatorios vacios.
+  - convertir campos opcionales vacios a `null`.
+- En handlers, mantener idempotencia y proteger invariantes locales evidentes
+  del agregado, como identificadores unicos.
+- En Drift, usar constraints o indices locales solo para invariantes reales del
+  agregado.
+- Agregar tests enfocados para normalizacion, campos requeridos, duplicados e
+  idempotencia cuando esos casos apliquen.
+- No agregar validaciones especulativas ni reglas de negocio no solicitadas.
+
 ## Esquema Drift durante desarrollo
 
 - Hasta que el usuario indique lo contrario, cada cambio de esquema local debe

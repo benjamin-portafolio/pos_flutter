@@ -1,18 +1,18 @@
-import 'handlers/espacio_event_handler.dart';
+import 'event_handler.dart';
 import 'models/sync_event.dart';
 
 class EventProcessor {
-  EventProcessor({required EspacioEventHandler espacioEventHandler})
-    : _espacioEventHandler = espacioEventHandler;
+  EventProcessor({required Map<String, EventHandler> handlers})
+    : _handlers = Map.unmodifiable(handlers);
 
-  final EspacioEventHandler _espacioEventHandler;
+  final Map<String, EventHandler> _handlers;
 
   Future<void> apply(SyncEvent event) {
-    switch (event.eventType) {
-      case 'espacio_creado':
-        return _espacioEventHandler.applyEspacioCreado(event);
-      default:
-        throw UnsupportedError('Evento no soportado: ${event.eventType}');
+    final handler = _handlers[event.eventType];
+    if (handler == null) {
+      throw UnsupportedError('Evento no soportado: ${event.eventType}');
     }
+
+    return handler(event);
   }
 }

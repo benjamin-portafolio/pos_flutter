@@ -4,6 +4,7 @@ import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
+import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_orchestrator.dart';
@@ -40,7 +41,9 @@ void setupDependencyInjection() {
     () => EspacioEventHandler(getIt<EspacioDao>()),
   );
   getIt.registerLazySingleton<EventProcessor>(
-    () => EventProcessor(espacioEventHandler: getIt<EspacioEventHandler>()),
+    () => EventProcessor(
+      handlers: espacioEventHandlers(getIt<EspacioEventHandler>()),
+    ),
   );
   getIt.registerLazySingleton<LocalEventStore>(
     () => DriftLocalEventStore(

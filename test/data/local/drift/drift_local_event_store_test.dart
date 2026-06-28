@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -25,7 +26,7 @@ void main() {
       eventDao: eventDao,
       eventRefDao: EventRefDao(db),
       eventProcessor: EventProcessor(
-        espacioEventHandler: EspacioEventHandler(espacioDao),
+        handlers: espacioEventHandlers(EspacioEventHandler(espacioDao)),
       ),
     );
   });
