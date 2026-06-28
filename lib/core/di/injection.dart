@@ -4,11 +4,13 @@ import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
+import '../../application/sync/local_event_store.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_orchestrator.dart';
 import '../../application/sync/sync_push_service.dart';
 import '../../application/sync/sync_socket_listener.dart';
 import '../../data/local/drift/app_database.dart';
+import '../../data/local/drift/drift_local_event_store.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
 import '../../domain/repositories/espacio_repository.dart';
 
@@ -40,6 +42,14 @@ void setupDependencyInjection() {
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(espacioEventHandler: getIt<EspacioEventHandler>()),
   );
+  getIt.registerLazySingleton<LocalEventStore>(
+    () => DriftLocalEventStore(
+      db: getIt<AppDatabase>(),
+      eventDao: getIt<EventDao>(),
+      eventRefDao: getIt<EventRefDao>(),
+      eventProcessor: getIt<EventProcessor>(),
+    ),
+  );
   getIt.registerLazySingleton<SyncPushService>(
     () => SyncPushService(
       eventDao: getIt<EventDao>(),
@@ -63,10 +73,7 @@ void setupDependencyInjection() {
 
   getIt.registerLazySingleton<EspacioCommandService>(
     () => EspacioCommandService(
-      db: getIt<AppDatabase>(),
-      eventDao: getIt<EventDao>(),
-      eventRefDao: getIt<EventRefDao>(),
-      eventProcessor: getIt<EventProcessor>(),
+      eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
     ),
   );

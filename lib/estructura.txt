@@ -50,12 +50,14 @@ application/
     crear_espacio_command.dart
       Intencion de aplicacion para crear un espacio.
     espacio_command_service.dart
-      Crea el evento local, guarda `events` y `event_refs`, y aplica el evento.
+      Crea el evento local y declara sus referencias de negocio.
     local_command_context.dart
       Contexto local temporal con deviceId y userId.
   sync/
     event_processor.dart
       Despacha eventos a handlers segun `eventType`.
+    local_event_store.dart
+      Puerto para guardar eventos locales, referencias y aplicar el evento.
     sync_endpoint_config.dart
       Configura y normaliza la URL del servidor de sincronizacion.
     sync_orchestrator.dart
@@ -94,6 +96,8 @@ data/
           Persistencia y consulta de eventos pendientes.
         event_ref_dao.dart
           Persistencia y consulta de referencias de eventos.
+      drift_local_event_store.dart
+        Implementacion Drift de LocalEventStore; oculta Companion y transacciones.
   repositories/
     espacio_repository_impl.dart
       Adapta filas Drift a modelos de dominio.
@@ -130,7 +134,8 @@ presentation/
 presentation
   -> application/commands
   -> crea SyncEvent
-  -> guarda events y event_refs
+  -> application/sync/LocalEventStore
+  -> data/local/drift guarda events y event_refs
   -> application/sync/EventProcessor.apply(event)
   -> handler idempotente
   -> tabla local/proyeccion Drift

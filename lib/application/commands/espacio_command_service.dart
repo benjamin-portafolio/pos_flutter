@@ -1,35 +1,25 @@
-import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import 'crear_espacio_command.dart';
 import 'local_command_context.dart';
-import '../sync/event_processor.dart';
+import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
-import '../../data/local/drift/app_database.dart';
 import '../../domain/espacios/visibilidad_espacio.dart';
 
 class EspacioCommandService {
   EspacioCommandService({
-    required AppDatabase db,
-    required EventDao eventDao,
-    required EventRefDao eventRefDao,
-    required EventProcessor eventProcessor,
+    required LocalEventStore eventStore,
     required LocalCommandContext commandContext,
-  }) : _db = db,
-       _eventDao = eventDao,
-       _eventRefDao = eventRefDao,
-       _eventProcessor = eventProcessor,
+  }) : _eventStore = eventStore,
        _commandContext = commandContext;
 
-  final AppDatabase _db;
-  final EventDao _eventDao;
-  final EventRefDao _eventRefDao;
-  final EventProcessor _eventProcessor;
+  final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final Uuid _uuid = const Uuid();
 
   Future<void> crearEspacio(CrearEspacioCommand command) async {
     final espacioId = _uuid.v4();
+    final identificacion = command.identificacion;
     final event = SyncEvent(
       eventId: _uuid.v4(),
       aggregateType: 'espacio',
@@ -41,48 +31,21 @@ class EspacioCommandService {
       createdAtLocal: DateTime.now(),
       payload: {
         'nombre': command.nombre,
-        'identificacion': command.identificacion,
+        'identificacion': identificacion,
         'visibilidad': command.visibilidad.eventValue,
       },
     );
-    await _db.transaction(() async {
-      await _eventDao.insertarEvento(
-        EventsCompanion.insert(
-          eventId: event.eventId,
-          aggregateType: event.aggregateType,
-          aggregateId: event.aggregateId,
-          eventType: event.eventType,
-          deviceId: event.deviceId,
-          userId: event.userId,
-          createdAtLocal: event.createdAtLocal,
-          payload: event.payloadJson,
-          baseVersion: Value(event.baseVersion),
-          syncStatus: Value(event.syncStatus),
-        ),
-      );
 
-      await _eventRefDao.insertarReferencias([
-        EventRefsCompanion.insert(
-          eventRefId: _uuid.v4(),
-          eventId: event.eventId,
-          refType: 'espacio',
-          refId: event.aggregateId,
-          relationship: 'affects',
-          source: 'local_pending',
-        ),
-        if (command.identificacion != null &&
-            command.identificacion!.isNotEmpty)
-          EventRefsCompanion.insert(
-            eventRefId: _uuid.v4(),
-            eventId: event.eventId,
+    await _eventStore.appendAndApply(
+      event,
+      refs: [
+        LocalEventRef.affects(refType: 'espacio', refId: event.aggregateId),
+        if (identificacion != null && identificacion.isNotEmpty)
+          LocalEventRef.requiresUnique(
             refType: 'espacio_identificacion',
-            refId: command.identificacion!,
-            relationship: 'requires_unique',
-            source: 'local_pending',
+            refId: identificacion,
           ),
-      ]);
-
-      await _eventProcessor.apply(event);
-    });
+      ],
+    );
   }
 }

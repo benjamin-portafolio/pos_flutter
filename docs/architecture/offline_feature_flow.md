@@ -14,6 +14,7 @@ UI
   -> Command de application
   -> CommandService
   -> crear SyncEvent
+  -> LocalEventStore.appendAndApply(event, refs)
   -> guardar events con sync_status = pending
   -> guardar event_refs
   -> EventProcessor.apply(event)
@@ -41,13 +42,14 @@ UI
 `application/commands`
 
 - Convierte una intencion de negocio en uno o mas eventos.
-- Guarda el evento y sus referencias dentro de una transaccion.
-- Aplica el evento localmente despues de guardarlo.
+- Declara las referencias de negocio que necesita el evento.
+- Delega el guardado transaccional y la aplicacion local a `LocalEventStore`.
 - Usa `LocalCommandContext` para `deviceId` y `userId`.
 
 `application/sync`
 
 - Contiene `SyncEvent`.
+- Contiene el puerto `LocalEventStore` y el modelo `LocalEventRef`.
 - Contiene `EventProcessor`.
 - Contiene handlers que aplican eventos a proyecciones locales.
 - Los handlers deben ser idempotentes.
@@ -55,6 +57,8 @@ UI
 `data/local/drift`
 
 - Define tablas, DAOs, migraciones y base local.
+- Implementa `LocalEventStore` ocultando `EventsCompanion`, `EventRefsCompanion`
+  y transacciones.
 - No debe contener logica de UI.
 
 `data/repositories`
@@ -70,8 +74,10 @@ lib/domain/espacios/visibilidad_espacio.dart
 lib/application/commands/crear_espacio_command.dart
 lib/application/commands/espacio_command_service.dart
 lib/application/sync/models/sync_event.dart
+lib/application/sync/local_event_store.dart
 lib/application/sync/event_processor.dart
 lib/application/sync/handlers/espacio_event_handler.dart
+lib/data/local/drift/drift_local_event_store.dart
 lib/data/local/drift/tables/espacios.dart
 lib/data/local/drift/tables/events.dart
 lib/data/local/drift/tables/event_refs.dart

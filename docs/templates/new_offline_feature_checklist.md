@@ -28,10 +28,9 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Crear `CrearXCommand` o comando equivalente.
 - [ ] Crear o extender `XCommandService`.
 - [ ] Crear `SyncEvent` con `event_id`, `aggregate_type`, `aggregate_id`, `event_type`, `device_id`, `user_id`, `created_at_local` y `payload`.
-- [ ] Insertar evento en `events` con `sync_status = pending`.
-- [ ] Insertar `event_refs`.
-- [ ] Aplicar el evento con `EventProcessor.apply(event)`.
-- [ ] Mantener todo lo anterior en una transaccion local.
+- [ ] Declarar `LocalEventRef` para el agregado principal y claves de negocio.
+- [ ] Llamar `LocalEventStore.appendAndApply(event, refs: ...)`.
+- [ ] Mantener `EventsCompanion`, `EventRefsCompanion` y transacciones fuera del command service.
 
 ## Sync local
 

@@ -1,32 +1,19 @@
-import 'dart:convert';
-
-import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/crear_espacio_command.dart';
 import 'package:pos_flutter/application/commands/espacio_command_service.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
-import 'package:pos_flutter/application/sync/event_processor.dart';
-import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
-import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/application/sync/local_event_store.dart';
+import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 
 void main() {
-  late AppDatabase db;
-  late EspacioDao espacioDao;
-  late EventDao eventDao;
+  late _CapturingLocalEventStore eventStore;
   late EspacioCommandService service;
 
   setUp(() {
-    db = AppDatabase.forTesting(NativeDatabase.memory());
-    espacioDao = EspacioDao(db);
-    eventDao = EventDao(db);
+    eventStore = _CapturingLocalEventStore();
     service = EspacioCommandService(
-      db: db,
-      eventDao: eventDao,
-      eventRefDao: EventRefDao(db),
-      eventProcessor: EventProcessor(
-        espacioEventHandler: EspacioEventHandler(espacioDao),
-      ),
+      eventStore: eventStore,
       commandContext: const LocalCommandContext(
         deviceId: 'test_device',
         userId: 'test_user',
@@ -34,11 +21,7 @@ void main() {
     );
   });
 
-  tearDown(() async {
-    await db.close();
-  });
-
-  test('crearEspacio guarda y aplica el evento solo localmente', () async {
+  test('crearEspacio crea el evento y sus referencias de negocio', () async {
     await service.crearEspacio(
       const CrearEspacioCommand(
         nombre: 'Terraza',
@@ -47,26 +30,58 @@ void main() {
       ),
     );
 
-    final espacios = await espacioDao.obtenerEspacios();
-    final events = await eventDao.obtenerEventosPendientes();
-    final refs = await db.select(db.eventRefs).get();
+    final event = eventStore.event!;
+    final refs = eventStore.refs;
 
-    expect(espacios, hasLength(1));
-    expect(espacios.single.nombre, 'Terraza');
-    expect(espacios.single.identificacion, 'terraza');
-    expect(espacios.single.visibilidad, VisibilidadEspacio.sinRestriccion);
+    expect(event.aggregateType, 'espacio');
+    expect(event.aggregateId, isNotEmpty);
+    expect(event.eventType, 'espacio_creado');
+    expect(event.deviceId, 'test_device');
+    expect(event.userId, 'test_user');
+    expect(event.baseVersion, 1);
+    expect(event.payload, {
+      'nombre': 'Terraza',
+      'identificacion': 'terraza',
+      'visibilidad': 'sin_restriccion',
+    });
 
-    expect(events, hasLength(1));
-    expect(events.single.eventType, 'espacio_creado');
-    expect(events.single.syncStatus, 'pending');
-    expect(
-      jsonDecode(events.single.payload),
-      containsPair('visibilidad', 'sin_restriccion'),
-    );
-
-    expect(
-      refs.map((ref) => ref.refType),
-      containsAll(['espacio', 'espacio_identificacion']),
-    );
+    expect(refs, hasLength(2));
+    expect(refs[0].refType, 'espacio');
+    expect(refs[0].refId, event.aggregateId);
+    expect(refs[0].relationship, 'affects');
+    expect(refs[1].refType, 'espacio_identificacion');
+    expect(refs[1].refId, 'terraza');
+    expect(refs[1].relationship, 'requires_unique');
   });
+
+  test(
+    'crearEspacio omite la referencia unica si no hay identificacion',
+    () async {
+      await service.crearEspacio(
+        const CrearEspacioCommand(
+          nombre: 'Salon',
+          identificacion: null,
+          visibilidad: VisibilidadEspacio.sinRestriccion,
+        ),
+      );
+
+      expect(eventStore.refs, hasLength(1));
+      expect(eventStore.refs.single.refType, 'espacio');
+      expect(eventStore.refs.single.relationship, 'affects');
+    },
+  );
+}
+
+class _CapturingLocalEventStore implements LocalEventStore {
+  SyncEvent? event;
+  List<LocalEventRef> refs = const [];
+
+  @override
+  Future<void> appendAndApply(
+    SyncEvent event, {
+    required List<LocalEventRef> refs,
+  }) async {
+    this.event = event;
+    this.refs = refs;
+  }
 }
