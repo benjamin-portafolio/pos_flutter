@@ -4,6 +4,11 @@ import '../../../../domain/espacios/visibilidad_espacio.dart';
 import 'common_fields.dart';
 
 /// Table definition for Espacios (Spaces) in the POS synchronization model.
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX idx_espacios_identificacion_unique '
+  'ON espacios (identificacion) '
+  "WHERE identificacion IS NOT NULL AND identificacion != ''",
+)
 @DataClassName('Espacio')
 class Espacios extends Table with CommonFields {
   @override

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
@@ -44,4 +45,104 @@ void main() {
     expect(espacio, isNotNull);
     expect(espacio!.visibilidad, VisibilidadEspacio.soloRestringido);
   });
+
+  test('applyEspacioCreado es idempotente para el mismo evento', () async {
+    final event = SyncEvent(
+      eventId: 'event_1',
+      aggregateType: 'espacio',
+      aggregateId: 'espacio_1',
+      eventType: 'espacio_creado',
+      deviceId: 'test_device',
+      userId: 'test_user',
+      baseVersion: 1,
+      createdAtLocal: DateTime(2026),
+      payload: const {
+        'nombre': 'Salon',
+        'identificacion': 'salon',
+        'visibilidad': 'sin_restriccion',
+      },
+    );
+
+    await handler.applyEspacioCreado(event);
+    await handler.applyEspacioCreado(event);
+
+    final espacios = await espacioDao.obtenerEspacios();
+
+    expect(espacios, hasLength(1));
+    expect(espacios.single.createdEventId, 'event_1');
+  });
+
+  test('applyEspacioCreado rechaza identificacion duplicada', () async {
+    await handler.applyEspacioCreado(
+      SyncEvent(
+        eventId: 'event_1',
+        aggregateType: 'espacio',
+        aggregateId: 'espacio_1',
+        eventType: 'espacio_creado',
+        deviceId: 'test_device',
+        userId: 'test_user',
+        baseVersion: 1,
+        createdAtLocal: DateTime(2026),
+        payload: const {
+          'nombre': 'Salon',
+          'identificacion': 'salon',
+          'visibilidad': 'sin_restriccion',
+        },
+      ),
+    );
+
+    await expectLater(
+      handler.applyEspacioCreado(
+        SyncEvent(
+          eventId: 'event_2',
+          aggregateType: 'espacio',
+          aggregateId: 'espacio_2',
+          eventType: 'espacio_creado',
+          deviceId: 'test_device',
+          userId: 'test_user',
+          baseVersion: 1,
+          createdAtLocal: DateTime(2026),
+          payload: const {
+            'nombre': 'Otro salon',
+            'identificacion': 'salon',
+            'visibilidad': 'sin_restriccion',
+          },
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final espacios = await espacioDao.obtenerEspacios();
+
+    expect(espacios, hasLength(1));
+    expect(espacios.single.id, 'espacio_1');
+  });
+
+  test(
+    'espacios protege identificaciones duplicadas con indice local',
+    () async {
+      await espacioDao.insertarEspacio(
+        EspaciosCompanion.insert(
+          id: 'espacio_1',
+          nombre: 'Salon',
+          identificacion: const Value('salon'),
+          visibilidad: VisibilidadEspacio.sinRestriccion,
+          createdEventId: const Value('event_1'),
+        ),
+      );
+
+      await expectLater(
+        espacioDao.insertarEspacio(
+          EspaciosCompanion.insert(
+            id: 'espacio_2',
+            nombre: 'Otro salon',
+            identificacion: const Value('salon'),
+            visibilidad: VisibilidadEspacio.sinRestriccion,
+            createdEventId: const Value('event_2'),
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    },
+  );
 }

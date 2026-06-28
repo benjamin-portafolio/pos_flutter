@@ -21,7 +21,8 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Crear o modificar tabla Drift en `data/local/drift/tables`.
 - [ ] Crear o modificar DAO en `data/local/drift/daos`.
 - [ ] Registrar tabla y DAO en `AppDatabase`.
-- [ ] Agregar migracion si cambia el esquema.
+- [ ] No agregar migracion `onUpgrade` ni subir `schemaVersion` por defecto.
+- [ ] Asumir reinicio de base local con `_resetDatabaseOnStartup` hasta que el usuario indique lo contrario.
 
 ## Aplicacion
 

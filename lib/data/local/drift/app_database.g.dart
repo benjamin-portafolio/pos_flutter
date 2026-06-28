@@ -1991,6 +1991,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EspaciosTable espacios = $EspaciosTable(this);
   late final $EventsTable events = $EventsTable(this);
   late final $EventRefsTable eventRefs = $EventRefsTable(this);
+  late final Index idxEspaciosIdentificacionUnique = Index(
+    'idx_espacios_identificacion_unique',
+    'CREATE UNIQUE INDEX idx_espacios_identificacion_unique ON espacios (identificacion) WHERE identificacion IS NOT NULL AND identificacion != \'\'',
+  );
   late final EspacioDao espacioDao = EspacioDao(this as AppDatabase);
   late final EventDao eventDao = EventDao(this as AppDatabase);
   late final EventRefDao eventRefDao = EventRefDao(this as AppDatabase);
@@ -2002,6 +2006,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     espacios,
     events,
     eventRefs,
+    idxEspaciosIdentificacionUnique,
   ];
 }
 

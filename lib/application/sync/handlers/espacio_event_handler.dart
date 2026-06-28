@@ -11,6 +11,7 @@ class EspacioEventHandler {
 
   Future<void> applyEspacioCreado(SyncEvent event) async {
     final payload = event.payload;
+    final identificacion = payload['identificacion'] as String?;
     final existing = await _espacioDao.obtenerEspacioPorId(event.aggregateId);
 
     if (existing != null) {
@@ -22,11 +23,23 @@ class EspacioEventHandler {
       );
     }
 
+    if (identificacion != null && identificacion.isNotEmpty) {
+      final existingByIdentificacion = await _espacioDao
+          .obtenerEspacioPorIdentificacion(identificacion);
+
+      if (existingByIdentificacion != null) {
+        throw StateError(
+          'No se puede aplicar espacio_creado con identificacion duplicada: '
+          '$identificacion',
+        );
+      }
+    }
+
     await _espacioDao.insertarEspacio(
       EspaciosCompanion.insert(
         id: event.aggregateId,
         nombre: payload['nombre']! as String,
-        identificacion: Value(payload['identificacion'] as String?),
+        identificacion: Value(identificacion),
         visibilidad: visibilidadEspacioFromEventValue(payload['visibilidad']),
         active: const Value(true),
         version: Value(event.baseVersion ?? 1),

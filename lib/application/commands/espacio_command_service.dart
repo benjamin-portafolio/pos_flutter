@@ -18,8 +18,9 @@ class EspacioCommandService {
   final Uuid _uuid = const Uuid();
 
   Future<void> crearEspacio(CrearEspacioCommand command) async {
+    final nombre = _requiredText(command.nombre, 'command.nombre');
+    final identificacion = _optionalText(command.identificacion);
     final espacioId = _uuid.v4();
-    final identificacion = command.identificacion;
     final event = SyncEvent(
       eventId: _uuid.v4(),
       aggregateType: 'espacio',
@@ -30,7 +31,7 @@ class EspacioCommandService {
       baseVersion: 1,
       createdAtLocal: DateTime.now(),
       payload: {
-        'nombre': command.nombre,
+        'nombre': nombre,
         'identificacion': identificacion,
         'visibilidad': command.visibilidad.eventValue,
       },
@@ -47,5 +48,19 @@ class EspacioCommandService {
           ),
       ],
     );
+  }
+
+  String _requiredText(String value, String name) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(value, name, 'Debe tener contenido.');
+    }
+    return normalized;
+  }
+
+  String? _optionalText(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    return normalized;
   }
 }

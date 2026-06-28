@@ -25,6 +25,12 @@ class EspacioDao extends DatabaseAccessor<AppDatabase> with _$EspacioDaoMixin {
     return (select(espacios)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  Future<Espacio?> obtenerEspacioPorIdentificacion(String identificacion) {
+    return (select(
+      espacios,
+    )..where((t) => t.identificacion.equals(identificacion))).getSingleOrNull();
+  }
+
   /// Inserta un nuevo espacio en la base de datos.
   Future<int> insertarEspacio(EspaciosCompanion entity) {
     return into(espacios).insert(entity);

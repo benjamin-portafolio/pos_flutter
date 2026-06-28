@@ -56,7 +56,10 @@ UI
 
 `data/local/drift`
 
-- Define tablas, DAOs, migraciones y base local.
+- Define tablas, DAOs y base local.
+- Durante desarrollo, los cambios de esquema local reinician la base con
+  `_resetDatabaseOnStartup`; no agregar migraciones `onUpgrade` ni subir
+  `schemaVersion` salvo que el usuario lo pida.
 - Implementa `LocalEventStore` ocultando `EventsCompanion`, `EventRefsCompanion`
   y transacciones.
 - No debe contener logica de UI.

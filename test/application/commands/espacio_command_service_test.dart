@@ -24,8 +24,8 @@ void main() {
   test('crearEspacio crea el evento y sus referencias de negocio', () async {
     await service.crearEspacio(
       const CrearEspacioCommand(
-        nombre: 'Terraza',
-        identificacion: 'terraza',
+        nombre: ' Terraza ',
+        identificacion: ' terraza ',
         visibilidad: VisibilidadEspacio.sinRestriccion,
       ),
     );
@@ -55,12 +55,12 @@ void main() {
   });
 
   test(
-    'crearEspacio omite la referencia unica si no hay identificacion',
+    'crearEspacio omite la referencia unica si no hay identificacion valida',
     () async {
       await service.crearEspacio(
         const CrearEspacioCommand(
           nombre: 'Salon',
-          identificacion: null,
+          identificacion: '   ',
           visibilidad: VisibilidadEspacio.sinRestriccion,
         ),
       );
@@ -70,6 +70,22 @@ void main() {
       expect(eventStore.refs.single.relationship, 'affects');
     },
   );
+
+  test('crearEspacio rechaza nombres sin contenido', () async {
+    await expectLater(
+      service.crearEspacio(
+        const CrearEspacioCommand(
+          nombre: '   ',
+          identificacion: 'salon',
+          visibilidad: VisibilidadEspacio.sinRestriccion,
+        ),
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    expect(eventStore.event, isNull);
+    expect(eventStore.refs, isEmpty);
+  });
 }
 
 class _CapturingLocalEventStore implements LocalEventStore {

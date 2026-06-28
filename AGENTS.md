@@ -45,6 +45,17 @@ presentation
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.
 
+## Esquema Drift durante desarrollo
+
+- Hasta que el usuario indique lo contrario, cada cambio de esquema local debe
+  asumir reinicio de base de datos y perdida de datos locales.
+- No agregar migraciones `onUpgrade` ni subir `schemaVersion` para cada cambio
+  de esquema local.
+- Mantener `schemaVersion` fijo aunque Drift lo requiera.
+- Usar `_resetDatabaseOnStartup` para recrear la base con el esquema actual.
+- Despues de cambios en tablas Drift, ejecutar `dart run build_runner build`
+  para regenerar el esquema.
+
 ## Limpieza posterior a cambios
 
 - Despues de cada cambio, revisar si quedaron imports, metodos, clases, archivos, dependencias o helpers sin uso.
