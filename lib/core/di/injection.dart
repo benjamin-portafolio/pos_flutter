@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
+import '../../application/identity/device_identity_provider.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
@@ -13,16 +14,21 @@ import '../../application/sync/sync_push_service.dart';
 import '../../application/sync/sync_socket_listener.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_local_event_store.dart';
+import '../../data/local/identity/device_identity_file_store.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
 import '../../domain/repositories/espacio_repository.dart';
 
 final getIt = GetIt.instance;
 
-void setupDependencyInjection() {
+Future<void> setupDependencyInjection() async {
   final database = AppDatabase();
+  final deviceIdentityProvider = DeviceIdentityFileStore();
+  final deviceId = await deviceIdentityProvider.getDeviceId();
+
   getIt.registerSingleton<AppDatabase>(database);
+  getIt.registerSingleton<DeviceIdentityProvider>(deviceIdentityProvider);
   getIt.registerSingleton<LocalCommandContext>(
-    const LocalCommandContext(deviceId: 'device_iphone', userId: 'user_active'),
+    LocalCommandContext(deviceId: deviceId, userId: 'user_active'),
   );
   getIt.registerSingleton<SyncEndpointConfig>(SyncEndpointConfig());
 

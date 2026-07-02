@@ -3,9 +3,9 @@ import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  setupDependencyInjection();
+  await setupDependencyInjection();
   getIt<SyncOrchestrator>()
     ..startAutoPush()
     ..startRealtimeListener();
