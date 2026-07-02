@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../application/sync/sync_availability_monitor.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
+import '../../../application/sync/sync_health_service.dart';
 import '../../../application/sync/sync_orchestrator.dart';
+import '../../../application/sync/sync_pull_service.dart'
+    show SyncPullException;
 import '../../../application/sync/sync_push_service.dart'
     show SyncPushException, SyncPushReport;
 import '../../../core/di/injection.dart';
@@ -16,6 +20,7 @@ class SyncSettingsScreen extends StatefulWidget {
 class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final SyncEndpointConfig _endpointConfig;
+  late final SyncAvailabilityMonitor _availabilityMonitor;
   late final SyncOrchestrator _syncOrchestrator;
   late final TextEditingController _serverController;
 
@@ -26,6 +31,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   void initState() {
     super.initState();
     _endpointConfig = getIt<SyncEndpointConfig>();
+    _availabilityMonitor = getIt<SyncAvailabilityMonitor>();
     _syncOrchestrator = getIt<SyncOrchestrator>();
     _serverController = TextEditingController(text: _endpointConfig.baseUrl);
   }
@@ -125,13 +131,20 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       final result = await _syncOrchestrator.testConnection();
       if (!mounted) return;
 
-      final message = result.isSuccessful
-          ? 'Conexion OK: HTTP ${result.statusCode}'
-          : 'Servidor alcanzado: HTTP ${result.statusCode}';
+      if (result.isAvailable) {
+        _availabilityMonitor.markServerAvailable(
+          latestServerSequence: result.latestServerSequence,
+        );
+      }
+
+      final message = result.isAvailable
+          ? 'Conexion OK: server_sequence ${result.latestServerSequence ?? 0}'
+          : 'Servidor alcanzado, health invalido: ${result.failureMessage}';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
-    } on SyncPushException catch (error) {
+    } on SyncHealthException catch (error) {
+      _availabilityMonitor.markServerUnavailable(error.message);
       if (!mounted) return;
 
       ScaffoldMessenger.of(
@@ -153,12 +166,23 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
 
     try {
       final report = await _syncOrchestrator.pushPendingEvents();
+      if (report.total > 0) {
+        _availabilityMonitor.markServerAvailable();
+      }
       if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(_mensajeReporte(report))));
     } on SyncPushException catch (error) {
+      _availabilityMonitor.markServerUnavailable(error.message);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on SyncPullException catch (error) {
+      _availabilityMonitor.markServerUnavailable(error.message);
       if (!mounted) return;
 
       ScaffoldMessenger.of(
@@ -199,9 +223,10 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     });
 
     if (_endpointConfig.baseUrl != previousBaseUrl) {
-      _syncOrchestrator.reconnectRealtimeListenerIfActive();
+      _syncOrchestrator.stopRealtimeListener();
     }
 
+    _availabilityMonitor.requestServerCheck();
     return true;
   }
 }

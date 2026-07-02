@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
+import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await setupDependencyInjection();
-  getIt<SyncOrchestrator>()
-    ..startAutoPush()
-    ..startRealtimeListener();
+  getIt<SyncAvailabilityMonitor>().start();
   runApp(const MainApp());
 }
 

@@ -63,17 +63,6 @@ class SyncSocketListener {
     socket.connect();
   }
 
-  void reconnect() {
-    stop();
-    start();
-  }
-
-  void reconnectIfActive() {
-    if (!isActive) return;
-
-    reconnect();
-  }
-
   void stop() {
     final socket = _socket;
     if (socket == null) return;

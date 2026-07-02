@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../commands/local_command_context.dart';
 import '../../data/local/drift/app_database.dart';
 import 'models/sync_event.dart';
 import 'sync_endpoint_config.dart';
@@ -13,39 +12,23 @@ class SyncPushService {
     required EventRefDao eventRefDao,
     required SyncCheckpointDao syncCheckpointDao,
     required SyncEndpointConfig endpointConfig,
-    required LocalCommandContext commandContext,
     http.Client? client,
   }) : _eventDao = eventDao,
        _eventRefDao = eventRefDao,
        _syncCheckpointDao = syncCheckpointDao,
        _endpointConfig = endpointConfig,
-       _commandContext = commandContext,
        _client = client ?? http.Client();
 
   final EventDao _eventDao;
   final EventRefDao _eventRefDao;
   final SyncCheckpointDao _syncCheckpointDao;
   final SyncEndpointConfig _endpointConfig;
-  final LocalCommandContext _commandContext;
   final http.Client _client;
 
   Future<SyncPushReport> pushPendingEvents() async {
     final records = await _eventDao.obtenerEventosPendientes();
     final events = records.map(_eventFromRecord).toList();
     return _pushEvents(events);
-  }
-
-  Future<SyncConnectionCheck> testConnection() async {
-    final response = await _postPushBody(
-      deviceId: _commandContext.deviceId,
-      events: const [],
-      requireSuccessfulStatus: false,
-    );
-
-    return SyncConnectionCheck(
-      statusCode: response.statusCode,
-      body: response.body,
-    );
   }
 
   Future<SyncPushReport> _pushEvents(List<SyncEvent> events) async {
@@ -131,7 +114,6 @@ class SyncPushService {
   Future<http.Response> _postPushBody({
     required String deviceId,
     required List<Map<String, Object?>> events,
-    bool requireSuccessfulStatus = true,
   }) async {
     final uri = Uri.parse('${_endpointConfig.baseUrl}/sync/push');
     final lastFullPullServerSequence = await _syncCheckpointDao
@@ -150,8 +132,7 @@ class SyncPushService {
         body: jsonEncode(body),
       );
 
-      if (requireSuccessfulStatus &&
-          (response.statusCode < 200 || response.statusCode >= 300)) {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
         throw SyncPushException(
           'Error enviando eventos: ${response.statusCode} ${response.body}',
         );
@@ -295,15 +276,6 @@ class SyncPushReport {
   final int rejected;
   final int conflicts;
   final int pending;
-}
-
-class SyncConnectionCheck {
-  const SyncConnectionCheck({required this.statusCode, required this.body});
-
-  final int statusCode;
-  final String body;
-
-  bool get isSuccessful => statusCode >= 200 && statusCode < 300;
 }
 
 class SyncPushException implements Exception {

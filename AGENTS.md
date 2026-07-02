@@ -5,6 +5,12 @@ Este proyecto usa un flujo offline-first por eventos. Antes de implementar una f
 - `docs/architecture/offline_feature_flow.md`
 - `docs/templates/new_offline_feature_checklist.md`
 
+El analisis general del sistema se encuentra en:
+
+- `/Users/benjamin/Library/CloudStorage/GoogleDrive-benjamin94833@gmail.com/My Drive/Projects/POS/analisis `
+
+Nota: el nombre del directorio `analisis ` incluye un espacio final.
+
 ## Regla de alcance
 
 - Implementa solo el agregado solicitado por el usuario.

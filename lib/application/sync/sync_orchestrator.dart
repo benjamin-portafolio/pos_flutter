@@ -1,38 +1,33 @@
 import 'dart:async';
 
-import '../../data/local/drift/app_database.dart';
+import 'sync_health_service.dart';
 import 'sync_pull_service.dart';
 import 'sync_push_service.dart';
 import 'sync_socket_listener.dart';
 
 class SyncOrchestrator {
   SyncOrchestrator({
-    required EventDao eventDao,
+    required SyncHealthService healthService,
     required SyncPullService pullService,
     required SyncPushService pushService,
     required SyncSocketListener socketListener,
-  }) : _eventDao = eventDao,
+  }) : _healthService = healthService,
        _pullService = pullService,
        _pushService = pushService,
        _socketListener = socketListener;
 
-  final EventDao _eventDao;
+  final SyncHealthService _healthService;
   final SyncPullService _pullService;
   final SyncPushService _pushService;
   final SyncSocketListener _socketListener;
 
-  StreamSubscription<List<EventRecord>>? _pendingEventsSubscription;
   StreamSubscription<SyncEventsAvailableNotice>? _eventsAvailableSubscription;
-  bool _isPushingPendingEvents = false;
-  bool _pushRequestedWhileBusy = false;
   bool _isPullingAvailableEvents = false;
   bool _pullRequestedWhileBusy = false;
   int? _latestPullTarget;
 
-  bool get isAutoPushActive => _pendingEventsSubscription != null;
-
-  Future<SyncConnectionCheck> testConnection() {
-    return _pushService.testConnection();
+  Future<SyncHealthCheck> testConnection() {
+    return _healthService.check();
   }
 
   Future<SyncPushReport> pushPendingEvents() async {
@@ -48,24 +43,8 @@ class SyncOrchestrator {
     return _pullService.pullAvailableEvents();
   }
 
-  void startAutoPush() {
-    if (isAutoPushActive) return;
-
-    _pendingEventsSubscription = _eventDao.watchEventosPendientes().listen((
-      events,
-    ) {
-      if (events.isEmpty) return;
-
-      _schedulePendingEventsPush();
-    });
-  }
-
-  Future<void> stopAutoPush() async {
-    final subscription = _pendingEventsSubscription;
-    if (subscription == null) return;
-
-    _pendingEventsSubscription = null;
-    await subscription.cancel();
+  Future<SyncPullReport> pullIfBehind(int latestServerSequence) {
+    return _pullService.pullIfBehind(latestServerSequence);
   }
 
   void startRealtimeListener() {
@@ -84,42 +63,6 @@ class SyncOrchestrator {
 
     _eventsAvailableSubscription = null;
     unawaited(subscription.cancel());
-  }
-
-  void reconnectRealtimeListenerIfActive() {
-    _socketListener.reconnectIfActive();
-  }
-
-  void _schedulePendingEventsPush() {
-    if (_isPushingPendingEvents) {
-      _pushRequestedWhileBusy = true;
-      return;
-    }
-
-    unawaited(_pushPendingEventsUntilIdle());
-  }
-
-  Future<void> _pushPendingEventsUntilIdle() async {
-    _isPushingPendingEvents = true;
-
-    try {
-      var keepPushing = true;
-      while (keepPushing) {
-        _pushRequestedWhileBusy = false;
-
-        try {
-          await pushPendingEvents();
-        } on SyncPushException {
-          _pushRequestedWhileBusy = false;
-        } on SyncPullException {
-          _pushRequestedWhileBusy = false;
-        }
-
-        keepPushing = _pushRequestedWhileBusy;
-      }
-    } finally {
-      _isPushingPendingEvents = false;
-    }
   }
 
   void _schedulePullIfBehind(int latestServerSequence) {

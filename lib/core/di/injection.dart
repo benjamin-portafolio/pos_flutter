@@ -7,7 +7,9 @@ import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
+import '../../application/sync/sync_availability_monitor.dart';
 import '../../application/sync/sync_endpoint_config.dart';
+import '../../application/sync/sync_health_service.dart';
 import '../../application/sync/sync_orchestrator.dart';
 import '../../application/sync/sync_pull_service.dart';
 import '../../application/sync/sync_push_service.dart';
@@ -42,6 +44,9 @@ Future<void> setupDependencyInjection() async {
   getIt.registerLazySingleton<SyncCheckpointDao>(
     () => SyncCheckpointDao(getIt<AppDatabase>()),
   );
+  getIt.registerLazySingleton<SyncHealthService>(
+    () => SyncHealthService(endpointConfig: getIt<SyncEndpointConfig>()),
+  );
 
   getIt.registerLazySingleton<EspacioRepository>(
     () => EspacioRepositoryImpl(espacioDao: getIt<EspacioDao>()),
@@ -69,7 +74,6 @@ Future<void> setupDependencyInjection() async {
       eventRefDao: getIt<EventRefDao>(),
       syncCheckpointDao: getIt<SyncCheckpointDao>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
-      commandContext: getIt<LocalCommandContext>(),
     ),
   );
   getIt.registerLazySingleton<SyncPullService>(
@@ -90,10 +94,17 @@ Future<void> setupDependencyInjection() async {
   );
   getIt.registerLazySingleton<SyncOrchestrator>(
     () => SyncOrchestrator(
-      eventDao: getIt<EventDao>(),
+      healthService: getIt<SyncHealthService>(),
       pullService: getIt<SyncPullService>(),
       pushService: getIt<SyncPushService>(),
       socketListener: getIt<SyncSocketListener>(),
+    ),
+  );
+  getIt.registerLazySingleton<SyncAvailabilityMonitor>(
+    () => SyncAvailabilityMonitor(
+      eventDao: getIt<EventDao>(),
+      healthService: getIt<SyncHealthService>(),
+      orchestrator: getIt<SyncOrchestrator>(),
     ),
   );
 
