@@ -9,6 +9,7 @@ import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/sync_availability_monitor.dart';
 import '../../application/sync/sync_endpoint_config.dart';
+import '../../application/sync/sync_endpoint_store.dart';
 import '../../application/sync/sync_health_service.dart';
 import '../../application/sync/sync_orchestrator.dart';
 import '../../application/sync/sync_pull_service.dart';
@@ -17,6 +18,7 @@ import '../../application/sync/sync_socket_listener.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_local_event_store.dart';
 import '../../data/local/identity/device_identity_file_store.dart';
+import '../../data/local/sync/sync_endpoint_file_store.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
 import '../../domain/repositories/espacio_repository.dart';
 
@@ -25,14 +27,19 @@ final getIt = GetIt.instance;
 Future<void> setupDependencyInjection() async {
   final database = AppDatabase();
   final deviceIdentityProvider = DeviceIdentityFileStore();
+  final syncEndpointStore = SyncEndpointFileStore();
   final deviceId = await deviceIdentityProvider.getDeviceId();
+  final storedSyncBaseUrl = await syncEndpointStore.readBaseUrl();
 
   getIt.registerSingleton<AppDatabase>(database);
   getIt.registerSingleton<DeviceIdentityProvider>(deviceIdentityProvider);
+  getIt.registerSingleton<SyncEndpointStore>(syncEndpointStore);
   getIt.registerSingleton<LocalCommandContext>(
     LocalCommandContext(deviceId: deviceId, userId: 'user_active'),
   );
-  getIt.registerSingleton<SyncEndpointConfig>(SyncEndpointConfig());
+  getIt.registerSingleton<SyncEndpointConfig>(
+    SyncEndpointConfig(initialBaseUrl: _validSyncBaseUrl(storedSyncBaseUrl)),
+  );
 
   getIt.registerLazySingleton<EspacioDao>(
     () => EspacioDao(getIt<AppDatabase>()),
@@ -114,4 +121,14 @@ Future<void> setupDependencyInjection() async {
       commandContext: getIt<LocalCommandContext>(),
     ),
   );
+}
+
+String _validSyncBaseUrl(String? storedBaseUrl) {
+  if (storedBaseUrl == null) return SyncEndpointConfig.defaultBaseUrl;
+
+  try {
+    return SyncEndpointConfig.normalizeBaseUrl(storedBaseUrl);
+  } on FormatException {
+    return SyncEndpointConfig.defaultBaseUrl;
+  }
 }

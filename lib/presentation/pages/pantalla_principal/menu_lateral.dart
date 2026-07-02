@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
 
 class MenuLateral extends StatelessWidget {
@@ -127,7 +128,17 @@ class MenuLateral extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.chat),
             title: Text("Chat de ayuda"),
-            onTap: () {},
+            onTap: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => const SyncSettingsPage(),
+                  ),
+                );
+              });
+            },
           ),
           ListTile(
             leading: Icon(Icons.inventory),

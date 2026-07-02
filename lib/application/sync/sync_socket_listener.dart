@@ -22,6 +22,7 @@ class SyncSocketListener {
   final SyncCheckpointDao _syncCheckpointDao;
   final _eventsAvailableController =
       StreamController<SyncEventsAvailableNotice>.broadcast();
+  final _connectionEstablishedController = StreamController<void>.broadcast();
 
   io.Socket? _socket;
   String? _connectedBaseUrl;
@@ -30,6 +31,9 @@ class SyncSocketListener {
 
   Stream<SyncEventsAvailableNotice> get eventsAvailable =>
       _eventsAvailableController.stream;
+
+  Stream<void> get connectionEstablished =>
+      _connectionEstablishedController.stream;
 
   void start() {
     final baseUrl = _endpointConfig.baseUrl;
@@ -47,7 +51,7 @@ class SyncSocketListener {
     );
 
     socket.onConnect((_) {
-      unawaited(_joinSyncRoom(socket));
+      unawaited(_handleConnect(socket));
     });
 
     socket.on(eventsAvailableMessage, (payload) {
@@ -73,7 +77,7 @@ class SyncSocketListener {
     _connectedBaseUrl = null;
   }
 
-  Future<void> _joinSyncRoom(io.Socket socket) async {
+  Future<void> _handleConnect(io.Socket socket) async {
     final lastFullPullServerSequence = await _syncCheckpointDao
         .obtenerLastFullPullServerSequence();
 
@@ -83,6 +87,10 @@ class SyncSocketListener {
       'device_id': _commandContext.deviceId,
       'last_full_pull_server_sequence': lastFullPullServerSequence,
     });
+
+    if (!_connectionEstablishedController.isClosed) {
+      _connectionEstablishedController.add(null);
+    }
   }
 
   SyncEventsAvailableNotice? _parseEventsAvailableNotice(Object? payload) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../application/sync/sync_availability_monitor.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
+import '../../../application/sync/sync_endpoint_store.dart';
 import '../../../application/sync/sync_health_service.dart';
 import '../../../application/sync/sync_orchestrator.dart';
 import '../../../application/sync/sync_pull_service.dart'
@@ -17,9 +18,22 @@ class SyncSettingsScreen extends StatefulWidget {
   State<SyncSettingsScreen> createState() => _SyncSettingsScreenState();
 }
 
+class SyncSettingsPage extends StatelessWidget {
+  const SyncSettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Chat de ayuda')),
+      body: const SyncSettingsScreen(),
+    );
+  }
+}
+
 class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final SyncEndpointConfig _endpointConfig;
+  late final SyncEndpointStore _endpointStore;
   late final SyncAvailabilityMonitor _availabilityMonitor;
   late final SyncOrchestrator _syncOrchestrator;
   late final TextEditingController _serverController;
@@ -31,6 +45,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   void initState() {
     super.initState();
     _endpointConfig = getIt<SyncEndpointConfig>();
+    _endpointStore = getIt<SyncEndpointStore>();
     _availabilityMonitor = getIt<SyncAvailabilityMonitor>();
     _syncOrchestrator = getIt<SyncOrchestrator>();
     _serverController = TextEditingController(text: _endpointConfig.baseUrl);
@@ -114,8 +129,9 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     }
   }
 
-  void _guardarServidor() {
-    if (!_aplicarServidorActual()) return;
+  Future<void> _guardarServidor() async {
+    if (!await _aplicarServidorActual()) return;
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Servidor aplicado: ${_endpointConfig.baseUrl}')),
@@ -123,7 +139,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   }
 
   Future<void> _probarConexion() async {
-    if (!_aplicarServidorActual()) return;
+    if (!await _aplicarServidorActual()) return;
 
     setState(() => _isTestingConnection = true);
 
@@ -158,7 +174,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   }
 
   Future<void> _sincronizarPendientes() async {
-    if (!_aplicarServidorActual()) return;
+    if (!await _aplicarServidorActual()) return;
 
     setState(() {
       _isSyncing = true;
@@ -212,13 +228,29 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     return partes.join(', ');
   }
 
-  bool _aplicarServidorActual() {
+  Future<bool> _aplicarServidorActual() async {
     if (!(_formKey.currentState?.validate() ?? false)) return false;
 
+    final nextBaseUrl = SyncEndpointConfig.normalizeBaseUrl(
+      _serverController.text,
+    );
     final previousBaseUrl = _endpointConfig.baseUrl;
 
+    try {
+      await _endpointStore.saveBaseUrl(nextBaseUrl);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo guardar el servidor.')),
+        );
+      }
+      return false;
+    }
+
+    if (!mounted) return false;
+
     setState(() {
-      _endpointConfig.updateFromInput(_serverController.text);
+      _endpointConfig.updateFromInput(nextBaseUrl);
       _serverController.text = _endpointConfig.baseUrl;
     });
 

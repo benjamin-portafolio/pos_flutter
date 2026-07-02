@@ -22,8 +22,10 @@ class SyncOrchestrator {
   final SyncSocketListener _socketListener;
 
   StreamSubscription<SyncEventsAvailableNotice>? _eventsAvailableSubscription;
+  StreamSubscription<void>? _connectionEstablishedSubscription;
   bool _isPullingAvailableEvents = false;
   bool _pullRequestedWhileBusy = false;
+  bool _pullAllAvailableEventsRequested = false;
   int? _latestPullTarget;
 
   Future<SyncHealthCheck> testConnection() {
@@ -53,16 +55,28 @@ class SyncOrchestrator {
     ) {
       _schedulePullIfBehind(notice.latestServerSequence);
     });
+    _connectionEstablishedSubscription ??= _socketListener.connectionEstablished
+        .listen((_) {
+          _schedulePullAvailableEvents();
+        });
     _socketListener.start();
   }
 
   void stopRealtimeListener() {
     _socketListener.stop();
-    final subscription = _eventsAvailableSubscription;
-    if (subscription == null) return;
+    final eventsAvailableSubscription = _eventsAvailableSubscription;
+    final connectionEstablishedSubscription =
+        _connectionEstablishedSubscription;
 
     _eventsAvailableSubscription = null;
-    unawaited(subscription.cancel());
+    _connectionEstablishedSubscription = null;
+
+    if (eventsAvailableSubscription != null) {
+      unawaited(eventsAvailableSubscription.cancel());
+    }
+    if (connectionEstablishedSubscription != null) {
+      unawaited(connectionEstablishedSubscription.cancel());
+    }
   }
 
   void _schedulePullIfBehind(int latestServerSequence) {
@@ -71,6 +85,15 @@ class SyncOrchestrator {
       _latestPullTarget = latestServerSequence;
     }
 
+    _schedulePull();
+  }
+
+  void _schedulePullAvailableEvents() {
+    _pullAllAvailableEventsRequested = true;
+    _schedulePull();
+  }
+
+  void _schedulePull() {
     if (_isPullingAvailableEvents) {
       _pullRequestedWhileBusy = true;
       return;
@@ -88,8 +111,16 @@ class SyncOrchestrator {
         _pullRequestedWhileBusy = false;
         final target = _latestPullTarget;
         _latestPullTarget = null;
+        final pullAllAvailableEvents = _pullAllAvailableEventsRequested;
+        _pullAllAvailableEventsRequested = false;
 
-        if (target != null) {
+        if (pullAllAvailableEvents) {
+          try {
+            await _pullService.pullAvailableEvents();
+          } on SyncPullException {
+            _pullRequestedWhileBusy = false;
+          }
+        } else if (target != null) {
           try {
             await _pullService.pullIfBehind(target);
           } on SyncPullException {
