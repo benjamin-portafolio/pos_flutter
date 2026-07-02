@@ -40,6 +40,21 @@ class EspacioDao extends DatabaseAccessor<AppDatabase> with _$EspacioDaoMixin {
     return into(espacios).insertOnConflictUpdate(entity);
   }
 
+  Future<int> actualizarMetadataSincronizacion(
+    String id, {
+    required String eventId,
+    int? serverSequence,
+  }) {
+    return (update(espacios)..where((t) => t.id.equals(id))).write(
+      EspaciosCompanion(
+        lastEventId: Value(eventId),
+        lastServerSequence: serverSequence == null
+            ? const Value.absent()
+            : Value(serverSequence),
+      ),
+    );
+  }
+
   /// Actualiza un espacio existente.
   Future<bool> actualizarEspacio(Espacio entity) {
     return update(espacios).replace(entity);

@@ -10,15 +10,21 @@ import 'sync_endpoint_config.dart';
 class SyncPushService {
   SyncPushService({
     required EventDao eventDao,
+    required EventRefDao eventRefDao,
+    required SyncCheckpointDao syncCheckpointDao,
     required SyncEndpointConfig endpointConfig,
     required LocalCommandContext commandContext,
     http.Client? client,
   }) : _eventDao = eventDao,
+       _eventRefDao = eventRefDao,
+       _syncCheckpointDao = syncCheckpointDao,
        _endpointConfig = endpointConfig,
        _commandContext = commandContext,
        _client = client ?? http.Client();
 
   final EventDao _eventDao;
+  final EventRefDao _eventRefDao;
+  final SyncCheckpointDao _syncCheckpointDao;
   final SyncEndpointConfig _endpointConfig;
   final LocalCommandContext _commandContext;
   final http.Client _client;
@@ -73,6 +79,13 @@ class SyncPushService {
             serverSequence: result?.serverSequence,
             serverTime: result?.serverTime,
           );
+          final serverSequence = result?.serverSequence;
+          if (serverSequence != null) {
+            await _eventRefDao.actualizarReferenciasSincronizadas(
+              event.eventId,
+              serverSequence,
+            );
+          }
           synced++;
           break;
         case 'rejected':
@@ -121,9 +134,11 @@ class SyncPushService {
     bool requireSuccessfulStatus = true,
   }) async {
     final uri = Uri.parse('${_endpointConfig.baseUrl}/sync/push');
+    final lastFullPullServerSequence = await _syncCheckpointDao
+        .obtenerLastFullPullServerSequence();
     final body = <String, Object?>{
       'device_id': deviceId,
-      'last_full_pull_server_sequence': null,
+      'last_full_pull_server_sequence': lastFullPullServerSequence,
       'last_preflight_server_sequence': null,
       'events': events,
     };

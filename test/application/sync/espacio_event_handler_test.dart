@@ -72,6 +72,48 @@ void main() {
     expect(espacios.single.createdEventId, 'event_1');
   });
 
+  test('applyEspacioCreado completa metadata cuando llega por pull', () async {
+    final localEvent = SyncEvent(
+      eventId: 'event_1',
+      aggregateType: 'espacio',
+      aggregateId: 'espacio_1',
+      eventType: 'espacio_creado',
+      deviceId: 'test_device',
+      userId: 'test_user',
+      baseVersion: 1,
+      createdAtLocal: DateTime(2026),
+      payload: const {
+        'nombre': 'Salon',
+        'identificacion': 'salon',
+        'visibilidad': 'sin_restriccion',
+      },
+    );
+
+    await handler.applyEspacioCreado(localEvent);
+    await handler.applyEspacioCreado(
+      SyncEvent(
+        eventId: localEvent.eventId,
+        aggregateType: localEvent.aggregateType,
+        aggregateId: localEvent.aggregateId,
+        eventType: localEvent.eventType,
+        deviceId: localEvent.deviceId,
+        userId: localEvent.userId,
+        baseVersion: localEvent.baseVersion,
+        serverSequence: 5,
+        createdAtLocal: localEvent.createdAtLocal,
+        createdAtServer: DateTime(2026, 1, 1, 12),
+        payload: localEvent.payload,
+        syncStatus: 'synced',
+      ),
+    );
+
+    final espacios = await espacioDao.obtenerEspacios();
+
+    expect(espacios, hasLength(1));
+    expect(espacios.single.lastServerSequence, 5);
+    expect(espacios.single.lastEventId, 'event_1');
+  });
+
   test('applyEspacioCreado rechaza identificacion duplicada', () async {
     await handler.applyEspacioCreado(
       SyncEvent(

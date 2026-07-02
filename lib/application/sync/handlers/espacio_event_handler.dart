@@ -15,7 +15,14 @@ class EspacioEventHandler {
     final existing = await _espacioDao.obtenerEspacioPorId(event.aggregateId);
 
     if (existing != null) {
-      if (existing.createdEventId == event.eventId) return;
+      if (existing.createdEventId == event.eventId) {
+        await _espacioDao.actualizarMetadataSincronizacion(
+          event.aggregateId,
+          eventId: event.eventId,
+          serverSequence: event.serverSequence,
+        );
+        return;
+      }
 
       throw StateError(
         'No se puede aplicar espacio_creado sobre un espacio existente: '

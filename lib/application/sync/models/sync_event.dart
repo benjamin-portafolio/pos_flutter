@@ -78,16 +78,31 @@ class SyncEvent {
       eventType: json['event_type']! as String,
       deviceId: json['device_id']! as String,
       userId: json['user_id']! as String,
-      localSequence: json['local_sequence'] as int?,
-      serverSequence: json['server_sequence'] as int?,
-      baseServerSequence: json['base_server_sequence'] as int?,
-      baseVersion: json['base_version'] as int?,
+      localSequence: _readInt(json['local_sequence']),
+      serverSequence: _readInt(json['server_sequence']),
+      baseServerSequence: _readInt(json['base_server_sequence']),
+      baseVersion: _readInt(json['base_version']),
       createdAtLocal: DateTime.parse(json['created_at_local']! as String),
       createdAtServer: json['created_at_server'] == null
           ? null
           : DateTime.parse(json['created_at_server']! as String),
-      payload: (json['payload']! as Map).cast<String, Object?>(),
+      payload: _readPayload(json['payload']),
       syncStatus: json['sync_status'] as String? ?? 'pending',
     );
+  }
+
+  static int? _readInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static Map<String, Object?> _readPayload(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      return value.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return const <String, Object?>{};
   }
 }

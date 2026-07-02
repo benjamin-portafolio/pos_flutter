@@ -8,6 +8,7 @@ import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_orchestrator.dart';
+import '../../application/sync/sync_pull_service.dart';
 import '../../application/sync/sync_push_service.dart';
 import '../../application/sync/sync_socket_listener.dart';
 import '../../data/local/drift/app_database.dart';
@@ -21,7 +22,7 @@ void setupDependencyInjection() {
   final database = AppDatabase();
   getIt.registerSingleton<AppDatabase>(database);
   getIt.registerSingleton<LocalCommandContext>(
-    const LocalCommandContext(deviceId: 'device_mobile', userId: 'user_active'),
+    const LocalCommandContext(deviceId: 'device_iphone', userId: 'user_active'),
   );
   getIt.registerSingleton<SyncEndpointConfig>(SyncEndpointConfig());
 
@@ -31,6 +32,9 @@ void setupDependencyInjection() {
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
   getIt.registerLazySingleton<EventRefDao>(
     () => EventRefDao(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<SyncCheckpointDao>(
+    () => SyncCheckpointDao(getIt<AppDatabase>()),
   );
 
   getIt.registerLazySingleton<EspacioRepository>(
@@ -56,6 +60,17 @@ void setupDependencyInjection() {
   getIt.registerLazySingleton<SyncPushService>(
     () => SyncPushService(
       eventDao: getIt<EventDao>(),
+      eventRefDao: getIt<EventRefDao>(),
+      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      endpointConfig: getIt<SyncEndpointConfig>(),
+      commandContext: getIt<LocalCommandContext>(),
+    ),
+  );
+  getIt.registerLazySingleton<SyncPullService>(
+    () => SyncPullService(
+      db: getIt<AppDatabase>(),
+      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      eventProcessor: getIt<EventProcessor>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
     ),
@@ -64,11 +79,13 @@ void setupDependencyInjection() {
     () => SyncSocketListener(
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
+      syncCheckpointDao: getIt<SyncCheckpointDao>(),
     ),
   );
   getIt.registerLazySingleton<SyncOrchestrator>(
     () => SyncOrchestrator(
       eventDao: getIt<EventDao>(),
+      pullService: getIt<SyncPullService>(),
       pushService: getIt<SyncPushService>(),
       socketListener: getIt<SyncSocketListener>(),
     ),

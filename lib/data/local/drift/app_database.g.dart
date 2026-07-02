@@ -1985,12 +1985,317 @@ class EventRefsCompanion extends UpdateCompanion<EventRef> {
   }
 }
 
+class $SyncCheckpointsTable extends SyncCheckpoints
+    with TableInfo<$SyncCheckpointsTable, SyncCheckpoint> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncCheckpointsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _checkpointIdMeta = const VerificationMeta(
+    'checkpointId',
+  );
+  @override
+  late final GeneratedColumn<String> checkpointId = GeneratedColumn<String>(
+    'checkpoint_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastFullPullServerSequenceMeta =
+      const VerificationMeta('lastFullPullServerSequence');
+  @override
+  late final GeneratedColumn<int> lastFullPullServerSequence =
+      GeneratedColumn<int>(
+        'last_full_pull_server_sequence',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _lastFullPullAtMeta = const VerificationMeta(
+    'lastFullPullAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastFullPullAt =
+      GeneratedColumn<DateTime>(
+        'last_full_pull_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    checkpointId,
+    lastFullPullServerSequence,
+    lastFullPullAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_checkpoints';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncCheckpoint> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('checkpoint_id')) {
+      context.handle(
+        _checkpointIdMeta,
+        checkpointId.isAcceptableOrUnknown(
+          data['checkpoint_id']!,
+          _checkpointIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_checkpointIdMeta);
+    }
+    if (data.containsKey('last_full_pull_server_sequence')) {
+      context.handle(
+        _lastFullPullServerSequenceMeta,
+        lastFullPullServerSequence.isAcceptableOrUnknown(
+          data['last_full_pull_server_sequence']!,
+          _lastFullPullServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_full_pull_at')) {
+      context.handle(
+        _lastFullPullAtMeta,
+        lastFullPullAt.isAcceptableOrUnknown(
+          data['last_full_pull_at']!,
+          _lastFullPullAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {checkpointId};
+  @override
+  SyncCheckpoint map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncCheckpoint(
+      checkpointId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}checkpoint_id'],
+      )!,
+      lastFullPullServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_full_pull_server_sequence'],
+      )!,
+      lastFullPullAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_full_pull_at'],
+      ),
+    );
+  }
+
+  @override
+  $SyncCheckpointsTable createAlias(String alias) {
+    return $SyncCheckpointsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
+  final String checkpointId;
+  final int lastFullPullServerSequence;
+  final DateTime? lastFullPullAt;
+  const SyncCheckpoint({
+    required this.checkpointId,
+    required this.lastFullPullServerSequence,
+    this.lastFullPullAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['checkpoint_id'] = Variable<String>(checkpointId);
+    map['last_full_pull_server_sequence'] = Variable<int>(
+      lastFullPullServerSequence,
+    );
+    if (!nullToAbsent || lastFullPullAt != null) {
+      map['last_full_pull_at'] = Variable<DateTime>(lastFullPullAt);
+    }
+    return map;
+  }
+
+  SyncCheckpointsCompanion toCompanion(bool nullToAbsent) {
+    return SyncCheckpointsCompanion(
+      checkpointId: Value(checkpointId),
+      lastFullPullServerSequence: Value(lastFullPullServerSequence),
+      lastFullPullAt: lastFullPullAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastFullPullAt),
+    );
+  }
+
+  factory SyncCheckpoint.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncCheckpoint(
+      checkpointId: serializer.fromJson<String>(json['checkpointId']),
+      lastFullPullServerSequence: serializer.fromJson<int>(
+        json['lastFullPullServerSequence'],
+      ),
+      lastFullPullAt: serializer.fromJson<DateTime?>(json['lastFullPullAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'checkpointId': serializer.toJson<String>(checkpointId),
+      'lastFullPullServerSequence': serializer.toJson<int>(
+        lastFullPullServerSequence,
+      ),
+      'lastFullPullAt': serializer.toJson<DateTime?>(lastFullPullAt),
+    };
+  }
+
+  SyncCheckpoint copyWith({
+    String? checkpointId,
+    int? lastFullPullServerSequence,
+    Value<DateTime?> lastFullPullAt = const Value.absent(),
+  }) => SyncCheckpoint(
+    checkpointId: checkpointId ?? this.checkpointId,
+    lastFullPullServerSequence:
+        lastFullPullServerSequence ?? this.lastFullPullServerSequence,
+    lastFullPullAt: lastFullPullAt.present
+        ? lastFullPullAt.value
+        : this.lastFullPullAt,
+  );
+  SyncCheckpoint copyWithCompanion(SyncCheckpointsCompanion data) {
+    return SyncCheckpoint(
+      checkpointId: data.checkpointId.present
+          ? data.checkpointId.value
+          : this.checkpointId,
+      lastFullPullServerSequence: data.lastFullPullServerSequence.present
+          ? data.lastFullPullServerSequence.value
+          : this.lastFullPullServerSequence,
+      lastFullPullAt: data.lastFullPullAt.present
+          ? data.lastFullPullAt.value
+          : this.lastFullPullAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncCheckpoint(')
+          ..write('checkpointId: $checkpointId, ')
+          ..write('lastFullPullServerSequence: $lastFullPullServerSequence, ')
+          ..write('lastFullPullAt: $lastFullPullAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(checkpointId, lastFullPullServerSequence, lastFullPullAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncCheckpoint &&
+          other.checkpointId == this.checkpointId &&
+          other.lastFullPullServerSequence == this.lastFullPullServerSequence &&
+          other.lastFullPullAt == this.lastFullPullAt);
+}
+
+class SyncCheckpointsCompanion extends UpdateCompanion<SyncCheckpoint> {
+  final Value<String> checkpointId;
+  final Value<int> lastFullPullServerSequence;
+  final Value<DateTime?> lastFullPullAt;
+  final Value<int> rowid;
+  const SyncCheckpointsCompanion({
+    this.checkpointId = const Value.absent(),
+    this.lastFullPullServerSequence = const Value.absent(),
+    this.lastFullPullAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncCheckpointsCompanion.insert({
+    required String checkpointId,
+    this.lastFullPullServerSequence = const Value.absent(),
+    this.lastFullPullAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : checkpointId = Value(checkpointId);
+  static Insertable<SyncCheckpoint> custom({
+    Expression<String>? checkpointId,
+    Expression<int>? lastFullPullServerSequence,
+    Expression<DateTime>? lastFullPullAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (checkpointId != null) 'checkpoint_id': checkpointId,
+      if (lastFullPullServerSequence != null)
+        'last_full_pull_server_sequence': lastFullPullServerSequence,
+      if (lastFullPullAt != null) 'last_full_pull_at': lastFullPullAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncCheckpointsCompanion copyWith({
+    Value<String>? checkpointId,
+    Value<int>? lastFullPullServerSequence,
+    Value<DateTime?>? lastFullPullAt,
+    Value<int>? rowid,
+  }) {
+    return SyncCheckpointsCompanion(
+      checkpointId: checkpointId ?? this.checkpointId,
+      lastFullPullServerSequence:
+          lastFullPullServerSequence ?? this.lastFullPullServerSequence,
+      lastFullPullAt: lastFullPullAt ?? this.lastFullPullAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (checkpointId.present) {
+      map['checkpoint_id'] = Variable<String>(checkpointId.value);
+    }
+    if (lastFullPullServerSequence.present) {
+      map['last_full_pull_server_sequence'] = Variable<int>(
+        lastFullPullServerSequence.value,
+      );
+    }
+    if (lastFullPullAt.present) {
+      map['last_full_pull_at'] = Variable<DateTime>(lastFullPullAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncCheckpointsCompanion(')
+          ..write('checkpointId: $checkpointId, ')
+          ..write('lastFullPullServerSequence: $lastFullPullServerSequence, ')
+          ..write('lastFullPullAt: $lastFullPullAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $EspaciosTable espacios = $EspaciosTable(this);
   late final $EventsTable events = $EventsTable(this);
   late final $EventRefsTable eventRefs = $EventRefsTable(this);
+  late final $SyncCheckpointsTable syncCheckpoints = $SyncCheckpointsTable(
+    this,
+  );
   late final Index idxEspaciosIdentificacionUnique = Index(
     'idx_espacios_identificacion_unique',
     'CREATE UNIQUE INDEX idx_espacios_identificacion_unique ON espacios (identificacion) WHERE identificacion IS NOT NULL AND identificacion != \'\'',
@@ -1998,6 +2303,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final EspacioDao espacioDao = EspacioDao(this as AppDatabase);
   late final EventDao eventDao = EventDao(this as AppDatabase);
   late final EventRefDao eventRefDao = EventRefDao(this as AppDatabase);
+  late final SyncCheckpointDao syncCheckpointDao = SyncCheckpointDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2006,6 +2314,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     espacios,
     events,
     eventRefs,
+    syncCheckpoints,
     idxEspaciosIdentificacionUnique,
   ];
 }
@@ -2910,6 +3219,180 @@ typedef $$EventRefsTableProcessedTableManager =
       EventRef,
       PrefetchHooks Function()
     >;
+typedef $$SyncCheckpointsTableCreateCompanionBuilder =
+    SyncCheckpointsCompanion Function({
+      required String checkpointId,
+      Value<int> lastFullPullServerSequence,
+      Value<DateTime?> lastFullPullAt,
+      Value<int> rowid,
+    });
+typedef $$SyncCheckpointsTableUpdateCompanionBuilder =
+    SyncCheckpointsCompanion Function({
+      Value<String> checkpointId,
+      Value<int> lastFullPullServerSequence,
+      Value<DateTime?> lastFullPullAt,
+      Value<int> rowid,
+    });
+
+class $$SyncCheckpointsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncCheckpointsTable> {
+  $$SyncCheckpointsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get checkpointId => $composableBuilder(
+    column: $table.checkpointId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastFullPullServerSequence => $composableBuilder(
+    column: $table.lastFullPullServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastFullPullAt => $composableBuilder(
+    column: $table.lastFullPullAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncCheckpointsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncCheckpointsTable> {
+  $$SyncCheckpointsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get checkpointId => $composableBuilder(
+    column: $table.checkpointId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastFullPullServerSequence => $composableBuilder(
+    column: $table.lastFullPullServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastFullPullAt => $composableBuilder(
+    column: $table.lastFullPullAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncCheckpointsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncCheckpointsTable> {
+  $$SyncCheckpointsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get checkpointId => $composableBuilder(
+    column: $table.checkpointId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastFullPullServerSequence => $composableBuilder(
+    column: $table.lastFullPullServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastFullPullAt => $composableBuilder(
+    column: $table.lastFullPullAt,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncCheckpointsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncCheckpointsTable,
+          SyncCheckpoint,
+          $$SyncCheckpointsTableFilterComposer,
+          $$SyncCheckpointsTableOrderingComposer,
+          $$SyncCheckpointsTableAnnotationComposer,
+          $$SyncCheckpointsTableCreateCompanionBuilder,
+          $$SyncCheckpointsTableUpdateCompanionBuilder,
+          (
+            SyncCheckpoint,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncCheckpointsTable,
+              SyncCheckpoint
+            >,
+          ),
+          SyncCheckpoint,
+          PrefetchHooks Function()
+        > {
+  $$SyncCheckpointsTableTableManager(
+    _$AppDatabase db,
+    $SyncCheckpointsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncCheckpointsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncCheckpointsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncCheckpointsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> checkpointId = const Value.absent(),
+                Value<int> lastFullPullServerSequence = const Value.absent(),
+                Value<DateTime?> lastFullPullAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncCheckpointsCompanion(
+                checkpointId: checkpointId,
+                lastFullPullServerSequence: lastFullPullServerSequence,
+                lastFullPullAt: lastFullPullAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String checkpointId,
+                Value<int> lastFullPullServerSequence = const Value.absent(),
+                Value<DateTime?> lastFullPullAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncCheckpointsCompanion.insert(
+                checkpointId: checkpointId,
+                lastFullPullServerSequence: lastFullPullServerSequence,
+                lastFullPullAt: lastFullPullAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncCheckpointsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncCheckpointsTable,
+      SyncCheckpoint,
+      $$SyncCheckpointsTableFilterComposer,
+      $$SyncCheckpointsTableOrderingComposer,
+      $$SyncCheckpointsTableAnnotationComposer,
+      $$SyncCheckpointsTableCreateCompanionBuilder,
+      $$SyncCheckpointsTableUpdateCompanionBuilder,
+      (
+        SyncCheckpoint,
+        BaseReferences<_$AppDatabase, $SyncCheckpointsTable, SyncCheckpoint>,
+      ),
+      SyncCheckpoint,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2920,6 +3403,8 @@ class $AppDatabaseManager {
       $$EventsTableTableManager(_db, _db.events);
   $$EventRefsTableTableManager get eventRefs =>
       $$EventRefsTableTableManager(_db, _db.eventRefs);
+  $$SyncCheckpointsTableTableManager get syncCheckpoints =>
+      $$SyncCheckpointsTableTableManager(_db, _db.syncCheckpoints);
 }
 
 mixin _$EspacioDaoMixin on DatabaseAccessor<AppDatabase> {
@@ -2956,4 +3441,19 @@ class EventRefDaoManager {
   EventRefDaoManager(this._db);
   $$EventRefsTableTableManager get eventRefs =>
       $$EventRefsTableTableManager(_db.attachedDatabase, _db.eventRefs);
+}
+
+mixin _$SyncCheckpointDaoMixin on DatabaseAccessor<AppDatabase> {
+  $SyncCheckpointsTable get syncCheckpoints => attachedDatabase.syncCheckpoints;
+  SyncCheckpointDaoManager get managers => SyncCheckpointDaoManager(this);
+}
+
+class SyncCheckpointDaoManager {
+  final _$SyncCheckpointDaoMixin _db;
+  SyncCheckpointDaoManager(this._db);
+  $$SyncCheckpointsTableTableManager get syncCheckpoints =>
+      $$SyncCheckpointsTableTableManager(
+        _db.attachedDatabase,
+        _db.syncCheckpoints,
+      );
 }
