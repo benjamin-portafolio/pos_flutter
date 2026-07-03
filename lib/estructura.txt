@@ -33,7 +33,11 @@ main.dart
 core/
   di/
     injection.dart
-      Registra AppDatabase, DAOs, repositories, handlers, EventProcessor y command services.
+      Punto de entrada publico para inicializar dependencias.
+    data_dependencies.dart
+      Registra base local, stores, DAOs y repositories.
+    application_dependencies.dart
+      Registra contexto local, configuracion, sync, handlers, EventProcessor y command services.
 
 domain/
   espacios/
