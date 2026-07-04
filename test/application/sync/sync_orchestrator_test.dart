@@ -1,6 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/sync/models/sync_events_available_notice.dart';
+import 'package:pos_flutter/application/sync/models/sync_preflight_report.dart';
+import 'package:pos_flutter/application/sync/models/sync_pull_report.dart';
+import 'package:pos_flutter/application/sync/models/sync_push_report.dart';
 import 'package:pos_flutter/application/sync/sync_health_service.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/application/sync/sync_preflight_service.dart';

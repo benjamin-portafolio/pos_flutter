@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../data/local/drift/app_database.dart';
+import 'models/pending_revalidation_report.dart';
 
 class PendingEventRevalidator {
   PendingEventRevalidator({
@@ -70,16 +71,4 @@ class PendingEventRevalidator {
     final normalized = value.trim();
     return normalized.isEmpty ? null : normalized;
   }
-}
-
-class PendingRevalidationReport {
-  const PendingRevalidationReport({
-    required this.checked,
-    required this.conflicts,
-  });
-
-  const PendingRevalidationReport.empty() : checked = 0, conflicts = 0;
-
-  final int checked;
-  final int conflicts;
 }

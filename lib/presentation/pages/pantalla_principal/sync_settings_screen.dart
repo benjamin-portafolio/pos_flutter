@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../application/sync/sync_availability_monitor.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
 import '../../../application/sync/sync_endpoint_store.dart';
-import '../../../application/sync/sync_health_service.dart';
+import '../../../application/sync/exceptions/sync_health_exception.dart';
+import '../../../application/sync/exceptions/sync_preflight_exception.dart';
+import '../../../application/sync/exceptions/sync_pull_exception.dart';
+import '../../../application/sync/exceptions/sync_push_exception.dart';
+import '../../../application/sync/models/sync_push_report.dart';
 import '../../../application/sync/sync_orchestrator.dart';
-import '../../../application/sync/sync_preflight_service.dart';
-import '../../../application/sync/sync_pull_service.dart'
-    show SyncPullException;
-import '../../../application/sync/sync_push_service.dart'
-    show SyncPushException, SyncPushReport;
 import '../../../core/di/injection.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
@@ -17,18 +16,6 @@ class SyncSettingsScreen extends StatefulWidget {
 
   @override
   State<SyncSettingsScreen> createState() => _SyncSettingsScreenState();
-}
-
-class SyncSettingsPage extends StatelessWidget {
-  const SyncSettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Chat de ayuda')),
-      body: const SyncSettingsScreen(),
-    );
-  }
 }
 
 class _SyncSettingsScreenState extends State<SyncSettingsScreen> {

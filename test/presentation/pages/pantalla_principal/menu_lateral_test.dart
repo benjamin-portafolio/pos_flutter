@@ -6,6 +6,7 @@ import 'package:pos_flutter/application/sync/sync_endpoint_store.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
+import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
 
 void main() {

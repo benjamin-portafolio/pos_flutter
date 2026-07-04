@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
+import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 
 class MenuLateral extends StatelessWidget {
   const MenuLateral({super.key});

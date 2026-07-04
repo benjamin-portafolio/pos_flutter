@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import '../../data/local/drift/app_database.dart';
 import '../commands/local_command_context.dart';
 import 'models/sync_event.dart';
+import 'exceptions/sync_preflight_exception.dart';
+import 'models/pending_revalidation_report.dart';
+import 'models/sync_preflight_report.dart';
 import 'pending_event_revalidator.dart';
 import 'remote_event_applier.dart';
 import 'sync_endpoint_config.dart';
@@ -252,47 +255,6 @@ class SyncPreflightService {
 
     throw SyncPreflightException('Respuesta preflight sin $fieldName valido.');
   }
-}
-
-class SyncPreflightReport {
-  const SyncPreflightReport({
-    required this.skipped,
-    required this.pendingCount,
-    required this.impactingEvents,
-    required this.preflightSequence,
-    required this.hasMore,
-    required this.requiresFullPullBeforePush,
-    required this.reason,
-    required this.localConflicts,
-  });
-
-  const SyncPreflightReport.skipped({
-    required this.reason,
-    this.pendingCount = 0,
-    this.localConflicts = 0,
-  }) : skipped = true,
-       impactingEvents = 0,
-       preflightSequence = null,
-       hasMore = false,
-       requiresFullPullBeforePush = false;
-
-  final bool skipped;
-  final int pendingCount;
-  final int impactingEvents;
-  final int? preflightSequence;
-  final bool hasMore;
-  final bool requiresFullPullBeforePush;
-  final String? reason;
-  final int localConflicts;
-}
-
-class SyncPreflightException implements Exception {
-  const SyncPreflightException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }
 
 class _PreflightResponse {

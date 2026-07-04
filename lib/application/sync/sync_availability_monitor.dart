@@ -1,40 +1,13 @@
 import 'dart:async';
 
 import '../../data/local/drift/app_database.dart';
+import 'exceptions/sync_health_exception.dart';
+import 'exceptions/sync_pull_exception.dart';
+import 'exceptions/sync_push_exception.dart';
+import 'models/sync_availability_snapshot.dart';
+import 'models/sync_health_check.dart';
 import 'sync_health_service.dart';
 import 'sync_orchestrator.dart';
-import 'sync_pull_service.dart';
-import 'sync_push_service.dart';
-
-enum SyncAvailabilityStatus {
-  unknown,
-  checking,
-  available,
-  unavailable,
-  misconfigured,
-}
-
-class SyncAvailabilitySnapshot {
-  const SyncAvailabilitySnapshot({
-    required this.status,
-    this.message,
-    this.latestServerSequence,
-    this.nextRetryAt,
-  });
-
-  const SyncAvailabilitySnapshot.unknown()
-    : status = SyncAvailabilityStatus.unknown,
-      message = null,
-      latestServerSequence = null,
-      nextRetryAt = null;
-
-  final SyncAvailabilityStatus status;
-  final String? message;
-  final int? latestServerSequence;
-  final DateTime? nextRetryAt;
-
-  bool get isAvailable => status == SyncAvailabilityStatus.available;
-}
 
 class SyncAvailabilityMonitor {
   SyncAvailabilityMonitor({

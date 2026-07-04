@@ -48,6 +48,6 @@ class Events extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {eventId}
-      ];
+    {eventId},
+  ];
 }

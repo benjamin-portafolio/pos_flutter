@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
-import '../commands/local_command_context.dart';
 import '../../data/local/drift/app_database.dart';
+import '../commands/local_command_context.dart';
+import 'models/sync_events_available_notice.dart';
 import 'sync_endpoint_config.dart';
 
 class SyncSocketListener {
@@ -119,16 +120,4 @@ class SyncSocketListener {
 
     return value.whereType<String>().toList(growable: false);
   }
-}
-
-class SyncEventsAvailableNotice {
-  const SyncEventsAvailableNotice({
-    required this.latestServerSequence,
-    required this.eventTypes,
-    required this.sourceDeviceId,
-  });
-
-  final int latestServerSequence;
-  final List<String> eventTypes;
-  final String? sourceDeviceId;
 }

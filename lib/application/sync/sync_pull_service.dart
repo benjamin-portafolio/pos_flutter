@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http;
 
 import '../../data/local/drift/app_database.dart';
 import '../commands/local_command_context.dart';
+import 'exceptions/sync_pull_exception.dart';
 import 'models/sync_event.dart';
+import 'models/sync_pull_report.dart';
 import 'remote_event_applier.dart';
 import 'sync_endpoint_config.dart';
 
@@ -134,31 +136,6 @@ class SyncPullService {
 
     return maxSequence;
   }
-}
-
-class SyncPullReport {
-  const SyncPullReport({
-    required this.total,
-    required this.lastCursor,
-    required this.hasMore,
-  });
-
-  const SyncPullReport.empty({required this.lastCursor})
-    : total = 0,
-      hasMore = false;
-
-  final int total;
-  final int lastCursor;
-  final bool hasMore;
-}
-
-class SyncPullException implements Exception {
-  const SyncPullException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }
 
 class _PullPage {

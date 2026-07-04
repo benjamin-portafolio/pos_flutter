@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../data/local/drift/app_database.dart';
+import 'exceptions/sync_push_exception.dart';
 import 'models/sync_event.dart';
+import 'models/sync_push_report.dart';
 import 'sync_endpoint_config.dart';
 
 class SyncPushService {
@@ -257,38 +259,6 @@ class SyncPushService {
     if (value is! String) return null;
     return DateTime.tryParse(value);
   }
-}
-
-class SyncPushReport {
-  const SyncPushReport({
-    required this.total,
-    required this.synced,
-    required this.rejected,
-    required this.conflicts,
-    required this.pending,
-  });
-
-  const SyncPushReport.empty()
-    : total = 0,
-      synced = 0,
-      rejected = 0,
-      conflicts = 0,
-      pending = 0;
-
-  final int total;
-  final int synced;
-  final int rejected;
-  final int conflicts;
-  final int pending;
-}
-
-class SyncPushException implements Exception {
-  const SyncPushException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }
 
 class _RemoteEventResult {

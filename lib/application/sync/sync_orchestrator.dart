@@ -1,5 +1,10 @@
 import 'dart:async';
 
+import 'exceptions/sync_pull_exception.dart';
+import 'models/sync_events_available_notice.dart';
+import 'models/sync_health_check.dart';
+import 'models/sync_pull_report.dart';
+import 'models/sync_push_report.dart';
 import 'sync_health_service.dart';
 import 'sync_preflight_service.dart';
 import 'sync_pull_service.dart';
