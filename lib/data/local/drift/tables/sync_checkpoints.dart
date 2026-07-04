@@ -8,7 +8,12 @@ class SyncCheckpoints extends Table {
   IntColumn get lastFullPullServerSequence =>
       integer().withDefault(const Constant(0))();
 
+  IntColumn get lastPreflightServerSequence =>
+      integer().withDefault(const Constant(0))();
+
   DateTimeColumn get lastFullPullAt => dateTime().nullable()();
+
+  DateTimeColumn get lastPreflightAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {checkpointId};

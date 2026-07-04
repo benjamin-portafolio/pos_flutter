@@ -11,16 +11,18 @@ import 'package:pos_flutter/data/local/drift/app_database.dart';
 
 void main() {
   late AppDatabase db;
+  late EventDao eventDao;
   late _FakeSyncHealthService healthService;
   late _FakeSyncOrchestrator orchestrator;
   late SyncAvailabilityMonitor monitor;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    eventDao = EventDao(db);
     healthService = _FakeSyncHealthService();
     orchestrator = _FakeSyncOrchestrator();
     monitor = SyncAvailabilityMonitor(
-      eventDao: EventDao(db),
+      eventDao: eventDao,
       healthService: healthService,
       orchestrator: orchestrator,
       retryDelays: const [Duration(milliseconds: 20)],
@@ -32,16 +34,45 @@ void main() {
     await db.close();
   });
 
-  test('health disponible inicia realtime, pull y push', () async {
+  test('health disponible sin pendientes inicia realtime y pull', () async {
     healthService.responses.add(_availableHealth(latestServerSequence: 7));
 
     await monitor.checkNow();
 
     expect(orchestrator.startRealtimeCount, 1);
+    expect(orchestrator.syncCalls, ['pullIfBehind:7']);
     expect(orchestrator.pullIfBehindTargets, [7]);
-    expect(orchestrator.pushCount, 1);
+    expect(orchestrator.pushCount, 0);
     expect(monitor.snapshot.status, SyncAvailabilityStatus.available);
   });
+
+  test(
+    'health disponible con pendientes ejecuta push sin pull previo',
+    () async {
+      await eventDao.insertarEvento(
+        EventsCompanion.insert(
+          eventId: 'event-1',
+          aggregateType: 'espacio',
+          aggregateId: 'espacio-1',
+          eventType: 'espacio_creado',
+          deviceId: 'device-1',
+          userId: 'user-1',
+          createdAtLocal: DateTime(2026),
+          payload: '{}',
+        ),
+      );
+      healthService.responses.add(_availableHealth(latestServerSequence: 7));
+
+      await monitor.checkNow();
+
+      expect(orchestrator.startRealtimeCount, 1);
+      expect(orchestrator.syncCalls, ['push']);
+      expect(orchestrator.pullIfBehindTargets, isEmpty);
+      expect(orchestrator.pushLatestServerSequences, [7]);
+      expect(orchestrator.pushCount, 1);
+      expect(monitor.snapshot.status, SyncAvailabilityStatus.available);
+    },
+  );
 
   test('un acceso correcto cancela el retry pendiente del backoff', () async {
     healthService.responses
@@ -95,7 +126,9 @@ class _FakeSyncOrchestrator implements SyncOrchestrator {
   var stopRealtimeCount = 0;
   var pushCount = 0;
   var pullCount = 0;
+  final syncCalls = <String>[];
   final pullIfBehindTargets = <int>[];
+  final pushLatestServerSequences = <int?>[];
 
   @override
   void startRealtimeListener() {
@@ -115,12 +148,14 @@ class _FakeSyncOrchestrator implements SyncOrchestrator {
   @override
   Future<SyncPullReport> pullAvailableEvents() async {
     pullCount++;
+    syncCalls.add('pullAvailable');
     return const SyncPullReport(total: 0, lastCursor: 0, hasMore: false);
   }
 
   @override
   Future<SyncPullReport> pullIfBehind(int latestServerSequence) async {
     pullIfBehindTargets.add(latestServerSequence);
+    syncCalls.add('pullIfBehind:$latestServerSequence');
     return SyncPullReport(
       total: 0,
       lastCursor: latestServerSequence,
@@ -129,8 +164,10 @@ class _FakeSyncOrchestrator implements SyncOrchestrator {
   }
 
   @override
-  Future<SyncPushReport> pushPendingEvents() async {
+  Future<SyncPushReport> pushPendingEvents({int? latestServerSequence}) async {
     pushCount++;
+    pushLatestServerSequences.add(latestServerSequence);
+    syncCalls.add('push');
     return const SyncPushReport.empty();
   }
 }

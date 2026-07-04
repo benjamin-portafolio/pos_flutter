@@ -51,6 +51,21 @@ presentation
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.
 
+## Organizacion de clases por archivo
+
+- Usar una clase principal por archivo como regla base.
+- Se pueden mantener varias clases en un archivo cuando sean auxiliares,
+  pequenas, privadas del archivo y solo tengan sentido junto a la clase
+  principal.
+- En Flutter/Dart, es valido agrupar widgets privados como
+  `_ProductHeader` o `_ProductActions` si solo los usa la pantalla o widget
+  principal de ese archivo.
+- Separar una clase a su propio archivo cuando crezca, se importe desde otros
+  modulos, se testee por separado, represente una responsabilidad importante o
+  pertenezca a otra capa.
+- Si una clase merece ser buscada, importada, testeada o entendida por
+  separado, debe tener su propio archivo.
+
 ## Validaciones por agregado
 
 En desarrollos offline-first similares a `crear espacio`, aplicar validaciones

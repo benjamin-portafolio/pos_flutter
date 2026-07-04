@@ -20,6 +20,12 @@ class EventRefDao extends DatabaseAccessor<AppDatabase>
     )..where((t) => t.source.equals('local_pending'))).get();
   }
 
+  Future<List<EventRef>> obtenerReferenciasPorEventos(List<String> eventIds) {
+    if (eventIds.isEmpty) return Future.value(const <EventRef>[]);
+
+    return (select(eventRefs)..where((t) => t.eventId.isIn(eventIds))).get();
+  }
+
   /// Actualiza el estado y secuencia de servidor para referencias de un evento.
   Future<int> actualizarReferenciasSincronizadas(
     String eventId,

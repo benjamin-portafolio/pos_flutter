@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'sync_health_service.dart';
+import 'sync_preflight_service.dart';
 import 'sync_pull_service.dart';
 import 'sync_push_service.dart';
 import 'sync_socket_listener.dart';
@@ -8,15 +9,18 @@ import 'sync_socket_listener.dart';
 class SyncOrchestrator {
   SyncOrchestrator({
     required SyncHealthService healthService,
+    required SyncPreflightService preflightService,
     required SyncPullService pullService,
     required SyncPushService pushService,
     required SyncSocketListener socketListener,
   }) : _healthService = healthService,
+       _preflightService = preflightService,
        _pullService = pullService,
        _pushService = pushService,
        _socketListener = socketListener;
 
   final SyncHealthService _healthService;
+  final SyncPreflightService _preflightService;
   final SyncPullService _pullService;
   final SyncPushService _pushService;
   final SyncSocketListener _socketListener;
@@ -32,13 +36,32 @@ class SyncOrchestrator {
     return _healthService.check();
   }
 
-  Future<SyncPushReport> pushPendingEvents() async {
-    final report = await _pushService.pushPendingEvents();
-    if (report.total > 0) {
+  Future<SyncPushReport> pushPendingEvents({int? latestServerSequence}) async {
+    final preflightReport = await _preflightService.preflightPendingEvents(
+      latestServerSequence: latestServerSequence,
+    );
+    var localConflicts = preflightReport.localConflicts;
+
+    if (preflightReport.requiresFullPullBeforePush) {
+      await _pullService.pullAvailableEvents();
+      final revalidation = await _preflightService.revalidatePendingEvents();
+      localConflicts += revalidation.conflicts;
+    }
+
+    final pushReport = await _pushService.pushPendingEvents();
+    if (pushReport.total > 0) {
       await _pullService.pullAvailableEvents();
     }
 
-    return report;
+    if (localConflicts == 0) return pushReport;
+
+    return SyncPushReport(
+      total: pushReport.total + localConflicts,
+      synced: pushReport.synced,
+      rejected: pushReport.rejected,
+      conflicts: pushReport.conflicts + localConflicts,
+      pending: pushReport.pending,
+    );
   }
 
   Future<SyncPullReport> pullAvailableEvents() {

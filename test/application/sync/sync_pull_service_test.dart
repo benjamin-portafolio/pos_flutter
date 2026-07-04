@@ -8,6 +8,7 @@ import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
+import 'package:pos_flutter/application/sync/remote_event_applier.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -28,11 +29,14 @@ void main() {
   });
 
   test('pullAvailableEvents aplica eventos y avanza checkpoint', () async {
+    final eventProcessor = EventProcessor(
+      handlers: espacioEventHandlers(EspacioEventHandler(espacioDao)),
+    );
     final service = SyncPullService(
-      db: db,
       syncCheckpointDao: checkpointDao,
-      eventProcessor: EventProcessor(
-        handlers: espacioEventHandlers(EspacioEventHandler(espacioDao)),
+      remoteEventApplier: RemoteEventApplier(
+        db: db,
+        eventProcessor: eventProcessor,
       ),
       endpointConfig: SyncEndpointConfig(
         initialBaseUrl: 'http://localhost:3000',

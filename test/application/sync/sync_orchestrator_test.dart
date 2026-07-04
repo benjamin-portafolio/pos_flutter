@@ -3,20 +3,24 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/sync_health_service.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
+import 'package:pos_flutter/application/sync/sync_preflight_service.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
 import 'package:pos_flutter/application/sync/sync_push_service.dart';
 import 'package:pos_flutter/application/sync/sync_socket_listener.dart';
 
 void main() {
+  late _FakeSyncPreflightService preflightService;
   late _FakeSyncPullService pullService;
   late _FakeSyncSocketListener socketListener;
   late SyncOrchestrator orchestrator;
 
   setUp(() {
+    preflightService = _FakeSyncPreflightService();
     pullService = _FakeSyncPullService();
     socketListener = _FakeSyncSocketListener();
     orchestrator = SyncOrchestrator(
       healthService: _FakeSyncHealthService(),
+      preflightService: preflightService,
       pullService: pullService,
       pushService: _FakeSyncPushService(),
       socketListener: socketListener,
@@ -48,6 +52,12 @@ void main() {
     expect(pullService.pullAvailableCount, 0);
     expect(pullService.pullIfBehindTargets, [9]);
   });
+
+  test('push de pendientes propaga latestServerSequence a preflight', () async {
+    await orchestrator.pushPendingEvents(latestServerSequence: 9);
+
+    expect(preflightService.latestServerSequences, [9]);
+  });
 }
 
 class _FakeSyncHealthService implements SyncHealthService {
@@ -60,6 +70,22 @@ class _FakeSyncPushService implements SyncPushService {
   Future<SyncPushReport> pushPendingEvents() async {
     return const SyncPushReport.empty();
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeSyncPreflightService implements SyncPreflightService {
+  @override
+  Future<SyncPreflightReport> preflightPendingEvents({
+    int maxEvents = SyncPreflightService.defaultMaxEvents,
+    int? latestServerSequence,
+  }) async {
+    latestServerSequences.add(latestServerSequence);
+    return const SyncPreflightReport.skipped(reason: 'no_pending_events');
+  }
+
+  final latestServerSequences = <int?>[];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

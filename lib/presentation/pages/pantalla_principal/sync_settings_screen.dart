@@ -5,6 +5,7 @@ import '../../../application/sync/sync_endpoint_config.dart';
 import '../../../application/sync/sync_endpoint_store.dart';
 import '../../../application/sync/sync_health_service.dart';
 import '../../../application/sync/sync_orchestrator.dart';
+import '../../../application/sync/sync_preflight_service.dart';
 import '../../../application/sync/sync_pull_service.dart'
     show SyncPullException;
 import '../../../application/sync/sync_push_service.dart'
@@ -191,6 +192,13 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text(_mensajeReporte(report))));
     } on SyncPushException catch (error) {
+      _availabilityMonitor.markServerUnavailable(error.message);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on SyncPreflightException catch (error) {
       _availabilityMonitor.markServerUnavailable(error.message);
       if (!mounted) return;
 

@@ -2014,6 +2014,18 @@ class $SyncCheckpointsTable extends SyncCheckpoints
         requiredDuringInsert: false,
         defaultValue: const Constant(0),
       );
+  static const VerificationMeta _lastPreflightServerSequenceMeta =
+      const VerificationMeta('lastPreflightServerSequence');
+  @override
+  late final GeneratedColumn<int> lastPreflightServerSequence =
+      GeneratedColumn<int>(
+        'last_preflight_server_sequence',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _lastFullPullAtMeta = const VerificationMeta(
     'lastFullPullAt',
   );
@@ -2026,11 +2038,25 @@ class $SyncCheckpointsTable extends SyncCheckpoints
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _lastPreflightAtMeta = const VerificationMeta(
+    'lastPreflightAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastPreflightAt =
+      GeneratedColumn<DateTime>(
+        'last_preflight_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     checkpointId,
     lastFullPullServerSequence,
+    lastPreflightServerSequence,
     lastFullPullAt,
+    lastPreflightAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2064,12 +2090,30 @@ class $SyncCheckpointsTable extends SyncCheckpoints
         ),
       );
     }
+    if (data.containsKey('last_preflight_server_sequence')) {
+      context.handle(
+        _lastPreflightServerSequenceMeta,
+        lastPreflightServerSequence.isAcceptableOrUnknown(
+          data['last_preflight_server_sequence']!,
+          _lastPreflightServerSequenceMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_full_pull_at')) {
       context.handle(
         _lastFullPullAtMeta,
         lastFullPullAt.isAcceptableOrUnknown(
           data['last_full_pull_at']!,
           _lastFullPullAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_preflight_at')) {
+      context.handle(
+        _lastPreflightAtMeta,
+        lastPreflightAt.isAcceptableOrUnknown(
+          data['last_preflight_at']!,
+          _lastPreflightAtMeta,
         ),
       );
     }
@@ -2090,9 +2134,17 @@ class $SyncCheckpointsTable extends SyncCheckpoints
         DriftSqlType.int,
         data['${effectivePrefix}last_full_pull_server_sequence'],
       )!,
+      lastPreflightServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_preflight_server_sequence'],
+      )!,
       lastFullPullAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_full_pull_at'],
+      ),
+      lastPreflightAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_preflight_at'],
       ),
     );
   }
@@ -2106,11 +2158,15 @@ class $SyncCheckpointsTable extends SyncCheckpoints
 class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
   final String checkpointId;
   final int lastFullPullServerSequence;
+  final int lastPreflightServerSequence;
   final DateTime? lastFullPullAt;
+  final DateTime? lastPreflightAt;
   const SyncCheckpoint({
     required this.checkpointId,
     required this.lastFullPullServerSequence,
+    required this.lastPreflightServerSequence,
     this.lastFullPullAt,
+    this.lastPreflightAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2119,8 +2175,14 @@ class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
     map['last_full_pull_server_sequence'] = Variable<int>(
       lastFullPullServerSequence,
     );
+    map['last_preflight_server_sequence'] = Variable<int>(
+      lastPreflightServerSequence,
+    );
     if (!nullToAbsent || lastFullPullAt != null) {
       map['last_full_pull_at'] = Variable<DateTime>(lastFullPullAt);
+    }
+    if (!nullToAbsent || lastPreflightAt != null) {
+      map['last_preflight_at'] = Variable<DateTime>(lastPreflightAt);
     }
     return map;
   }
@@ -2129,9 +2191,13 @@ class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
     return SyncCheckpointsCompanion(
       checkpointId: Value(checkpointId),
       lastFullPullServerSequence: Value(lastFullPullServerSequence),
+      lastPreflightServerSequence: Value(lastPreflightServerSequence),
       lastFullPullAt: lastFullPullAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastFullPullAt),
+      lastPreflightAt: lastPreflightAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPreflightAt),
     );
   }
 
@@ -2145,7 +2211,11 @@ class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
       lastFullPullServerSequence: serializer.fromJson<int>(
         json['lastFullPullServerSequence'],
       ),
+      lastPreflightServerSequence: serializer.fromJson<int>(
+        json['lastPreflightServerSequence'],
+      ),
       lastFullPullAt: serializer.fromJson<DateTime?>(json['lastFullPullAt']),
+      lastPreflightAt: serializer.fromJson<DateTime?>(json['lastPreflightAt']),
     );
   }
   @override
@@ -2156,21 +2226,32 @@ class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
       'lastFullPullServerSequence': serializer.toJson<int>(
         lastFullPullServerSequence,
       ),
+      'lastPreflightServerSequence': serializer.toJson<int>(
+        lastPreflightServerSequence,
+      ),
       'lastFullPullAt': serializer.toJson<DateTime?>(lastFullPullAt),
+      'lastPreflightAt': serializer.toJson<DateTime?>(lastPreflightAt),
     };
   }
 
   SyncCheckpoint copyWith({
     String? checkpointId,
     int? lastFullPullServerSequence,
+    int? lastPreflightServerSequence,
     Value<DateTime?> lastFullPullAt = const Value.absent(),
+    Value<DateTime?> lastPreflightAt = const Value.absent(),
   }) => SyncCheckpoint(
     checkpointId: checkpointId ?? this.checkpointId,
     lastFullPullServerSequence:
         lastFullPullServerSequence ?? this.lastFullPullServerSequence,
+    lastPreflightServerSequence:
+        lastPreflightServerSequence ?? this.lastPreflightServerSequence,
     lastFullPullAt: lastFullPullAt.present
         ? lastFullPullAt.value
         : this.lastFullPullAt,
+    lastPreflightAt: lastPreflightAt.present
+        ? lastPreflightAt.value
+        : this.lastPreflightAt,
   );
   SyncCheckpoint copyWithCompanion(SyncCheckpointsCompanion data) {
     return SyncCheckpoint(
@@ -2180,9 +2261,15 @@ class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
       lastFullPullServerSequence: data.lastFullPullServerSequence.present
           ? data.lastFullPullServerSequence.value
           : this.lastFullPullServerSequence,
+      lastPreflightServerSequence: data.lastPreflightServerSequence.present
+          ? data.lastPreflightServerSequence.value
+          : this.lastPreflightServerSequence,
       lastFullPullAt: data.lastFullPullAt.present
           ? data.lastFullPullAt.value
           : this.lastFullPullAt,
+      lastPreflightAt: data.lastPreflightAt.present
+          ? data.lastPreflightAt.value
+          : this.lastPreflightAt,
     );
   }
 
@@ -2191,51 +2278,72 @@ class SyncCheckpoint extends DataClass implements Insertable<SyncCheckpoint> {
     return (StringBuffer('SyncCheckpoint(')
           ..write('checkpointId: $checkpointId, ')
           ..write('lastFullPullServerSequence: $lastFullPullServerSequence, ')
-          ..write('lastFullPullAt: $lastFullPullAt')
+          ..write('lastPreflightServerSequence: $lastPreflightServerSequence, ')
+          ..write('lastFullPullAt: $lastFullPullAt, ')
+          ..write('lastPreflightAt: $lastPreflightAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(checkpointId, lastFullPullServerSequence, lastFullPullAt);
+  int get hashCode => Object.hash(
+    checkpointId,
+    lastFullPullServerSequence,
+    lastPreflightServerSequence,
+    lastFullPullAt,
+    lastPreflightAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SyncCheckpoint &&
           other.checkpointId == this.checkpointId &&
           other.lastFullPullServerSequence == this.lastFullPullServerSequence &&
-          other.lastFullPullAt == this.lastFullPullAt);
+          other.lastPreflightServerSequence ==
+              this.lastPreflightServerSequence &&
+          other.lastFullPullAt == this.lastFullPullAt &&
+          other.lastPreflightAt == this.lastPreflightAt);
 }
 
 class SyncCheckpointsCompanion extends UpdateCompanion<SyncCheckpoint> {
   final Value<String> checkpointId;
   final Value<int> lastFullPullServerSequence;
+  final Value<int> lastPreflightServerSequence;
   final Value<DateTime?> lastFullPullAt;
+  final Value<DateTime?> lastPreflightAt;
   final Value<int> rowid;
   const SyncCheckpointsCompanion({
     this.checkpointId = const Value.absent(),
     this.lastFullPullServerSequence = const Value.absent(),
+    this.lastPreflightServerSequence = const Value.absent(),
     this.lastFullPullAt = const Value.absent(),
+    this.lastPreflightAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SyncCheckpointsCompanion.insert({
     required String checkpointId,
     this.lastFullPullServerSequence = const Value.absent(),
+    this.lastPreflightServerSequence = const Value.absent(),
     this.lastFullPullAt = const Value.absent(),
+    this.lastPreflightAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : checkpointId = Value(checkpointId);
   static Insertable<SyncCheckpoint> custom({
     Expression<String>? checkpointId,
     Expression<int>? lastFullPullServerSequence,
+    Expression<int>? lastPreflightServerSequence,
     Expression<DateTime>? lastFullPullAt,
+    Expression<DateTime>? lastPreflightAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (checkpointId != null) 'checkpoint_id': checkpointId,
       if (lastFullPullServerSequence != null)
         'last_full_pull_server_sequence': lastFullPullServerSequence,
+      if (lastPreflightServerSequence != null)
+        'last_preflight_server_sequence': lastPreflightServerSequence,
       if (lastFullPullAt != null) 'last_full_pull_at': lastFullPullAt,
+      if (lastPreflightAt != null) 'last_preflight_at': lastPreflightAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2243,14 +2351,19 @@ class SyncCheckpointsCompanion extends UpdateCompanion<SyncCheckpoint> {
   SyncCheckpointsCompanion copyWith({
     Value<String>? checkpointId,
     Value<int>? lastFullPullServerSequence,
+    Value<int>? lastPreflightServerSequence,
     Value<DateTime?>? lastFullPullAt,
+    Value<DateTime?>? lastPreflightAt,
     Value<int>? rowid,
   }) {
     return SyncCheckpointsCompanion(
       checkpointId: checkpointId ?? this.checkpointId,
       lastFullPullServerSequence:
           lastFullPullServerSequence ?? this.lastFullPullServerSequence,
+      lastPreflightServerSequence:
+          lastPreflightServerSequence ?? this.lastPreflightServerSequence,
       lastFullPullAt: lastFullPullAt ?? this.lastFullPullAt,
+      lastPreflightAt: lastPreflightAt ?? this.lastPreflightAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2266,8 +2379,16 @@ class SyncCheckpointsCompanion extends UpdateCompanion<SyncCheckpoint> {
         lastFullPullServerSequence.value,
       );
     }
+    if (lastPreflightServerSequence.present) {
+      map['last_preflight_server_sequence'] = Variable<int>(
+        lastPreflightServerSequence.value,
+      );
+    }
     if (lastFullPullAt.present) {
       map['last_full_pull_at'] = Variable<DateTime>(lastFullPullAt.value);
+    }
+    if (lastPreflightAt.present) {
+      map['last_preflight_at'] = Variable<DateTime>(lastPreflightAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -2280,7 +2401,9 @@ class SyncCheckpointsCompanion extends UpdateCompanion<SyncCheckpoint> {
     return (StringBuffer('SyncCheckpointsCompanion(')
           ..write('checkpointId: $checkpointId, ')
           ..write('lastFullPullServerSequence: $lastFullPullServerSequence, ')
+          ..write('lastPreflightServerSequence: $lastPreflightServerSequence, ')
           ..write('lastFullPullAt: $lastFullPullAt, ')
+          ..write('lastPreflightAt: $lastPreflightAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3223,14 +3346,18 @@ typedef $$SyncCheckpointsTableCreateCompanionBuilder =
     SyncCheckpointsCompanion Function({
       required String checkpointId,
       Value<int> lastFullPullServerSequence,
+      Value<int> lastPreflightServerSequence,
       Value<DateTime?> lastFullPullAt,
+      Value<DateTime?> lastPreflightAt,
       Value<int> rowid,
     });
 typedef $$SyncCheckpointsTableUpdateCompanionBuilder =
     SyncCheckpointsCompanion Function({
       Value<String> checkpointId,
       Value<int> lastFullPullServerSequence,
+      Value<int> lastPreflightServerSequence,
       Value<DateTime?> lastFullPullAt,
+      Value<DateTime?> lastPreflightAt,
       Value<int> rowid,
     });
 
@@ -3253,8 +3380,18 @@ class $$SyncCheckpointsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get lastPreflightServerSequence => $composableBuilder(
+    column: $table.lastPreflightServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get lastFullPullAt => $composableBuilder(
     column: $table.lastFullPullAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastPreflightAt => $composableBuilder(
+    column: $table.lastPreflightAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3278,8 +3415,18 @@ class $$SyncCheckpointsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get lastPreflightServerSequence => $composableBuilder(
+    column: $table.lastPreflightServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get lastFullPullAt => $composableBuilder(
     column: $table.lastFullPullAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastPreflightAt => $composableBuilder(
+    column: $table.lastPreflightAt,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -3303,8 +3450,18 @@ class $$SyncCheckpointsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get lastPreflightServerSequence => $composableBuilder(
+    column: $table.lastPreflightServerSequence,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get lastFullPullAt => $composableBuilder(
     column: $table.lastFullPullAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastPreflightAt => $composableBuilder(
+    column: $table.lastPreflightAt,
     builder: (column) => column,
   );
 }
@@ -3348,24 +3505,32 @@ class $$SyncCheckpointsTableTableManager
               ({
                 Value<String> checkpointId = const Value.absent(),
                 Value<int> lastFullPullServerSequence = const Value.absent(),
+                Value<int> lastPreflightServerSequence = const Value.absent(),
                 Value<DateTime?> lastFullPullAt = const Value.absent(),
+                Value<DateTime?> lastPreflightAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncCheckpointsCompanion(
                 checkpointId: checkpointId,
                 lastFullPullServerSequence: lastFullPullServerSequence,
+                lastPreflightServerSequence: lastPreflightServerSequence,
                 lastFullPullAt: lastFullPullAt,
+                lastPreflightAt: lastPreflightAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String checkpointId,
                 Value<int> lastFullPullServerSequence = const Value.absent(),
+                Value<int> lastPreflightServerSequence = const Value.absent(),
                 Value<DateTime?> lastFullPullAt = const Value.absent(),
+                Value<DateTime?> lastPreflightAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncCheckpointsCompanion.insert(
                 checkpointId: checkpointId,
                 lastFullPullServerSequence: lastFullPullServerSequence,
+                lastPreflightServerSequence: lastPreflightServerSequence,
                 lastFullPullAt: lastFullPullAt,
+                lastPreflightAt: lastPreflightAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

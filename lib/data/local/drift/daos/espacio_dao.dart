@@ -55,6 +55,16 @@ class EspacioDao extends DatabaseAccessor<AppDatabase> with _$EspacioDaoMixin {
     );
   }
 
+  Future<int> eliminarEspacioPorId(String id) {
+    return (delete(espacios)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<int> eliminarEspacioCreadoPorEvento(String eventId) {
+    return (delete(
+      espacios,
+    )..where((t) => t.createdEventId.equals(eventId))).go();
+  }
+
   /// Actualiza un espacio existente.
   Future<bool> actualizarEspacio(Espacio entity) {
     return update(espacios).replace(entity);

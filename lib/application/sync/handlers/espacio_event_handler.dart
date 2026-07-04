@@ -24,10 +24,14 @@ class EspacioEventHandler {
         return;
       }
 
-      throw StateError(
-        'No se puede aplicar espacio_creado sobre un espacio existente: '
-        '${event.aggregateId}',
-      );
+      final removedLocalPending =
+          await _removeLocalPendingProjectionForRemoteEvent(event, existing);
+      if (!removedLocalPending) {
+        throw StateError(
+          'No se puede aplicar espacio_creado sobre un espacio existente: '
+          '${event.aggregateId}',
+        );
+      }
     }
 
     if (identificacion != null && identificacion.isNotEmpty) {
@@ -35,10 +39,17 @@ class EspacioEventHandler {
           .obtenerEspacioPorIdentificacion(identificacion);
 
       if (existingByIdentificacion != null) {
-        throw StateError(
-          'No se puede aplicar espacio_creado con identificacion duplicada: '
-          '$identificacion',
-        );
+        final removedLocalPending =
+            await _removeLocalPendingProjectionForRemoteEvent(
+              event,
+              existingByIdentificacion,
+            );
+        if (!removedLocalPending) {
+          throw StateError(
+            'No se puede aplicar espacio_creado con identificacion duplicada: '
+            '$identificacion',
+          );
+        }
       }
     }
 
@@ -55,5 +66,17 @@ class EspacioEventHandler {
         lastServerSequence: Value(event.serverSequence),
       ),
     );
+  }
+
+  Future<bool> _removeLocalPendingProjectionForRemoteEvent(
+    SyncEvent event,
+    Espacio existing,
+  ) async {
+    if (event.serverSequence == null || existing.lastServerSequence != null) {
+      return false;
+    }
+
+    await _espacioDao.eliminarEspacioPorId(existing.id);
+    return true;
   }
 }

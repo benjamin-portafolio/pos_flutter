@@ -16,6 +16,15 @@ class SyncCheckpointDao extends DatabaseAccessor<AppDatabase>
     return checkpoint?.lastFullPullServerSequence ?? 0;
   }
 
+  Future<int> obtenerLastPreflightServerSequence() async {
+    final checkpoint =
+        await (select(syncCheckpoints)
+              ..where((t) => t.checkpointId.equals(fullPullCheckpointId)))
+            .getSingleOrNull();
+
+    return checkpoint?.lastPreflightServerSequence ?? 0;
+  }
+
   Future<void> actualizarLastFullPullServerSequence(
     int serverSequence, {
     DateTime? pulledAt,
@@ -23,12 +32,39 @@ class SyncCheckpointDao extends DatabaseAccessor<AppDatabase>
     final current = await obtenerLastFullPullServerSequence();
     if (serverSequence <= current) return;
 
-    await into(syncCheckpoints).insertOnConflictUpdate(
-      SyncCheckpointsCompanion.insert(
-        checkpointId: fullPullCheckpointId,
+    await _ensureFullPullCheckpoint();
+    await (update(
+      syncCheckpoints,
+    )..where((t) => t.checkpointId.equals(fullPullCheckpointId))).write(
+      SyncCheckpointsCompanion(
         lastFullPullServerSequence: Value(serverSequence),
         lastFullPullAt: Value(pulledAt ?? DateTime.now().toUtc()),
       ),
+    );
+  }
+
+  Future<void> actualizarLastPreflightServerSequence(
+    int serverSequence, {
+    DateTime? preflightAt,
+  }) async {
+    final current = await obtenerLastPreflightServerSequence();
+    if (serverSequence <= current) return;
+
+    await _ensureFullPullCheckpoint();
+    await (update(
+      syncCheckpoints,
+    )..where((t) => t.checkpointId.equals(fullPullCheckpointId))).write(
+      SyncCheckpointsCompanion(
+        lastPreflightServerSequence: Value(serverSequence),
+        lastPreflightAt: Value(preflightAt ?? DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> _ensureFullPullCheckpoint() async {
+    await into(syncCheckpoints).insert(
+      SyncCheckpointsCompanion.insert(checkpointId: fullPullCheckpointId),
+      mode: InsertMode.insertOrIgnore,
     );
   }
 }

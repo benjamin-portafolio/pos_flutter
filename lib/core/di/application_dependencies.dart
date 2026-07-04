@@ -6,10 +6,13 @@ import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
+import '../../application/sync/pending_event_revalidator.dart';
+import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/sync_availability_monitor.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_health_service.dart';
 import '../../application/sync/sync_orchestrator.dart';
+import '../../application/sync/sync_preflight_service.dart';
 import '../../application/sync/sync_pull_service.dart';
 import '../../application/sync/sync_push_service.dart';
 import '../../application/sync/sync_socket_listener.dart';
@@ -39,6 +42,18 @@ void registerApplicationDependencies(
       handlers: espacioEventHandlers(getIt<EspacioEventHandler>()),
     ),
   );
+  getIt.registerLazySingleton<RemoteEventApplier>(
+    () => RemoteEventApplier(
+      db: getIt<AppDatabase>(),
+      eventProcessor: getIt<EventProcessor>(),
+    ),
+  );
+  getIt.registerLazySingleton<PendingEventRevalidator>(
+    () => PendingEventRevalidator(
+      eventDao: getIt<EventDao>(),
+      espacioDao: getIt<EspacioDao>(),
+    ),
+  );
   getIt.registerLazySingleton<LocalEventStore>(
     () => DriftLocalEventStore(
       db: getIt<AppDatabase>(),
@@ -57,11 +72,21 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncPullService>(
     () => SyncPullService(
-      db: getIt<AppDatabase>(),
       syncCheckpointDao: getIt<SyncCheckpointDao>(),
-      eventProcessor: getIt<EventProcessor>(),
+      remoteEventApplier: getIt<RemoteEventApplier>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
+    ),
+  );
+  getIt.registerLazySingleton<SyncPreflightService>(
+    () => SyncPreflightService(
+      eventDao: getIt<EventDao>(),
+      eventRefDao: getIt<EventRefDao>(),
+      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      endpointConfig: getIt<SyncEndpointConfig>(),
+      commandContext: getIt<LocalCommandContext>(),
+      remoteEventApplier: getIt<RemoteEventApplier>(),
+      pendingEventRevalidator: getIt<PendingEventRevalidator>(),
     ),
   );
   getIt.registerLazySingleton<SyncSocketListener>(
@@ -74,6 +99,7 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<SyncOrchestrator>(
     () => SyncOrchestrator(
       healthService: getIt<SyncHealthService>(),
+      preflightService: getIt<SyncPreflightService>(),
       pullService: getIt<SyncPullService>(),
       pushService: getIt<SyncPushService>(),
       socketListener: getIt<SyncSocketListener>(),

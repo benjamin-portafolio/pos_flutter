@@ -174,13 +174,19 @@ class SyncAvailabilityMonitor {
     _resetBackoff();
 
     try {
-      final latestServerSequence = health.latestServerSequence;
-      if (latestServerSequence == null) {
-        await _orchestrator.pullAvailableEvents();
+      final pendingEvents = await _eventDao.obtenerEventosPendientes();
+      if (pendingEvents.isNotEmpty) {
+        await _orchestrator.pushPendingEvents(
+          latestServerSequence: health.latestServerSequence,
+        );
       } else {
-        await _orchestrator.pullIfBehind(latestServerSequence);
+        final latestServerSequence = health.latestServerSequence;
+        if (latestServerSequence == null) {
+          await _orchestrator.pullAvailableEvents();
+        } else {
+          await _orchestrator.pullIfBehind(latestServerSequence);
+        }
       }
-      await _orchestrator.pushPendingEvents();
 
       markServerAvailable(latestServerSequence: health.latestServerSequence);
     } on SyncPullException catch (error) {

@@ -118,10 +118,14 @@ class SyncPushService {
     final uri = Uri.parse('${_endpointConfig.baseUrl}/sync/push');
     final lastFullPullServerSequence = await _syncCheckpointDao
         .obtenerLastFullPullServerSequence();
+    final lastPreflightServerSequence = await _syncCheckpointDao
+        .obtenerLastPreflightServerSequence();
     final body = <String, Object?>{
       'device_id': deviceId,
       'last_full_pull_server_sequence': lastFullPullServerSequence,
-      'last_preflight_server_sequence': null,
+      'last_preflight_server_sequence': lastPreflightServerSequence == 0
+          ? null
+          : lastPreflightServerSequence,
       'events': events,
     };
 
