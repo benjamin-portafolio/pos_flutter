@@ -15,7 +15,10 @@ import 'package:pos_flutter/application/sync/remote_event_applier.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_preflight_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
+import 'package:pos_flutter/data/local/drift/drift_synced_event_store.dart';
 
 void main() {
   late AppDatabase db;
@@ -23,6 +26,8 @@ void main() {
   late EventDao eventDao;
   late EventRefDao eventRefDao;
   late SyncCheckpointDao checkpointDao;
+  late DriftSyncPersistence syncPersistence;
+  late DriftEspacioProjectionStore espacioProjectionStore;
   late DriftLocalEventStore localEventStore;
   late RemoteEventApplier remoteEventApplier;
   late PendingEventRevalidator pendingEventRevalidator;
@@ -33,8 +38,18 @@ void main() {
     eventDao = EventDao(db);
     eventRefDao = EventRefDao(db);
     checkpointDao = SyncCheckpointDao(db);
+    syncPersistence = DriftSyncPersistence(
+      eventDao: eventDao,
+      eventRefDao: eventRefDao,
+      syncCheckpointDao: checkpointDao,
+    );
+    espacioProjectionStore = DriftEspacioProjectionStore(
+      espacioDao: espacioDao,
+    );
     final eventProcessor = EventProcessor(
-      handlers: espacioEventHandlers(EspacioEventHandler(espacioDao)),
+      handlers: espacioEventHandlers(
+        EspacioEventHandler(espacioProjectionStore),
+      ),
     );
     localEventStore = DriftLocalEventStore(
       db: db,
@@ -43,12 +58,12 @@ void main() {
       eventProcessor: eventProcessor,
     );
     remoteEventApplier = RemoteEventApplier(
-      db: db,
+      eventStore: DriftSyncedEventStore(db: db),
       eventProcessor: eventProcessor,
     );
     pendingEventRevalidator = PendingEventRevalidator(
-      eventDao: eventDao,
-      espacioDao: espacioDao,
+      syncPersistence: syncPersistence,
+      espacioProjectionStore: espacioProjectionStore,
     );
   });
 
@@ -58,9 +73,7 @@ void main() {
 
   SyncPreflightService buildPreflightService({required http.Client client}) {
     return SyncPreflightService(
-      eventDao: eventDao,
-      eventRefDao: eventRefDao,
-      syncCheckpointDao: checkpointDao,
+      syncPersistence: syncPersistence,
       endpointConfig: SyncEndpointConfig(
         initialBaseUrl: 'http://localhost:3000',
       ),

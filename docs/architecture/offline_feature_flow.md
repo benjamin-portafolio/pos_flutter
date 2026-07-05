@@ -50,8 +50,12 @@ UI
 
 - Contiene `SyncEvent`.
 - Contiene el puerto `LocalEventStore` y el modelo `LocalEventRef`.
+- Contiene puertos de persistencia/proyeccion usados por sync local y remota.
+- Contiene `SyncProjection`, la base de campos comunes para DTOs de
+  proyeccion usados por handlers.
 - Contiene `EventProcessor`.
 - Contiene handlers que aplican eventos a proyecciones locales.
+- Los handlers dependen de puertos de proyeccion, no de Drift.
 - Los handlers deben ser idempotentes.
 
 `data/local/drift`
@@ -62,6 +66,7 @@ UI
   `schemaVersion` salvo que el usuario lo pida.
 - Implementa `LocalEventStore` ocultando `EventsCompanion`, `EventRefsCompanion`
   y transacciones.
+- Implementa los puertos de `application/sync` usando Drift.
 - No debe contener logica de UI.
 
 `data/repositories`
@@ -80,6 +85,7 @@ lib/application/sync/models/sync_event.dart
 lib/application/sync/local_event_store.dart
 lib/application/sync/event_processor.dart
 lib/application/sync/handlers/espacio_event_handler.dart
+lib/application/sync/projections/sync_projection.dart
 lib/data/local/drift/drift_local_event_store.dart
 lib/data/local/drift/tables/espacios.dart
 lib/data/local/drift/tables/events.dart
@@ -88,6 +94,27 @@ lib/data/local/drift/daos/espacio_dao.dart
 lib/data/repositories/espacio_repository_impl.dart
 lib/domain/repositories/espacio_repository.dart
 ```
+
+## Proyecciones y campos comunes
+
+Las tablas Drift que representan proyecciones locales pueden compartir columnas
+con `CommonFields`: `id`, `active`, `version`, `createdEventId`,
+`lastEventId` y `lastServerSequence`.
+
+En `application/sync` no se debe importar `CommonFields` ni clases generadas por
+Drift. Para mantener el mismo concepto sin acoplar capas, los DTOs de
+proyeccion que usan los handlers deben extender `SyncProjection` y agregar solo
+los campos especificos del agregado.
+
+Ejemplo:
+
+```text
+Espacios extends Table with CommonFields
+EspacioProjection extends SyncProjection
+```
+
+El adaptador Drift, por ejemplo `DriftEspacioProjectionStore`, es el encargado
+de mapear entre la fila Drift y el DTO de proyeccion de `application/sync`.
 
 ## Event refs
 
@@ -124,6 +151,9 @@ Para un evento `*_creado`:
 - No guardar directo desde UI a una tabla Drift.
 - No poner enums de negocio en modelos de formulario.
 - No hacer que `domain` importe `data`.
+- No hacer que `application` importe `data/local/drift`; usar puertos.
+- No hacer que una proyeccion de `application/sync` dependa de `CommonFields`;
+  usar `SyncProjection`.
 - No mezclar varios agregados si el usuario pidio analizar solo uno.
 - No implementar sync remota como efecto colateral de un flujo local.
 

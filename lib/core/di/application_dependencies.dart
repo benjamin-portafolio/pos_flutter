@@ -7,15 +7,18 @@ import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/pending_event_revalidator.dart';
+import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/sync_availability_monitor.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_health_service.dart';
 import '../../application/sync/sync_orchestrator.dart';
+import '../../application/sync/sync_persistence.dart';
 import '../../application/sync/sync_preflight_service.dart';
 import '../../application/sync/sync_pull_service.dart';
 import '../../application/sync/sync_push_service.dart';
 import '../../application/sync/sync_socket_listener.dart';
+import '../../application/sync/synced_event_store.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_local_event_store.dart';
 
@@ -35,7 +38,7 @@ void registerApplicationDependencies(
     () => SyncHealthService(endpointConfig: getIt<SyncEndpointConfig>()),
   );
   getIt.registerLazySingleton<EspacioEventHandler>(
-    () => EspacioEventHandler(getIt<EspacioDao>()),
+    () => EspacioEventHandler(getIt<EspacioProjectionStore>()),
   );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
@@ -44,14 +47,14 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<RemoteEventApplier>(
     () => RemoteEventApplier(
-      db: getIt<AppDatabase>(),
+      eventStore: getIt<SyncedEventStore>(),
       eventProcessor: getIt<EventProcessor>(),
     ),
   );
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
-      eventDao: getIt<EventDao>(),
-      espacioDao: getIt<EspacioDao>(),
+      syncPersistence: getIt<SyncPersistence>(),
+      espacioProjectionStore: getIt<EspacioProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<LocalEventStore>(
@@ -64,15 +67,13 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncPushService>(
     () => SyncPushService(
-      eventDao: getIt<EventDao>(),
-      eventRefDao: getIt<EventRefDao>(),
-      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
     ),
   );
   getIt.registerLazySingleton<SyncPullService>(
     () => SyncPullService(
-      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      syncPersistence: getIt<SyncPersistence>(),
       remoteEventApplier: getIt<RemoteEventApplier>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
@@ -80,9 +81,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncPreflightService>(
     () => SyncPreflightService(
-      eventDao: getIt<EventDao>(),
-      eventRefDao: getIt<EventRefDao>(),
-      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
       remoteEventApplier: getIt<RemoteEventApplier>(),
@@ -93,7 +92,7 @@ void registerApplicationDependencies(
     () => SyncSocketListener(
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
-      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+      syncPersistence: getIt<SyncPersistence>(),
     ),
   );
   getIt.registerLazySingleton<SyncOrchestrator>(
@@ -107,7 +106,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncAvailabilityMonitor>(
     () => SyncAvailabilityMonitor(
-      eventDao: getIt<EventDao>(),
+      syncPersistence: getIt<SyncPersistence>(),
       healthService: getIt<SyncHealthService>(),
       orchestrator: getIt<SyncOrchestrator>(),
     ),

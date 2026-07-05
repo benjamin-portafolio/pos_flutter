@@ -1,21 +1,22 @@
 import 'dart:async';
 
-import '../../data/local/drift/app_database.dart';
 import 'exceptions/sync_health_exception.dart';
 import 'exceptions/sync_pull_exception.dart';
 import 'exceptions/sync_push_exception.dart';
 import 'models/sync_availability_snapshot.dart';
+import 'models/sync_event.dart';
 import 'models/sync_health_check.dart';
 import 'sync_health_service.dart';
 import 'sync_orchestrator.dart';
+import 'sync_persistence.dart';
 
 class SyncAvailabilityMonitor {
   SyncAvailabilityMonitor({
-    required EventDao eventDao,
+    required SyncPersistence syncPersistence,
     required SyncHealthService healthService,
     required SyncOrchestrator orchestrator,
     List<Duration> retryDelays = defaultRetryDelays,
-  }) : _eventDao = eventDao,
+  }) : _syncPersistence = syncPersistence,
        _healthService = healthService,
        _orchestrator = orchestrator,
        _retryDelays = retryDelays;
@@ -29,13 +30,13 @@ class SyncAvailabilityMonitor {
     Duration(minutes: 5),
   ];
 
-  final EventDao _eventDao;
+  final SyncPersistence _syncPersistence;
   final SyncHealthService _healthService;
   final SyncOrchestrator _orchestrator;
   final List<Duration> _retryDelays;
   final _snapshots = StreamController<SyncAvailabilitySnapshot>.broadcast();
 
-  StreamSubscription<List<EventRecord>>? _pendingEventsSubscription;
+  StreamSubscription<List<SyncEvent>>? _pendingEventsSubscription;
   Timer? _retryTimer;
   SyncAvailabilitySnapshot _snapshot = const SyncAvailabilitySnapshot.unknown();
   Future<void>? _runningCheck;
@@ -51,7 +52,7 @@ class SyncAvailabilityMonitor {
     if (_isStarted) return;
 
     _isStarted = true;
-    _pendingEventsSubscription = _eventDao.watchEventosPendientes().listen((
+    _pendingEventsSubscription = _syncPersistence.watchPendingEvents().listen((
       events,
     ) {
       if (events.isEmpty) return;
@@ -147,7 +148,7 @@ class SyncAvailabilityMonitor {
     _resetBackoff();
 
     try {
-      final pendingEvents = await _eventDao.obtenerEventosPendientes();
+      final pendingEvents = await _syncPersistence.pendingEvents();
       if (pendingEvents.isNotEmpty) {
         await _orchestrator.pushPendingEvents(
           latestServerSequence: health.latestServerSequence,

@@ -1,8 +1,14 @@
 import 'package:get_it/get_it.dart';
 
 import '../../application/identity/device_identity_provider.dart';
+import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/sync_endpoint_store.dart';
+import '../../application/sync/sync_persistence.dart';
+import '../../application/sync/synced_event_store.dart';
 import '../../data/local/drift/app_database.dart';
+import '../../data/local/drift/drift_espacio_projection_store.dart';
+import '../../data/local/drift/drift_sync_persistence.dart';
+import '../../data/local/drift/drift_synced_event_store.dart';
 import '../../data/local/identity/device_identity_file_store.dart';
 import '../../data/local/sync/sync_endpoint_file_store.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
@@ -38,6 +44,19 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<SyncCheckpointDao>(
     () => SyncCheckpointDao(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<SyncPersistence>(
+    () => DriftSyncPersistence(
+      eventDao: getIt<EventDao>(),
+      eventRefDao: getIt<EventRefDao>(),
+      syncCheckpointDao: getIt<SyncCheckpointDao>(),
+    ),
+  );
+  getIt.registerLazySingleton<SyncedEventStore>(
+    () => DriftSyncedEventStore(db: getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<EspacioProjectionStore>(
+    () => DriftEspacioProjectionStore(espacioDao: getIt<EspacioDao>()),
   );
 
   getIt.registerLazySingleton<EspacioRepository>(

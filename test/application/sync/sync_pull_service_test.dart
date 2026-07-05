@@ -12,16 +12,25 @@ import 'package:pos_flutter/application/sync/remote_event_applier.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
+import 'package:pos_flutter/data/local/drift/drift_synced_event_store.dart';
 
 void main() {
   late AppDatabase db;
   late EspacioDao espacioDao;
   late SyncCheckpointDao checkpointDao;
+  late DriftSyncPersistence syncPersistence;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     espacioDao = EspacioDao(db);
     checkpointDao = SyncCheckpointDao(db);
+    syncPersistence = DriftSyncPersistence(
+      eventDao: EventDao(db),
+      eventRefDao: EventRefDao(db),
+      syncCheckpointDao: checkpointDao,
+    );
   });
 
   tearDown(() async {
@@ -30,12 +39,16 @@ void main() {
 
   test('pullAvailableEvents aplica eventos y avanza checkpoint', () async {
     final eventProcessor = EventProcessor(
-      handlers: espacioEventHandlers(EspacioEventHandler(espacioDao)),
+      handlers: espacioEventHandlers(
+        EspacioEventHandler(
+          DriftEspacioProjectionStore(espacioDao: espacioDao),
+        ),
+      ),
     );
     final service = SyncPullService(
-      syncCheckpointDao: checkpointDao,
+      syncPersistence: syncPersistence,
       remoteEventApplier: RemoteEventApplier(
-        db: db,
+        eventStore: DriftSyncedEventStore(db: db),
         eventProcessor: eventProcessor,
       ),
       endpointConfig: SyncEndpointConfig(

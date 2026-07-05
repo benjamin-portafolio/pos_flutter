@@ -71,7 +71,7 @@ bool _isAllowedImport(String sourceLayer, String targetLayer) {
     'composition': {'composition', 'core', 'data', 'application', 'domain'},
     'core': {'core'},
     'domain': {'domain'},
-    'application': {'application', 'domain', 'data'},
+    'application': {'application', 'domain'},
     'data': {'data', 'application', 'domain'},
     'presentation': {
       'presentation',

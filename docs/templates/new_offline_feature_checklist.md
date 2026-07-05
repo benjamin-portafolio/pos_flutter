@@ -36,6 +36,10 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 ## Sync local
 
 - [ ] Registrar el nuevo `event_type` en `EventProcessor`.
+- [ ] Crear o extender el puerto de proyeccion que necesitara el handler.
+- [ ] Si la tabla usa `CommonFields`, hacer que el DTO de proyeccion extienda
+      `SyncProjection`.
+- [ ] Implementar el adaptador Drift de ese puerto en `data/local/drift`.
 - [ ] Crear handler en `application/sync/handlers`.
 - [ ] Hacer el handler idempotente.
 - [ ] Actualizar la proyeccion local desde el handler.
@@ -58,4 +62,7 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Ejecutar `dart analyze`.
 - [ ] Ejecutar `flutter test`.
 - [ ] Revisar que no haya imports de `data/local/drift` desde `domain`.
+- [ ] Revisar que no haya imports de `data/local/drift` desde `application`.
+- [ ] Revisar que proyecciones de `application/sync` usen `SyncProjection` en
+      vez de `CommonFields`.
 - [ ] Revisar que no se haya agregado sync remota si no fue solicitada.

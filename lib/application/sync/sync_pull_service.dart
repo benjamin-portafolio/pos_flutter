@@ -2,22 +2,22 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../../data/local/drift/app_database.dart';
 import '../commands/local_command_context.dart';
 import 'exceptions/sync_pull_exception.dart';
 import 'models/sync_event.dart';
 import 'models/sync_pull_report.dart';
 import 'remote_event_applier.dart';
 import 'sync_endpoint_config.dart';
+import 'sync_persistence.dart';
 
 class SyncPullService {
   SyncPullService({
-    required SyncCheckpointDao syncCheckpointDao,
+    required SyncPersistence syncPersistence,
     required RemoteEventApplier remoteEventApplier,
     required SyncEndpointConfig endpointConfig,
     required LocalCommandContext commandContext,
     http.Client? client,
-  }) : _syncCheckpointDao = syncCheckpointDao,
+  }) : _syncPersistence = syncPersistence,
        _remoteEventApplier = remoteEventApplier,
        _endpointConfig = endpointConfig,
        _commandContext = commandContext,
@@ -25,15 +25,14 @@ class SyncPullService {
 
   static const defaultLimit = 500;
 
-  final SyncCheckpointDao _syncCheckpointDao;
+  final SyncPersistence _syncPersistence;
   final RemoteEventApplier _remoteEventApplier;
   final SyncEndpointConfig _endpointConfig;
   final LocalCommandContext _commandContext;
   final http.Client _client;
 
   Future<SyncPullReport> pullIfBehind(int latestServerSequence) async {
-    final currentCursor = await _syncCheckpointDao
-        .obtenerLastFullPullServerSequence();
+    final currentCursor = await _syncPersistence.lastFullPullServerSequence();
 
     if (latestServerSequence <= currentCursor) {
       return SyncPullReport.empty(lastCursor: currentCursor);
@@ -43,7 +42,7 @@ class SyncPullService {
   }
 
   Future<SyncPullReport> pullAvailableEvents({int limit = defaultLimit}) async {
-    var cursor = await _syncCheckpointDao.obtenerLastFullPullServerSequence();
+    var cursor = await _syncPersistence.lastFullPullServerSequence();
     var total = 0;
     var hasMore = true;
 
@@ -57,7 +56,7 @@ class SyncPullService {
       await _remoteEventApplier.applySyncedEvents(
         page.events,
         afterApply: () async {
-          await _syncCheckpointDao.actualizarLastFullPullServerSequence(
+          await _syncPersistence.updateLastFullPullServerSequence(
             appliedCursor,
           );
         },

@@ -1,22 +1,20 @@
-import 'package:drift/drift.dart';
-
-import '../../../data/local/drift/app_database.dart';
 import '../../../domain/espacios/visibilidad_espacio.dart';
 import '../models/sync_event.dart';
+import '../projections/espacio_projection_store.dart';
 
 class EspacioEventHandler {
-  EspacioEventHandler(this._espacioDao);
+  EspacioEventHandler(this._espacioProjectionStore);
 
-  final EspacioDao _espacioDao;
+  final EspacioProjectionStore _espacioProjectionStore;
 
   Future<void> applyEspacioCreado(SyncEvent event) async {
     final payload = event.payload;
     final identificacion = payload['identificacion'] as String?;
-    final existing = await _espacioDao.obtenerEspacioPorId(event.aggregateId);
+    final existing = await _espacioProjectionStore.findById(event.aggregateId);
 
     if (existing != null) {
       if (existing.createdEventId == event.eventId) {
-        await _espacioDao.actualizarMetadataSincronizacion(
+        await _espacioProjectionStore.updateSyncMetadata(
           event.aggregateId,
           eventId: event.eventId,
           serverSequence: event.serverSequence,
@@ -35,8 +33,8 @@ class EspacioEventHandler {
     }
 
     if (identificacion != null && identificacion.isNotEmpty) {
-      final existingByIdentificacion = await _espacioDao
-          .obtenerEspacioPorIdentificacion(identificacion);
+      final existingByIdentificacion = await _espacioProjectionStore
+          .findByIdentificacion(identificacion);
 
       if (existingByIdentificacion != null) {
         final removedLocalPending =
@@ -53,30 +51,30 @@ class EspacioEventHandler {
       }
     }
 
-    await _espacioDao.insertarEspacio(
-      EspaciosCompanion.insert(
+    await _espacioProjectionStore.insert(
+      EspacioProjection(
         id: event.aggregateId,
         nombre: payload['nombre']! as String,
-        identificacion: Value(identificacion),
+        identificacion: identificacion,
         visibilidad: visibilidadEspacioFromEventValue(payload['visibilidad']),
-        active: const Value(true),
-        version: Value(event.baseVersion ?? 1),
-        createdEventId: Value(event.eventId),
-        lastEventId: Value(event.eventId),
-        lastServerSequence: Value(event.serverSequence),
+        active: true,
+        version: event.baseVersion ?? 1,
+        createdEventId: event.eventId,
+        lastEventId: event.eventId,
+        lastServerSequence: event.serverSequence,
       ),
     );
   }
 
   Future<bool> _removeLocalPendingProjectionForRemoteEvent(
     SyncEvent event,
-    Espacio existing,
+    EspacioProjection existing,
   ) async {
     if (event.serverSequence == null || existing.lastServerSequence != null) {
       return false;
     }
 
-    await _espacioDao.eliminarEspacioPorId(existing.id);
+    await _espacioProjectionStore.deleteById(existing.id);
     return true;
   }
 }

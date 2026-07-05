@@ -8,6 +8,7 @@ import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dar
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 
@@ -26,7 +27,11 @@ void main() {
       eventDao: eventDao,
       eventRefDao: EventRefDao(db),
       eventProcessor: EventProcessor(
-        handlers: espacioEventHandlers(EspacioEventHandler(espacioDao)),
+        handlers: espacioEventHandlers(
+          EspacioEventHandler(
+            DriftEspacioProjectionStore(espacioDao: espacioDao),
+          ),
+        ),
       ),
     );
   });

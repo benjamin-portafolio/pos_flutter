@@ -2,29 +2,25 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../../data/local/drift/app_database.dart';
 import '../commands/local_command_context.dart';
-import 'models/sync_event.dart';
 import 'exceptions/sync_preflight_exception.dart';
 import 'models/pending_revalidation_report.dart';
+import 'models/sync_event.dart';
 import 'models/sync_preflight_report.dart';
 import 'pending_event_revalidator.dart';
 import 'remote_event_applier.dart';
 import 'sync_endpoint_config.dart';
+import 'sync_persistence.dart';
 
 class SyncPreflightService {
   SyncPreflightService({
-    required EventDao eventDao,
-    required EventRefDao eventRefDao,
-    required SyncCheckpointDao syncCheckpointDao,
+    required SyncPersistence syncPersistence,
     required SyncEndpointConfig endpointConfig,
     required LocalCommandContext commandContext,
     required RemoteEventApplier remoteEventApplier,
     required PendingEventRevalidator pendingEventRevalidator,
     http.Client? client,
-  }) : _eventDao = eventDao,
-       _eventRefDao = eventRefDao,
-       _syncCheckpointDao = syncCheckpointDao,
+  }) : _syncPersistence = syncPersistence,
        _endpointConfig = endpointConfig,
        _commandContext = commandContext,
        _remoteEventApplier = remoteEventApplier,
@@ -33,9 +29,7 @@ class SyncPreflightService {
 
   static const defaultMaxEvents = 500;
 
-  final EventDao _eventDao;
-  final EventRefDao _eventRefDao;
-  final SyncCheckpointDao _syncCheckpointDao;
+  final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
   final LocalCommandContext _commandContext;
   final RemoteEventApplier _remoteEventApplier;
@@ -46,14 +40,14 @@ class SyncPreflightService {
     int maxEvents = defaultMaxEvents,
     int? latestServerSequence,
   }) async {
-    final pendingEvents = await _eventDao.obtenerEventosPendientes();
+    final pendingEvents = await _syncPersistence.pendingEvents();
     if (pendingEvents.isEmpty) {
       return const SyncPreflightReport.skipped(reason: 'no_pending_events');
     }
 
     if (latestServerSequence != null) {
-      final lastFullPullServerSequence = await _syncCheckpointDao
-          .obtenerLastFullPullServerSequence();
+      final lastFullPullServerSequence = await _syncPersistence
+          .lastFullPullServerSequence();
       if (lastFullPullServerSequence >= latestServerSequence) {
         final revalidation = await _pendingEventRevalidator
             .revalidatePendingEvents();
@@ -65,7 +59,7 @@ class SyncPreflightService {
       }
     }
 
-    final refs = await _eventRefDao.obtenerReferenciasPorEventos(
+    final refs = await _syncPersistence.refsForEvents(
       pendingEvents.map((event) => event.eventId).toList(),
     );
 
@@ -86,7 +80,7 @@ class SyncPreflightService {
       await _remoteEventApplier.applySyncedEvents(response.events);
     }
 
-    await _syncCheckpointDao.actualizarLastPreflightServerSequence(
+    await _syncPersistence.updateLastPreflightServerSequence(
       response.preflightSequence,
     );
 
@@ -110,13 +104,13 @@ class SyncPreflightService {
   }
 
   Future<_PreflightResponse> _postPreflight({
-    required List<EventRecord> pendingEvents,
-    required List<EventRef> refs,
+    required List<SyncEvent> pendingEvents,
+    required List<StoredEventRef> refs,
     required int maxEvents,
   }) async {
     final uri = Uri.parse('${_endpointConfig.baseUrl}/sync/preflight');
-    final lastFullPullServerSequence = await _syncCheckpointDao
-        .obtenerLastFullPullServerSequence();
+    final lastFullPullServerSequence = await _syncPersistence
+        .lastFullPullServerSequence();
     final refsByEventId = _refsByEventId(refs);
 
     final body = <String, Object?>{
@@ -149,20 +143,18 @@ class SyncPreflightService {
     }
   }
 
-  Map<String, List<EventRef>> _refsByEventId(List<EventRef> refs) {
-    final grouped = <String, List<EventRef>>{};
+  Map<String, List<StoredEventRef>> _refsByEventId(List<StoredEventRef> refs) {
+    final grouped = <String, List<StoredEventRef>>{};
     for (final ref in refs) {
-      grouped.putIfAbsent(ref.eventId, () => <EventRef>[]).add(ref);
+      grouped.putIfAbsent(ref.eventId, () => <StoredEventRef>[]).add(ref);
     }
     return grouped;
   }
 
   Map<String, Object?> _pendingRefJson(
-    EventRecord event,
-    List<EventRef>? refs,
+    SyncEvent event,
+    List<StoredEventRef>? refs,
   ) {
-    final payload = _decodePayload(event.payload);
-
     return {
       'event_id': event.eventId,
       'event_type': event.eventType,
@@ -170,8 +162,8 @@ class SyncPreflightService {
       'aggregate_id': event.aggregateId,
       'base_server_sequence': event.baseServerSequence,
       'base_version': event.baseVersion,
-      'changed_fields': _readChangedFields(payload),
-      'refs': (refs ?? const <EventRef>[])
+      'changed_fields': _readChangedFields(event.payload),
+      'refs': (refs ?? const <StoredEventRef>[])
           .map(
             (ref) => {
               'type': ref.refType,
@@ -183,12 +175,12 @@ class SyncPreflightService {
     };
   }
 
-  bool _requiresPreflight(List<EventRecord> events, List<EventRef> refs) {
+  bool _requiresPreflight(List<SyncEvent> events, List<StoredEventRef> refs) {
     if (refs.any((ref) => ref.relationship != 'affects')) return true;
 
     for (final event in events) {
       if (event.eventType.endsWith('_actualizado')) return true;
-      if (_readChangedFields(_decodePayload(event.payload)).isNotEmpty) {
+      if (_readChangedFields(event.payload).isNotEmpty) {
         return true;
       }
     }
@@ -226,16 +218,6 @@ class SyncPreflightService {
           data['requires_full_pull_before_push'] == true,
       reason: data['reason'] as String?,
     );
-  }
-
-  Map<String, Object?> _decodePayload(String payload) {
-    final decoded = jsonDecode(payload);
-    if (decoded is Map<String, Object?>) return decoded;
-    if (decoded is Map) {
-      return decoded.map((key, value) => MapEntry(key.toString(), value));
-    }
-
-    return const <String, Object?>{};
   }
 
   List<String> _readChangedFields(Map<String, Object?> payload) {

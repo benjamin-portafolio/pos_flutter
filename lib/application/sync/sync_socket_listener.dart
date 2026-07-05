@@ -2,25 +2,25 @@ import 'dart:async';
 
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
-import '../../data/local/drift/app_database.dart';
 import '../commands/local_command_context.dart';
 import 'models/sync_events_available_notice.dart';
 import 'sync_endpoint_config.dart';
+import 'sync_persistence.dart';
 
 class SyncSocketListener {
   SyncSocketListener({
     required SyncEndpointConfig endpointConfig,
     required LocalCommandContext commandContext,
-    required SyncCheckpointDao syncCheckpointDao,
+    required SyncPersistence syncPersistence,
   }) : _endpointConfig = endpointConfig,
        _commandContext = commandContext,
-       _syncCheckpointDao = syncCheckpointDao;
+       _syncPersistence = syncPersistence;
 
   static const eventsAvailableMessage = 'sync:events_available';
 
   final SyncEndpointConfig _endpointConfig;
   final LocalCommandContext _commandContext;
-  final SyncCheckpointDao _syncCheckpointDao;
+  final SyncPersistence _syncPersistence;
   final _eventsAvailableController =
       StreamController<SyncEventsAvailableNotice>.broadcast();
   final _connectionEstablishedController = StreamController<void>.broadcast();
@@ -79,8 +79,8 @@ class SyncSocketListener {
   }
 
   Future<void> _handleConnect(io.Socket socket) async {
-    final lastFullPullServerSequence = await _syncCheckpointDao
-        .obtenerLastFullPullServerSequence();
+    final lastFullPullServerSequence = await _syncPersistence
+        .lastFullPullServerSequence();
 
     if (_socket != socket) return;
 

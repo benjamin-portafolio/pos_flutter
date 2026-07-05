@@ -2,34 +2,27 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../../data/local/drift/app_database.dart';
 import 'exceptions/sync_push_exception.dart';
 import 'models/sync_event.dart';
 import 'models/sync_push_report.dart';
 import 'sync_endpoint_config.dart';
+import 'sync_persistence.dart';
 
 class SyncPushService {
   SyncPushService({
-    required EventDao eventDao,
-    required EventRefDao eventRefDao,
-    required SyncCheckpointDao syncCheckpointDao,
+    required SyncPersistence syncPersistence,
     required SyncEndpointConfig endpointConfig,
     http.Client? client,
-  }) : _eventDao = eventDao,
-       _eventRefDao = eventRefDao,
-       _syncCheckpointDao = syncCheckpointDao,
+  }) : _syncPersistence = syncPersistence,
        _endpointConfig = endpointConfig,
        _client = client ?? http.Client();
 
-  final EventDao _eventDao;
-  final EventRefDao _eventRefDao;
-  final SyncCheckpointDao _syncCheckpointDao;
+  final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
   final http.Client _client;
 
   Future<SyncPushReport> pushPendingEvents() async {
-    final records = await _eventDao.obtenerEventosPendientes();
-    final events = records.map(_eventFromRecord).toList();
+    final events = await _syncPersistence.pendingEvents();
     return _pushEvents(events);
   }
 
@@ -58,7 +51,7 @@ class SyncPushService {
       switch (result?.status) {
         case 'accepted':
         case 'duplicate':
-          await _eventDao.actualizarEstadoSincronizacion(
+          await _syncPersistence.updateEventSyncStatus(
             event.eventId,
             'synced',
             serverSequence: result?.serverSequence,
@@ -66,7 +59,7 @@ class SyncPushService {
           );
           final serverSequence = result?.serverSequence;
           if (serverSequence != null) {
-            await _eventRefDao.actualizarReferenciasSincronizadas(
+            await _syncPersistence.markRefsSynced(
               event.eventId,
               serverSequence,
             );
@@ -74,7 +67,7 @@ class SyncPushService {
           synced++;
           break;
         case 'rejected':
-          await _eventDao.actualizarEstadoSincronizacion(
+          await _syncPersistence.updateEventSyncStatus(
             event.eventId,
             'rejected',
             serverSequence: result?.serverSequence,
@@ -83,7 +76,7 @@ class SyncPushService {
           rejected++;
           break;
         case 'conflict':
-          await _eventDao.actualizarEstadoSincronizacion(
+          await _syncPersistence.updateEventSyncStatus(
             event.eventId,
             'conflict',
             serverSequence: result?.serverSequence,
@@ -118,10 +111,10 @@ class SyncPushService {
     required List<Map<String, Object?>> events,
   }) async {
     final uri = Uri.parse('${_endpointConfig.baseUrl}/sync/push');
-    final lastFullPullServerSequence = await _syncCheckpointDao
-        .obtenerLastFullPullServerSequence();
-    final lastPreflightServerSequence = await _syncCheckpointDao
-        .obtenerLastPreflightServerSequence();
+    final lastFullPullServerSequence = await _syncPersistence
+        .lastFullPullServerSequence();
+    final lastPreflightServerSequence = await _syncPersistence
+        .lastPreflightServerSequence();
     final body = <String, Object?>{
       'device_id': deviceId,
       'last_full_pull_server_sequence': lastFullPullServerSequence,
@@ -150,34 +143,6 @@ class SyncPushService {
     } catch (error) {
       throw SyncPushException('Error enviando eventos: $error');
     }
-  }
-
-  SyncEvent _eventFromRecord(EventRecord record) {
-    return SyncEvent(
-      eventId: record.eventId,
-      aggregateType: record.aggregateType,
-      aggregateId: record.aggregateId,
-      eventType: record.eventType,
-      deviceId: record.deviceId,
-      userId: record.userId,
-      localSequence: record.localSequence,
-      serverSequence: record.serverSequence,
-      baseServerSequence: record.baseServerSequence,
-      baseVersion: record.baseVersion,
-      createdAtLocal: record.createdAtLocal,
-      createdAtServer: record.createdAtServer,
-      payload: _decodePayload(record.payload),
-      syncStatus: record.syncStatus,
-    );
-  }
-
-  Map<String, Object?> _decodePayload(String payload) {
-    final decoded = jsonDecode(payload);
-    if (decoded is Map<String, Object?>) return decoded;
-    if (decoded is Map) {
-      return decoded.map((key, value) => MapEntry(key.toString(), value));
-    }
-    return const <String, Object?>{};
   }
 
   Map<String, Object?> _decodeResponseBody(String body) {

@@ -11,10 +11,12 @@ import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:pos_flutter/application/sync/sync_health_service.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
 
 void main() {
   late AppDatabase db;
   late EventDao eventDao;
+  late DriftSyncPersistence syncPersistence;
   late _FakeSyncHealthService healthService;
   late _FakeSyncOrchestrator orchestrator;
   late SyncAvailabilityMonitor monitor;
@@ -22,10 +24,15 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     eventDao = EventDao(db);
+    syncPersistence = DriftSyncPersistence(
+      eventDao: eventDao,
+      eventRefDao: EventRefDao(db),
+      syncCheckpointDao: SyncCheckpointDao(db),
+    );
     healthService = _FakeSyncHealthService();
     orchestrator = _FakeSyncOrchestrator();
     monitor = SyncAvailabilityMonitor(
-      eventDao: eventDao,
+      syncPersistence: syncPersistence,
       healthService: healthService,
       orchestrator: orchestrator,
       retryDelays: const [Duration(milliseconds: 20)],

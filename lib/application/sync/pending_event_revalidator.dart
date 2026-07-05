@@ -1,20 +1,20 @@
-import 'dart:convert';
-
-import '../../data/local/drift/app_database.dart';
 import 'models/pending_revalidation_report.dart';
+import 'models/sync_event.dart';
+import 'projections/espacio_projection_store.dart';
+import 'sync_persistence.dart';
 
 class PendingEventRevalidator {
   PendingEventRevalidator({
-    required EventDao eventDao,
-    required EspacioDao espacioDao,
-  }) : _eventDao = eventDao,
-       _espacioDao = espacioDao;
+    required SyncPersistence syncPersistence,
+    required EspacioProjectionStore espacioProjectionStore,
+  }) : _syncPersistence = syncPersistence,
+       _espacioProjectionStore = espacioProjectionStore;
 
-  final EventDao _eventDao;
-  final EspacioDao _espacioDao;
+  final SyncPersistence _syncPersistence;
+  final EspacioProjectionStore _espacioProjectionStore;
 
   Future<PendingRevalidationReport> revalidatePendingEvents() async {
-    final events = await _eventDao.obtenerEventosPendientes();
+    final events = await _syncPersistence.pendingEvents();
     var conflicts = 0;
 
     for (final event in events) {
@@ -25,8 +25,8 @@ class PendingEventRevalidator {
 
       if (!hasConflict) continue;
 
-      await _eventDao.actualizarEstadoSincronizacion(event.eventId, 'conflict');
-      await _espacioDao.eliminarEspacioCreadoPorEvento(event.eventId);
+      await _syncPersistence.updateEventSyncStatus(event.eventId, 'conflict');
+      await _espacioProjectionStore.deleteCreatedByEvent(event.eventId);
       conflicts++;
     }
 
@@ -36,34 +36,22 @@ class PendingEventRevalidator {
     );
   }
 
-  Future<bool> _espacioCreadoHasConflict(EventRecord event) async {
-    final existingById = await _espacioDao.obtenerEspacioPorId(
+  Future<bool> _espacioCreadoHasConflict(SyncEvent event) async {
+    final existingById = await _espacioProjectionStore.findById(
       event.aggregateId,
     );
     if (existingById != null && existingById.createdEventId != event.eventId) {
       return true;
     }
 
-    final identificacion = _readOptionalText(
-      _decodePayload(event.payload)['identificacion'],
-    );
+    final identificacion = _readOptionalText(event.payload['identificacion']);
     if (identificacion == null) return false;
 
-    final existingByIdentificacion = await _espacioDao
-        .obtenerEspacioPorIdentificacion(identificacion);
+    final existingByIdentificacion = await _espacioProjectionStore
+        .findByIdentificacion(identificacion);
 
     return existingByIdentificacion != null &&
         existingByIdentificacion.createdEventId != event.eventId;
-  }
-
-  Map<String, Object?> _decodePayload(String payload) {
-    final decoded = jsonDecode(payload);
-    if (decoded is Map<String, Object?>) return decoded;
-    if (decoded is Map) {
-      return decoded.map((key, value) => MapEntry(key.toString(), value));
-    }
-
-    return const <String, Object?>{};
   }
 
   String? _readOptionalText(Object? value) {

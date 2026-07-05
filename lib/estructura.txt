@@ -62,6 +62,10 @@ application/
       Despacha eventos a handlers segun `eventType`.
     local_event_store.dart
       Puerto para guardar eventos locales, referencias y aplicar el evento.
+    sync_persistence.dart
+      Puerto para leer pendientes, refs y checkpoints sin acoplar application a Drift.
+    synced_event_store.dart
+      Puerto transaccional para persistir eventos remotos y aplicarlos localmente.
     sync_endpoint_config.dart
       Configura y normaliza la URL del servidor de sincronizacion.
     sync_orchestrator.dart
@@ -75,7 +79,12 @@ application/
         Modelo de evento local serializable.
     handlers/
       espacio_event_handler.dart
-        Aplica `espacio_creado` de forma idempotente sobre la proyeccion local.
+        Aplica `espacio_creado` de forma idempotente usando un puerto de proyeccion.
+    projections/
+      sync_projection.dart
+        Base de campos comunes para DTOs de proyeccion usados por handlers.
+      espacio_projection_store.dart
+        Puerto y DTO de proyeccion local para handlers de espacios; el DTO extiende SyncProjection.
 
 data/
   local/
@@ -102,6 +111,12 @@ data/
           Persistencia y consulta de referencias de eventos.
       drift_local_event_store.dart
         Implementacion Drift de LocalEventStore; oculta Companion y transacciones.
+      drift_sync_persistence.dart
+        Implementacion Drift de SyncPersistence.
+      drift_synced_event_store.dart
+        Implementacion Drift de SyncedEventStore.
+      drift_espacio_projection_store.dart
+        Adaptador Drift para la proyeccion local de espacios.
   repositories/
     espacio_repository_impl.dart
       Adapta filas Drift a modelos de dominio.
@@ -142,7 +157,8 @@ presentation
   -> data/local/drift guarda events y event_refs
   -> application/sync/EventProcessor.apply(event)
   -> handler idempotente
-  -> tabla local/proyeccion Drift
+  -> puerto de proyeccion
+  -> adaptador Drift actualiza tabla local/proyeccion
   -> repository mapea Drift a dominio
   -> presentation observa repository
 
@@ -152,4 +168,4 @@ presentation
 - `Agregar mesa` existe visualmente, pero no tiene flujo funcional.
 - El comando de `espacio_creado` guarda y aplica el evento localmente.
 - La sincronizacion remota esta separada en `SyncOrchestrator` y actualmente se inicia automaticamente al arrancar la app.
-- Hay envio de pendientes por HTTP push y listener websocket; no hay pull completo implementado.
+- Hay envio de pendientes por HTTP push, pull incremental y listener websocket.

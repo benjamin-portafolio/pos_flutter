@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 
 void main() {
@@ -14,7 +15,9 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     espacioDao = EspacioDao(db);
-    handler = EspacioEventHandler(espacioDao);
+    handler = EspacioEventHandler(
+      DriftEspacioProjectionStore(espacioDao: espacioDao),
+    );
   });
 
   tearDown(() async {
