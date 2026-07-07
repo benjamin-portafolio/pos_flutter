@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/sync/device_wifi_connectivity.dart';
 import 'package:pos_flutter/application/sync/exceptions/sync_health_exception.dart';
 import 'package:pos_flutter/application/sync/models/sync_availability_snapshot.dart';
 import 'package:pos_flutter/application/sync/models/sync_health_check.dart';
@@ -10,6 +12,7 @@ import 'package:pos_flutter/application/sync/models/sync_push_report.dart';
 import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:pos_flutter/application/sync/sync_health_service.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
+import 'package:pos_flutter/application/sync/sync_server_detection_config.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
 
@@ -19,6 +22,8 @@ void main() {
   late DriftSyncPersistence syncPersistence;
   late _FakeSyncHealthService healthService;
   late _FakeSyncOrchestrator orchestrator;
+  late SyncServerDetectionConfig serverDetectionConfig;
+  late _FakeDeviceWifiConnectivity wifiConnectivity;
   late SyncAvailabilityMonitor monitor;
 
   setUp(() {
@@ -31,16 +36,22 @@ void main() {
     );
     healthService = _FakeSyncHealthService();
     orchestrator = _FakeSyncOrchestrator();
+    serverDetectionConfig = SyncServerDetectionConfig();
+    wifiConnectivity = _FakeDeviceWifiConnectivity(isWifiConnected: true);
     monitor = SyncAvailabilityMonitor(
       syncPersistence: syncPersistence,
       healthService: healthService,
       orchestrator: orchestrator,
+      serverDetectionConfig: serverDetectionConfig,
+      wifiConnectivity: wifiConnectivity,
       retryDelays: const [Duration(milliseconds: 20)],
     );
   });
 
   tearDown(() async {
     await monitor.dispose();
+    await serverDetectionConfig.dispose();
+    await wifiConnectivity.dispose();
     await db.close();
   });
 
@@ -101,6 +112,64 @@ void main() {
     expect(monitor.snapshot.status, SyncAvailabilityStatus.available);
     expect(orchestrator.startRealtimeCount, 1);
   });
+
+  test(
+    'con deteccion por WiFi no hace health si WiFi no esta conectado',
+    () async {
+      serverDetectionConfig.updateRequireWifiForServerDetection(true);
+      wifiConnectivity.setConnected(false);
+
+      await monitor.checkNow();
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      expect(healthService.checkCount, 0);
+      expect(orchestrator.stopRealtimeCount, 1);
+      expect(monitor.snapshot.status, SyncAvailabilityStatus.unavailable);
+      expect(monitor.snapshot.message, 'WiFi no disponible.');
+      expect(monitor.snapshot.nextRetryAt, isNull);
+    },
+  );
+
+  test('con deteccion por WiFi hace health cuando vuelve WiFi', () async {
+    serverDetectionConfig.updateRequireWifiForServerDetection(true);
+    wifiConnectivity.setConnected(false);
+    healthService.responses.add(_availableHealth(latestServerSequence: 7));
+
+    monitor.start();
+    await monitor.checkNow();
+
+    expect(healthService.checkCount, 0);
+
+    wifiConnectivity.emitConnected(true);
+    await healthService.nextCheck;
+    await Future<void>.delayed(Duration.zero);
+
+    expect(healthService.checkCount, 1);
+    expect(orchestrator.syncCalls, ['pullIfBehind:7']);
+    expect(monitor.snapshot.status, SyncAvailabilityStatus.available);
+  });
+
+  test(
+    'con WiFi conectado conserva el backoff cuando el servidor no responde',
+    () async {
+      serverDetectionConfig.updateRequireWifiForServerDetection(true);
+      wifiConnectivity.setConnected(true);
+      healthService.responses
+        ..add(const SyncHealthException('Servidor sin respuesta.'))
+        ..add(_availableHealth(latestServerSequence: 0));
+
+      await monitor.checkNow();
+
+      expect(monitor.snapshot.status, SyncAvailabilityStatus.unavailable);
+      expect(monitor.snapshot.nextRetryAt, isNotNull);
+
+      await healthService.nextCheck;
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      expect(healthService.checkCount, 2);
+      expect(monitor.snapshot.status, SyncAvailabilityStatus.available);
+    },
+  );
 }
 
 SyncHealthCheck _availableHealth({required int latestServerSequence}) {
@@ -116,11 +185,19 @@ SyncHealthCheck _availableHealth({required int latestServerSequence}) {
 
 class _FakeSyncHealthService implements SyncHealthService {
   final responses = Queue<Object>();
+  Completer<void> _nextCheck = Completer<void>();
   var checkCount = 0;
+
+  Future<void> get nextCheck => _nextCheck.future;
 
   @override
   Future<SyncHealthCheck> check() async {
     checkCount++;
+    if (!_nextCheck.isCompleted) {
+      _nextCheck.complete();
+    }
+    _nextCheck = Completer<void>();
+
     final response = responses.isEmpty
         ? _availableHealth(latestServerSequence: 0)
         : responses.removeFirst();
@@ -128,6 +205,33 @@ class _FakeSyncHealthService implements SyncHealthService {
     if (response is SyncHealthException) throw response;
 
     return response as SyncHealthCheck;
+  }
+}
+
+class _FakeDeviceWifiConnectivity implements DeviceWifiConnectivity {
+  _FakeDeviceWifiConnectivity({required bool isWifiConnected})
+    : _isWifiConnected = isWifiConnected;
+
+  final _changes = StreamController<bool>.broadcast();
+  bool _isWifiConnected;
+
+  @override
+  Future<bool> isWifiConnected() async => _isWifiConnected;
+
+  @override
+  Stream<bool> get wifiConnectionChanges => _changes.stream;
+
+  void setConnected(bool value) {
+    _isWifiConnected = value;
+  }
+
+  void emitConnected(bool value) {
+    _isWifiConnected = value;
+    _changes.add(value);
+  }
+
+  Future<void> dispose() async {
+    await _changes.close();
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
+import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
@@ -17,6 +18,7 @@ import '../../application/sync/sync_persistence.dart';
 import '../../application/sync/sync_preflight_service.dart';
 import '../../application/sync/sync_pull_service.dart';
 import '../../application/sync/sync_push_service.dart';
+import '../../application/sync/sync_server_detection_config.dart';
 import '../../application/sync/sync_socket_listener.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/drift/app_database.dart';
@@ -26,12 +28,18 @@ void registerApplicationDependencies(
   GetIt getIt, {
   required String deviceId,
   required String? storedSyncBaseUrl,
+  required bool requireWifiForServerDetection,
 }) {
   getIt.registerSingleton<LocalCommandContext>(
     LocalCommandContext(deviceId: deviceId, userId: 'user_active'),
   );
   getIt.registerSingleton<SyncEndpointConfig>(
     SyncEndpointConfig(initialBaseUrl: _validSyncBaseUrl(storedSyncBaseUrl)),
+  );
+  getIt.registerSingleton<SyncServerDetectionConfig>(
+    SyncServerDetectionConfig(
+      requireWifiForServerDetection: requireWifiForServerDetection,
+    ),
   );
 
   getIt.registerLazySingleton<SyncHealthService>(
@@ -109,6 +117,8 @@ void registerApplicationDependencies(
       syncPersistence: getIt<SyncPersistence>(),
       healthService: getIt<SyncHealthService>(),
       orchestrator: getIt<SyncOrchestrator>(),
+      serverDetectionConfig: getIt<SyncServerDetectionConfig>(),
+      wifiConnectivity: getIt<DeviceWifiConnectivity>(),
     ),
   );
 

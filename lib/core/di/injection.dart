@@ -11,5 +11,6 @@ Future<void> setupDependencyInjection() async {
     getIt,
     deviceId: bootstrap.deviceId,
     storedSyncBaseUrl: bootstrap.storedSyncBaseUrl,
+    requireWifiForServerDetection: bootstrap.requireWifiForServerDetection,
   );
 }

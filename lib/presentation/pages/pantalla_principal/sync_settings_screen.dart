@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../application/sync/sync_availability_monitor.dart';
+import '../../../application/sync/sync_detection_settings_store.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
 import '../../../application/sync/sync_endpoint_store.dart';
 import '../../../application/sync/exceptions/sync_health_exception.dart';
@@ -9,6 +10,7 @@ import '../../../application/sync/exceptions/sync_pull_exception.dart';
 import '../../../application/sync/exceptions/sync_push_exception.dart';
 import '../../../application/sync/models/sync_push_report.dart';
 import '../../../application/sync/sync_orchestrator.dart';
+import '../../../application/sync/sync_server_detection_config.dart';
 import '../../../core/di/injection.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
@@ -22,21 +24,29 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final SyncEndpointConfig _endpointConfig;
   late final SyncEndpointStore _endpointStore;
+  late final SyncDetectionSettingsStore _detectionSettingsStore;
+  late final SyncServerDetectionConfig _serverDetectionConfig;
   late final SyncAvailabilityMonitor _availabilityMonitor;
   late final SyncOrchestrator _syncOrchestrator;
   late final TextEditingController _serverController;
 
   bool _isSyncing = false;
   bool _isTestingConnection = false;
+  bool _isSavingWifiDetection = false;
+  bool _requireWifiForServerDetection = false;
 
   @override
   void initState() {
     super.initState();
     _endpointConfig = getIt<SyncEndpointConfig>();
     _endpointStore = getIt<SyncEndpointStore>();
+    _detectionSettingsStore = getIt<SyncDetectionSettingsStore>();
+    _serverDetectionConfig = getIt<SyncServerDetectionConfig>();
     _availabilityMonitor = getIt<SyncAvailabilityMonitor>();
     _syncOrchestrator = getIt<SyncOrchestrator>();
     _serverController = TextEditingController(text: _endpointConfig.baseUrl);
+    _requireWifiForServerDetection =
+        _serverDetectionConfig.requireWifiForServerDetection;
   }
 
   @override
@@ -71,6 +81,16 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
           ),
           const SizedBox(height: 12),
           Text('URL actual: ${_endpointConfig.baseUrl}'),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.wifi),
+            title: const Text('Detectar servidor solo con WiFi'),
+            value: _requireWifiForServerDetection,
+            onChanged: _isSavingWifiDetection
+                ? null
+                : _actualizarDeteccionPorWifi,
+          ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -221,6 +241,36 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     }
 
     return partes.join(', ');
+  }
+
+  Future<void> _actualizarDeteccionPorWifi(bool value) async {
+    final previousValue = _requireWifiForServerDetection;
+    setState(() {
+      _requireWifiForServerDetection = value;
+      _isSavingWifiDetection = true;
+    });
+
+    try {
+      await _detectionSettingsStore.saveRequireWifiForServerDetection(value);
+      _serverDetectionConfig.updateRequireWifiForServerDetection(value);
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _requireWifiForServerDetection = previousValue;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo guardar la preferencia de WiFi.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingWifiDetection = false;
+        });
+      }
+    }
   }
 
   Future<bool> _aplicarServidorActual() async {
