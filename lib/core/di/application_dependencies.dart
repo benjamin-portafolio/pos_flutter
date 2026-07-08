@@ -11,6 +11,8 @@ import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/sync_availability_monitor.dart';
+import '../../application/sync/sync_conflict_projection_cleaner.dart';
+import '../../application/sync/sync_conflict_report_service.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_health_service.dart';
 import '../../application/sync/sync_orchestrator.dart';
@@ -65,6 +67,11 @@ void registerApplicationDependencies(
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
     ),
   );
+  getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
+    () => SyncConflictProjectionCleaner(
+      espacioProjectionStore: getIt<EspacioProjectionStore>(),
+    ),
+  );
   getIt.registerLazySingleton<LocalEventStore>(
     () => DriftLocalEventStore(
       db: getIt<AppDatabase>(),
@@ -77,6 +84,14 @@ void registerApplicationDependencies(
     () => SyncPushService(
       syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
+      conflictProjectionCleaner: getIt<SyncConflictProjectionCleaner>(),
+    ),
+  );
+  getIt.registerLazySingleton<SyncConflictReportService>(
+    () => SyncConflictReportService(
+      syncPersistence: getIt<SyncPersistence>(),
+      endpointConfig: getIt<SyncEndpointConfig>(),
+      conflictProjectionCleaner: getIt<SyncConflictProjectionCleaner>(),
     ),
   );
   getIt.registerLazySingleton<SyncPullService>(
@@ -107,6 +122,7 @@ void registerApplicationDependencies(
     () => SyncOrchestrator(
       healthService: getIt<SyncHealthService>(),
       preflightService: getIt<SyncPreflightService>(),
+      conflictReportService: getIt<SyncConflictReportService>(),
       pullService: getIt<SyncPullService>(),
       pushService: getIt<SyncPushService>(),
       socketListener: getIt<SyncSocketListener>(),

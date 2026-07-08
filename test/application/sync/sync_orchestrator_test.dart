@@ -6,6 +6,7 @@ import 'package:pos_flutter/application/sync/models/sync_preflight_report.dart';
 import 'package:pos_flutter/application/sync/models/sync_pull_report.dart';
 import 'package:pos_flutter/application/sync/models/sync_push_report.dart';
 import 'package:pos_flutter/application/sync/sync_health_service.dart';
+import 'package:pos_flutter/application/sync/sync_conflict_report_service.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/application/sync/sync_preflight_service.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
@@ -25,6 +26,7 @@ void main() {
     orchestrator = SyncOrchestrator(
       healthService: _FakeSyncHealthService(),
       preflightService: preflightService,
+      conflictReportService: _FakeSyncConflictReportService(),
       pullService: pullService,
       pushService: _FakeSyncPushService(),
       socketListener: socketListener,
@@ -72,6 +74,16 @@ class _FakeSyncHealthService implements SyncHealthService {
 class _FakeSyncPushService implements SyncPushService {
   @override
   Future<SyncPushReport> pushPendingEvents() async {
+    return const SyncPushReport.empty();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeSyncConflictReportService implements SyncConflictReportService {
+  @override
+  Future<SyncPushReport> reportLocalConflicts() async {
     return const SyncPushReport.empty();
   }
 

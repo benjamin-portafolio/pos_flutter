@@ -46,6 +46,9 @@ class Events extends Table {
   /// Synchronization status: 'pending', 'synced', 'rejected', 'conflict'
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
+  /// Reason for local rejection or conflict, when available.
+  TextColumn get rejectionReason => text().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [
     {eventId},

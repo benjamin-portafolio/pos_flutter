@@ -24,6 +24,12 @@ class DriftSyncPersistence implements SyncPersistence {
   }
 
   @override
+  Future<List<SyncEvent>> unreportedConflictEvents() async {
+    final records = await _eventDao.obtenerConflictosNoReportados();
+    return records.map(_eventFromRecord).toList();
+  }
+
+  @override
   Stream<List<SyncEvent>> watchPendingEvents() {
     return _eventDao.watchEventosPendientes().map(
       (records) => records.map(_eventFromRecord).toList(),
@@ -36,12 +42,14 @@ class DriftSyncPersistence implements SyncPersistence {
     String status, {
     int? serverSequence,
     DateTime? serverTime,
+    String? rejectionReason,
   }) async {
     await _eventDao.actualizarEstadoSincronizacion(
       eventId,
       status,
       serverSequence: serverSequence,
       serverTime: serverTime,
+      rejectionReason: rejectionReason,
     );
   }
 
@@ -107,6 +115,7 @@ class DriftSyncPersistence implements SyncPersistence {
       createdAtServer: record.createdAtServer,
       payload: _decodePayload(record.payload),
       syncStatus: record.syncStatus,
+      rejectionReason: record.rejectionReason,
     );
   }
 

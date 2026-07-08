@@ -3,6 +3,8 @@ import 'models/sync_event.dart';
 abstract interface class SyncPersistence {
   Future<List<SyncEvent>> pendingEvents();
 
+  Future<List<SyncEvent>> unreportedConflictEvents();
+
   Stream<List<SyncEvent>> watchPendingEvents();
 
   Future<void> updateEventSyncStatus(
@@ -10,6 +12,7 @@ abstract interface class SyncPersistence {
     String status, {
     int? serverSequence,
     DateTime? serverTime,
+    String? rejectionReason,
   });
 
   Future<List<StoredEventRef>> refsForEvents(List<String> eventIds);

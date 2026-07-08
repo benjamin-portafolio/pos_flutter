@@ -16,6 +16,7 @@ class SyncEvent {
     this.baseVersion,
     this.createdAtServer,
     this.syncStatus = 'pending',
+    this.rejectionReason,
   });
 
   final String eventId;
@@ -32,6 +33,7 @@ class SyncEvent {
   final DateTime? createdAtServer;
   final Map<String, Object?> payload;
   final String syncStatus;
+  final String? rejectionReason;
 
   String get payloadJson => jsonEncode(payload);
 
@@ -51,6 +53,7 @@ class SyncEvent {
       createdAtServer: createdAtServer,
       payload: payload,
       syncStatus: syncStatus,
+      rejectionReason: rejectionReason,
     );
   }
 
@@ -88,6 +91,7 @@ class SyncEvent {
           : DateTime.parse(json['created_at_server']! as String),
       payload: _readPayload(json['payload']),
       syncStatus: json['sync_status'] as String? ?? 'pending',
+      rejectionReason: json['rejection_reason'] as String?,
     );
   }
 

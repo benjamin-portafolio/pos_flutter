@@ -18,6 +18,16 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
         .get();
   }
 
+  /// Obtiene conflictos locales que aun no tienen secuencia del servidor.
+  Future<List<EventRecord>> obtenerConflictosNoReportados() {
+    return (select(events)
+          ..where(
+            (t) => t.syncStatus.equals('conflict') & t.serverSequence.isNull(),
+          )
+          ..orderBy([(t) => OrderingTerm(expression: t.localSequence)]))
+        .get();
+  }
+
   /// Observa la cola local de eventos pendientes de sincronización.
   Stream<List<EventRecord>> watchEventosPendientes() {
     return (select(events)
@@ -32,13 +42,19 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
     String status, {
     int? serverSequence,
     DateTime? serverTime,
+    String? rejectionReason,
   }) {
-    return (update(events)..where((t) => t.eventId.equals(eventId))).write(
-      EventsCompanion(
-        syncStatus: Value(status),
-        serverSequence: Value(serverSequence),
-        createdAtServer: Value(serverTime),
-      ),
+    final companion = EventsCompanion(
+      syncStatus: Value(status),
+      serverSequence: Value(serverSequence),
+      createdAtServer: Value(serverTime),
+      rejectionReason: rejectionReason == null
+          ? const Value.absent()
+          : Value(rejectionReason),
     );
+
+    return (update(
+      events,
+    )..where((t) => t.eventId.equals(eventId))).write(companion);
   }
 }

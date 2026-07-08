@@ -8,6 +8,7 @@ import 'models/sync_push_report.dart';
 import 'sync_health_service.dart';
 import 'sync_preflight_service.dart';
 import 'sync_pull_service.dart';
+import 'sync_conflict_report_service.dart';
 import 'sync_push_service.dart';
 import 'sync_socket_listener.dart';
 
@@ -15,17 +16,20 @@ class SyncOrchestrator {
   SyncOrchestrator({
     required SyncHealthService healthService,
     required SyncPreflightService preflightService,
+    required SyncConflictReportService conflictReportService,
     required SyncPullService pullService,
     required SyncPushService pushService,
     required SyncSocketListener socketListener,
   }) : _healthService = healthService,
        _preflightService = preflightService,
+       _conflictReportService = conflictReportService,
        _pullService = pullService,
        _pushService = pushService,
        _socketListener = socketListener;
 
   final SyncHealthService _healthService;
   final SyncPreflightService _preflightService;
+  final SyncConflictReportService _conflictReportService;
   final SyncPullService _pullService;
   final SyncPushService _pushService;
   final SyncSocketListener _socketListener;
@@ -45,27 +49,26 @@ class SyncOrchestrator {
     final preflightReport = await _preflightService.preflightPendingEvents(
       latestServerSequence: latestServerSequence,
     );
-    var localConflicts = preflightReport.localConflicts;
 
     if (preflightReport.requiresFullPullBeforePush) {
       await _pullService.pullAvailableEvents();
-      final revalidation = await _preflightService.revalidatePendingEvents();
-      localConflicts += revalidation.conflicts;
+      await _preflightService.revalidatePendingEvents();
     }
 
+    final conflictReport = await _conflictReportService.reportLocalConflicts();
     final pushReport = await _pushService.pushPendingEvents();
     if (pushReport.total > 0) {
       await _pullService.pullAvailableEvents();
     }
 
-    if (localConflicts == 0) return pushReport;
+    if (conflictReport.total == 0) return pushReport;
 
     return SyncPushReport(
-      total: pushReport.total + localConflicts,
+      total: pushReport.total + conflictReport.total,
       synced: pushReport.synced,
       rejected: pushReport.rejected,
-      conflicts: pushReport.conflicts + localConflicts,
-      pending: pushReport.pending,
+      conflicts: pushReport.conflicts + conflictReport.conflicts,
+      pending: pushReport.pending + conflictReport.pending,
     );
   }
 

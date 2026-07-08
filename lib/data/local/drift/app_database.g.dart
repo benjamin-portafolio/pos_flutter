@@ -776,6 +776,17 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   );
+  static const VerificationMeta _rejectionReasonMeta = const VerificationMeta(
+    'rejectionReason',
+  );
+  @override
+  late final GeneratedColumn<String> rejectionReason = GeneratedColumn<String>(
+    'rejection_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     eventId,
@@ -792,6 +803,7 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
     createdAtServer,
     payload,
     syncStatus,
+    rejectionReason,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -929,6 +941,15 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
         syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
       );
     }
+    if (data.containsKey('rejection_reason')) {
+      context.handle(
+        _rejectionReasonMeta,
+        rejectionReason.isAcceptableOrUnknown(
+          data['rejection_reason']!,
+          _rejectionReasonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -998,6 +1019,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
       )!,
+      rejectionReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rejection_reason'],
+      ),
     );
   }
 
@@ -1050,6 +1075,9 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
 
   /// Synchronization status: 'pending', 'synced', 'rejected', 'conflict'
   final String syncStatus;
+
+  /// Reason for local rejection or conflict, when available.
+  final String? rejectionReason;
   const EventRecord({
     required this.eventId,
     required this.aggregateType,
@@ -1065,6 +1093,7 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     this.createdAtServer,
     required this.payload,
     required this.syncStatus,
+    this.rejectionReason,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1091,6 +1120,9 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     }
     map['payload'] = Variable<String>(payload);
     map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || rejectionReason != null) {
+      map['rejection_reason'] = Variable<String>(rejectionReason);
+    }
     return map;
   }
 
@@ -1118,6 +1150,9 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           : Value(createdAtServer),
       payload: Value(payload),
       syncStatus: Value(syncStatus),
+      rejectionReason: rejectionReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rejectionReason),
     );
   }
 
@@ -1141,6 +1176,7 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
       createdAtServer: serializer.fromJson<DateTime?>(json['createdAtServer']),
       payload: serializer.fromJson<String>(json['payload']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      rejectionReason: serializer.fromJson<String?>(json['rejectionReason']),
     );
   }
   @override
@@ -1161,6 +1197,7 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
       'createdAtServer': serializer.toJson<DateTime?>(createdAtServer),
       'payload': serializer.toJson<String>(payload),
       'syncStatus': serializer.toJson<String>(syncStatus),
+      'rejectionReason': serializer.toJson<String?>(rejectionReason),
     };
   }
 
@@ -1179,6 +1216,7 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     Value<DateTime?> createdAtServer = const Value.absent(),
     String? payload,
     String? syncStatus,
+    Value<String?> rejectionReason = const Value.absent(),
   }) => EventRecord(
     eventId: eventId ?? this.eventId,
     aggregateType: aggregateType ?? this.aggregateType,
@@ -1200,6 +1238,9 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
         : this.createdAtServer,
     payload: payload ?? this.payload,
     syncStatus: syncStatus ?? this.syncStatus,
+    rejectionReason: rejectionReason.present
+        ? rejectionReason.value
+        : this.rejectionReason,
   );
   EventRecord copyWithCompanion(EventsCompanion data) {
     return EventRecord(
@@ -1235,6 +1276,9 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      rejectionReason: data.rejectionReason.present
+          ? data.rejectionReason.value
+          : this.rejectionReason,
     );
   }
 
@@ -1254,7 +1298,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           ..write('createdAtLocal: $createdAtLocal, ')
           ..write('createdAtServer: $createdAtServer, ')
           ..write('payload: $payload, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rejectionReason: $rejectionReason')
           ..write(')'))
         .toString();
   }
@@ -1275,6 +1320,7 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     createdAtServer,
     payload,
     syncStatus,
+    rejectionReason,
   );
   @override
   bool operator ==(Object other) =>
@@ -1293,7 +1339,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           other.createdAtLocal == this.createdAtLocal &&
           other.createdAtServer == this.createdAtServer &&
           other.payload == this.payload &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.rejectionReason == this.rejectionReason);
 }
 
 class EventsCompanion extends UpdateCompanion<EventRecord> {
@@ -1311,6 +1358,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
   final Value<DateTime?> createdAtServer;
   final Value<String> payload;
   final Value<String> syncStatus;
+  final Value<String?> rejectionReason;
   const EventsCompanion({
     this.eventId = const Value.absent(),
     this.aggregateType = const Value.absent(),
@@ -1326,6 +1374,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     this.createdAtServer = const Value.absent(),
     this.payload = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.rejectionReason = const Value.absent(),
   });
   EventsCompanion.insert({
     required String eventId,
@@ -1342,6 +1391,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     this.createdAtServer = const Value.absent(),
     required String payload,
     this.syncStatus = const Value.absent(),
+    this.rejectionReason = const Value.absent(),
   }) : eventId = Value(eventId),
        aggregateType = Value(aggregateType),
        aggregateId = Value(aggregateId),
@@ -1365,6 +1415,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     Expression<DateTime>? createdAtServer,
     Expression<String>? payload,
     Expression<String>? syncStatus,
+    Expression<String>? rejectionReason,
   }) {
     return RawValuesInsertable({
       if (eventId != null) 'event_id': eventId,
@@ -1382,6 +1433,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
       if (createdAtServer != null) 'created_at_server': createdAtServer,
       if (payload != null) 'payload': payload,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (rejectionReason != null) 'rejection_reason': rejectionReason,
     });
   }
 
@@ -1400,6 +1452,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     Value<DateTime?>? createdAtServer,
     Value<String>? payload,
     Value<String>? syncStatus,
+    Value<String?>? rejectionReason,
   }) {
     return EventsCompanion(
       eventId: eventId ?? this.eventId,
@@ -1416,6 +1469,7 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
       createdAtServer: createdAtServer ?? this.createdAtServer,
       payload: payload ?? this.payload,
       syncStatus: syncStatus ?? this.syncStatus,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 
@@ -1464,6 +1518,9 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
+    if (rejectionReason.present) {
+      map['rejection_reason'] = Variable<String>(rejectionReason.value);
+    }
     return map;
   }
 
@@ -1483,7 +1540,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
           ..write('createdAtLocal: $createdAtLocal, ')
           ..write('createdAtServer: $createdAtServer, ')
           ..write('payload: $payload, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rejectionReason: $rejectionReason')
           ..write(')'))
         .toString();
   }
@@ -2740,6 +2798,7 @@ typedef $$EventsTableCreateCompanionBuilder =
       Value<DateTime?> createdAtServer,
       required String payload,
       Value<String> syncStatus,
+      Value<String?> rejectionReason,
     });
 typedef $$EventsTableUpdateCompanionBuilder =
     EventsCompanion Function({
@@ -2757,6 +2816,7 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<DateTime?> createdAtServer,
       Value<String> payload,
       Value<String> syncStatus,
+      Value<String?> rejectionReason,
     });
 
 class $$EventsTableFilterComposer
@@ -2835,6 +2895,11 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rejectionReason => $composableBuilder(
+    column: $table.rejectionReason,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2917,6 +2982,11 @@ class $$EventsTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get rejectionReason => $composableBuilder(
+    column: $table.rejectionReason,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EventsTableAnnotationComposer
@@ -2987,6 +3057,11 @@ class $$EventsTableAnnotationComposer
     column: $table.syncStatus,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get rejectionReason => $composableBuilder(
+    column: $table.rejectionReason,
+    builder: (column) => column,
+  );
 }
 
 class $$EventsTableTableManager
@@ -3034,6 +3109,7 @@ class $$EventsTableTableManager
                 Value<DateTime?> createdAtServer = const Value.absent(),
                 Value<String> payload = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
+                Value<String?> rejectionReason = const Value.absent(),
               }) => EventsCompanion(
                 eventId: eventId,
                 aggregateType: aggregateType,
@@ -3049,6 +3125,7 @@ class $$EventsTableTableManager
                 createdAtServer: createdAtServer,
                 payload: payload,
                 syncStatus: syncStatus,
+                rejectionReason: rejectionReason,
               ),
           createCompanionCallback:
               ({
@@ -3066,6 +3143,7 @@ class $$EventsTableTableManager
                 Value<DateTime?> createdAtServer = const Value.absent(),
                 required String payload,
                 Value<String> syncStatus = const Value.absent(),
+                Value<String?> rejectionReason = const Value.absent(),
               }) => EventsCompanion.insert(
                 eventId: eventId,
                 aggregateType: aggregateType,
@@ -3081,6 +3159,7 @@ class $$EventsTableTableManager
                 createdAtServer: createdAtServer,
                 payload: payload,
                 syncStatus: syncStatus,
+                rejectionReason: rejectionReason,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

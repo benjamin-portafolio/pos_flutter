@@ -18,14 +18,18 @@ class PendingEventRevalidator {
     var conflicts = 0;
 
     for (final event in events) {
-      final hasConflict = switch (event.eventType) {
-        'espacio_creado' => await _espacioCreadoHasConflict(event),
-        _ => false,
+      final conflictReason = switch (event.eventType) {
+        'espacio_creado' => await _espacioCreadoConflictReason(event),
+        _ => null,
       };
 
-      if (!hasConflict) continue;
+      if (conflictReason == null) continue;
 
-      await _syncPersistence.updateEventSyncStatus(event.eventId, 'conflict');
+      await _syncPersistence.updateEventSyncStatus(
+        event.eventId,
+        'conflict',
+        rejectionReason: conflictReason,
+      );
       await _espacioProjectionStore.deleteCreatedByEvent(event.eventId);
       conflicts++;
     }
@@ -36,22 +40,26 @@ class PendingEventRevalidator {
     );
   }
 
-  Future<bool> _espacioCreadoHasConflict(SyncEvent event) async {
+  Future<String?> _espacioCreadoConflictReason(SyncEvent event) async {
     final existingById = await _espacioProjectionStore.findById(
       event.aggregateId,
     );
     if (existingById != null && existingById.createdEventId != event.eventId) {
-      return true;
+      return 'Ya existe un espacio oficial con id ${event.aggregateId}.';
     }
 
     final identificacion = _readOptionalText(event.payload['identificacion']);
-    if (identificacion == null) return false;
+    if (identificacion == null) return null;
 
     final existingByIdentificacion = await _espacioProjectionStore
         .findByIdentificacion(identificacion);
 
-    return existingByIdentificacion != null &&
-        existingByIdentificacion.createdEventId != event.eventId;
+    if (existingByIdentificacion != null &&
+        existingByIdentificacion.createdEventId != event.eventId) {
+      return 'Ya existe un espacio oficial con identificacion $identificacion.';
+    }
+
+    return null;
   }
 
   String? _readOptionalText(Object? value) {

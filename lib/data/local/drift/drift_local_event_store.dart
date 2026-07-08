@@ -64,6 +64,7 @@ class DriftLocalEventStore implements LocalEventStore {
       createdAtServer: Value(event.createdAtServer),
       payload: event.payloadJson,
       syncStatus: Value(event.syncStatus),
+      rejectionReason: Value(event.rejectionReason),
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'exceptions/sync_push_exception.dart';
 import 'models/sync_event.dart';
 import 'models/sync_push_report.dart';
+import 'sync_conflict_projection_cleaner.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
 
@@ -12,13 +13,16 @@ class SyncPushService {
   SyncPushService({
     required SyncPersistence syncPersistence,
     required SyncEndpointConfig endpointConfig,
+    required SyncConflictProjectionCleaner conflictProjectionCleaner,
     http.Client? client,
   }) : _syncPersistence = syncPersistence,
        _endpointConfig = endpointConfig,
+       _conflictProjectionCleaner = conflictProjectionCleaner,
        _client = client ?? http.Client();
 
   final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
+  final SyncConflictProjectionCleaner _conflictProjectionCleaner;
   final http.Client _client;
 
   Future<SyncPushReport> pushPendingEvents() async {
@@ -50,12 +54,12 @@ class SyncPushService {
       final result = remoteResults[event.eventId];
       switch (result?.status) {
         case 'accepted':
-        case 'duplicate':
           await _syncPersistence.updateEventSyncStatus(
             event.eventId,
             'synced',
             serverSequence: result?.serverSequence,
             serverTime: result?.serverTime,
+            rejectionReason: result?.reason,
           );
           final serverSequence = result?.serverSequence;
           if (serverSequence != null) {
@@ -66,13 +70,76 @@ class SyncPushService {
           }
           synced++;
           break;
+        case 'duplicate':
+          final effectiveStatus = result?.originalSyncStatus ?? 'synced';
+          if (effectiveStatus == 'synced') {
+            await _syncPersistence.updateEventSyncStatus(
+              event.eventId,
+              'synced',
+              serverSequence: result?.serverSequence,
+              serverTime: result?.serverTime,
+              rejectionReason: result?.reason,
+            );
+            final serverSequence = result?.serverSequence;
+            if (serverSequence != null) {
+              await _syncPersistence.markRefsSynced(
+                event.eventId,
+                serverSequence,
+              );
+            }
+            synced++;
+          } else if (effectiveStatus == 'conflict') {
+            await _syncPersistence.updateEventSyncStatus(
+              event.eventId,
+              'conflict',
+              serverSequence: result?.serverSequence,
+              serverTime: result?.serverTime,
+              rejectionReason: result?.reason,
+            );
+            final serverSequence = result?.serverSequence;
+            if (serverSequence != null) {
+              await _syncPersistence.markRefsSynced(
+                event.eventId,
+                serverSequence,
+              );
+            }
+            await _conflictProjectionCleaner.hideConflictProjection(event);
+            conflicts++;
+          } else if (effectiveStatus == 'rejected') {
+            await _syncPersistence.updateEventSyncStatus(
+              event.eventId,
+              'rejected',
+              serverSequence: result?.serverSequence,
+              serverTime: result?.serverTime,
+              rejectionReason: result?.reason,
+            );
+            final serverSequence = result?.serverSequence;
+            if (serverSequence != null) {
+              await _syncPersistence.markRefsSynced(
+                event.eventId,
+                serverSequence,
+              );
+            }
+            rejected++;
+          } else {
+            pending++;
+          }
+          break;
         case 'rejected':
           await _syncPersistence.updateEventSyncStatus(
             event.eventId,
             'rejected',
             serverSequence: result?.serverSequence,
             serverTime: result?.serverTime,
+            rejectionReason: result?.reason,
           );
+          final serverSequence = result?.serverSequence;
+          if (serverSequence != null) {
+            await _syncPersistence.markRefsSynced(
+              event.eventId,
+              serverSequence,
+            );
+          }
           rejected++;
           break;
         case 'conflict':
@@ -81,7 +148,16 @@ class SyncPushService {
             'conflict',
             serverSequence: result?.serverSequence,
             serverTime: result?.serverTime,
+            rejectionReason: result?.reason,
           );
+          final serverSequence = result?.serverSequence;
+          if (serverSequence != null) {
+            await _syncPersistence.markRefsSynced(
+              event.eventId,
+              serverSequence,
+            );
+          }
+          await _conflictProjectionCleaner.hideConflictProjection(event);
           conflicts++;
           break;
         default:
@@ -184,6 +260,8 @@ class SyncPushService {
           serverTime: _readDateTime(
             data['created_at_server'] ?? data['server_time'],
           ),
+          originalSyncStatus: _readOriginalSyncStatus(data),
+          reason: data['reason'] as String?,
         );
       }
     }
@@ -197,6 +275,8 @@ class SyncPushService {
           serverTime: _readDateTime(
             responseBody['created_at_server'] ?? responseBody['server_time'],
           ),
+          originalSyncStatus: _readOriginalSyncStatus(responseBody),
+          reason: responseBody['reason'] as String?,
         );
       }
     }
@@ -210,6 +290,15 @@ class SyncPushService {
 
     final normalized = value.toLowerCase();
     const knownStatuses = {'accepted', 'duplicate', 'rejected', 'conflict'};
+    return knownStatuses.contains(normalized) ? normalized : null;
+  }
+
+  String? _readOriginalSyncStatus(Map<String, Object?> data) {
+    final value = data['original_sync_status'] ?? data['sync_status'];
+    if (value is! String) return null;
+
+    final normalized = value.toLowerCase();
+    const knownStatuses = {'pending', 'synced', 'rejected', 'conflict'};
     return knownStatuses.contains(normalized) ? normalized : null;
   }
 
@@ -231,9 +320,13 @@ class _RemoteEventResult {
     required this.status,
     required this.serverSequence,
     required this.serverTime,
+    required this.originalSyncStatus,
+    required this.reason,
   });
 
   final String status;
   final int? serverSequence;
   final DateTime? serverTime;
+  final String? originalSyncStatus;
+  final String? reason;
 }

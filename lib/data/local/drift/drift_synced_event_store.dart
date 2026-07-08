@@ -49,6 +49,7 @@ class DriftSyncedEventStore implements SyncedEventStore {
       createdAtServer: Value(event.createdAtServer),
       payload: event.payloadJson,
       syncStatus: const Value('synced'),
+      rejectionReason: Value(event.rejectionReason),
     );
 
     await _db.into(_db.events).insert(insert, mode: InsertMode.insertOrIgnore);
@@ -68,6 +69,7 @@ class DriftSyncedEventStore implements SyncedEventStore {
         createdAtServer: Value(event.createdAtServer),
         payload: Value(event.payloadJson),
         syncStatus: const Value('synced'),
+        rejectionReason: Value(event.rejectionReason),
       ),
     );
   }
