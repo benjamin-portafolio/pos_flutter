@@ -57,7 +57,7 @@ void main() {
     await db.close();
   });
 
-  test('reporta conflicto local y conserva sync_status conflict', () async {
+  test('reporta conflicto local y conserva delivery_status conflict', () async {
     await localEventStore.appendAndApply(
       _localEspacioEvent(),
       refs: const [
@@ -129,7 +129,7 @@ void main() {
 
     expect(report.total, 1);
     expect(report.conflicts, 1);
-    expect(event.syncStatus, 'conflict');
+    expect(event.deliveryStatus, 'conflict');
     expect(event.serverSequence, 12);
     expect(event.createdAtServer, isNotNull);
     expect(refs.map((ref) => ref.source).toSet(), {'server'});

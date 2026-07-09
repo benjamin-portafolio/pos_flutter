@@ -206,8 +206,15 @@ class SyncConflictReportService {
     if (value is! String) return null;
 
     final normalized = value.toLowerCase();
-    const knownStatuses = {'pending', 'synced', 'rejected', 'conflict'};
-    return knownStatuses.contains(normalized) ? normalized : null;
+    const knownStatuses = {
+      'pending',
+      'synced',
+      'delivered',
+      'rejected',
+      'conflict',
+    };
+    if (!knownStatuses.contains(normalized)) return null;
+    return normalized == 'synced' ? 'delivered' : normalized;
   }
 
   int? _readInt(Object? value) {

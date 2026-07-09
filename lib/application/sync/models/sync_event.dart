@@ -15,9 +15,12 @@ class SyncEvent {
     this.baseServerSequence,
     this.baseVersion,
     this.createdAtServer,
-    this.syncStatus = 'pending',
+    String? applicationStatus,
+    String? deliveryStatus,
+    String? syncStatus,
     this.rejectionReason,
-  });
+  }) : applicationStatus = applicationStatus ?? 'applied',
+       deliveryStatus = deliveryStatus ?? syncStatus ?? 'pending';
 
   final String eventId;
   final String aggregateType;
@@ -32,28 +35,53 @@ class SyncEvent {
   final DateTime createdAtLocal;
   final DateTime? createdAtServer;
   final Map<String, Object?> payload;
-  final String syncStatus;
+  final String applicationStatus;
+  final String deliveryStatus;
   final String? rejectionReason;
 
   String get payloadJson => jsonEncode(payload);
 
+  String get syncStatus => deliveryStatus;
+
   SyncEvent withLocalSequence(int value) {
+    return copyWith(localSequence: value);
+  }
+
+  SyncEvent copyWith({
+    String? eventId,
+    String? aggregateType,
+    String? aggregateId,
+    String? eventType,
+    String? deviceId,
+    String? userId,
+    int? localSequence,
+    int? serverSequence,
+    int? baseServerSequence,
+    int? baseVersion,
+    DateTime? createdAtLocal,
+    DateTime? createdAtServer,
+    Map<String, Object?>? payload,
+    String? applicationStatus,
+    String? deliveryStatus,
+    String? rejectionReason,
+  }) {
     return SyncEvent(
-      eventId: eventId,
-      aggregateType: aggregateType,
-      aggregateId: aggregateId,
-      eventType: eventType,
-      deviceId: deviceId,
-      userId: userId,
-      localSequence: value,
-      serverSequence: serverSequence,
-      baseServerSequence: baseServerSequence,
-      baseVersion: baseVersion,
-      createdAtLocal: createdAtLocal,
-      createdAtServer: createdAtServer,
-      payload: payload,
-      syncStatus: syncStatus,
-      rejectionReason: rejectionReason,
+      eventId: eventId ?? this.eventId,
+      aggregateType: aggregateType ?? this.aggregateType,
+      aggregateId: aggregateId ?? this.aggregateId,
+      eventType: eventType ?? this.eventType,
+      deviceId: deviceId ?? this.deviceId,
+      userId: userId ?? this.userId,
+      localSequence: localSequence ?? this.localSequence,
+      serverSequence: serverSequence ?? this.serverSequence,
+      baseServerSequence: baseServerSequence ?? this.baseServerSequence,
+      baseVersion: baseVersion ?? this.baseVersion,
+      createdAtLocal: createdAtLocal ?? this.createdAtLocal,
+      createdAtServer: createdAtServer ?? this.createdAtServer,
+      payload: payload ?? this.payload,
+      applicationStatus: applicationStatus ?? this.applicationStatus,
+      deliveryStatus: deliveryStatus ?? this.deliveryStatus,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 
@@ -90,7 +118,10 @@ class SyncEvent {
           ? null
           : DateTime.parse(json['created_at_server']! as String),
       payload: _readPayload(json['payload']),
-      syncStatus: json['sync_status'] as String? ?? 'pending',
+      applicationStatus: json['application_status'] as String? ?? 'applied',
+      deliveryStatus:
+          json['delivery_status'] as String? ??
+          _deliveryStatusFromLegacySyncStatus(json['sync_status']),
       rejectionReason: json['rejection_reason'] as String?,
     );
   }
@@ -108,5 +139,11 @@ class SyncEvent {
       return value.map((key, value) => MapEntry(key.toString(), value));
     }
     return const <String, Object?>{};
+  }
+
+  static String _deliveryStatusFromLegacySyncStatus(Object? value) {
+    if (value is! String) return 'pending';
+    final normalized = value.toLowerCase();
+    return normalized == 'synced' ? 'delivered' : normalized;
   }
 }

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/config/app_config.dart';
+import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
@@ -83,7 +85,8 @@ void main() {
       expect(events, hasLength(1));
       expect(events.single.eventId, 'event-1');
       expect(events.single.eventType, 'espacio_creado');
-      expect(events.single.syncStatus, 'pending');
+      expect(events.single.applicationStatus, 'applied');
+      expect(events.single.deliveryStatus, 'pending');
       expect(
         jsonDecode(events.single.payload),
         containsPair('visibilidad', 'sin_restriccion'),
@@ -99,6 +102,61 @@ void main() {
         containsAll(['affects', 'requires_unique']),
       );
       expect(refs.map((ref) => ref.source).toSet(), {'local_pending'});
+    },
+  );
+
+  test(
+    'appendAndApply en standalone marca entrega remota no requerida',
+    () async {
+      final standaloneStore = DriftLocalEventStore(
+        db: db,
+        eventDao: eventDao,
+        eventRefDao: EventRefDao(db),
+        eventProcessor: EventProcessor(
+          handlers: espacioEventHandlers(
+            EspacioEventHandler(
+              DriftEspacioProjectionStore(espacioDao: espacioDao),
+            ),
+          ),
+        ),
+        appConfigController: AppConfigController(
+          AppConfig.initial.copyWith(
+            mode: AppMode.standalone,
+            setupCompleted: true,
+          ),
+        ),
+      );
+
+      await standaloneStore.appendAndApply(
+        SyncEvent(
+          eventId: 'event-standalone',
+          aggregateType: 'espacio',
+          aggregateId: 'espacio-standalone',
+          eventType: 'espacio_creado',
+          deviceId: 'test_device',
+          userId: 'test_user',
+          baseVersion: 1,
+          createdAtLocal: DateTime(2026),
+          payload: const {
+            'nombre': 'Barra',
+            'identificacion': null,
+            'visibilidad': 'sin_restriccion',
+          },
+        ),
+        refs: const [
+          LocalEventRef.affects(
+            refType: 'espacio',
+            refId: 'espacio-standalone',
+          ),
+        ],
+      );
+
+      final pendingEvents = await eventDao.obtenerEventosPendientes();
+      final event = (await db.select(db.events).get()).single;
+
+      expect(pendingEvents, isEmpty);
+      expect(event.applicationStatus, 'applied');
+      expect(event.deliveryStatus, 'not_required');
     },
   );
 }

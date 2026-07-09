@@ -48,7 +48,8 @@ class DriftSyncedEventStore implements SyncedEventStore {
       createdAtLocal: event.createdAtLocal,
       createdAtServer: Value(event.createdAtServer),
       payload: event.payloadJson,
-      syncStatus: const Value('synced'),
+      applicationStatus: const Value('applied'),
+      deliveryStatus: const Value('delivered'),
       rejectionReason: Value(event.rejectionReason),
     );
 
@@ -68,7 +69,8 @@ class DriftSyncedEventStore implements SyncedEventStore {
         createdAtLocal: Value(event.createdAtLocal),
         createdAtServer: Value(event.createdAtServer),
         payload: Value(event.payloadJson),
-        syncStatus: const Value('synced'),
+        applicationStatus: const Value('applied'),
+        deliveryStatus: const Value('delivered'),
         rejectionReason: Value(event.rejectionReason),
       ),
     );

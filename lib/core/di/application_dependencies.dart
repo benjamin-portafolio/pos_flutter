@@ -1,5 +1,7 @@
 import 'package:get_it/get_it.dart';
 
+import '../../application/config/app_config.dart';
+import '../../application/config/app_config_controller.dart';
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
@@ -29,11 +31,13 @@ import '../../data/local/drift/drift_local_event_store.dart';
 void registerApplicationDependencies(
   GetIt getIt, {
   required String deviceId,
+  required AppConfig appConfig,
   required String? storedSyncBaseUrl,
   required bool requireWifiForServerDetection,
 }) {
+  getIt.registerSingleton<AppConfigController>(AppConfigController(appConfig));
   getIt.registerSingleton<LocalCommandContext>(
-    LocalCommandContext(deviceId: deviceId, userId: 'user_active'),
+    LocalCommandContext(deviceId: deviceId, userId: appConfig.userId),
   );
   getIt.registerSingleton<SyncEndpointConfig>(
     SyncEndpointConfig(initialBaseUrl: _validSyncBaseUrl(storedSyncBaseUrl)),
@@ -78,6 +82,7 @@ void registerApplicationDependencies(
       eventDao: getIt<EventDao>(),
       eventRefDao: getIt<EventRefDao>(),
       eventProcessor: getIt<EventProcessor>(),
+      appConfigController: getIt<AppConfigController>(),
     ),
   );
   getIt.registerLazySingleton<SyncPushService>(

@@ -50,6 +50,13 @@ domain/
       Contrato de lectura para espacios.
 
 application/
+  config/
+    app_config.dart
+      Configuracion instalada: modo standalone/server_sync, usuario local temporal y providers activos.
+    app_config_controller.dart
+      Mantiene la configuracion activa en memoria durante la ejecucion.
+    app_config_store.dart
+      Puerto para persistir y leer la configuracion instalada.
   commands/
     crear_espacio_command.dart
       Intencion de aplicacion para crear un espacio.
@@ -88,6 +95,9 @@ application/
 
 data/
   local/
+    config/
+      app_config_file_store.dart
+        Implementacion local en JSON de AppConfigStore.
     drift/
       app_database.dart
         Define AppDatabase, tablas, DAOs y conexion SQLite local.
@@ -122,6 +132,9 @@ data/
       Adapta filas Drift a modelos de dominio.
 
 presentation/
+  onboarding/
+    first_run_setup_screen.dart
+      Pantalla de primera carga para elegir modo local o servidor con datos iniciales temporales.
   pages/
     gestion_mesa/
       table_management.dart
@@ -140,7 +153,7 @@ presentation/
       menu_lateral.dart
         Menu lateral de navegacion.
       sync_settings_screen.dart
-        Pantalla para configurar servidor, probar conexion y enviar pendientes.
+        Pantalla para cambiar modo de operacion; muestra respaldo pendiente y controles de servidor solo en server_sync.
   widgets/
     dialogs/
       labeled_underline_field.dart
@@ -167,5 +180,5 @@ presentation
 - El flujo completo implementado es `espacio_creado`.
 - `Agregar mesa` existe visualmente, pero no tiene flujo funcional.
 - El comando de `espacio_creado` guarda y aplica el evento localmente.
-- La sincronizacion remota esta separada en `SyncOrchestrator` y actualmente se inicia automaticamente al arrancar la app.
+- La sincronizacion remota esta separada en `SyncOrchestrator` y solo se inicia al arrancar en modo `server_sync`.
 - Hay envio de pendientes por HTTP push, pull incremental y listener websocket.

@@ -764,12 +764,25 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
-    'syncStatus',
+  static const VerificationMeta _applicationStatusMeta = const VerificationMeta(
+    'applicationStatus',
   );
   @override
-  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
-    'sync_status',
+  late final GeneratedColumn<String> applicationStatus =
+      GeneratedColumn<String>(
+        'application_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('applied'),
+      );
+  static const VerificationMeta _deliveryStatusMeta = const VerificationMeta(
+    'deliveryStatus',
+  );
+  @override
+  late final GeneratedColumn<String> deliveryStatus = GeneratedColumn<String>(
+    'delivery_status',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -802,7 +815,8 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
     createdAtLocal,
     createdAtServer,
     payload,
-    syncStatus,
+    applicationStatus,
+    deliveryStatus,
     rejectionReason,
   ];
   @override
@@ -935,10 +949,22 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
     } else if (isInserting) {
       context.missing(_payloadMeta);
     }
-    if (data.containsKey('sync_status')) {
+    if (data.containsKey('application_status')) {
       context.handle(
-        _syncStatusMeta,
-        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+        _applicationStatusMeta,
+        applicationStatus.isAcceptableOrUnknown(
+          data['application_status']!,
+          _applicationStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('delivery_status')) {
+      context.handle(
+        _deliveryStatusMeta,
+        deliveryStatus.isAcceptableOrUnknown(
+          data['delivery_status']!,
+          _deliveryStatusMeta,
+        ),
       );
     }
     if (data.containsKey('rejection_reason')) {
@@ -1015,9 +1041,13 @@ class $EventsTable extends Events with TableInfo<$EventsTable, EventRecord> {
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       )!,
-      syncStatus: attachedDatabase.typeMapping.read(
+      applicationStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}sync_status'],
+        data['${effectivePrefix}application_status'],
+      )!,
+      deliveryStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}delivery_status'],
       )!,
       rejectionReason: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -1073,8 +1103,12 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
   /// JSON payload representing event-specific data (serialized as string)
   final String payload;
 
-  /// Synchronization status: 'pending', 'synced', 'rejected', 'conflict'
-  final String syncStatus;
+  /// Local application status: 'applied' or 'failed'.
+  final String applicationStatus;
+
+  /// Remote delivery status: 'not_required', 'pending', 'delivered',
+  /// 'rejected' or 'conflict'.
+  final String deliveryStatus;
 
   /// Reason for local rejection or conflict, when available.
   final String? rejectionReason;
@@ -1092,7 +1126,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     required this.createdAtLocal,
     this.createdAtServer,
     required this.payload,
-    required this.syncStatus,
+    required this.applicationStatus,
+    required this.deliveryStatus,
     this.rejectionReason,
   });
   @override
@@ -1119,7 +1154,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
       map['created_at_server'] = Variable<DateTime>(createdAtServer);
     }
     map['payload'] = Variable<String>(payload);
-    map['sync_status'] = Variable<String>(syncStatus);
+    map['application_status'] = Variable<String>(applicationStatus);
+    map['delivery_status'] = Variable<String>(deliveryStatus);
     if (!nullToAbsent || rejectionReason != null) {
       map['rejection_reason'] = Variable<String>(rejectionReason);
     }
@@ -1149,7 +1185,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           ? const Value.absent()
           : Value(createdAtServer),
       payload: Value(payload),
-      syncStatus: Value(syncStatus),
+      applicationStatus: Value(applicationStatus),
+      deliveryStatus: Value(deliveryStatus),
       rejectionReason: rejectionReason == null && nullToAbsent
           ? const Value.absent()
           : Value(rejectionReason),
@@ -1175,7 +1212,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
       createdAtLocal: serializer.fromJson<DateTime>(json['createdAtLocal']),
       createdAtServer: serializer.fromJson<DateTime?>(json['createdAtServer']),
       payload: serializer.fromJson<String>(json['payload']),
-      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      applicationStatus: serializer.fromJson<String>(json['applicationStatus']),
+      deliveryStatus: serializer.fromJson<String>(json['deliveryStatus']),
       rejectionReason: serializer.fromJson<String?>(json['rejectionReason']),
     );
   }
@@ -1196,7 +1234,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
       'createdAtLocal': serializer.toJson<DateTime>(createdAtLocal),
       'createdAtServer': serializer.toJson<DateTime?>(createdAtServer),
       'payload': serializer.toJson<String>(payload),
-      'syncStatus': serializer.toJson<String>(syncStatus),
+      'applicationStatus': serializer.toJson<String>(applicationStatus),
+      'deliveryStatus': serializer.toJson<String>(deliveryStatus),
       'rejectionReason': serializer.toJson<String?>(rejectionReason),
     };
   }
@@ -1215,7 +1254,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     DateTime? createdAtLocal,
     Value<DateTime?> createdAtServer = const Value.absent(),
     String? payload,
-    String? syncStatus,
+    String? applicationStatus,
+    String? deliveryStatus,
     Value<String?> rejectionReason = const Value.absent(),
   }) => EventRecord(
     eventId: eventId ?? this.eventId,
@@ -1237,7 +1277,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
         ? createdAtServer.value
         : this.createdAtServer,
     payload: payload ?? this.payload,
-    syncStatus: syncStatus ?? this.syncStatus,
+    applicationStatus: applicationStatus ?? this.applicationStatus,
+    deliveryStatus: deliveryStatus ?? this.deliveryStatus,
     rejectionReason: rejectionReason.present
         ? rejectionReason.value
         : this.rejectionReason,
@@ -1273,9 +1314,12 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           ? data.createdAtServer.value
           : this.createdAtServer,
       payload: data.payload.present ? data.payload.value : this.payload,
-      syncStatus: data.syncStatus.present
-          ? data.syncStatus.value
-          : this.syncStatus,
+      applicationStatus: data.applicationStatus.present
+          ? data.applicationStatus.value
+          : this.applicationStatus,
+      deliveryStatus: data.deliveryStatus.present
+          ? data.deliveryStatus.value
+          : this.deliveryStatus,
       rejectionReason: data.rejectionReason.present
           ? data.rejectionReason.value
           : this.rejectionReason,
@@ -1298,7 +1342,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           ..write('createdAtLocal: $createdAtLocal, ')
           ..write('createdAtServer: $createdAtServer, ')
           ..write('payload: $payload, ')
-          ..write('syncStatus: $syncStatus, ')
+          ..write('applicationStatus: $applicationStatus, ')
+          ..write('deliveryStatus: $deliveryStatus, ')
           ..write('rejectionReason: $rejectionReason')
           ..write(')'))
         .toString();
@@ -1319,7 +1364,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
     createdAtLocal,
     createdAtServer,
     payload,
-    syncStatus,
+    applicationStatus,
+    deliveryStatus,
     rejectionReason,
   );
   @override
@@ -1339,7 +1385,8 @@ class EventRecord extends DataClass implements Insertable<EventRecord> {
           other.createdAtLocal == this.createdAtLocal &&
           other.createdAtServer == this.createdAtServer &&
           other.payload == this.payload &&
-          other.syncStatus == this.syncStatus &&
+          other.applicationStatus == this.applicationStatus &&
+          other.deliveryStatus == this.deliveryStatus &&
           other.rejectionReason == this.rejectionReason);
 }
 
@@ -1357,7 +1404,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
   final Value<DateTime> createdAtLocal;
   final Value<DateTime?> createdAtServer;
   final Value<String> payload;
-  final Value<String> syncStatus;
+  final Value<String> applicationStatus;
+  final Value<String> deliveryStatus;
   final Value<String?> rejectionReason;
   const EventsCompanion({
     this.eventId = const Value.absent(),
@@ -1373,7 +1421,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     this.createdAtLocal = const Value.absent(),
     this.createdAtServer = const Value.absent(),
     this.payload = const Value.absent(),
-    this.syncStatus = const Value.absent(),
+    this.applicationStatus = const Value.absent(),
+    this.deliveryStatus = const Value.absent(),
     this.rejectionReason = const Value.absent(),
   });
   EventsCompanion.insert({
@@ -1390,7 +1439,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     required DateTime createdAtLocal,
     this.createdAtServer = const Value.absent(),
     required String payload,
-    this.syncStatus = const Value.absent(),
+    this.applicationStatus = const Value.absent(),
+    this.deliveryStatus = const Value.absent(),
     this.rejectionReason = const Value.absent(),
   }) : eventId = Value(eventId),
        aggregateType = Value(aggregateType),
@@ -1414,7 +1464,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     Expression<DateTime>? createdAtLocal,
     Expression<DateTime>? createdAtServer,
     Expression<String>? payload,
-    Expression<String>? syncStatus,
+    Expression<String>? applicationStatus,
+    Expression<String>? deliveryStatus,
     Expression<String>? rejectionReason,
   }) {
     return RawValuesInsertable({
@@ -1432,7 +1483,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
       if (createdAtLocal != null) 'created_at_local': createdAtLocal,
       if (createdAtServer != null) 'created_at_server': createdAtServer,
       if (payload != null) 'payload': payload,
-      if (syncStatus != null) 'sync_status': syncStatus,
+      if (applicationStatus != null) 'application_status': applicationStatus,
+      if (deliveryStatus != null) 'delivery_status': deliveryStatus,
       if (rejectionReason != null) 'rejection_reason': rejectionReason,
     });
   }
@@ -1451,7 +1503,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     Value<DateTime>? createdAtLocal,
     Value<DateTime?>? createdAtServer,
     Value<String>? payload,
-    Value<String>? syncStatus,
+    Value<String>? applicationStatus,
+    Value<String>? deliveryStatus,
     Value<String?>? rejectionReason,
   }) {
     return EventsCompanion(
@@ -1468,7 +1521,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
       createdAtLocal: createdAtLocal ?? this.createdAtLocal,
       createdAtServer: createdAtServer ?? this.createdAtServer,
       payload: payload ?? this.payload,
-      syncStatus: syncStatus ?? this.syncStatus,
+      applicationStatus: applicationStatus ?? this.applicationStatus,
+      deliveryStatus: deliveryStatus ?? this.deliveryStatus,
       rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
@@ -1515,8 +1569,11 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
-    if (syncStatus.present) {
-      map['sync_status'] = Variable<String>(syncStatus.value);
+    if (applicationStatus.present) {
+      map['application_status'] = Variable<String>(applicationStatus.value);
+    }
+    if (deliveryStatus.present) {
+      map['delivery_status'] = Variable<String>(deliveryStatus.value);
     }
     if (rejectionReason.present) {
       map['rejection_reason'] = Variable<String>(rejectionReason.value);
@@ -1540,7 +1597,8 @@ class EventsCompanion extends UpdateCompanion<EventRecord> {
           ..write('createdAtLocal: $createdAtLocal, ')
           ..write('createdAtServer: $createdAtServer, ')
           ..write('payload: $payload, ')
-          ..write('syncStatus: $syncStatus, ')
+          ..write('applicationStatus: $applicationStatus, ')
+          ..write('deliveryStatus: $deliveryStatus, ')
           ..write('rejectionReason: $rejectionReason')
           ..write(')'))
         .toString();
@@ -2797,7 +2855,8 @@ typedef $$EventsTableCreateCompanionBuilder =
       required DateTime createdAtLocal,
       Value<DateTime?> createdAtServer,
       required String payload,
-      Value<String> syncStatus,
+      Value<String> applicationStatus,
+      Value<String> deliveryStatus,
       Value<String?> rejectionReason,
     });
 typedef $$EventsTableUpdateCompanionBuilder =
@@ -2815,7 +2874,8 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<DateTime> createdAtLocal,
       Value<DateTime?> createdAtServer,
       Value<String> payload,
-      Value<String> syncStatus,
+      Value<String> applicationStatus,
+      Value<String> deliveryStatus,
       Value<String?> rejectionReason,
     });
 
@@ -2893,8 +2953,13 @@ class $$EventsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get syncStatus => $composableBuilder(
-    column: $table.syncStatus,
+  ColumnFilters<String> get applicationStatus => $composableBuilder(
+    column: $table.applicationStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deliveryStatus => $composableBuilder(
+    column: $table.deliveryStatus,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2978,8 +3043,13 @@ class $$EventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get syncStatus => $composableBuilder(
-    column: $table.syncStatus,
+  ColumnOrderings<String> get applicationStatus => $composableBuilder(
+    column: $table.applicationStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deliveryStatus => $composableBuilder(
+    column: $table.deliveryStatus,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3053,8 +3123,13 @@ class $$EventsTableAnnotationComposer
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
 
-  GeneratedColumn<String> get syncStatus => $composableBuilder(
-    column: $table.syncStatus,
+  GeneratedColumn<String> get applicationStatus => $composableBuilder(
+    column: $table.applicationStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deliveryStatus => $composableBuilder(
+    column: $table.deliveryStatus,
     builder: (column) => column,
   );
 
@@ -3108,7 +3183,8 @@ class $$EventsTableTableManager
                 Value<DateTime> createdAtLocal = const Value.absent(),
                 Value<DateTime?> createdAtServer = const Value.absent(),
                 Value<String> payload = const Value.absent(),
-                Value<String> syncStatus = const Value.absent(),
+                Value<String> applicationStatus = const Value.absent(),
+                Value<String> deliveryStatus = const Value.absent(),
                 Value<String?> rejectionReason = const Value.absent(),
               }) => EventsCompanion(
                 eventId: eventId,
@@ -3124,7 +3200,8 @@ class $$EventsTableTableManager
                 createdAtLocal: createdAtLocal,
                 createdAtServer: createdAtServer,
                 payload: payload,
-                syncStatus: syncStatus,
+                applicationStatus: applicationStatus,
+                deliveryStatus: deliveryStatus,
                 rejectionReason: rejectionReason,
               ),
           createCompanionCallback:
@@ -3142,7 +3219,8 @@ class $$EventsTableTableManager
                 required DateTime createdAtLocal,
                 Value<DateTime?> createdAtServer = const Value.absent(),
                 required String payload,
-                Value<String> syncStatus = const Value.absent(),
+                Value<String> applicationStatus = const Value.absent(),
+                Value<String> deliveryStatus = const Value.absent(),
                 Value<String?> rejectionReason = const Value.absent(),
               }) => EventsCompanion.insert(
                 eventId: eventId,
@@ -3158,7 +3236,8 @@ class $$EventsTableTableManager
                 createdAtLocal: createdAtLocal,
                 createdAtServer: createdAtServer,
                 payload: payload,
-                syncStatus: syncStatus,
+                applicationStatus: applicationStatus,
+                deliveryStatus: deliveryStatus,
                 rejectionReason: rejectionReason,
               ),
           withReferenceMapper: (p0) => p0

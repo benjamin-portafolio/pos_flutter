@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../application/config/app_config.dart';
+import '../../../application/config/app_config_controller.dart';
+import '../../../application/config/app_config_store.dart';
 import '../../../application/sync/sync_availability_monitor.dart';
 import '../../../application/sync/sync_detection_settings_store.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
@@ -22,6 +25,8 @@ class SyncSettingsScreen extends StatefulWidget {
 
 class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
+  late final AppConfigController _appConfigController;
+  late final AppConfigStore _appConfigStore;
   late final SyncEndpointConfig _endpointConfig;
   late final SyncEndpointStore _endpointStore;
   late final SyncDetectionSettingsStore _detectionSettingsStore;
@@ -32,12 +37,16 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
 
   bool _isSyncing = false;
   bool _isTestingConnection = false;
+  bool _isSavingConfig = false;
   bool _isSavingWifiDetection = false;
   bool _requireWifiForServerDetection = false;
+  late AppMode _mode;
 
   @override
   void initState() {
     super.initState();
+    _appConfigController = getIt<AppConfigController>();
+    _appConfigStore = getIt<AppConfigStore>();
     _endpointConfig = getIt<SyncEndpointConfig>();
     _endpointStore = getIt<SyncEndpointStore>();
     _detectionSettingsStore = getIt<SyncDetectionSettingsStore>();
@@ -47,6 +56,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     _serverController = TextEditingController(text: _endpointConfig.baseUrl);
     _requireWifiForServerDetection =
         _serverDetectionConfig.requireWifiForServerDetection;
+    _mode = _appConfigController.mode;
   }
 
   @override
@@ -61,74 +71,152 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Sincronizacion', style: Theme.of(context).textTheme.titleLarge),
+          Text('Configuracion', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
-          Form(
-            key: _formKey,
-            child: TextFormField(
-              controller: _serverController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '192.168.1.10:3000',
-                labelText: 'IP o URL del servidor',
-                prefixIcon: Icon(Icons.dns),
-              ),
-              keyboardType: TextInputType.url,
-              textInputAction: TextInputAction.done,
-              validator: _validarServidor,
-              onFieldSubmitted: (_) => _guardarServidor(),
+          DropdownButtonFormField<AppMode>(
+            initialValue: _mode,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Modo de operacion',
+              prefixIcon: Icon(Icons.settings_applications),
+            ),
+            items: AppMode.values
+                .map(
+                  (mode) =>
+                      DropdownMenuItem(value: mode, child: Text(mode.label)),
+                )
+                .toList(),
+            onChanged: _isSavingConfig
+                ? null
+                : (value) {
+                    if (value == null) return;
+                    setState(() => _mode = value);
+                  },
+          ),
+          const SizedBox(height: 12),
+          _ModeSummary(mode: _mode),
+          const SizedBox(height: 20),
+          Text('Datos locales', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          TextFormField(
+            initialValue: _appConfigController.config.businessName,
+            enabled: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Negocio',
+              prefixIcon: Icon(Icons.store),
             ),
           ),
           const SizedBox(height: 12),
-          Text('URL actual: ${_endpointConfig.baseUrl}'),
-          const SizedBox(height: 8),
-          SwitchListTile(
+          TextFormField(
+            initialValue: _appConfigController.config.userName,
+            enabled: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Usuario local',
+              prefixIcon: Icon(Icons.person),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.wifi),
-            title: const Text('Detectar servidor solo con WiFi'),
-            value: _requireWifiForServerDetection,
-            onChanged: _isSavingWifiDetection
-                ? null
-                : _actualizarDeteccionPorWifi,
+            leading: const Icon(Icons.cloud_upload_outlined),
+            title: const Text('Respaldo en Google Drive'),
+            subtitle: const Text('Pendiente de configurar en otra fase.'),
+            trailing: const Chip(label: Text('Despues')),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: _guardarServidor,
-                icon: const Icon(Icons.save),
-                label: const Text('Aplicar'),
+          if (_mode == AppMode.standalone) ...[
+            FilledButton.icon(
+              onPressed: _isSavingConfig ? null : _guardarModoActual,
+              icon: _isSavingConfig
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: const Text('Guardar configuracion local'),
+            ),
+          ] else ...[
+            Text(
+              'Sincronizacion',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            Form(
+              key: _formKey,
+              child: TextFormField(
+                controller: _serverController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '192.168.1.10:3000',
+                  labelText: 'IP o URL del servidor',
+                  prefixIcon: Icon(Icons.dns),
+                ),
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+                validator: _validarServidor,
+                onFieldSubmitted: (_) => _guardarServidor(),
               ),
-              OutlinedButton.icon(
-                onPressed: _isTestingConnection ? null : _probarConexion,
-                icon: _isTestingConnection
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.wifi_tethering),
-                label: const Text('Probar conexion'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _isSyncing ? null : _sincronizarPendientes,
-                icon: _isSyncing
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync),
-                label: const Text('Enviar pendientes'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            Text('URL actual: ${_endpointConfig.baseUrl}'),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.wifi),
+              title: const Text('Detectar servidor solo con WiFi'),
+              value: _requireWifiForServerDetection,
+              onChanged: _isSavingWifiDetection
+                  ? null
+                  : _actualizarDeteccionPorWifi,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: _isSavingConfig ? null : _guardarServidor,
+                  icon: _isSavingConfig
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: const Text('Aplicar'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _isTestingConnection ? null : _probarConexion,
+                  icon: _isTestingConnection
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.wifi_tethering),
+                  label: const Text('Probar conexion'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _isSyncing ? null : _sincronizarPendientes,
+                  icon: _isSyncing
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: const Text('Enviar pendientes'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
   String? _validarServidor(String? value) {
+    if (_mode != AppMode.serverSync) return null;
+
     try {
       SyncEndpointConfig.normalizeBaseUrl(value ?? '');
       return null;
@@ -137,8 +225,17 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     }
   }
 
+  Future<void> _guardarModoActual() async {
+    if (!await _guardarConfiguracionActual()) return;
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Modo aplicado: ${_mode.label}')));
+  }
+
   Future<void> _guardarServidor() async {
-    if (!await _aplicarServidorActual()) return;
+    if (!await _guardarConfiguracionActual()) return;
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -273,7 +370,51 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     }
   }
 
+  Future<bool> _guardarConfiguracionActual() async {
+    setState(() => _isSavingConfig = true);
+
+    try {
+      if (_mode == AppMode.serverSync && !await _aplicarServidorActual()) {
+        return false;
+      }
+
+      final config = _appConfigController.config.copyWith(
+        mode: _mode,
+        setupCompleted: true,
+        businessName: AppConfig.defaultBusinessName,
+        userId: AppConfig.defaultUserId,
+        userName: AppConfig.defaultUserName,
+        authProvider: 'local',
+        backupProvider: 'none',
+      );
+
+      await _appConfigStore.saveConfig(config);
+      _appConfigController.update(config);
+
+      if (_mode == AppMode.serverSync) {
+        _availabilityMonitor.start();
+        _availabilityMonitor.requestServerCheck();
+      } else {
+        await _availabilityMonitor.stop();
+      }
+
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo guardar la configuracion.')),
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingConfig = false);
+      }
+    }
+  }
+
   Future<bool> _aplicarServidorActual() async {
+    if (_mode != AppMode.serverSync) return true;
     if (!(_formKey.currentState?.validate() ?? false)) return false;
 
     final nextBaseUrl = SyncEndpointConfig.normalizeBaseUrl(
@@ -303,7 +444,48 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       _syncOrchestrator.stopRealtimeListener();
     }
 
-    _availabilityMonitor.requestServerCheck();
+    if (_appConfigController.mode == AppMode.serverSync) {
+      _availabilityMonitor.requestServerCheck();
+    }
     return true;
+  }
+}
+
+class _ModeSummary extends StatelessWidget {
+  const _ModeSummary({required this.mode});
+
+  final AppMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = mode == AppMode.standalone
+        ? Icons.tablet_mac
+        : Icons.cloud_sync;
+    final text = switch (mode) {
+      AppMode.standalone =>
+        'Modo local: SQLite es la fuente principal y no se intenta conectar '
+            'con servidor.',
+      AppMode.serverSync =>
+        'Modo servidor: la app escribe localmente y luego entrega eventos '
+            'por preflight, push y pull.',
+    };
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon),
+            const SizedBox(width: 12),
+            Expanded(child: Text(text)),
+          ],
+        ),
+      ),
+    );
   }
 }

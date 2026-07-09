@@ -114,7 +114,8 @@ class DriftSyncPersistence implements SyncPersistence {
       createdAtLocal: record.createdAtLocal,
       createdAtServer: record.createdAtServer,
       payload: _decodePayload(record.payload),
-      syncStatus: record.syncStatus,
+      applicationStatus: record.applicationStatus,
+      deliveryStatus: record.deliveryStatus,
       rejectionReason: record.rejectionReason,
     );
   }

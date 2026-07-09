@@ -8,7 +8,7 @@ class SyncSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat de ayuda')),
+      appBar: AppBar(title: const Text('Configuracion')),
       body: const SyncSettingsScreen(),
     );
   }

@@ -106,7 +106,7 @@ void main() {
         createdAtLocal: localEvent.createdAtLocal,
         createdAtServer: DateTime(2026, 1, 1, 12),
         payload: localEvent.payload,
-        syncStatus: 'synced',
+        deliveryStatus: 'delivered',
       ),
     );
 

@@ -126,8 +126,8 @@ class MenuLateral extends StatelessWidget {
           ),
           // Opciones del menú
           ListTile(
-            leading: Icon(Icons.chat),
-            title: Text("Chat de ayuda"),
+            leading: Icon(Icons.settings),
+            title: Text("Configuracion"),
             onTap: () {
               final navigator = Navigator.of(context);
               navigator.pop();

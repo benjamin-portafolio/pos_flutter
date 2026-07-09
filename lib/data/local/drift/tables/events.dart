@@ -43,8 +43,14 @@ class Events extends Table {
   /// JSON payload representing event-specific data (serialized as string)
   TextColumn get payload => text()();
 
-  /// Synchronization status: 'pending', 'synced', 'rejected', 'conflict'
-  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+  /// Local application status: 'applied' or 'failed'.
+  TextColumn get applicationStatus =>
+      text().withDefault(const Constant('applied'))();
+
+  /// Remote delivery status: 'not_required', 'pending', 'delivered',
+  /// 'rejected' or 'conflict'.
+  TextColumn get deliveryStatus =>
+      text().withDefault(const Constant('pending'))();
 
   /// Reason for local rejection or conflict, when available.
   TextColumn get rejectionReason => text().nullable()();

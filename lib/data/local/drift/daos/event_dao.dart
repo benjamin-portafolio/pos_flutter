@@ -10,10 +10,10 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
     return into(events).insert(entity);
   }
 
-  /// Obtiene todos los eventos con estado pendiente de sincronización.
+  /// Obtiene todos los eventos con entrega remota pendiente.
   Future<List<EventRecord>> obtenerEventosPendientes() {
     return (select(events)
-          ..where((t) => t.syncStatus.equals('pending'))
+          ..where((t) => t.deliveryStatus.equals('pending'))
           ..orderBy([(t) => OrderingTerm(expression: t.localSequence)]))
         .get();
   }
@@ -22,21 +22,22 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
   Future<List<EventRecord>> obtenerConflictosNoReportados() {
     return (select(events)
           ..where(
-            (t) => t.syncStatus.equals('conflict') & t.serverSequence.isNull(),
+            (t) =>
+                t.deliveryStatus.equals('conflict') & t.serverSequence.isNull(),
           )
           ..orderBy([(t) => OrderingTerm(expression: t.localSequence)]))
         .get();
   }
 
-  /// Observa la cola local de eventos pendientes de sincronización.
+  /// Observa la cola local de eventos pendientes de entrega remota.
   Stream<List<EventRecord>> watchEventosPendientes() {
     return (select(events)
-          ..where((t) => t.syncStatus.equals('pending'))
+          ..where((t) => t.deliveryStatus.equals('pending'))
           ..orderBy([(t) => OrderingTerm(expression: t.localSequence)]))
         .watch();
   }
 
-  /// Actualiza el estado de sincronización de un evento específico.
+  /// Actualiza el estado de entrega remota de un evento específico.
   Future<int> actualizarEstadoSincronizacion(
     String eventId,
     String status, {
@@ -45,7 +46,7 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
     String? rejectionReason,
   }) {
     final companion = EventsCompanion(
-      syncStatus: Value(status),
+      deliveryStatus: Value(status),
       serverSequence: Value(serverSequence),
       createdAtServer: Value(serverTime),
       rejectionReason: rejectionReason == null

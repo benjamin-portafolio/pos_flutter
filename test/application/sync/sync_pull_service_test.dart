@@ -101,7 +101,7 @@ void main() {
       espacios.map((espacio) => espacio.id),
       containsAll(['espacio_4', 'espacio_5']),
     );
-    expect(events.map((event) => event.syncStatus).toSet(), {'synced'});
+    expect(events.map((event) => event.deliveryStatus).toSet(), {'delivered'});
     expect(events.map((event) => event.serverSequence), containsAll([4, 5]));
   });
 }

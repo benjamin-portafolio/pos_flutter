@@ -4,6 +4,8 @@ import 'crear_espacio_command.dart';
 import 'local_command_context.dart';
 import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
+import '../../domain/espacios/identificacion_espacio.dart';
+import '../../domain/espacios/nombre_espacio.dart';
 import '../../domain/espacios/visibilidad_espacio.dart';
 
 class EspacioCommandService {
@@ -18,8 +20,10 @@ class EspacioCommandService {
   final Uuid _uuid = const Uuid();
 
   Future<void> crearEspacio(CrearEspacioCommand command) async {
-    final nombre = _requiredText(command.nombre, 'command.nombre');
-    final identificacion = _optionalText(command.identificacion);
+    final nombre = NombreEspacio.fromInput(command.nombre);
+    final identificacion = IdentificacionEspacio.fromOptionalInput(
+      command.identificacion,
+    );
     final espacioId = _uuid.v4();
     final event = SyncEvent(
       eventId: _uuid.v4(),
@@ -31,8 +35,8 @@ class EspacioCommandService {
       baseVersion: 1,
       createdAtLocal: DateTime.now(),
       payload: {
-        'nombre': nombre,
-        'identificacion': identificacion,
+        'nombre': nombre.value,
+        'identificacion': identificacion?.value,
         'visibilidad': command.visibilidad.eventValue,
       },
     );
@@ -41,26 +45,12 @@ class EspacioCommandService {
       event,
       refs: [
         LocalEventRef.affects(refType: 'espacio', refId: event.aggregateId),
-        if (identificacion != null && identificacion.isNotEmpty)
+        if (identificacion != null)
           LocalEventRef.requiresUnique(
             refType: 'espacio_identificacion',
-            refId: identificacion,
+            refId: identificacion.value,
           ),
       ],
     );
-  }
-
-  String _requiredText(String value, String name) {
-    final normalized = value.trim();
-    if (normalized.isEmpty) {
-      throw ArgumentError.value(value, name, 'Debe tener contenido.');
-    }
-    return normalized;
-  }
-
-  String? _optionalText(String? value) {
-    final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) return null;
-    return normalized;
   }
 }

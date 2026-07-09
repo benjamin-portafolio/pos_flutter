@@ -157,7 +157,7 @@ void main() {
       expect(
         events
             .singleWhere((event) => event.eventId == 'local_event_1')
-            .syncStatus,
+            .deliveryStatus,
         'conflict',
       );
     },
@@ -229,14 +229,14 @@ void main() {
     expect(
       events
           .singleWhere((event) => event.eventId == 'local_event_1')
-          .syncStatus,
+          .deliveryStatus,
       'conflict',
     );
     expect(
       events
           .singleWhere((event) => event.eventId == 'remote_event_1')
-          .syncStatus,
-      'synced',
+          .deliveryStatus,
+      'delivered',
     );
     expect(espacios, hasLength(1));
     expect(espacios.single.id, 'remote_space_1');

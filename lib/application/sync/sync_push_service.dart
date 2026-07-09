@@ -56,7 +56,7 @@ class SyncPushService {
         case 'accepted':
           await _syncPersistence.updateEventSyncStatus(
             event.eventId,
-            'synced',
+            'delivered',
             serverSequence: result?.serverSequence,
             serverTime: result?.serverTime,
             rejectionReason: result?.reason,
@@ -71,11 +71,11 @@ class SyncPushService {
           synced++;
           break;
         case 'duplicate':
-          final effectiveStatus = result?.originalSyncStatus ?? 'synced';
-          if (effectiveStatus == 'synced') {
+          final effectiveStatus = result?.originalSyncStatus ?? 'delivered';
+          if (effectiveStatus == 'delivered') {
             await _syncPersistence.updateEventSyncStatus(
               event.eventId,
-              'synced',
+              'delivered',
               serverSequence: result?.serverSequence,
               serverTime: result?.serverTime,
               rejectionReason: result?.reason,
@@ -298,8 +298,15 @@ class SyncPushService {
     if (value is! String) return null;
 
     final normalized = value.toLowerCase();
-    const knownStatuses = {'pending', 'synced', 'rejected', 'conflict'};
-    return knownStatuses.contains(normalized) ? normalized : null;
+    const knownStatuses = {
+      'pending',
+      'synced',
+      'delivered',
+      'rejected',
+      'conflict',
+    };
+    if (!knownStatuses.contains(normalized)) return null;
+    return normalized == 'synced' ? 'delivered' : normalized;
   }
 
   int? _readInt(Object? value) {

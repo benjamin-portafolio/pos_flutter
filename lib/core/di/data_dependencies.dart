@@ -1,5 +1,7 @@
 import 'package:get_it/get_it.dart';
 
+import '../../application/config/app_config.dart';
+import '../../application/config/app_config_store.dart';
 import '../../application/identity/device_identity_provider.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
@@ -7,6 +9,7 @@ import '../../application/sync/sync_detection_settings_store.dart';
 import '../../application/sync/sync_endpoint_store.dart';
 import '../../application/sync/sync_persistence.dart';
 import '../../application/sync/synced_event_store.dart';
+import '../../data/local/config/app_config_file_store.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_espacio_projection_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
@@ -21,26 +24,31 @@ import '../../domain/repositories/espacio_repository.dart';
 class DataDependencyBootstrap {
   const DataDependencyBootstrap({
     required this.deviceId,
+    required this.appConfig,
     required this.storedSyncBaseUrl,
     required this.requireWifiForServerDetection,
   });
 
   final String deviceId;
+  final AppConfig appConfig;
   final String? storedSyncBaseUrl;
   final bool requireWifiForServerDetection;
 }
 
 Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   final database = AppDatabase();
+  final appConfigStore = AppConfigFileStore();
   final deviceIdentityProvider = DeviceIdentityFileStore();
   final syncEndpointStore = SyncEndpointFileStore();
   final syncDetectionSettingsStore = SyncDetectionSettingsFileStore();
+  final appConfig = await appConfigStore.readConfig();
   final deviceId = await deviceIdentityProvider.getDeviceId();
   final storedSyncBaseUrl = await syncEndpointStore.readBaseUrl();
   final requireWifiForServerDetection = await syncDetectionSettingsStore
       .readRequireWifiForServerDetection();
 
   getIt.registerSingleton<AppDatabase>(database);
+  getIt.registerSingleton<AppConfigStore>(appConfigStore);
   getIt.registerSingleton<DeviceIdentityProvider>(deviceIdentityProvider);
   getIt.registerSingleton<SyncEndpointStore>(syncEndpointStore);
   getIt.registerSingleton<SyncDetectionSettingsStore>(
@@ -80,6 +88,7 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
 
   return DataDependencyBootstrap(
     deviceId: deviceId,
+    appConfig: appConfig,
     storedSyncBaseUrl: storedSyncBaseUrl,
     requireWifiForServerDetection: requireWifiForServerDetection,
   );
