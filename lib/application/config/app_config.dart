@@ -24,6 +24,32 @@ enum AppMode {
   }
 }
 
+enum BackupProvider {
+  none,
+  googleDrive;
+
+  String get storageValue {
+    return switch (this) {
+      BackupProvider.none => 'none',
+      BackupProvider.googleDrive => 'google_drive',
+    };
+  }
+
+  String get label {
+    return switch (this) {
+      BackupProvider.none => 'Sin respaldo',
+      BackupProvider.googleDrive => 'Google Drive',
+    };
+  }
+
+  static BackupProvider fromStorage(Object? value) {
+    return switch (value) {
+      'google_drive' => BackupProvider.googleDrive,
+      _ => BackupProvider.none,
+    };
+  }
+}
+
 class AppConfig {
   const AppConfig({
     required this.mode,
@@ -34,11 +60,17 @@ class AppConfig {
     required this.authProvider,
     required this.syncProvider,
     required this.backupProvider,
+    required this.backupHour,
+    this.googleUserId,
+    this.googleUserEmail,
+    this.lastBackupAt,
+    this.lastBackupLocalSequence,
   });
 
   static const defaultBusinessName = 'CERVECERIA MAESTRA Y Taproom';
   static const defaultUserId = 'user_active';
   static const defaultUserName = 'Benjamin Alvarado';
+  static const defaultBackupHour = 3;
 
   static const initial = AppConfig(
     mode: AppMode.standalone,
@@ -46,9 +78,10 @@ class AppConfig {
     businessName: defaultBusinessName,
     userId: defaultUserId,
     userName: defaultUserName,
-    authProvider: 'local',
+    authProvider: 'google',
     syncProvider: 'none',
-    backupProvider: 'none',
+    backupProvider: BackupProvider.googleDrive,
+    backupHour: defaultBackupHour,
   );
 
   final AppMode mode;
@@ -58,11 +91,40 @@ class AppConfig {
   final String userName;
   final String authProvider;
   final String syncProvider;
-  final String backupProvider;
+  final BackupProvider backupProvider;
+  final String? googleUserId;
+  final String? googleUserEmail;
+  final int backupHour;
+  final DateTime? lastBackupAt;
+  final int? lastBackupLocalSequence;
 
   bool get isStandalone => mode == AppMode.standalone;
 
   bool get isServerSync => mode == AppMode.serverSync;
+
+  bool get usesGoogleDriveBackup =>
+      isStandalone && backupProvider == BackupProvider.googleDrive;
+
+  static String defaultAuthProviderForMode(AppMode mode) {
+    return switch (mode) {
+      AppMode.standalone => 'google',
+      AppMode.serverSync => 'backend_jwt',
+    };
+  }
+
+  static String defaultSyncProviderForMode(AppMode mode) {
+    return switch (mode) {
+      AppMode.standalone => 'none',
+      AppMode.serverSync => 'pos_server',
+    };
+  }
+
+  static BackupProvider defaultBackupProviderForMode(AppMode mode) {
+    return switch (mode) {
+      AppMode.standalone => BackupProvider.googleDrive,
+      AppMode.serverSync => BackupProvider.none,
+    };
+  }
 
   AppConfig copyWith({
     AppMode? mode,
@@ -72,20 +134,57 @@ class AppConfig {
     String? userName,
     String? authProvider,
     String? syncProvider,
-    String? backupProvider,
+    BackupProvider? backupProvider,
+    Object? googleUserId = _sentinel,
+    Object? googleUserEmail = _sentinel,
+    int? backupHour,
+    Object? lastBackupAt = _sentinel,
+    Object? lastBackupLocalSequence = _sentinel,
   }) {
     final nextMode = mode ?? this.mode;
+    final modeChanged = mode != null && mode != this.mode;
+    final nextBackupProvider =
+        backupProvider ??
+        (modeChanged
+            ? defaultBackupProviderForMode(nextMode)
+            : this.backupProvider);
+    final clearsGoogleIdentity =
+        nextMode == AppMode.serverSync ||
+        nextBackupProvider != BackupProvider.googleDrive;
+
     return AppConfig(
       mode: nextMode,
       setupCompleted: setupCompleted ?? this.setupCompleted,
       businessName: businessName ?? this.businessName,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
-      authProvider: authProvider ?? this.authProvider,
+      authProvider:
+          authProvider ??
+          (modeChanged
+              ? defaultAuthProviderForMode(nextMode)
+              : this.authProvider),
       syncProvider:
           syncProvider ??
-          (nextMode == AppMode.serverSync ? 'pos_server' : 'none'),
-      backupProvider: backupProvider ?? this.backupProvider,
+          (modeChanged
+              ? defaultSyncProviderForMode(nextMode)
+              : this.syncProvider),
+      backupProvider: nextBackupProvider,
+      googleUserId: clearsGoogleIdentity
+          ? null
+          : _valueOrCurrent<String?>(googleUserId, this.googleUserId),
+      googleUserEmail: clearsGoogleIdentity
+          ? null
+          : _valueOrCurrent<String?>(googleUserEmail, this.googleUserEmail),
+      backupHour: backupHour ?? this.backupHour,
+      lastBackupAt: clearsGoogleIdentity
+          ? null
+          : _valueOrCurrent<DateTime?>(lastBackupAt, this.lastBackupAt),
+      lastBackupLocalSequence: clearsGoogleIdentity
+          ? null
+          : _valueOrCurrent<int?>(
+              lastBackupLocalSequence,
+              this.lastBackupLocalSequence,
+            ),
     );
   }
 
@@ -98,12 +197,29 @@ class AppConfig {
       'user_name': userName,
       'auth_provider': authProvider,
       'sync_provider': syncProvider,
-      'backup_provider': backupProvider,
+      'backup_provider': backupProvider.storageValue,
+      'google_user_id': googleUserId,
+      'google_user_email': googleUserEmail,
+      'backup_hour': backupHour,
+      'last_backup_at': lastBackupAt?.toUtc().toIso8601String(),
+      'last_backup_local_sequence': lastBackupLocalSequence,
     };
   }
 
   factory AppConfig.fromJson(Map<String, Object?> json) {
     final mode = AppMode.fromStorage(json['mode']);
+    final storedBackupProvider = BackupProvider.fromStorage(
+      json['backup_provider'],
+    );
+    final backupProvider =
+        storedBackupProvider == BackupProvider.none &&
+            mode == AppMode.standalone
+        ? BackupProvider.googleDrive
+        : AppConfig.defaultBackupProviderForMode(mode);
+    final backupHour =
+        _readInt(json['backup_hour']) ?? AppConfig.defaultBackupHour;
+    final storedAuthProvider = json['auth_provider'] as String?;
+
     return AppConfig(
       mode: mode,
       setupCompleted: json['setup_completed'] == true,
@@ -111,11 +227,37 @@ class AppConfig {
           json['business_name'] as String? ?? AppConfig.defaultBusinessName,
       userId: json['user_id'] as String? ?? AppConfig.defaultUserId,
       userName: json['user_name'] as String? ?? AppConfig.defaultUserName,
-      authProvider: json['auth_provider'] as String? ?? 'local',
+      authProvider: storedAuthProvider == null || storedAuthProvider == 'local'
+          ? AppConfig.defaultAuthProviderForMode(mode)
+          : storedAuthProvider,
       syncProvider:
           json['sync_provider'] as String? ??
-          (mode == AppMode.serverSync ? 'pos_server' : 'none'),
-      backupProvider: json['backup_provider'] as String? ?? 'none',
+          AppConfig.defaultSyncProviderForMode(mode),
+      backupProvider: backupProvider,
+      googleUserId: json['google_user_id'] as String?,
+      googleUserEmail: json['google_user_email'] as String?,
+      backupHour: backupHour.clamp(0, 23).toInt(),
+      lastBackupAt: _readDateTime(json['last_backup_at']),
+      lastBackupLocalSequence: _readInt(json['last_backup_local_sequence']),
     );
+  }
+
+  static const _sentinel = Object();
+
+  static T _valueOrCurrent<T>(Object? value, T current) {
+    if (identical(value, _sentinel)) return current;
+    return value as T;
+  }
+
+  static int? _readInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static DateTime? _readDateTime(Object? value) {
+    if (value is! String) return null;
+    return DateTime.tryParse(value);
   }
 }

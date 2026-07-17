@@ -16,6 +16,8 @@ part 'daos/event_dao.dart';
 part 'daos/event_ref_dao.dart';
 part 'daos/sync_checkpoint_dao.dart';
 
+const _databaseFileName = 'pos_db.sqlite';
+const _preserveRestoredDatabaseFileName = '.pos_db_restored';
 const _resetDatabaseOnStartup = true;
 
 /// Database class configuring connection, schema and registered tables/DAOs.
@@ -43,15 +45,41 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'pos_db.sqlite'));
+    final file = await appDatabaseFile();
 
-    if (kDebugMode && _resetDatabaseOnStartup) {
+    if (kDebugMode &&
+        _resetDatabaseOnStartup &&
+        !await appDatabaseShouldPreserveRestoredDatabase()) {
       await _deleteDatabaseFiles(file);
     }
 
     return NativeDatabase.createInBackground(file);
   });
+}
+
+Future<File> appDatabaseFile() async {
+  final dbFolder = await getApplicationDocumentsDirectory();
+  return File(p.join(dbFolder.path, _databaseFileName));
+}
+
+Future<File> appDatabaseRestorePreservationFile() async {
+  final databaseFile = await appDatabaseFile();
+  return File(
+    p.join(databaseFile.parent.path, _preserveRestoredDatabaseFileName),
+  );
+}
+
+Future<bool> appDatabaseShouldPreserveRestoredDatabase() async {
+  final file = await appDatabaseRestorePreservationFile();
+  return file.exists();
+}
+
+Future<void> markAppDatabaseAsRestored() async {
+  final file = await appDatabaseRestorePreservationFile();
+  await file.writeAsString(
+    DateTime.now().toUtc().toIso8601String(),
+    flush: true,
+  );
 }
 
 Future<void> _deleteDatabaseFiles(File databaseFile) async {

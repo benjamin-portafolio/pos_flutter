@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "303240041001",
+    "project_id": "pos-flutter-dev",
+    "storage_bucket": "pos-flutter-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:303240041001:android:5338f6fd6f8a6e84df4238",
+        "android_client_info": {
+          "package_name": "com.example.pos_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "303240041001-vivn658u5n3nhh5i1pudm1fb2hcvvot0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9-mXzeeOXAi-xsdgJccBq23nN3VchIt0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "303240041001-vivn658u5n3nhh5i1pudm1fb2hcvvot0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "303240041001-878f4ksif8isdqontbdb5j0ejlnn19fr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.posFlutter"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

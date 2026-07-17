@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/backup/backup_service.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
-import 'package:pos_flutter/application/config/app_config_store.dart';
 import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:pos_flutter/application/sync/sync_detection_settings_store.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
@@ -30,7 +30,6 @@ void main() {
     getIt.registerSingleton<AppConfigController>(
       AppConfigController(appConfig),
     );
-    getIt.registerSingleton<AppConfigStore>(_FakeAppConfigStore(appConfig));
     getIt.registerSingleton<SyncEndpointConfig>(SyncEndpointConfig());
     getIt.registerSingleton<SyncEndpointStore>(_FakeSyncEndpointStore());
     getIt.registerSingleton<SyncDetectionSettingsStore>(detectionSettingsStore);
@@ -39,6 +38,7 @@ void main() {
       _FakeSyncAvailabilityMonitor(),
     );
     getIt.registerSingleton<SyncOrchestrator>(_FakeSyncOrchestrator());
+    getIt.registerSingleton<DatabaseStateReader>(_FakeDatabaseStateReader());
   });
 
   tearDown(() async {
@@ -94,20 +94,24 @@ void main() {
     expect(detectionSettingsStore.savedValues, [true]);
     expect(serverDetectionConfig.requireWifiForServerDetection, isTrue);
   });
-}
 
-class _FakeAppConfigStore implements AppConfigStore {
-  _FakeAppConfigStore(this.config);
+  testWidgets('Sync settings shows installed mode without mode selector', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: SyncSettingsScreen())),
+    );
 
-  AppConfig config;
-
-  @override
-  Future<AppConfig> readConfig() async => config;
-
-  @override
-  Future<void> saveConfig(AppConfig config) async {
-    this.config = config;
-  }
+    expect(find.byType(DropdownButtonFormField<AppMode>), findsNothing);
+    expect(find.text('Modo de operacion'), findsOneWidget);
+    expect(find.text('Servidor'), findsOneWidget);
+    expect(find.text('Instalado'), findsOneWidget);
+    expect(
+      find.text('El modo de operacion queda fijo despues de la instalacion.'),
+      findsOneWidget,
+    );
+    expect(find.text('Guardar configuracion local'), findsNothing);
+  });
 }
 
 class _FakeSyncEndpointStore implements SyncEndpointStore {
@@ -138,4 +142,11 @@ class _FakeSyncAvailabilityMonitor implements SyncAvailabilityMonitor {
 class _FakeSyncOrchestrator implements SyncOrchestrator {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeDatabaseStateReader implements DatabaseStateReader {
+  @override
+  Future<DatabaseState> readState() async {
+    return const DatabaseState(eventCount: 0, lastLocalSequence: 0);
+  }
 }

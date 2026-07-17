@@ -1,44 +1,74 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:pos_flutter/application/backup/backup_scheduler.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
-import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/presentation/app/app_restart_scope.dart';
 import 'package:pos_flutter/presentation/onboarding/first_run_setup_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final bootstrap = await setupDependencyInjection();
-  if (bootstrap.appConfig.isServerSync) {
-    getIt<SyncAvailabilityMonitor>().start();
-  }
-  runApp(MainApp(initialConfig: bootstrap.appConfig));
+  await startConfiguredRuntimeServices(bootstrap.appConfig);
+  runApp(
+    AppRestartScope(
+      initialConfig: bootstrap.appConfig,
+      builder: (config) => MainApp(initialConfig: config),
+    ),
+  );
 }
 
-class MainApp extends StatelessWidget {
+class MainApp extends StatefulWidget {
   const MainApp({super.key, this.initialConfig});
 
   final AppConfig? initialConfig;
 
   @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final config = getIt.isRegistered<AppConfigController>()
+        ? getIt<AppConfigController>().config
+        : widget.initialConfig;
+    if (state == AppLifecycleState.resumed &&
+        config?.setupCompleted == true &&
+        config?.usesGoogleDriveBackup == true &&
+        getIt.isRegistered<BackupScheduler>()) {
+      unawaited(getIt<BackupScheduler>().runDueBackup());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    /* return const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Hello World!'))),
-    );*/
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Seleccionar Mesa',
       theme: ThemeData(primarySwatch: Colors.blue),
-      // home: TestDependencia(dependencia: dependencia),
-      // home: ListTestScreen(),
-      // home: ValueNotifierExampleScreen(),
       home: _initialHome(),
     );
   }
 
   Widget _initialHome() {
     final config =
-        initialConfig ??
+        widget.initialConfig ??
         (getIt.isRegistered<AppConfigController>()
             ? getIt<AppConfigController>().config
             : AppConfig.initial.copyWith(setupCompleted: true));

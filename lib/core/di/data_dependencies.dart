@@ -3,6 +3,8 @@ import 'package:get_it/get_it.dart';
 import '../../application/config/app_config.dart';
 import '../../application/config/app_config_store.dart';
 import '../../application/identity/device_identity_provider.dart';
+import '../../application/backup/backup_service.dart';
+import '../../application/backup/backup_store.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/sync_detection_settings_store.dart';
@@ -10,6 +12,11 @@ import '../../application/sync/sync_endpoint_store.dart';
 import '../../application/sync/sync_persistence.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/config/app_config_file_store.dart';
+import '../../data/google_drive/google_drive_auth_service.dart';
+import '../../data/google_drive/google_drive_backup_store.dart';
+import '../../data/local/backup/database_restore_service.dart';
+import '../../data/local/backup/database_snapshot_service.dart';
+import '../../data/local/backup/database_state_reader.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_espacio_projection_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
@@ -36,7 +43,6 @@ class DataDependencyBootstrap {
 }
 
 Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
-  final database = AppDatabase();
   final appConfigStore = AppConfigFileStore();
   final deviceIdentityProvider = DeviceIdentityFileStore();
   final syncEndpointStore = SyncEndpointFileStore();
@@ -47,7 +53,7 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   final requireWifiForServerDetection = await syncDetectionSettingsStore
       .readRequireWifiForServerDetection();
 
-  getIt.registerSingleton<AppDatabase>(database);
+  getIt.registerLazySingleton<AppDatabase>(() => AppDatabase());
   getIt.registerSingleton<AppConfigStore>(appConfigStore);
   getIt.registerSingleton<DeviceIdentityProvider>(deviceIdentityProvider);
   getIt.registerSingleton<SyncEndpointStore>(syncEndpointStore);
@@ -56,6 +62,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<DeviceWifiConnectivity>(
     () => ConnectivityPlusWifiConnectivity(),
+  );
+  getIt.registerLazySingleton<GoogleDriveAuthService>(
+    () => GoogleDriveAuthService(),
+  );
+  getIt.registerLazySingleton<BackupStore>(
+    () => GoogleDriveBackupStore(authService: getIt<GoogleDriveAuthService>()),
   );
 
   getIt.registerLazySingleton<EspacioDao>(
@@ -67,6 +79,18 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<SyncCheckpointDao>(
     () => SyncCheckpointDao(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<DatabaseStateReader>(
+    () => DriftDatabaseStateReader(db: getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<DatabaseSnapshotService>(
+    () => DriftDatabaseSnapshotService(
+      db: getIt<AppDatabase>(),
+      stateReader: getIt<DatabaseStateReader>(),
+    ),
+  );
+  getIt.registerLazySingleton<DatabaseRestoreService>(
+    () => DriftDatabaseRestoreService(db: getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<SyncPersistence>(
     () => DriftSyncPersistence(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../application/config/app_config.dart';
 import '../../../application/config/app_config_controller.dart';
-import '../../../application/config/app_config_store.dart';
 import '../../../application/sync/sync_availability_monitor.dart';
 import '../../../application/sync/sync_detection_settings_store.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
@@ -15,6 +14,7 @@ import '../../../application/sync/models/sync_push_report.dart';
 import '../../../application/sync/sync_orchestrator.dart';
 import '../../../application/sync/sync_server_detection_config.dart';
 import '../../../core/di/injection.dart';
+import '../backup/backup_settings_page.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
   const SyncSettingsScreen({super.key});
@@ -26,7 +26,6 @@ class SyncSettingsScreen extends StatefulWidget {
 class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final AppConfigController _appConfigController;
-  late final AppConfigStore _appConfigStore;
   late final SyncEndpointConfig _endpointConfig;
   late final SyncEndpointStore _endpointStore;
   late final SyncDetectionSettingsStore _detectionSettingsStore;
@@ -37,16 +36,15 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
 
   bool _isSyncing = false;
   bool _isTestingConnection = false;
-  bool _isSavingConfig = false;
+  bool _isSavingServer = false;
   bool _isSavingWifiDetection = false;
   bool _requireWifiForServerDetection = false;
-  late AppMode _mode;
+  late final AppMode _mode;
 
   @override
   void initState() {
     super.initState();
     _appConfigController = getIt<AppConfigController>();
-    _appConfigStore = getIt<AppConfigStore>();
     _endpointConfig = getIt<SyncEndpointConfig>();
     _endpointStore = getIt<SyncEndpointStore>();
     _detectionSettingsStore = getIt<SyncDetectionSettingsStore>();
@@ -73,28 +71,14 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         children: [
           Text('Configuracion', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
-          DropdownButtonFormField<AppMode>(
-            initialValue: _mode,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Modo de operacion',
-              prefixIcon: Icon(Icons.settings_applications),
-            ),
-            items: AppMode.values
-                .map(
-                  (mode) =>
-                      DropdownMenuItem(value: mode, child: Text(mode.label)),
-                )
-                .toList(),
-            onChanged: _isSavingConfig
-                ? null
-                : (value) {
-                    if (value == null) return;
-                    setState(() => _mode = value);
-                  },
-          ),
+          _InstalledModeHeader(mode: _mode),
           const SizedBox(height: 12),
           _ModeSummary(mode: _mode),
+          const SizedBox(height: 8),
+          Text(
+            'El modo de operacion queda fijo despues de la instalacion.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 20),
           Text('Datos locales', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
@@ -122,22 +106,28 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.cloud_upload_outlined),
             title: const Text('Respaldo en Google Drive'),
-            subtitle: const Text('Pendiente de configurar en otra fase.'),
-            trailing: const Chip(label: Text('Despues')),
+            subtitle: Text(
+              _mode == AppMode.standalone
+                  ? _backupSubtitle(_appConfigController.config)
+                  : 'Desactivado en modo servidor.',
+            ),
+            trailing: Chip(
+              label: Text(
+                _mode == AppMode.standalone ? 'Configurar' : 'Desactivado',
+              ),
+            ),
+            onTap: _mode == AppMode.standalone
+                ? () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BackupSettingsPage(),
+                      ),
+                    );
+                  }
+                : null,
           ),
           const SizedBox(height: 16),
-          if (_mode == AppMode.standalone) ...[
-            FilledButton.icon(
-              onPressed: _isSavingConfig ? null : _guardarModoActual,
-              icon: _isSavingConfig
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save),
-              label: const Text('Guardar configuracion local'),
-            ),
-          ] else ...[
+          if (_mode == AppMode.serverSync) ...[
             Text(
               'Sincronizacion',
               style: Theme.of(context).textTheme.titleMedium,
@@ -177,8 +167,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               runSpacing: 12,
               children: [
                 FilledButton.icon(
-                  onPressed: _isSavingConfig ? null : _guardarServidor,
-                  icon: _isSavingConfig
+                  onPressed: _isSavingServer ? null : _guardarServidor,
+                  icon: _isSavingServer
                       ? const SizedBox.square(
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
@@ -214,6 +204,16 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     );
   }
 
+  String _backupSubtitle(AppConfig config) {
+    if (config.backupProvider != BackupProvider.googleDrive) {
+      return 'Desactivado.';
+    }
+    if (config.googleUserEmail == null) {
+      return 'Activo al conectar una cuenta Google.';
+    }
+    return 'Conectado: ${config.googleUserEmail}';
+  }
+
   String? _validarServidor(String? value) {
     if (_mode != AppMode.serverSync) return null;
 
@@ -225,22 +225,19 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     }
   }
 
-  Future<void> _guardarModoActual() async {
-    if (!await _guardarConfiguracionActual()) return;
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Modo aplicado: ${_mode.label}')));
-  }
-
   Future<void> _guardarServidor() async {
-    if (!await _guardarConfiguracionActual()) return;
+    setState(() => _isSavingServer = true);
+    final saved = await _aplicarServidorActual();
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Servidor aplicado: ${_endpointConfig.baseUrl}')),
-    );
+    if (saved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Servidor aplicado: ${_endpointConfig.baseUrl}'),
+        ),
+      );
+    }
+    setState(() => _isSavingServer = false);
   }
 
   Future<void> _probarConexion() async {
@@ -370,49 +367,6 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     }
   }
 
-  Future<bool> _guardarConfiguracionActual() async {
-    setState(() => _isSavingConfig = true);
-
-    try {
-      if (_mode == AppMode.serverSync && !await _aplicarServidorActual()) {
-        return false;
-      }
-
-      final config = _appConfigController.config.copyWith(
-        mode: _mode,
-        setupCompleted: true,
-        businessName: AppConfig.defaultBusinessName,
-        userId: AppConfig.defaultUserId,
-        userName: AppConfig.defaultUserName,
-        authProvider: 'local',
-        backupProvider: 'none',
-      );
-
-      await _appConfigStore.saveConfig(config);
-      _appConfigController.update(config);
-
-      if (_mode == AppMode.serverSync) {
-        _availabilityMonitor.start();
-        _availabilityMonitor.requestServerCheck();
-      } else {
-        await _availabilityMonitor.stop();
-      }
-
-      return true;
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar la configuracion.')),
-        );
-      }
-      return false;
-    } finally {
-      if (mounted) {
-        setState(() => _isSavingConfig = false);
-      }
-    }
-  }
-
   Future<bool> _aplicarServidorActual() async {
     if (_mode != AppMode.serverSync) return true;
     if (!(_formKey.currentState?.validate() ?? false)) return false;
@@ -448,6 +402,25 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       _availabilityMonitor.requestServerCheck();
     }
     return true;
+  }
+}
+
+class _InstalledModeHeader extends StatelessWidget {
+  const _InstalledModeHeader({required this.mode});
+
+  final AppMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        mode == AppMode.standalone ? Icons.tablet_mac : Icons.cloud_sync,
+      ),
+      title: const Text('Modo de operacion'),
+      subtitle: Text(mode.label),
+      trailing: const Chip(label: Text('Instalado')),
+    );
   }
 }
 

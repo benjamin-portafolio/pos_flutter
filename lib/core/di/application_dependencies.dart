@@ -1,7 +1,11 @@
 import 'package:get_it/get_it.dart';
 
+import '../../application/backup/backup_scheduler.dart';
+import '../../application/backup/backup_service.dart';
+import '../../application/backup/backup_store.dart';
 import '../../application/config/app_config.dart';
 import '../../application/config/app_config_controller.dart';
+import '../../application/config/app_config_store.dart';
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
@@ -140,6 +144,23 @@ void registerApplicationDependencies(
       orchestrator: getIt<SyncOrchestrator>(),
       serverDetectionConfig: getIt<SyncServerDetectionConfig>(),
       wifiConnectivity: getIt<DeviceWifiConnectivity>(),
+    ),
+  );
+  getIt.registerLazySingleton<BackupService>(
+    () => BackupService(
+      deviceId: deviceId,
+      appConfigController: getIt<AppConfigController>(),
+      appConfigStore: getIt<AppConfigStore>(),
+      backupStore: getIt<BackupStore>(),
+      stateReader: getIt<DatabaseStateReader>(),
+      snapshotService: getIt<DatabaseSnapshotService>(),
+      restoreService: getIt<DatabaseRestoreService>(),
+    ),
+  );
+  getIt.registerLazySingleton<BackupScheduler>(
+    () => BackupScheduler(
+      appConfigController: getIt<AppConfigController>(),
+      backupService: getIt<BackupService>(),
     ),
   );
 

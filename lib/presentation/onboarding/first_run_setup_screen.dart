@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../application/backup/backup_service.dart';
 import '../../application/config/app_config.dart';
 import '../../application/config/app_config_controller.dart';
 import '../../application/config/app_config_store.dart';
-import '../../application/sync/sync_availability_monitor.dart';
 import '../../application/sync/sync_endpoint_config.dart';
 import '../../application/sync/sync_endpoint_store.dart';
 import '../../core/di/injection.dart';
-import '../pages/pantalla_principal/home_screen.dart';
+import '../app/app_restart_scope.dart';
 
 class FirstRunSetupScreen extends StatefulWidget {
   const FirstRunSetupScreen({super.key});
@@ -123,8 +123,16 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.cloud_upload_outlined),
                 title: const Text('Respaldo en Google Drive'),
-                subtitle: const Text('Pendiente de configurar en otra fase.'),
-                trailing: const Chip(label: Text('Despues')),
+                subtitle: Text(
+                  _mode == AppMode.standalone
+                      ? 'Requerido para buscar o crear el respaldo inicial.'
+                      : 'Desactivado en modo servidor.',
+                ),
+                trailing: Chip(
+                  label: Text(
+                    _mode == AppMode.standalone ? 'Requerido' : 'Desactivado',
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
@@ -135,7 +143,11 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check),
-                label: const Text('Guardar y entrar'),
+                label: Text(
+                  _mode == AppMode.standalone
+                      ? 'Conectar Drive y entrar'
+                      : 'Guardar y entrar',
+                ),
               ),
             ],
           ),
@@ -161,37 +173,42 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
     setState(() => _isSaving = true);
 
     try {
-      if (_mode == AppMode.serverSync) {
-        final nextBaseUrl = SyncEndpointConfig.normalizeBaseUrl(
-          _serverController.text,
-        );
-        await getIt<SyncEndpointStore>().saveBaseUrl(nextBaseUrl);
-        getIt<SyncEndpointConfig>().updateFromInput(nextBaseUrl);
-      }
-
       final config = AppConfig.initial.copyWith(
         mode: _mode,
         setupCompleted: true,
         businessName: AppConfig.defaultBusinessName,
         userId: AppConfig.defaultUserId,
         userName: AppConfig.defaultUserName,
-        authProvider: 'local',
-        backupProvider: 'none',
+        authProvider: AppConfig.defaultAuthProviderForMode(_mode),
+        syncProvider: AppConfig.defaultSyncProviderForMode(_mode),
+        backupProvider: AppConfig.defaultBackupProviderForMode(_mode),
       );
 
-      await getIt<AppConfigStore>().saveConfig(config);
-      getIt<AppConfigController>().update(config);
-
       if (_mode == AppMode.serverSync) {
-        getIt<SyncAvailabilityMonitor>().start();
+        final nextBaseUrl = SyncEndpointConfig.normalizeBaseUrl(
+          _serverController.text,
+        );
+        await getIt<SyncEndpointStore>().saveBaseUrl(nextBaseUrl);
+        getIt<SyncEndpointConfig>().updateFromInput(nextBaseUrl);
+
+        await getIt<AppConfigStore>().saveConfig(config);
+        getIt<AppConfigController>().update(config);
       } else {
-        await getIt<SyncAvailabilityMonitor>().stop();
+        final result = await getIt<BackupService>().setupInitialLocalDatabase(
+          config: config,
+          interactiveAuth: true,
+        );
+        if (!result.didComplete) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(_initialSetupMessage(result))));
+          return;
+        }
       }
 
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+      await AppRestartScope.restart(context);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -202,6 +219,19 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  String _initialSetupMessage(InitialLocalDatabaseSetupResult result) {
+    return switch (result.status) {
+      InitialLocalDatabaseSetupStatus.restoredFromBackup =>
+        'Respaldo restaurado.',
+      InitialLocalDatabaseSetupStatus.createdAndBackedUp =>
+        'Base local creada y respaldada.',
+      InitialLocalDatabaseSetupStatus.skippedAuthUnavailable =>
+        'Debes conectar Google Drive para usar modo local.',
+      InitialLocalDatabaseSetupStatus.skippedGoogleAccountMismatch =>
+        'El respaldo remoto pertenece a otra cuenta Google.',
+    };
   }
 }
 
