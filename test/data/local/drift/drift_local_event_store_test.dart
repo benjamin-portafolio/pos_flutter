@@ -106,7 +106,7 @@ void main() {
   );
 
   test(
-    'appendAndApply en standalone marca entrega remota no requerida',
+    'appendAndApply en standalone no guarda refs y marca entrega no requerida',
     () async {
       final standaloneStore = DriftLocalEventStore(
         db: db,
@@ -153,10 +153,12 @@ void main() {
 
       final pendingEvents = await eventDao.obtenerEventosPendientes();
       final event = (await db.select(db.events).get()).single;
+      final refs = await db.select(db.eventRefs).get();
 
       expect(pendingEvents, isEmpty);
       expect(event.applicationStatus, 'applied');
       expect(event.deliveryStatus, 'not_required');
+      expect(refs, isEmpty);
     },
   );
 }

@@ -49,9 +49,11 @@ class DriftLocalEventStore implements LocalEventStore {
 
     await _db.transaction(() async {
       await _eventDao.insertarEvento(_eventCompanionFrom(localEvent));
-      await _eventRefDao.insertarReferencias(
-        refs.map((ref) => _eventRefCompanionFrom(localEvent, ref)).toList(),
-      );
+      if (_appConfigController?.mode != AppMode.standalone) {
+        await _eventRefDao.insertarReferencias(
+          refs.map((ref) => _eventRefCompanionFrom(localEvent, ref)).toList(),
+        );
+      }
       await _eventProcessor.apply(localEvent);
     });
   }
