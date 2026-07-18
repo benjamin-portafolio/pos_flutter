@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 
@@ -144,7 +145,17 @@ class MenuLateral extends StatelessWidget {
             leading: Icon(Icons.inventory),
             title: Text("Gestión de inventarios"),
             trailing: _buildBadge(329),
-            onTap: () {},
+            onTap: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => const InventoryManagementScreen(),
+                  ),
+                );
+              });
+            },
           ),
           ListTile(
             leading: Icon(Icons.money_off),

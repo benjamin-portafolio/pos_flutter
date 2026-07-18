@@ -24,7 +24,8 @@ Nota: el nombre del directorio `analisis ` incluye un espacio final.
 presentation
 -> application/commands
 -> crear SyncEvent
--> guardar events y event_refs
+-> guardar events
+-> guardar event_refs solo en server_sync
 -> application/sync/EventProcessor.apply(event)
 -> handler idempotente
 -> tabla local/proyeccion
@@ -50,6 +51,13 @@ presentation
 - Los handlers de eventos deben ser idempotentes.
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.
+- Los comandos deben declarar y validar sus `LocalEventRef` en ambos modos.
+- `DriftLocalEventStore` no debe persistir `event_refs` en modo `standalone`;
+  esas filas son metadatos de preflight y conflictos de `server_sync`.
+- Los eventos standalone deben conservar `delivery_status = not_required`.
+- No habilitar push, pull, preflight, health checks o WebSocket en standalone.
+- Si en el futuro se importa historial standalone a servidor, definir un flujo
+  explicito que reconstruya referencias; no cambiar silenciosamente esta regla.
 
 ## Organizacion de clases por archivo
 

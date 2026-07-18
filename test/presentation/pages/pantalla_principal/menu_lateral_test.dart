@@ -10,6 +10,7 @@ import 'package:pos_flutter/application/sync/sync_endpoint_store.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/application/sync/sync_server_detection_config.dart';
 import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
@@ -70,6 +71,41 @@ void main() {
     expect(find.byType(SyncSettingsPage), findsOneWidget);
     expect(find.byType(SyncSettingsScreen), findsOneWidget);
     expect(find.widgetWithText(AppBar, 'Configuracion'), findsOneWidget);
+  });
+
+  testWidgets('Gestión de inventarios opens inventory management', (
+    tester,
+  ) async {
+    final scaffoldKey = GlobalKey<ScaffoldState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: const MenuLateral(),
+          body: const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    scaffoldKey.currentState!.openDrawer();
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Gestión de inventarios'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Gestión de inventarios'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InventoryManagementScreen), findsOneWidget);
+    expect(
+      find.widgetWithText(AppBar, 'GESTIÓN DEL INVENTARIO'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Sync settings persists wifi detection preference', (

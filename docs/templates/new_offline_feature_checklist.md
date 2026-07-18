@@ -8,7 +8,7 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Confirmar que no se agregara otro agregado no solicitado.
 - [ ] Confirmar si el alcance es solo local o incluye sincronizacion remota.
 - [ ] Identificar el evento principal, por ejemplo `<agregado>_creado`.
-- [ ] Identificar claves de negocio que requieran `event_refs`.
+- [ ] Identificar las `LocalEventRef` del agregado y sus claves de negocio.
 
 ## Dominio
 
@@ -32,6 +32,9 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Declarar `LocalEventRef` para el agregado principal y claves de negocio.
 - [ ] Llamar `LocalEventStore.appendAndApply(event, refs: ...)`.
 - [ ] Mantener `EventsCompanion`, `EventRefsCompanion` y transacciones fuera del command service.
+- [ ] Conservar declaracion y validacion de refs en ambos modos.
+- [ ] Persistir `event_refs` solo en `server_sync`; standalone debe omitirlas y
+      usar `delivery_status = not_required`.
 
 ## Sync local
 
@@ -66,3 +69,5 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Revisar que proyecciones de `application/sync` usen `SyncProjection` en
       vez de `CommonFields`.
 - [ ] Revisar que no se haya agregado sync remota si no fue solicitada.
+- [ ] Confirmar que standalone no inicia push, pull, preflight, health checks ni
+      WebSocket.

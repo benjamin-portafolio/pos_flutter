@@ -15,8 +15,8 @@ UI
   -> CommandService
   -> crear SyncEvent
   -> LocalEventStore.appendAndApply(event, refs)
-  -> guardar events con sync_status = pending
-  -> guardar event_refs
+  -> guardar events con delivery_status segun modo
+  -> guardar event_refs solo en server_sync
   -> EventProcessor.apply(event)
   -> EventHandler idempotente
   -> actualizar tabla Drift local
@@ -118,7 +118,7 @@ de mapear entre la fila Drift y el DTO de proyeccion de `application/sync`.
 
 ## Event refs
 
-Cada evento debe registrar al menos una referencia al agregado principal:
+Cada comando debe declarar al menos una referencia al agregado principal:
 
 ```text
 ref_type: <agregado>
@@ -135,6 +135,21 @@ ref_id: <valor>
 relationship: requires_unique
 source: local_pending
 ```
+
+La declaracion y validacion de `LocalEventRef` es comun a ambos modos para que
+los command services no dependan de la configuracion de despliegue. La
+persistencia difiere:
+
+- En `server_sync`, `DriftLocalEventStore` guarda las referencias porque
+  preflight y el reporte de conflictos las necesitan.
+- En `standalone`, guarda el evento con `delivery_status = not_required`, aplica
+  la proyeccion local y omite la insercion en `event_refs`.
+
+No interpretar la ausencia de referencias persistidas en standalone como falta
+de trazabilidad: `events.aggregate_type`, `events.aggregate_id` y los campos de
+evento/proyeccion mantienen la trazabilidad local. Una futura importacion de
+historial standalone a servidor debe reconstruir referencias de manera
+explicita; no debe convertir automaticamente esos eventos en pendientes.
 
 ## Idempotencia
 
