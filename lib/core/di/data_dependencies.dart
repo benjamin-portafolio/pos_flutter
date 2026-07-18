@@ -25,7 +25,9 @@ import '../../data/local/identity/device_identity_file_store.dart';
 import '../../data/local/sync/connectivity_plus_wifi_connectivity.dart';
 import '../../data/local/sync/sync_detection_settings_file_store.dart';
 import '../../data/local/sync/sync_endpoint_file_store.dart';
+import '../../data/repositories/categoria_repository_impl.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
+import '../../domain/repositories/categoria_repository.dart';
 import '../../domain/repositories/espacio_repository.dart';
 
 class DataDependencyBootstrap {
@@ -73,6 +75,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<EspacioDao>(
     () => EspacioDao(getIt<AppDatabase>()),
   );
+  getIt.registerLazySingleton<CategoriaDao>(
+    () => CategoriaDao(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
   getIt.registerLazySingleton<EventRefDao>(
     () => EventRefDao(getIt<AppDatabase>()),
@@ -108,6 +113,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
 
   getIt.registerLazySingleton<EspacioRepository>(
     () => EspacioRepositoryImpl(espacioDao: getIt<EspacioDao>()),
+  );
+  getIt.registerLazySingleton<CategoriaRepository>(
+    () => CategoriaRepositoryImpl(categoriaDao: getIt<CategoriaDao>()),
   );
 
   return DataDependencyBootstrap(

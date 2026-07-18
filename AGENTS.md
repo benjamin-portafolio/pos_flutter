@@ -48,6 +48,15 @@ presentation
 - Un comando de aplicacion vive en `application/commands`.
 - Enums o conceptos de negocio viven en `domain`.
 - Las tablas Drift y DAOs viven en `data/local/drift`.
+- Toda tabla Drift debe incluir un comentario sobre su finalidad y documentar
+  el uso de cada campo que declare.
+- Los campos heredados deben estar documentados en su definicion comun; si una
+  tabla les da un significado particular, aclararlo tambien en esa tabla.
+- Las tablas Drift que necesiten identidad, estado y metadatos comunes de
+  trazabilidad o sincronizacion deben heredar `CommonFields`; no redeclarar
+  esos campos de forma individual.
+- Si una tabla no puede usar `CommonFields`, documentar en la propia tabla la
+  diferencia de modelo que justifica la excepcion.
 - Los handlers de eventos deben ser idempotentes.
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.

@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:pos_flutter/data/local/drift/tables/categories.dart';
 import 'package:pos_flutter/data/local/drift/tables/espacios.dart';
 import 'package:pos_flutter/data/local/drift/tables/events.dart';
 import 'package:pos_flutter/data/local/drift/tables/event_refs.dart';
@@ -11,6 +12,7 @@ import 'package:pos_flutter/data/local/drift/tables/sync_checkpoints.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 
 part 'app_database.g.dart';
+part 'daos/categoria_dao.dart';
 part 'daos/espacio_dao.dart';
 part 'daos/event_dao.dart';
 part 'daos/event_ref_dao.dart';
@@ -22,8 +24,8 @@ const _resetDatabaseOnStartup = true;
 
 /// Database class configuring connection, schema and registered tables/DAOs.
 @DriftDatabase(
-  tables: [Espacios, Events, EventRefs, SyncCheckpoints],
-  daos: [EspacioDao, EventDao, EventRefDao, SyncCheckpointDao],
+  tables: [Categories, Espacios, Events, EventRefs, SyncCheckpoints],
+  daos: [CategoriaDao, EspacioDao, EventDao, EventRefDao, SyncCheckpointDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());

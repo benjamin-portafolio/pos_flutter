@@ -10,6 +10,8 @@ import 'package:pos_flutter/application/sync/sync_endpoint_store.dart';
 import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/application/sync/sync_server_detection_config.dart';
 import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/domain/categorias/categoria.dart';
+import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
@@ -40,6 +42,7 @@ void main() {
     );
     getIt.registerSingleton<SyncOrchestrator>(_FakeSyncOrchestrator());
     getIt.registerSingleton<DatabaseStateReader>(_FakeDatabaseStateReader());
+    getIt.registerSingleton<CategoriaRepository>(_FakeCategoriaRepository());
   });
 
   tearDown(() async {
@@ -185,4 +188,12 @@ class _FakeDatabaseStateReader implements DatabaseStateReader {
   Future<DatabaseState> readState() async {
     return const DatabaseState(eventCount: 0, lastLocalSequence: 0);
   }
+}
+
+class _FakeCategoriaRepository implements CategoriaRepository {
+  @override
+  Future<List<Categoria>> obtenerCategorias() async => const [];
+
+  @override
+  Stream<List<Categoria>> watchCategorias() => Stream.value(const []);
 }

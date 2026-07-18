@@ -61,6 +61,9 @@ UI
 `data/local/drift`
 
 - Define tablas, DAOs y base local.
+- Cada tabla debe documentar su finalidad y el uso de todas las columnas que
+  declare. Los campos heredados se documentan en su definicion comun; cualquier
+  significado adicional propio del agregado se aclara en la tabla concreta.
 - Durante desarrollo, los cambios de esquema local reinician la base con
   `_resetDatabaseOnStartup`; no agregar migraciones `onUpgrade` ni subir
   `schemaVersion` salvo que el usuario lo pida.
@@ -97,9 +100,17 @@ lib/domain/repositories/espacio_repository.dart
 
 ## Proyecciones y campos comunes
 
-Las tablas Drift que representan proyecciones locales pueden compartir columnas
-con `CommonFields`: `id`, `active`, `version`, `createdEventId`,
-`lastEventId` y `lastServerSequence`.
+Las tablas Drift que representan proyecciones locales y necesitan identidad,
+estado y metadatos de trazabilidad o sincronizacion deben heredar
+`CommonFields`: `id`, `active`, `version`, `createdEventId`, `lastEventId` y
+`lastServerSequence`. Estos campos no deben redeclararse individualmente en
+cada tabla.
+
+Antes de crear una tabla se debe evaluar si representa una proyeccion sujeta al
+flujo de eventos. Si necesita solo una parte de los campos comunes o su modelo
+es incompatible con `CommonFields`, la excepcion debe justificarse en los
+comentarios de la tabla y en la documentacion del agregado; no se debe duplicar
+silenciosamente la estructura comun.
 
 En `application/sync` no se debe importar `CommonFields` ni clases generadas por
 Drift. Para mantener el mismo concepto sin acoplar capas, los DTOs de

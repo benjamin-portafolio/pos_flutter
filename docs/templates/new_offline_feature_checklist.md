@@ -19,6 +19,14 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 ## Data local
 
 - [ ] Crear o modificar tabla Drift en `data/local/drift/tables`.
+- [ ] Documentar la finalidad de la tabla y el uso de cada campo declarado.
+- [ ] Confirmar que los campos heredados esten documentados en su definicion
+      comun y aclarar en la tabla cualquier significado particular del agregado.
+- [ ] Determinar si la tabla necesita identidad, estado y metadatos comunes de
+      trazabilidad o sincronizacion; si los necesita, heredar `CommonFields` y
+      no redeclarar sus columnas.
+- [ ] Documentar en la tabla y en el agregado cualquier excepcion que impida
+      usar `CommonFields`.
 - [ ] Crear o modificar DAO en `data/local/drift/daos`.
 - [ ] Registrar tabla y DAO en `AppDatabase`.
 - [ ] No agregar migracion `onUpgrade` ni subir `schemaVersion` por defecto.

@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/di/injection.dart';
+import '../../../domain/repositories/categoria_repository.dart';
 import 'categorias/inventory_categories_tab.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
-  const InventoryManagementScreen({super.key});
+  const InventoryManagementScreen({this.categoriaRepository, super.key});
+
+  final CategoriaRepository? categoriaRepository;
 
   @override
   Widget build(BuildContext context) {
+    final categories = categoriaRepository ?? getIt<CategoriaRepository>();
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -28,11 +34,11 @@ class InventoryManagementScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
-            SizedBox.expand(key: Key('inventory_articles_tab_view')),
-            InventoryCategoriesTab(),
-            SizedBox.expand(key: Key('inventory_ingredients_tab_view')),
+            const SizedBox.expand(key: Key('inventory_articles_tab_view')),
+            InventoryCategoriesTab(categoriaRepository: categories),
+            const SizedBox.expand(key: Key('inventory_ingredients_tab_view')),
           ],
         ),
         floatingActionButton: FloatingActionButton(
