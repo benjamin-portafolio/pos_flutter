@@ -62,6 +62,46 @@ void main() {
     expect(event.deliveryStatus, 'not_required');
     expect(refs, isEmpty);
   });
+
+  test('server_sync aplica edición y conserva el evento pendiente', () async {
+    final store = _store(AppMode.serverSync, db, categoriaDao, eventDao);
+    const refs = [
+      LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+    ];
+
+    await store.appendAndApply(_event(), refs: refs);
+    await store.appendAndApply(_updatedEvent(), refs: refs);
+
+    final categoria = await categoriaDao.obtenerCategoriaPorId('category_1');
+    final events = await eventDao.obtenerEventosPendientes();
+    final storedRefs = await db.select(db.eventRefs).get();
+    expect(categoria?.name, 'Bebidas frías');
+    expect(categoria?.version, 2);
+    expect(events.map((event) => event.eventType), [
+      'categoria_creada',
+      'categoria_actualizada',
+    ]);
+    expect(storedRefs, hasLength(2));
+  });
+
+  test('standalone aplica edición sin persistir event_refs', () async {
+    final store = _store(AppMode.standalone, db, categoriaDao, eventDao);
+    const refs = [
+      LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+    ];
+
+    await store.appendAndApply(_event(), refs: refs);
+    await store.appendAndApply(_updatedEvent(), refs: refs);
+
+    final categoria = await categoriaDao.obtenerCategoriaPorId('category_1');
+    final events = await db.select(db.events).get();
+    expect(categoria?.name, 'Bebidas frías');
+    expect(categoria?.version, 2);
+    expect(events.map((event) => event.deliveryStatus).toSet(), {
+      'not_required',
+    });
+    expect(await db.select(db.eventRefs).get(), isEmpty);
+  });
 }
 
 DriftLocalEventStore _store(
@@ -98,5 +138,25 @@ SyncEvent _event() {
     baseVersion: 1,
     createdAtLocal: DateTime(2026),
     payload: const {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': null},
+  );
+}
+
+SyncEvent _updatedEvent() {
+  return SyncEvent(
+    eventId: 'event_2',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_actualizada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026, 1, 2),
+    payload: const {
+      'base_event_id': 'event_1',
+      'changed_fields': ['name'],
+      'changes': {
+        'name': {'from': 'Bebidas', 'to': 'Bebidas frías'},
+      },
+    },
   );
 }

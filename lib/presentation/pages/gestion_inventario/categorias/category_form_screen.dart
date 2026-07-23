@@ -6,7 +6,9 @@ import 'models/categoria_form_result.dart';
 import 'widgets/category_color_picker_dialog.dart';
 
 class CategoryFormScreen extends StatefulWidget {
-  const CategoryFormScreen({super.key});
+  const CategoryFormScreen({this.initialValue, super.key});
+
+  final CategoriaFormResult? initialValue;
 
   @override
   State<CategoryFormScreen> createState() => _CategoryFormScreenState();
@@ -14,8 +16,17 @@ class CategoryFormScreen extends StatefulWidget {
 
 class _CategoryFormScreenState extends State<CategoryFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  ColorCategoria _selectedColor = ColorCategoria.neutral;
+  late final TextEditingController _nameController;
+  late ColorCategoria _selectedColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: widget.initialValue?.nombre ?? '',
+    );
+    _selectedColor = widget.initialValue?.color ?? ColorCategoria.neutral;
+  }
 
   @override
   void dispose() {

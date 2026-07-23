@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_categoria_command.dart';
+import '../../../application/commands/editar_categoria_command.dart';
 import '../../../core/di/injection.dart';
+import '../../../domain/categorias/categoria.dart';
 import '../../../domain/repositories/categoria_repository.dart';
 import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
@@ -47,7 +49,11 @@ class InventoryManagementScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             const SizedBox.expand(key: Key('inventory_articles_tab_view')),
-            InventoryCategoriesTab(categoriaRepository: categories),
+            InventoryCategoriesTab(
+              categoriaRepository: categories,
+              onEditCategory: (categoria) =>
+                  _openCategoryForm(context, categoria: categoria),
+            ),
             const SizedBox.expand(key: Key('inventory_ingredients_tab_view')),
           ],
         ),
@@ -67,18 +73,40 @@ class InventoryManagementScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openCategoryForm(BuildContext context) async {
+  Future<void> _openCategoryForm(
+    BuildContext context, {
+    Categoria? categoria,
+  }) async {
     final result = await Navigator.of(context).push<CategoriaFormResult>(
-      MaterialPageRoute(builder: (_) => const CategoryFormScreen()),
+      MaterialPageRoute(
+        builder: (_) => CategoryFormScreen(
+          initialValue: categoria == null
+              ? null
+              : CategoriaFormResult(
+                  nombre: categoria.nombre,
+                  color: categoria.color,
+                ),
+        ),
+      ),
     );
     if (result == null || !context.mounted) return;
 
     try {
       final service =
           categoriaCommandService ?? getIt<CategoriaCommandService>();
-      await service.crearCategoria(
-        CrearCategoriaCommand(nombre: result.nombre, color: result.color),
-      );
+      if (categoria == null) {
+        await service.crearCategoria(
+          CrearCategoriaCommand(nombre: result.nombre, color: result.color),
+        );
+      } else {
+        await service.editarCategoria(
+          EditarCategoriaCommand(
+            categoriaId: categoria.id,
+            nombre: result.nombre,
+            color: result.color,
+          ),
+        );
+      }
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

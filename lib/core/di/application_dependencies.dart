@@ -10,6 +10,7 @@ import '../../application/commands/categoria_command_service.dart';
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
+import '../../application/sync/categoria_conflict_projection_restorer.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/categoria_event_handler.dart';
 import '../../application/sync/handlers/categoria_event_registry.dart';
@@ -32,6 +33,7 @@ import '../../application/sync/sync_pull_service.dart';
 import '../../application/sync/sync_push_service.dart';
 import '../../application/sync/sync_server_detection_config.dart';
 import '../../application/sync/sync_socket_listener.dart';
+import '../../application/sync/synced_event_history.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_local_event_store.dart';
@@ -79,17 +81,26 @@ void registerApplicationDependencies(
       eventProcessor: getIt<EventProcessor>(),
     ),
   );
+  getIt.registerLazySingleton<CategoriaConflictProjectionRestorer>(
+    () =>
+        CategoriaConflictProjectionRestorer(getIt<CategoriaProjectionStore>()),
+  );
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
       syncPersistence: getIt<SyncPersistence>(),
+      syncedEventHistory: getIt<SyncedEventHistory>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+      categoriaConflictProjectionRestorer:
+          getIt<CategoriaConflictProjectionRestorer>(),
     ),
   );
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
     () => SyncConflictProjectionCleaner(
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+      categoriaConflictProjectionRestorer:
+          getIt<CategoriaConflictProjectionRestorer>(),
     ),
   );
   getIt.registerLazySingleton<LocalEventStore>(
@@ -186,6 +197,7 @@ void registerApplicationDependencies(
     () => CategoriaCommandService(
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
+      categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
     ),
   );
 }

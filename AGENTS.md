@@ -11,6 +11,11 @@ El analisis general del sistema se encuentra en:
 
 Nota: el nombre del directorio `analisis ` incluye un espacio final.
 
+## Comunicacion con el usuario
+
+- Cuando existan dudas, decisiones pendientes o solicitudes de confirmacion,
+  presentarlas siempre como una lista numerada.
+
 ## Regla de alcance
 
 - Implementa solo el agregado solicitado por el usuario.

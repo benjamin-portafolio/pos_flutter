@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
@@ -82,6 +83,10 @@ void main() {
           categoriaProjectionStore: DriftCategoriaProjectionStore(
             categoriaDao: CategoriaDao(db),
           ),
+          categoriaConflictProjectionRestorer:
+              CategoriaConflictProjectionRestorer(
+                DriftCategoriaProjectionStore(categoriaDao: CategoriaDao(db)),
+              ),
         ),
         client: MockClient((request) async {
           expect(request.method, 'POST');

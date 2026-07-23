@@ -56,6 +56,46 @@ void main() {
     expect(categorias, hasLength(2));
     expect(categorias.map((categoria) => categoria.name).toSet(), {'Bebidas'});
   });
+
+  test('aplica categoria_actualizada e incrementa su versión', () async {
+    await handler.applyCategoriaCreada(_event());
+
+    await handler.applyCategoriaActualizada(
+      _updatedEvent(
+        payload: const {
+          'base_event_id': 'event_1',
+          'changed_fields': ['name', 'color_key'],
+          'changes': {
+            'name': {'from': 'Bebidas', 'to': 'Bebidas frías'},
+            'color_key': {'from': 'cyan', 'to': 'blue'},
+          },
+        },
+      ),
+    );
+
+    final categoria = await categoriaDao.obtenerCategoriaPorId('category_1');
+    expect(categoria!.name, 'Bebidas frías');
+    expect(categoria.colorKey, 'blue');
+    expect(categoria.version, 2);
+    expect(categoria.lastEventId, 'event_updated');
+  });
+
+  test(
+    'categoria_actualizada es idempotente cuando regresa por pull',
+    () async {
+      await handler.applyCategoriaCreada(_event());
+      final local = _updatedEvent();
+      await handler.applyCategoriaActualizada(local);
+      await handler.applyCategoriaActualizada(
+        local.copyWith(serverSequence: 9, deliveryStatus: 'delivered'),
+      );
+
+      final categoria = await categoriaDao.obtenerCategoriaPorId('category_1');
+      expect(categoria!.name, 'Bebidas frías');
+      expect(categoria.version, 2);
+      expect(categoria.lastServerSequence, 9);
+    },
+  );
 }
 
 SyncEvent _event({
@@ -72,5 +112,27 @@ SyncEvent _event({
     baseVersion: 1,
     createdAtLocal: DateTime(2026),
     payload: const {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': null},
+  );
+}
+
+SyncEvent _updatedEvent({
+  Map<String, Object?> payload = const {
+    'base_event_id': 'event_1',
+    'changed_fields': ['name'],
+    'changes': {
+      'name': {'from': 'Bebidas', 'to': 'Bebidas frías'},
+    },
+  },
+}) {
+  return SyncEvent(
+    eventId: 'event_updated',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_actualizada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026),
+    payload: payload,
   );
 }

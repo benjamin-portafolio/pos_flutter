@@ -11,6 +11,7 @@ import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/sync_detection_settings_store.dart';
 import '../../application/sync/sync_endpoint_store.dart';
 import '../../application/sync/sync_persistence.dart';
+import '../../application/sync/synced_event_history.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/config/app_config_file_store.dart';
 import '../../data/google_drive/google_drive_auth_service.dart';
@@ -99,12 +100,18 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<DatabaseRestoreService>(
     () => DriftDatabaseRestoreService(db: getIt<AppDatabase>()),
   );
-  getIt.registerLazySingleton<SyncPersistence>(
+  getIt.registerLazySingleton<DriftSyncPersistence>(
     () => DriftSyncPersistence(
       eventDao: getIt<EventDao>(),
       eventRefDao: getIt<EventRefDao>(),
       syncCheckpointDao: getIt<SyncCheckpointDao>(),
     ),
+  );
+  getIt.registerLazySingleton<SyncPersistence>(
+    () => getIt<DriftSyncPersistence>(),
+  );
+  getIt.registerLazySingleton<SyncedEventHistory>(
+    () => getIt<DriftSyncPersistence>(),
   );
   getIt.registerLazySingleton<SyncedEventStore>(
     () => DriftSyncedEventStore(db: getIt<AppDatabase>()),

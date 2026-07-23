@@ -6,6 +6,8 @@ abstract interface class CategoriaProjectionStore {
 
   Future<void> insert(CategoriaProjection projection);
 
+  Future<void> update(CategoriaProjection projection);
+
   Future<void> updateSyncMetadata(
     String id, {
     required String eventId,

@@ -98,6 +98,7 @@ lib/application/commands/espacio_command_service.dart
 lib/application/sync/models/sync_event.dart
 lib/application/sync/payloads/espacio_creado_payload.dart
 lib/application/sync/payloads/categoria_creada_payload.dart
+lib/application/sync/payloads/categoria_actualizada_payload.dart
 lib/application/sync/local_event_store.dart
 lib/application/sync/event_processor.dart
 lib/application/sync/handlers/espacio_event_handler.dart
@@ -158,6 +159,13 @@ Contratos existentes:
 |---|---|---|
 | `espacio_creado` | `EspacioCreadoPayload` | `nombre`, `identificacion`, `visibilidad` |
 | `categoria_creada` | `CategoriaCreadaPayload` | `name`, `color_key`, `sort_order` |
+| `categoria_actualizada` | `CategoriaActualizadaPayload` | `base_event_id`, `changed_fields`, `changes` |
+
+`categoria_actualizada` transporta solo cambios de `name` y `color_key`. Cada
+entrada de `changes` conserva los valores `from` y `to`; `base_event_id`
+identifica el ultimo evento conocido al iniciar la edicion. El sobre tambien
+debe incluir `base_version` y, cuando exista estado oficial, la
+`base_server_sequence`.
 
 Un payload invalido recibido por pull hace fallar su aplicacion. Como los
 eventos de la pagina y el checkpoint se procesan en una misma transaccion, la

@@ -34,6 +34,23 @@ class DriftCategoriaProjectionStore implements CategoriaProjectionStore {
   }
 
   @override
+  Future<void> update(CategoriaProjection projection) async {
+    await _categoriaDao.actualizarCategoria(
+      projection.id,
+      drift.CategoriesCompanion(
+        name: Value(projection.nombre),
+        colorKey: Value(projection.color.key),
+        sortOrder: Value(projection.orden),
+        active: Value(projection.active),
+        version: Value(projection.version),
+        createdEventId: Value(projection.createdEventId),
+        lastEventId: Value(projection.lastEventId),
+        lastServerSequence: Value(projection.lastServerSequence),
+      ),
+    );
+  }
+
+  @override
   Future<void> updateSyncMetadata(
     String id, {
     required String eventId,

@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import '../../../application/sync/models/sync_event.dart';
 import '../../../application/sync/sync_persistence.dart';
+import '../../../application/sync/synced_event_history.dart';
 import 'app_database.dart';
 
-class DriftSyncPersistence implements SyncPersistence {
+class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
   DriftSyncPersistence({
     required EventDao eventDao,
     required EventRefDao eventRefDao,
@@ -20,6 +21,21 @@ class DriftSyncPersistence implements SyncPersistence {
   @override
   Future<List<SyncEvent>> pendingEvents() async {
     final records = await _eventDao.obtenerEventosPendientes();
+    return records.map(_eventFromRecord).toList();
+  }
+
+  @override
+  Future<List<SyncEvent>> eventsForAggregateAfter({
+    required String aggregateType,
+    required String aggregateId,
+    required int serverSequence,
+  }) async {
+    final records = await _eventDao
+        .obtenerEventosSincronizadosDelAgregadoDespuesDe(
+          aggregateType: aggregateType,
+          aggregateId: aggregateId,
+          serverSequence: serverSequence,
+        );
     return records.map(_eventFromRecord).toList();
   }
 

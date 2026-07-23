@@ -6,9 +6,14 @@ import 'category_color_palette.dart';
 import 'widgets/inventory_category_card.dart';
 
 class InventoryCategoriesTab extends StatelessWidget {
-  const InventoryCategoriesTab({required this.categoriaRepository, super.key});
+  const InventoryCategoriesTab({
+    required this.categoriaRepository,
+    required this.onEditCategory,
+    super.key,
+  });
 
   final CategoriaRepository categoriaRepository;
+  final ValueChanged<Categoria> onEditCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +43,7 @@ class InventoryCategoriesTab extends StatelessWidget {
                 key: ValueKey(categoria.id),
                 name: categoria.nombre,
                 color: CategoryColorPalette.resolve(categoria.color),
+                onTap: () => onEditCategory(categoria),
               );
             },
           );

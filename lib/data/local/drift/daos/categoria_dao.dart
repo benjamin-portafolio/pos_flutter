@@ -33,6 +33,12 @@ class CategoriaDao extends DatabaseAccessor<AppDatabase>
     return into(categories).insert(entity);
   }
 
+  Future<int> actualizarCategoria(String id, CategoriesCompanion entity) {
+    return (update(
+      categories,
+    )..where((category) => category.id.equals(id))).write(entity);
+  }
+
   Future<int> actualizarMetadataSincronizacion(
     String id, {
     required String eventId,

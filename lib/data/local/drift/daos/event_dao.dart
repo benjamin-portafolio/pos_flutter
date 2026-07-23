@@ -18,6 +18,27 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
         .get();
   }
 
+  /// Obtiene eventos oficiales posteriores a una base para revalidar cambios
+  /// pendientes del mismo agregado.
+  Future<List<EventRecord>> obtenerEventosSincronizadosDelAgregadoDespuesDe({
+    required String aggregateType,
+    required String aggregateId,
+    required int serverSequence,
+  }) {
+    return (select(events)
+          ..where(
+            (event) =>
+                event.deliveryStatus.equals('delivered') &
+                event.aggregateType.equals(aggregateType) &
+                event.aggregateId.equals(aggregateId) &
+                event.serverSequence.isBiggerThanValue(serverSequence),
+          )
+          ..orderBy([
+            (event) => OrderingTerm(expression: event.serverSequence),
+          ]))
+        .get();
+  }
+
   /// Obtiene conflictos locales que aun no tienen secuencia del servidor.
   Future<List<EventRecord>> obtenerConflictosNoReportados() {
     return (select(events)

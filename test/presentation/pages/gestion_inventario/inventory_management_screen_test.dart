@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/categoria_command_service.dart';
 import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
+import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
@@ -130,6 +131,42 @@ void main() {
     expect(commandService.command!.nombre, ' Bebidas calientes ');
     expect(commandService.command!.color, ColorCategoria.amber);
   });
+
+  testWidgets('abre la categoría con un toque y guarda sus cambios', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(InventoryCategoryCard));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextFormField>(
+      find.byKey(const Key('category_name_field')),
+    );
+    expect(field.controller!.text, 'Bebidas');
+
+    await tester.enterText(
+      find.byKey(const Key('category_name_field')),
+      'Bebidas premium',
+    );
+    await tester.tap(find.byKey(const Key('save_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(commandService.editCommand, isNotNull);
+    expect(commandService.editCommand!.categoriaId, 'category-1');
+    expect(commandService.editCommand!.nombre, 'Bebidas premium');
+    expect(commandService.editCommand!.color, ColorCategoria.blue);
+  });
 }
 
 class _FakeCategoriaRepository implements CategoriaRepository {
@@ -146,9 +183,16 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
 class _FakeCategoriaCommandService implements CategoriaCommandService {
   CrearCategoriaCommand? command;
+  EditarCategoriaCommand? editCommand;
 
   @override
   Future<void> crearCategoria(CrearCategoriaCommand command) async {
     this.command = command;
+  }
+
+  @override
+  Future<bool> editarCategoria(EditarCategoriaCommand command) async {
+    editCommand = command;
+    return true;
   }
 }
