@@ -1,14 +1,24 @@
 enum ColorCategoria {
   neutral('neutral'),
-  red('red'),
-  orange('orange'),
   amber('amber'),
-  green('green'),
-  teal('teal'),
   blue('blue'),
+  blueGrey('blue_grey'),
+  brown('brown'),
+  cyan('cyan'),
+  deepOrange('deep_orange'),
+  deepPurple('deep_purple'),
+  green('green'),
+  grey('grey'),
   indigo('indigo'),
+  lightBlue('light_blue'),
+  lightGreen('light_green'),
+  lime('lime'),
+  orange('orange'),
+  pink('pink'),
   purple('purple'),
-  pink('pink');
+  red('red'),
+  teal('teal'),
+  yellow('yellow');
 
   const ColorCategoria(this.key);
 
@@ -18,7 +28,7 @@ enum ColorCategoria {
     return ColorCategoria.values.firstWhere(
       (color) => color.key == key,
       orElse: () => throw FormatException(
-        'La clave de color de categoria no es valida: $key',
+        'La clave de color de categoría no es válida: $key',
       ),
     );
   }

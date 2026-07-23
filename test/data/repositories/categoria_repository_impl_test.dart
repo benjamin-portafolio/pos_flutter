@@ -18,7 +18,7 @@ void main() {
     await db.close();
   });
 
-  test('obtiene y mapea categorias activas desde Drift', () async {
+  test('obtiene y mapea categorias desde Drift', () async {
     await _insertarCategoria(
       db,
       id: 'categoria-1',
@@ -36,7 +36,7 @@ void main() {
     expect(categorias.single.orden, 1);
   });
 
-  test('omite categorias inactivas', () async {
+  test('no usa active para ocultar categorias', () async {
     await _insertarCategoria(
       db,
       id: 'categoria-inactiva',
@@ -48,7 +48,8 @@ void main() {
 
     final categorias = await repository.obtenerCategorias();
 
-    expect(categorias, isEmpty);
+    expect(categorias, hasLength(1));
+    expect(categorias.single.id, 'categoria-inactiva');
   });
 
   test('observa categorias ordenadas por posicion y nombre', () async {
@@ -74,6 +75,30 @@ void main() {
       'categoria-2',
     ]);
   });
+
+  test('muestra al final las categorias sin orden explicito', () async {
+    await _insertarCategoria(
+      db,
+      id: 'categoria-sin-orden',
+      name: 'Nueva',
+      colorKey: 'neutral',
+      sortOrder: null,
+    );
+    await _insertarCategoria(
+      db,
+      id: 'categoria-ordenada',
+      name: 'Existente',
+      colorKey: 'blue',
+      sortOrder: 5,
+    );
+
+    final categorias = await repository.obtenerCategorias();
+
+    expect(categorias.map((categoria) => categoria.id), [
+      'categoria-ordenada',
+      'categoria-sin-orden',
+    ]);
+  });
 }
 
 Future<void> _insertarCategoria(
@@ -81,7 +106,7 @@ Future<void> _insertarCategoria(
   required String id,
   required String name,
   required String colorKey,
-  required int sortOrder,
+  required int? sortOrder,
   bool active = true,
 }) {
   return db
@@ -92,7 +117,7 @@ Future<void> _insertarCategoria(
           active: Value(active),
           name: name,
           colorKey: Value(colorKey),
-          sortOrder: sortOrder,
+          sortOrder: Value(sortOrder),
         ),
       );
 }

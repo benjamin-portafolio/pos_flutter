@@ -11,5 +11,5 @@ class Categoria {
   final String id;
   final String nombre;
   final ColorCategoria color;
-  final int orden;
+  final int? orden;
 }

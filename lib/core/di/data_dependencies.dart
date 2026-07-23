@@ -6,6 +6,7 @@ import '../../application/identity/device_identity_provider.dart';
 import '../../application/backup/backup_service.dart';
 import '../../application/backup/backup_store.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
+import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/sync_detection_settings_store.dart';
 import '../../application/sync/sync_endpoint_store.dart';
@@ -18,6 +19,7 @@ import '../../data/local/backup/database_restore_service.dart';
 import '../../data/local/backup/database_snapshot_service.dart';
 import '../../data/local/backup/database_state_reader.dart';
 import '../../data/local/drift/app_database.dart';
+import '../../data/local/drift/drift_categoria_projection_store.dart';
 import '../../data/local/drift/drift_espacio_projection_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
 import '../../data/local/drift/drift_synced_event_store.dart';
@@ -109,6 +111,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<EspacioProjectionStore>(
     () => DriftEspacioProjectionStore(espacioDao: getIt<EspacioDao>()),
+  );
+  getIt.registerLazySingleton<CategoriaProjectionStore>(
+    () => DriftCategoriaProjectionStore(categoriaDao: getIt<CategoriaDao>()),
   );
 
   getIt.registerLazySingleton<EspacioRepository>(

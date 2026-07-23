@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../../application/commands/categoria_command_service.dart';
+import '../../../application/commands/crear_categoria_command.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/repositories/categoria_repository.dart';
+import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
+import 'categorias/models/categoria_form_result.dart';
+import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
-  const InventoryManagementScreen({this.categoriaRepository, super.key});
+  const InventoryManagementScreen({
+    this.categoriaRepository,
+    this.categoriaCommandService,
+    super.key,
+  });
 
   final CategoriaRepository? categoriaRepository;
+  final CategoriaCommandService? categoriaCommandService;
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +52,38 @@ class InventoryManagementScreen extends StatelessWidget {
           ],
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () {},
+          onPressed: () => _showAddOptions(context),
           tooltip: 'Agregar',
           child: const Icon(Icons.add),
         ),
       ),
     );
+  }
+
+  void _showAddOptions(BuildContext context) {
+    InventoryAddOptionsBottomSheet.show(
+      context: context,
+      onAddCategory: () => _openCategoryForm(context),
+    );
+  }
+
+  Future<void> _openCategoryForm(BuildContext context) async {
+    final result = await Navigator.of(context).push<CategoriaFormResult>(
+      MaterialPageRoute(builder: (_) => const CategoryFormScreen()),
+    );
+    if (result == null || !context.mounted) return;
+
+    try {
+      final service =
+          categoriaCommandService ?? getIt<CategoriaCommandService>();
+      await service.crearCategoria(
+        CrearCategoriaCommand(nombre: result.nombre, color: result.color),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo guardar la categoría.')),
+      );
+    }
   }
 }

@@ -103,9 +103,9 @@ class $CategoriesTable extends Categories
   late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
     'sort_order',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -194,8 +194,6 @@ class $CategoriesTable extends Categories
         _sortOrderMeta,
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
-    } else if (isInserting) {
-      context.missing(_sortOrderMeta);
     }
     return context;
   }
@@ -241,7 +239,7 @@ class $CategoriesTable extends Categories
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
-      )!,
+      ),
     );
   }
 
@@ -276,8 +274,9 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
   /// Clave estable del color que la interfaz usara para representar la categoria.
   final String colorKey;
 
-  /// Posicion de la categoria en los listados; los valores menores aparecen primero.
-  final int sortOrder;
+  /// Posicion opcional de la categoria en los listados.
+  /// Las categorias sin posicion explicita aparecen al final.
+  final int? sortOrder;
   const CategoryRow({
     required this.id,
     required this.active,
@@ -287,7 +286,7 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
     this.lastServerSequence,
     required this.name,
     required this.colorKey,
-    required this.sortOrder,
+    this.sortOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -306,7 +305,9 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
     }
     map['name'] = Variable<String>(name);
     map['color_key'] = Variable<String>(colorKey);
-    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || sortOrder != null) {
+      map['sort_order'] = Variable<int>(sortOrder);
+    }
     return map;
   }
 
@@ -326,7 +327,9 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
           : Value(lastServerSequence),
       name: Value(name),
       colorKey: Value(colorKey),
-      sortOrder: Value(sortOrder),
+      sortOrder: sortOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sortOrder),
     );
   }
 
@@ -344,7 +347,7 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
       lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
       name: serializer.fromJson<String>(json['name']),
       colorKey: serializer.fromJson<String>(json['colorKey']),
-      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      sortOrder: serializer.fromJson<int?>(json['sortOrder']),
     );
   }
   @override
@@ -359,7 +362,7 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
       'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
       'name': serializer.toJson<String>(name),
       'colorKey': serializer.toJson<String>(colorKey),
-      'sortOrder': serializer.toJson<int>(sortOrder),
+      'sortOrder': serializer.toJson<int?>(sortOrder),
     };
   }
 
@@ -372,7 +375,7 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
     Value<int?> lastServerSequence = const Value.absent(),
     String? name,
     String? colorKey,
-    int? sortOrder,
+    Value<int?> sortOrder = const Value.absent(),
   }) => CategoryRow(
     id: id ?? this.id,
     active: active ?? this.active,
@@ -386,7 +389,7 @@ class CategoryRow extends DataClass implements Insertable<CategoryRow> {
         : this.lastServerSequence,
     name: name ?? this.name,
     colorKey: colorKey ?? this.colorKey,
-    sortOrder: sortOrder ?? this.sortOrder,
+    sortOrder: sortOrder.present ? sortOrder.value : this.sortOrder,
   );
   CategoryRow copyWithCompanion(CategoriesCompanion data) {
     return CategoryRow(
@@ -460,7 +463,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryRow> {
   final Value<int?> lastServerSequence;
   final Value<String> name;
   final Value<String> colorKey;
-  final Value<int> sortOrder;
+  final Value<int?> sortOrder;
   final Value<int> rowid;
   const CategoriesCompanion({
     this.id = const Value.absent(),
@@ -483,11 +486,10 @@ class CategoriesCompanion extends UpdateCompanion<CategoryRow> {
     this.lastServerSequence = const Value.absent(),
     required String name,
     this.colorKey = const Value.absent(),
-    required int sortOrder,
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       name = Value(name),
-       sortOrder = Value(sortOrder);
+       name = Value(name);
   static Insertable<CategoryRow> custom({
     Expression<String>? id,
     Expression<bool>? active,
@@ -524,7 +526,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryRow> {
     Value<int?>? lastServerSequence,
     Value<String>? name,
     Value<String>? colorKey,
-    Value<int>? sortOrder,
+    Value<int?>? sortOrder,
     Value<int>? rowid,
   }) {
     return CategoriesCompanion(
@@ -3163,7 +3165,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       Value<int?> lastServerSequence,
       required String name,
       Value<String> colorKey,
-      required int sortOrder,
+      Value<int?> sortOrder,
       Value<int> rowid,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
@@ -3176,7 +3178,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<int?> lastServerSequence,
       Value<String> name,
       Value<String> colorKey,
-      Value<int> sortOrder,
+      Value<int?> sortOrder,
       Value<int> rowid,
     });
 
@@ -3372,7 +3374,7 @@ class $$CategoriesTableTableManager
                 Value<int?> lastServerSequence = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> colorKey = const Value.absent(),
-                Value<int> sortOrder = const Value.absent(),
+                Value<int?> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
@@ -3396,7 +3398,7 @@ class $$CategoriesTableTableManager
                 Value<int?> lastServerSequence = const Value.absent(),
                 required String name,
                 Value<String> colorKey = const Value.absent(),
-                required int sortOrder,
+                Value<int?> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,

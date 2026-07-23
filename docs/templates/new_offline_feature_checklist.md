@@ -36,7 +36,15 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 
 - [ ] Crear `CrearXCommand` o comando equivalente.
 - [ ] Crear o extender `XCommandService`.
+- [ ] Crear el contrato `XPayload` en `application/sync/payloads`, una clase
+      principal por archivo.
+- [ ] Declarar `aggregateType` y `eventType` como constantes del contrato.
+- [ ] Implementar `XPayload.fromJson` con validacion, normalizacion y
+      compatibilidad legada solo cuando corresponda.
+- [ ] Implementar `XPayload.toJson` con la representacion canonica.
 - [ ] Crear `SyncEvent` con `event_id`, `aggregate_type`, `aggregate_id`, `event_type`, `device_id`, `user_id`, `created_at_local` y `payload`.
+- [ ] Construir el payload tipado en el command service y asignar
+      `payload.toJson()` al `SyncEvent`.
 - [ ] Declarar `LocalEventRef` para el agregado principal y claves de negocio.
 - [ ] Llamar `LocalEventStore.appendAndApply(event, refs: ...)`.
 - [ ] Mantener `EventsCompanion`, `EventRefsCompanion` y transacciones fuera del command service.
@@ -47,13 +55,19 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 ## Sync local
 
 - [ ] Registrar el nuevo `event_type` en `EventProcessor`.
+- [ ] Usar la constante `XPayload.eventType` en el registro, sin duplicar el
+      literal.
 - [ ] Crear o extender el puerto de proyeccion que necesitara el handler.
 - [ ] Si la tabla usa `CommonFields`, hacer que el DTO de proyeccion extienda
       `SyncProjection`.
 - [ ] Implementar el adaptador Drift de ese puerto en `data/local/drift`.
 - [ ] Crear handler en `application/sync/handlers`.
+- [ ] Decodificar una vez con `XPayload.fromJson(event.payload)` y usar despues
+      solo sus campos tipados.
 - [ ] Hacer el handler idempotente.
 - [ ] Actualizar la proyeccion local desde el handler.
+- [ ] Reutilizar el mismo contrato en cualquier revalidador o consumidor que
+      necesite leer campos especificos del evento.
 
 ## Repository
 
@@ -66,12 +80,20 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Mantener `FormResult` en `presentation` si solo representa el formulario.
 - [ ] Convertir `FormResult` a command antes de llamar al service.
 - [ ] No insertar directo en Drift desde widgets.
+- [ ] Diseñar la pantalla para crecimiento incremental: separar menus,
+      formularios, selectores y widgets con responsabilidades independientes.
+- [ ] Evitar que la pantalla principal acumule implementaciones de funciones
+      futuras o no relacionadas con el agregado actual.
 
 ## Verificacion
 
 - [ ] Ejecutar `dart run build_runner build` si hubo cambios Drift.
 - [ ] Ejecutar `dart analyze`.
 - [ ] Ejecutar `flutter test`.
+- [ ] Probar `fromJson`, `toJson`, normalizacion, campos invalidos y formatos
+      legados admitidos del payload.
+- [ ] Confirmar que no queden accesos manuales a campos especificos de
+      `event.payload` fuera del contrato tipado.
 - [ ] Revisar que no haya imports de `data/local/drift` desde `domain`.
 - [ ] Revisar que no haya imports de `data/local/drift` desde `application`.
 - [ ] Revisar que proyecciones de `application/sync` usen `SyncProjection` en

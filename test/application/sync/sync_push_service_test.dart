@@ -13,6 +13,7 @@ import 'package:pos_flutter/application/sync/sync_conflict_projection_cleaner.da
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_push_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
@@ -78,6 +79,9 @@ void main() {
         ),
         conflictProjectionCleaner: SyncConflictProjectionCleaner(
           espacioProjectionStore: espacioProjectionStore,
+          categoriaProjectionStore: DriftCategoriaProjectionStore(
+            categoriaDao: CategoriaDao(db),
+          ),
         ),
         client: MockClient((request) async {
           expect(request.method, 'POST');

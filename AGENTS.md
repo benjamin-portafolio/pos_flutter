@@ -58,6 +58,20 @@ presentation
 - Si una tabla no puede usar `CommonFields`, documentar en la propia tabla la
   diferencia de modelo que justifica la excepcion.
 - Los handlers de eventos deben ser idempotentes.
+- `SyncEvent.payload` debe permanecer como `Map<String, Object?>` para
+  transportar y persistir eventos heterogeneos; no convertir el sobre comun en
+  `SyncEvent<T>`.
+- Cada `event_type` implementado debe tener un contrato tipado en
+  `application/sync/payloads`, con una clase principal por archivo,
+  `aggregateType`, `eventType`, `fromJson` y `toJson`.
+- Los command services deben construir el payload tipado y serializarlo con
+  `toJson`; los handlers deben decodificar una vez con `fromJson` y usar despues
+  solo campos tipados.
+- Los registros, revalidadores y otros consumidores deben reutilizar las
+  constantes y el contrato del payload; no duplicar literales ni interpretar
+  manualmente campos especificos de `event.payload`.
+- La compatibilidad con formatos legados debe ser explicita y estar cubierta
+  por tests del contrato.
 - `domain` no debe depender de `data`.
 - La UI no debe insertar directo en Drift.
 - Los comandos deben declarar y validar sus `LocalEventRef` en ambos modos.

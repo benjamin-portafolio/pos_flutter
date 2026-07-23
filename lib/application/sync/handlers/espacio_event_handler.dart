@@ -1,5 +1,5 @@
-import '../../../domain/espacios/visibilidad_espacio.dart';
 import '../models/sync_event.dart';
+import '../payloads/espacio_creado_payload.dart';
 import '../projections/espacio_projection_store.dart';
 
 class EspacioEventHandler {
@@ -8,8 +8,7 @@ class EspacioEventHandler {
   final EspacioProjectionStore _espacioProjectionStore;
 
   Future<void> applyEspacioCreado(SyncEvent event) async {
-    final payload = event.payload;
-    final identificacion = payload['identificacion'] as String?;
+    final payload = EspacioCreadoPayload.fromJson(event.payload);
     final existing = await _espacioProjectionStore.findById(event.aggregateId);
 
     if (existing != null) {
@@ -32,9 +31,9 @@ class EspacioEventHandler {
       }
     }
 
-    if (identificacion != null && identificacion.isNotEmpty) {
+    if (payload.identificacion != null) {
       final existingByIdentificacion = await _espacioProjectionStore
-          .findByIdentificacion(identificacion);
+          .findByIdentificacion(payload.identificacion!);
 
       if (existingByIdentificacion != null) {
         final removedLocalPending =
@@ -45,7 +44,7 @@ class EspacioEventHandler {
         if (!removedLocalPending) {
           throw StateError(
             'No se puede aplicar espacio_creado con identificacion duplicada: '
-            '$identificacion',
+            '${payload.identificacion}',
           );
         }
       }
@@ -54,9 +53,9 @@ class EspacioEventHandler {
     await _espacioProjectionStore.insert(
       EspacioProjection(
         id: event.aggregateId,
-        nombre: payload['nombre']! as String,
-        identificacion: identificacion,
-        visibilidad: visibilidadEspacioFromEventValue(payload['visibilidad']),
+        nombre: payload.nombre,
+        identificacion: payload.identificacion,
+        visibilidad: payload.visibilidad,
         active: true,
         version: event.baseVersion ?? 1,
         createdEventId: event.eventId,

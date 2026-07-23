@@ -15,6 +15,7 @@ import 'package:pos_flutter/application/sync/remote_event_applier.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_preflight_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
@@ -64,6 +65,9 @@ void main() {
     pendingEventRevalidator = PendingEventRevalidator(
       syncPersistence: syncPersistence,
       espacioProjectionStore: espacioProjectionStore,
+      categoriaProjectionStore: DriftCategoriaProjectionStore(
+        categoriaDao: CategoriaDao(db),
+      ),
     );
   });
 

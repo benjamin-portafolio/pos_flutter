@@ -1,12 +1,12 @@
 import 'package:uuid/uuid.dart';
 
-import 'crear_espacio_command.dart';
-import 'local_command_context.dart';
-import '../sync/local_event_store.dart';
-import '../sync/models/sync_event.dart';
 import '../../domain/espacios/identificacion_espacio.dart';
 import '../../domain/espacios/nombre_espacio.dart';
-import '../../domain/espacios/visibilidad_espacio.dart';
+import '../sync/local_event_store.dart';
+import '../sync/models/sync_event.dart';
+import '../sync/payloads/espacio_creado_payload.dart';
+import 'crear_espacio_command.dart';
+import 'local_command_context.dart';
 
 class EspacioCommandService {
   EspacioCommandService({
@@ -25,20 +25,21 @@ class EspacioCommandService {
       command.identificacion,
     );
     final espacioId = _uuid.v4();
+    final payload = EspacioCreadoPayload(
+      nombre: nombre.value,
+      identificacion: identificacion?.value,
+      visibilidad: command.visibilidad,
+    );
     final event = SyncEvent(
       eventId: _uuid.v4(),
-      aggregateType: 'espacio',
+      aggregateType: EspacioCreadoPayload.aggregateType,
       aggregateId: espacioId,
-      eventType: 'espacio_creado',
+      eventType: EspacioCreadoPayload.eventType,
       deviceId: _commandContext.deviceId,
       userId: _commandContext.userId,
       baseVersion: 1,
       createdAtLocal: DateTime.now(),
-      payload: {
-        'nombre': nombre.value,
-        'identificacion': identificacion?.value,
-        'visibilidad': command.visibilidad.eventValue,
-      },
+      payload: payload.toJson(),
     );
 
     await _eventStore.appendAndApply(

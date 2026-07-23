@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/commands/categoria_command_service.dart';
+import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
@@ -81,6 +83,53 @@ void main() {
 
     expect(controller.index, 2);
   });
+
+  testWidgets('abre el menú completo y crea una categoría con color', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Agregar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Añadir artículo'), findsOneWidget);
+    expect(find.text('Añadir categoría'), findsOneWidget);
+    expect(find.text('Añadir modificador'), findsOneWidget);
+    expect(find.text('Agregar ingrediente'), findsOneWidget);
+    expect(find.text('Edición masiva'), findsOneWidget);
+
+    await tester.tap(find.text('Añadir categoría'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CATEGORÍA'), findsOneWidget);
+    expect(find.text('Cargar desde la galería'), findsNothing);
+    expect(find.text('Tomar foto'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('category_name_field')),
+      ' Bebidas calientes ',
+    );
+    await tester.tap(find.byKey(const Key('edit_category_color_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('category_color_amber')));
+    await tester.pump();
+    await tester.tap(find.text('ACEPTAR'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(commandService.command, isNotNull);
+    expect(commandService.command!.nombre, ' Bebidas calientes ');
+    expect(commandService.command!.color, ColorCategoria.amber);
+  });
 }
 
 class _FakeCategoriaRepository implements CategoriaRepository {
@@ -93,4 +142,13 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
   @override
   Stream<List<Categoria>> watchCategorias() => Stream.value(categorias);
+}
+
+class _FakeCategoriaCommandService implements CategoriaCommandService {
+  CrearCategoriaCommand? command;
+
+  @override
+  Future<void> crearCategoria(CrearCategoriaCommand command) async {
+    this.command = command;
+  }
 }

@@ -13,11 +13,13 @@ UI
   -> FormResult de presentation
   -> Command de application
   -> CommandService
+  -> construir payload tipado
   -> crear SyncEvent
   -> LocalEventStore.appendAndApply(event, refs)
   -> guardar events con delivery_status segun modo
   -> guardar event_refs solo en server_sync
   -> EventProcessor.apply(event)
+  -> EventHandler decodifica payload tipado
   -> EventHandler idempotente
   -> actualizar tabla Drift local
   -> Repository mapea Drift a modelo de dominio
@@ -32,6 +34,11 @@ UI
 - Puede tener `FormResult` para datos crudos del formulario.
 - Llama a command services.
 - No escribe directamente en Drift.
+- Debe asumir que las funcionalidades se incorporan de forma incremental.
+- La pantalla principal coordina la navegacion y los casos de uso, mientras
+  menus, formularios, selectores y widgets con responsabilidad propia viven en
+  archivos separados. No concentrar en una sola pantalla codigo de funciones
+  actuales y futuras que deban evolucionar de manera independiente.
 
 `domain`
 
@@ -42,6 +49,7 @@ UI
 `application/commands`
 
 - Convierte una intencion de negocio en uno o mas eventos.
+- Construye el payload tipado del evento y lo serializa con `toJson`.
 - Declara las referencias de negocio que necesita el evento.
 - Delega el guardado transaccional y la aplicacion local a `LocalEventStore`.
 - Usa `LocalCommandContext` para `deviceId` y `userId`.
@@ -54,7 +62,10 @@ UI
 - Contiene `SyncProjection`, la base de campos comunes para DTOs de
   proyeccion usados por handlers.
 - Contiene `EventProcessor`.
+- Contiene los contratos tipados de payload en `application/sync/payloads`.
 - Contiene handlers que aplican eventos a proyecciones locales.
+- Cada handler decodifica el payload con el contrato correspondiente antes de
+  aplicar reglas o modificar la proyeccion.
 - Los handlers dependen de puertos de proyeccion, no de Drift.
 - Los handlers deben ser idempotentes.
 
@@ -85,6 +96,8 @@ lib/domain/espacios/visibilidad_espacio.dart
 lib/application/commands/crear_espacio_command.dart
 lib/application/commands/espacio_command_service.dart
 lib/application/sync/models/sync_event.dart
+lib/application/sync/payloads/espacio_creado_payload.dart
+lib/application/sync/payloads/categoria_creada_payload.dart
 lib/application/sync/local_event_store.dart
 lib/application/sync/event_processor.dart
 lib/application/sync/handlers/espacio_event_handler.dart
@@ -97,6 +110,58 @@ lib/data/local/drift/daos/espacio_dao.dart
 lib/data/repositories/espacio_repository_impl.dart
 lib/domain/repositories/espacio_repository.dart
 ```
+
+## Contratos tipados de payload
+
+`SyncEvent` conserva `payload` como `Map<String, Object?>` porque una pagina de
+pull, la tabla `events` y el procesador contienen eventos heterogeneos. No se
+debe convertir el sobre comun en `SyncEvent<T>`.
+
+Cada `event_type` implementado debe tener un contrato de payload con una clase
+principal en su propio archivo dentro de `application/sync/payloads`. El
+contrato debe:
+
+- Declarar las constantes `aggregateType` y `eventType`.
+- Exponer campos tipados con los datos propios del evento.
+- Implementar `fromJson` para validar y normalizar datos locales o remotos.
+- Implementar `toJson` para producir la representacion canonica persistida y
+  enviada al servidor.
+- Aceptar formatos legados solo cuando la compatibilidad sea intencional y
+  este probada.
+- Ignorar campos adicionales desconocidos para permitir evolucion compatible,
+  pero rechazar tipos o valores invalidos en los campos conocidos.
+
+El flujo local usa el mismo contrato que el pull:
+
+```text
+CommandService
+  -> validar conceptos de dominio
+  -> construir XPayload
+  -> XPayload.toJson()
+  -> SyncEvent.payload
+
+SyncEvent.fromJson()
+  -> EventProcessor selecciona handler por eventType
+  -> handler llama XPayload.fromJson(event.payload)
+  -> handler usa solo campos tipados
+  -> proyeccion local
+```
+
+El registro del evento y el command service deben usar las constantes del
+contrato en vez de repetir literales. Otros consumidores que necesiten campos
+especificos, como la revalidacion de pendientes, tambien deben decodificar el
+mismo contrato; no deben volver a interpretar el mapa manualmente.
+
+Contratos existentes:
+
+| Evento | Contrato | Campos |
+|---|---|---|
+| `espacio_creado` | `EspacioCreadoPayload` | `nombre`, `identificacion`, `visibilidad` |
+| `categoria_creada` | `CategoriaCreadaPayload` | `name`, `color_key`, `sort_order` |
+
+Un payload invalido recibido por pull hace fallar su aplicacion. Como los
+eventos de la pagina y el checkpoint se procesan en una misma transaccion, la
+pagina no debe quedar aplicada parcialmente ni avanzar el cursor.
 
 ## Proyecciones y campos comunes
 
@@ -180,6 +245,10 @@ Para un evento `*_creado`:
 - No hacer que `application` importe `data/local/drift`; usar puertos.
 - No hacer que una proyeccion de `application/sync` dependa de `CommonFields`;
   usar `SyncProjection`.
+- No leer repetidamente campos especificos desde `event.payload` fuera del
+  contrato tipado del evento.
+- No duplicar literales de `aggregate_type` o `event_type` cuando el contrato
+  ya expone sus constantes.
 - No mezclar varios agregados si el usuario pidio analizar solo uno.
 - No implementar sync remota como efecto colateral de un flujo local.
 

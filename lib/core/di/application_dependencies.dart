@@ -6,14 +6,18 @@ import '../../application/backup/backup_store.dart';
 import '../../application/config/app_config.dart';
 import '../../application/config/app_config_controller.dart';
 import '../../application/config/app_config_store.dart';
+import '../../application/commands/categoria_command_service.dart';
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/event_processor.dart';
+import '../../application/sync/handlers/categoria_event_handler.dart';
+import '../../application/sync/handlers/categoria_event_registry.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/pending_event_revalidator.dart';
+import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/sync_availability_monitor.dart';
@@ -58,9 +62,15 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EspacioEventHandler>(
     () => EspacioEventHandler(getIt<EspacioProjectionStore>()),
   );
+  getIt.registerLazySingleton<CategoriaEventHandler>(
+    () => CategoriaEventHandler(getIt<CategoriaProjectionStore>()),
+  );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
-      handlers: espacioEventHandlers(getIt<EspacioEventHandler>()),
+      handlers: {
+        ...espacioEventHandlers(getIt<EspacioEventHandler>()),
+        ...categoriaEventHandlers(getIt<CategoriaEventHandler>()),
+      },
     ),
   );
   getIt.registerLazySingleton<RemoteEventApplier>(
@@ -73,11 +83,13 @@ void registerApplicationDependencies(
     () => PendingEventRevalidator(
       syncPersistence: getIt<SyncPersistence>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
+      categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
     () => SyncConflictProjectionCleaner(
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
+      categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<LocalEventStore>(
@@ -166,6 +178,12 @@ void registerApplicationDependencies(
 
   getIt.registerLazySingleton<EspacioCommandService>(
     () => EspacioCommandService(
+      eventStore: getIt<LocalEventStore>(),
+      commandContext: getIt<LocalCommandContext>(),
+    ),
+  );
+  getIt.registerLazySingleton<CategoriaCommandService>(
+    () => CategoriaCommandService(
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
     ),
