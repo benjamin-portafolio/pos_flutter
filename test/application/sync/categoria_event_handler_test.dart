@@ -23,14 +23,14 @@ void main() {
     await db.close();
   });
 
-  test('aplica categoria_creada con orden opcional', () async {
+  test('aplica categoria_creada con orden consecutivo', () async {
     await handler.applyCategoriaCreada(_event());
 
     final categoria = await categoriaDao.obtenerCategoriaPorId('category_1');
     expect(categoria, isNotNull);
     expect(categoria!.name, 'Bebidas');
     expect(categoria.colorKey, ColorCategoria.cyan.key);
-    expect(categoria.sortOrder, isNull);
+    expect(categoria.sortOrder, 0);
   });
 
   test('es idempotente y completa metadata cuando llega por pull', () async {
@@ -49,7 +49,7 @@ void main() {
   test('permite nombres duplicados con ids diferentes', () async {
     await handler.applyCategoriaCreada(_event());
     await handler.applyCategoriaCreada(
-      _event(eventId: 'event_2', aggregateId: 'category_2'),
+      _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
     );
 
     final categorias = await categoriaDao.obtenerCategorias();
@@ -96,11 +96,53 @@ void main() {
       expect(categoria.lastServerSequence, 9);
     },
   );
+
+  test('categoria_movida intercambia ambas posiciones', () async {
+    await handler.applyCategoriaCreada(_event());
+    await handler.applyCategoriaCreada(
+      _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
+    );
+
+    await handler.applyCategoriaMovida(_movedEvent());
+
+    final categories = await categoriaDao.obtenerCategorias();
+    expect(categories.map((category) => category.id), [
+      'category_2',
+      'category_1',
+    ]);
+    expect(categories.map((category) => category.sortOrder), [0, 1]);
+    expect(categories.every((category) => category.version == 2), isTrue);
+    expect(
+      categories.every((category) => category.lastEventId == 'event_moved'),
+      isTrue,
+    );
+  });
+
+  test('categoria_movida es idempotente cuando regresa por pull', () async {
+    await handler.applyCategoriaCreada(_event());
+    await handler.applyCategoriaCreada(
+      _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
+    );
+    final local = _movedEvent();
+    await handler.applyCategoriaMovida(local);
+    await handler.applyCategoriaMovida(
+      local.copyWith(serverSequence: 12, deliveryStatus: 'delivered'),
+    );
+
+    final categories = await categoriaDao.obtenerCategorias();
+    expect(categories.map((category) => category.sortOrder), [0, 1]);
+    expect(categories.every((category) => category.version == 2), isTrue);
+    expect(
+      categories.every((category) => category.lastServerSequence == 12),
+      isTrue,
+    );
+  });
 }
 
 SyncEvent _event({
   String eventId = 'event_1',
   String aggregateId = 'category_1',
+  int sortOrder = 0,
 }) {
   return SyncEvent(
     eventId: eventId,
@@ -111,7 +153,34 @@ SyncEvent _event({
     userId: 'test_user',
     baseVersion: 1,
     createdAtLocal: DateTime(2026),
-    payload: const {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': null},
+    payload: {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': sortOrder},
+  );
+}
+
+SyncEvent _movedEvent() {
+  return SyncEvent(
+    eventId: 'event_moved',
+    aggregateType: 'category',
+    aggregateId: 'category_2',
+    eventType: 'categoria_movida',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026),
+    payload: const {
+      'base_event_id': 'event_2',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 1, 'to': 0},
+      },
+      'displaced_category': {
+        'category_id': 'category_1',
+        'base_event_id': 'event_1',
+        'base_version': 1,
+        'base_server_sequence': null,
+        'sort_order': {'from': 0, 'to': 1},
+      },
+    },
   );
 }
 

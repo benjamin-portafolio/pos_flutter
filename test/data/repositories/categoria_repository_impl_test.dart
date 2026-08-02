@@ -76,29 +76,32 @@ void main() {
     ]);
   });
 
-  test('muestra al final las categorias sin orden explicito', () async {
-    await _insertarCategoria(
-      db,
-      id: 'categoria-sin-orden',
-      name: 'Nueva',
-      colorKey: 'neutral',
-      sortOrder: null,
-    );
-    await _insertarCategoria(
-      db,
-      id: 'categoria-ordenada',
-      name: 'Existente',
-      colorKey: 'blue',
-      sortOrder: 5,
-    );
+  test(
+    'usa id como desempate estable para una misma posicion y nombre',
+    () async {
+      await _insertarCategoria(
+        db,
+        id: 'categoria-2',
+        name: 'Duplicada',
+        colorKey: 'blue',
+        sortOrder: 0,
+      );
+      await _insertarCategoria(
+        db,
+        id: 'categoria-1',
+        name: 'Duplicada',
+        colorKey: 'neutral',
+        sortOrder: 0,
+      );
 
-    final categorias = await repository.obtenerCategorias();
+      final categorias = await repository.obtenerCategorias();
 
-    expect(categorias.map((categoria) => categoria.id), [
-      'categoria-ordenada',
-      'categoria-sin-orden',
-    ]);
-  });
+      expect(categorias.map((categoria) => categoria.id), [
+        'categoria-1',
+        'categoria-2',
+      ]);
+    },
+  );
 }
 
 Future<void> _insertarCategoria(
@@ -106,7 +109,7 @@ Future<void> _insertarCategoria(
   required String id,
   required String name,
   required String colorKey,
-  required int? sortOrder,
+  required int sortOrder,
   bool active = true,
 }) {
   return db
@@ -117,7 +120,7 @@ Future<void> _insertarCategoria(
           active: Value(active),
           name: name,
           colorKey: Value(colorKey),
-          sortOrder: Value(sortOrder),
+          sortOrder: sortOrder,
         ),
       );
 }

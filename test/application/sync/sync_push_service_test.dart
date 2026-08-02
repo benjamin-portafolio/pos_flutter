@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
+import 'package:pos_flutter/application/sync/categoria_movida_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
+import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/categoria_event_registry.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
@@ -21,16 +24,19 @@ import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
 
 void main() {
   late AppDatabase db;
+  late CategoriaDao categoriaDao;
   late EspacioDao espacioDao;
   late EventDao eventDao;
   late EventRefDao eventRefDao;
   late SyncCheckpointDao checkpointDao;
   late DriftSyncPersistence syncPersistence;
+  late DriftCategoriaProjectionStore categoriaProjectionStore;
   late DriftEspacioProjectionStore espacioProjectionStore;
   late DriftLocalEventStore localEventStore;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    categoriaDao = CategoriaDao(db);
     espacioDao = EspacioDao(db);
     eventDao = EventDao(db);
     eventRefDao = EventRefDao(db);
@@ -43,14 +49,20 @@ void main() {
     espacioProjectionStore = DriftEspacioProjectionStore(
       espacioDao: espacioDao,
     );
+    categoriaProjectionStore = DriftCategoriaProjectionStore(
+      categoriaDao: categoriaDao,
+    );
     localEventStore = DriftLocalEventStore(
       db: db,
       eventDao: eventDao,
       eventRefDao: eventRefDao,
       eventProcessor: EventProcessor(
-        handlers: espacioEventHandlers(
-          EspacioEventHandler(espacioProjectionStore),
-        ),
+        handlers: {
+          ...espacioEventHandlers(EspacioEventHandler(espacioProjectionStore)),
+          ...categoriaEventHandlers(
+            CategoriaEventHandler(categoriaProjectionStore),
+          ),
+        },
       ),
     );
   });
@@ -85,6 +97,10 @@ void main() {
           ),
           categoriaConflictProjectionRestorer:
               CategoriaConflictProjectionRestorer(
+                DriftCategoriaProjectionStore(categoriaDao: CategoriaDao(db)),
+              ),
+          categoriaMovidaConflictProjectionRestorer:
+              CategoriaMovidaConflictProjectionRestorer(
                 DriftCategoriaProjectionStore(categoriaDao: CategoriaDao(db)),
               ),
         ),
@@ -127,6 +143,206 @@ void main() {
       expect(espacios, isEmpty);
     },
   );
+
+  test(
+    'envía un evento dependiente después de entregar su base local',
+    () async {
+      final created = _localCategoriaCreada();
+      final updated = _localCategoriaActualizada();
+      await localEventStore.appendAndApply(
+        created,
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        ],
+      );
+      await localEventStore.appendAndApply(
+        updated,
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        ],
+      );
+
+      var requestCount = 0;
+      final service = SyncPushService(
+        syncPersistence: syncPersistence,
+        endpointConfig: SyncEndpointConfig(
+          initialBaseUrl: 'http://localhost:3000',
+        ),
+        conflictProjectionCleaner: SyncConflictProjectionCleaner(
+          espacioProjectionStore: espacioProjectionStore,
+          categoriaProjectionStore: categoriaProjectionStore,
+          categoriaConflictProjectionRestorer:
+              CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+          categoriaMovidaConflictProjectionRestorer:
+              CategoriaMovidaConflictProjectionRestorer(
+                categoriaProjectionStore,
+              ),
+        ),
+        client: MockClient((request) async {
+          requestCount++;
+          final body = jsonDecode(request.body) as Map<String, Object?>;
+          final sentEvents = (body['events'] as List).cast<Map>();
+          final expectedEvent = requestCount == 1 ? created : updated;
+          expect(sentEvents, hasLength(1));
+          expect(sentEvents.single['event_id'], expectedEvent.eventId);
+
+          return http.Response(
+            jsonEncode({
+              'results': [
+                {
+                  'event_id': expectedEvent.eventId,
+                  'status': 'accepted',
+                  'server_sequence': requestCount,
+                  'created_at_server': '2026-06-09T20:31:00.000Z',
+                },
+              ],
+            }),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      final firstReport = await service.pushPendingEvents();
+      var events = await db.select(db.events).get();
+      expect(firstReport.total, 2);
+      expect(firstReport.synced, 1);
+      expect(firstReport.pending, 1);
+      expect(
+        events
+            .singleWhere((event) => event.eventId == created.eventId)
+            .deliveryStatus,
+        'delivered',
+      );
+      expect(
+        events
+            .singleWhere((event) => event.eventId == updated.eventId)
+            .deliveryStatus,
+        'pending',
+      );
+
+      final secondReport = await service.pushPendingEvents();
+      events = await db.select(db.events).get();
+      expect(secondReport.total, 1);
+      expect(secondReport.synced, 1);
+      expect(secondReport.pending, 0);
+      expect(requestCount, 2);
+      expect(
+        events
+            .singleWhere((event) => event.eventId == updated.eventId)
+            .deliveryStatus,
+        'delivered',
+      );
+    },
+  );
+
+  test(
+    'propaga el conflicto de la base y restaura movimientos dependientes',
+    () async {
+      final created1 = _localCategoriaCreada();
+      final created2 = _localCategoria2Creada();
+      for (final entry in [(created1, 5), (created2, 6)]) {
+        await localEventStore.appendAndApply(
+          entry.$1,
+          refs: [
+            LocalEventRef.affects(
+              refType: 'category',
+              refId: entry.$1.aggregateId,
+            ),
+          ],
+        );
+        await syncPersistence.updateEventSyncStatus(
+          entry.$1.eventId,
+          'delivered',
+          serverSequence: entry.$2,
+        );
+        await categoriaProjectionStore.advanceLastServerSequence(
+          entry.$1.aggregateId,
+          entry.$2,
+        );
+      }
+
+      final movementA = _localCategoriaMovidaA();
+      final movementB = _localCategoriaMovidaB();
+      for (final event in [movementA, movementB]) {
+        await localEventStore.appendAndApply(
+          event,
+          refs: const [
+            LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+            LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          ],
+        );
+      }
+
+      final service = SyncPushService(
+        syncPersistence: syncPersistence,
+        endpointConfig: SyncEndpointConfig(
+          initialBaseUrl: 'http://localhost:3000',
+        ),
+        conflictProjectionCleaner: SyncConflictProjectionCleaner(
+          espacioProjectionStore: espacioProjectionStore,
+          categoriaProjectionStore: categoriaProjectionStore,
+          categoriaConflictProjectionRestorer:
+              CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+          categoriaMovidaConflictProjectionRestorer:
+              CategoriaMovidaConflictProjectionRestorer(
+                categoriaProjectionStore,
+              ),
+        ),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, Object?>;
+          final sentEvents = (body['events'] as List).cast<Map>();
+          expect(sentEvents, hasLength(1));
+          expect(sentEvents.single['event_id'], movementA.eventId);
+
+          return http.Response(
+            jsonEncode({
+              'results': [
+                {
+                  'event_id': movementA.eventId,
+                  'status': 'conflict',
+                  'server_sequence': 7,
+                  'reason': 'El orden oficial ya cambió.',
+                },
+              ],
+            }),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      final report = await service.pushPendingEvents();
+      final events = await db.select(db.events).get();
+      final categories = await categoriaDao.obtenerCategorias();
+
+      expect(report.total, 2);
+      expect(report.conflicts, 2);
+      expect(report.pending, 0);
+      expect(
+        events
+            .where(
+              (event) =>
+                  event.eventId == movementA.eventId ||
+                  event.eventId == movementB.eventId,
+            )
+            .map((event) => event.deliveryStatus)
+            .toSet(),
+        {'conflict'},
+      );
+      expect(categories.map((category) => category.id), [
+        'category_1',
+        'category_2',
+      ]);
+      expect(categories.map((category) => category.sortOrder), [0, 1]);
+      expect(categories.map((category) => category.version), [1, 1]);
+      expect(categories.map((category) => category.lastEventId), [
+        created1.eventId,
+        created2.eventId,
+      ]);
+      expect(categories.map((category) => category.lastServerSequence), [5, 6]);
+    },
+  );
 }
 
 SyncEvent _localEspacioEvent() {
@@ -143,6 +359,114 @@ SyncEvent _localEspacioEvent() {
       'nombre': 'Terraza',
       'identificacion': 'terraza',
       'visibilidad': 'sin_restriccion',
+    },
+  );
+}
+
+SyncEvent _localCategoriaCreada() {
+  return SyncEvent(
+    eventId: 'local_category_created',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_creada',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.parse('2026-06-09T20:30:00.000Z'),
+    baseVersion: 1,
+    payload: const {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': 0},
+  );
+}
+
+SyncEvent _localCategoriaActualizada() {
+  return SyncEvent(
+    eventId: 'local_category_updated',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_actualizada',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.parse('2026-06-09T20:30:01.000Z'),
+    baseVersion: 1,
+    payload: const {
+      'base_event_id': 'local_category_created',
+      'changed_fields': ['name'],
+      'changes': {
+        'name': {'from': 'Bebidas', 'to': 'Bebidas frías'},
+      },
+    },
+  );
+}
+
+SyncEvent _localCategoria2Creada() {
+  return SyncEvent(
+    eventId: 'local_category_2_created',
+    aggregateType: 'category',
+    aggregateId: 'category_2',
+    eventType: 'categoria_creada',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.parse('2026-06-09T20:30:00.500Z'),
+    baseVersion: 1,
+    payload: const {
+      'name': 'Alimentos',
+      'color_key': 'orange',
+      'sort_order': 1,
+    },
+  );
+}
+
+SyncEvent _localCategoriaMovidaA() {
+  return SyncEvent(
+    eventId: 'local_movement_a',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_movida',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.utc(2026, 6, 9, 20, 32),
+    baseServerSequence: 5,
+    baseVersion: 1,
+    payload: const {
+      'base_event_id': 'local_category_created',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 0, 'to': 1},
+      },
+      'displaced_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'local_category_2_created',
+        'base_version': 1,
+        'base_server_sequence': 6,
+        'sort_order': {'from': 1, 'to': 0},
+      },
+    },
+  );
+}
+
+SyncEvent _localCategoriaMovidaB() {
+  return SyncEvent(
+    eventId: 'local_movement_b',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_movida',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.utc(2026, 6, 9, 20, 32, 1),
+    baseServerSequence: 5,
+    baseVersion: 2,
+    payload: const {
+      'base_event_id': 'local_movement_a',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 1, 'to': 0},
+      },
+      'displaced_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'local_movement_a',
+        'base_version': 2,
+        'base_server_sequence': 6,
+        'sort_order': {'from': 0, 'to': 1},
+      },
     },
   );
 }

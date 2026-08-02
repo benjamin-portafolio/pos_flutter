@@ -25,6 +25,12 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
   }
 
   @override
+  Future<SyncEvent?> eventById(String eventId) async {
+    final record = await _eventDao.obtenerEventoPorId(eventId);
+    return record == null ? null : _eventFromRecord(record);
+  }
+
+  @override
   Future<List<SyncEvent>> eventsForAggregateAfter({
     required String aggregateType,
     required String aggregateId,
@@ -36,6 +42,18 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
           aggregateId: aggregateId,
           serverSequence: serverSequence,
         );
+    return records.map(_eventFromRecord).toList();
+  }
+
+  @override
+  Future<List<SyncEvent>> eventsByTypeAfter({
+    required String eventType,
+    required int serverSequence,
+  }) async {
+    final records = await _eventDao.obtenerEventosSincronizadosPorTipoDespuesDe(
+      eventType: eventType,
+      serverSequence: serverSequence,
+    );
     return records.map(_eventFromRecord).toList();
   }
 

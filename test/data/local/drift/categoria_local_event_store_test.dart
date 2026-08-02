@@ -102,6 +102,48 @@ void main() {
     });
     expect(await db.select(db.eventRefs).get(), isEmpty);
   });
+
+  for (final mode in [AppMode.serverSync, AppMode.standalone]) {
+    test('${mode.name} intercambia dos categorías de forma atómica', () async {
+      final store = _store(mode, db, categoriaDao, eventDao);
+      await store.appendAndApply(
+        _event(),
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        ],
+      );
+      await store.appendAndApply(
+        _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+        ],
+      );
+
+      await store.appendAndApply(
+        _movedEvent(),
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        ],
+      );
+
+      final categories = await categoriaDao.obtenerCategorias();
+      expect(categories.map((category) => category.id), [
+        'category_2',
+        'category_1',
+      ]);
+      expect(categories.map((category) => category.sortOrder), [0, 1]);
+      final refs = await db.select(db.eventRefs).get();
+      expect(refs, mode == AppMode.serverSync ? hasLength(4) : isEmpty);
+      final move = await (db.select(
+        db.events,
+      )..where((event) => event.eventId.equals('event_3'))).getSingle();
+      expect(
+        move.deliveryStatus,
+        mode == AppMode.serverSync ? 'pending' : 'not_required',
+      );
+    });
+  }
 }
 
 DriftLocalEventStore _store(
@@ -127,17 +169,48 @@ DriftLocalEventStore _store(
   );
 }
 
-SyncEvent _event() {
+SyncEvent _event({
+  String eventId = 'event_1',
+  String aggregateId = 'category_1',
+  int sortOrder = 0,
+}) {
   return SyncEvent(
-    eventId: 'event_1',
+    eventId: eventId,
     aggregateType: 'category',
-    aggregateId: 'category_1',
+    aggregateId: aggregateId,
     eventType: 'categoria_creada',
     deviceId: 'test_device',
     userId: 'test_user',
     baseVersion: 1,
     createdAtLocal: DateTime(2026),
-    payload: const {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': null},
+    payload: {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': sortOrder},
+  );
+}
+
+SyncEvent _movedEvent() {
+  return SyncEvent(
+    eventId: 'event_3',
+    aggregateType: 'category',
+    aggregateId: 'category_2',
+    eventType: 'categoria_movida',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026, 1, 3),
+    payload: const {
+      'base_event_id': 'event_2',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 1, 'to': 0},
+      },
+      'displaced_category': {
+        'category_id': 'category_1',
+        'base_event_id': 'event_1',
+        'base_version': 1,
+        'base_server_sequence': null,
+        'sort_order': {'from': 0, 'to': 1},
+      },
+    },
   );
 }
 

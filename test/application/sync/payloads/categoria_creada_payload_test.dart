@@ -25,7 +25,7 @@ void main() {
       () => CategoriaCreadaPayload.fromJson(const {
         'name': ' ',
         'color_key': 'cyan',
-        'sort_order': null,
+        'sort_order': 0,
       }),
       throwsA(isA<FormatException>()),
     );
@@ -33,6 +33,14 @@ void main() {
       () => CategoriaCreadaPayload.fromJson(const {
         'name': 'Bebidas',
         'color_key': 'desconocido',
+        'sort_order': 0,
+      }),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      () => CategoriaCreadaPayload.fromJson(const {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
         'sort_order': null,
       }),
       throwsA(isA<FormatException>()),

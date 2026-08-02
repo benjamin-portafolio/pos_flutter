@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../domain/categorias/categoria.dart';
+import '../../../../domain/categorias/direccion_movimiento_categoria.dart';
 import '../../../../domain/repositories/categoria_repository.dart';
 import 'category_color_palette.dart';
 import 'widgets/inventory_category_card.dart';
@@ -9,11 +10,13 @@ class InventoryCategoriesTab extends StatelessWidget {
   const InventoryCategoriesTab({
     required this.categoriaRepository,
     required this.onEditCategory,
+    required this.onMoveCategory,
     super.key,
   });
 
   final CategoriaRepository categoriaRepository;
   final ValueChanged<Categoria> onEditCategory;
+  final void Function(Categoria, DireccionMovimientoCategoria) onMoveCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +47,18 @@ class InventoryCategoriesTab extends StatelessWidget {
                 name: categoria.nombre,
                 color: CategoryColorPalette.resolve(categoria.color),
                 onTap: () => onEditCategory(categoria),
+                onMoveUp: index == 0
+                    ? null
+                    : () => onMoveCategory(
+                        categoria,
+                        DireccionMovimientoCategoria.arriba,
+                      ),
+                onMoveDown: index == categorias.length - 1
+                    ? null
+                    : () => onMoveCategory(
+                        categoria,
+                        DireccionMovimientoCategoria.abajo,
+                      ),
               );
             },
           );

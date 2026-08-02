@@ -65,9 +65,15 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
 - [ ] Decodificar una vez con `XPayload.fromJson(event.payload)` y usar despues
       solo sus campos tipados.
 - [ ] Hacer el handler idempotente.
+- [ ] Si un evento afecta varias proyecciones, declarar todas sus referencias y
+      aplicar o revertir el conjunto completo dentro de una transaccion.
 - [ ] Actualizar la proyeccion local desde el handler.
 - [ ] Reutilizar el mismo contrato en cualquier revalidador o consumidor que
       necesite leer campos especificos del evento.
+- [ ] Si `base_event_id` puede apuntar a otro evento local pendiente, aplicar
+      el dependiente localmente pero diferir su push hasta confirmar la base.
+- [ ] Resolver la secuencia oficial efectiva mediante el evento base y
+      restaurar cadenas en orden inverso cuando la base entra en conflicto.
 
 ## Repository
 

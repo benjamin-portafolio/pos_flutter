@@ -2,7 +2,10 @@ class SyncEndpointConfig {
   SyncEndpointConfig({String initialBaseUrl = defaultBaseUrl})
     : _baseUrl = normalizeBaseUrl(initialBaseUrl);
 
-  static const String defaultBaseUrl = 'http://10.0.2.2:3000';
+  static const String defaultBaseUrl = String.fromEnvironment(
+    'POS_INITIAL_SYNC_BASE_URL',
+    defaultValue: 'http://10.0.2.2:3000',
+  );
 
   String _baseUrl;
 

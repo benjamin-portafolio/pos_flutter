@@ -12,13 +12,13 @@ class CategoriaCreadaPayload {
 
   final String nombre;
   final ColorCategoria color;
-  final int? orden;
+  final int orden;
 
   factory CategoriaCreadaPayload.fromJson(Map<String, Object?> json) {
     return CategoriaCreadaPayload(
       nombre: _readRequiredName(json['name']),
       color: _readColor(json['color_key']),
-      orden: _readOptionalOrder(json['sort_order']),
+      orden: _readOrder(json['sort_order']),
     );
   }
 
@@ -44,12 +44,17 @@ class CategoriaCreadaPayload {
     return ColorCategoria.fromKey(value);
   }
 
-  static int? _readOptionalOrder(Object? value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is num && value == value.roundToDouble()) return value.toInt();
-    throw const FormatException(
-      'categoria_creada requiere payload.sort_order entero o null.',
-    );
+  static int _readOrder(Object? value) {
+    final parsed = switch (value) {
+      int() => value,
+      num() when value == value.roundToDouble() => value.toInt(),
+      _ => null,
+    };
+    if (parsed == null || parsed < 0) {
+      throw const FormatException(
+        'categoria_creada requiere payload.sort_order entero >= 0.',
+      );
+    }
+    return parsed;
   }
 }

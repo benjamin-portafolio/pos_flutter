@@ -7,18 +7,18 @@ class CategoriaDao extends DatabaseAccessor<AppDatabase>
 
   Future<List<CategoryRow>> obtenerCategorias() {
     return (select(categories)..orderBy([
-          (category) => OrderingTerm(expression: category.sortOrder.isNull()),
           (category) => OrderingTerm(expression: category.sortOrder),
           (category) => OrderingTerm(expression: category.name),
+          (category) => OrderingTerm(expression: category.id),
         ]))
         .get();
   }
 
   Stream<List<CategoryRow>> watchCategorias() {
     return (select(categories)..orderBy([
-          (category) => OrderingTerm(expression: category.sortOrder.isNull()),
           (category) => OrderingTerm(expression: category.sortOrder),
           (category) => OrderingTerm(expression: category.name),
+          (category) => OrderingTerm(expression: category.id),
         ]))
         .watch();
   }
@@ -54,6 +54,18 @@ class CategoriaDao extends DatabaseAccessor<AppDatabase>
             : Value(serverSequence),
       ),
     );
+  }
+
+  Future<int> avanzarLastServerSequence(String id, int serverSequence) {
+    return (update(categories)..where(
+          (category) =>
+              category.id.equals(id) &
+              (category.lastServerSequence.isNull() |
+                  category.lastServerSequence.isSmallerThanValue(
+                    serverSequence,
+                  )),
+        ))
+        .write(CategoriesCompanion(lastServerSequence: Value(serverSequence)));
   }
 
   Future<int> eliminarCategoriaPorId(String id) {

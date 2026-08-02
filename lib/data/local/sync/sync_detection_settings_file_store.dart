@@ -10,16 +10,23 @@ typedef SyncDetectionSettingsDirectoryProvider = Future<Directory> Function();
 class SyncDetectionSettingsFileStore implements SyncDetectionSettingsStore {
   SyncDetectionSettingsFileStore({
     SyncDetectionSettingsDirectoryProvider? directoryProvider,
+    this.defaultRequireWifiForServerDetection =
+        _defaultRequireWifiForServerDetection,
   }) : _directoryProvider = directoryProvider ?? getApplicationSupportDirectory;
 
   static const _fileName = 'sync_require_wifi_detection.txt';
+  static const _defaultRequireWifiForServerDetection = bool.fromEnvironment(
+    'POS_INITIAL_REQUIRE_WIFI_FOR_SERVER_DETECTION',
+    defaultValue: false,
+  );
 
   final SyncDetectionSettingsDirectoryProvider _directoryProvider;
+  final bool defaultRequireWifiForServerDetection;
 
   @override
   Future<bool> readRequireWifiForServerDetection() async {
     final file = await _settingsFile();
-    if (!await file.exists()) return false;
+    if (!await file.exists()) return defaultRequireWifiForServerDetection;
 
     final value = (await file.readAsString()).trim().toLowerCase();
     return value == 'true' || value == '1' || value == 'yes';

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/categoria_command_service.dart';
 import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
 import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
+import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
@@ -167,6 +168,56 @@ void main() {
     expect(commandService.editCommand!.nombre, 'Bebidas premium');
     expect(commandService.editCommand!.color, ColorCategoria.blue);
   });
+
+  testWidgets('las flechas mueven categorías y respetan los límites', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    final repository = _FakeCategoriaRepository(const [
+      categoria,
+      Categoria(
+        id: 'category-2',
+        nombre: 'Comidas',
+        color: ColorCategoria.amber,
+        orden: 1,
+      ),
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: repository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+
+    final firstCard = find.byKey(const ValueKey('category-1'));
+    final secondCard = find.byKey(const ValueKey('category-2'));
+    final firstUp = find.descendant(
+      of: firstCard,
+      matching: find.byKey(const Key('move_category_up_button')),
+    );
+    final secondUp = find.descendant(
+      of: secondCard,
+      matching: find.byKey(const Key('move_category_up_button')),
+    );
+    final secondDown = find.descendant(
+      of: secondCard,
+      matching: find.byKey(const Key('move_category_down_button')),
+    );
+
+    expect(tester.widget<IconButton>(firstUp).onPressed, isNull);
+    expect(tester.widget<IconButton>(secondDown).onPressed, isNull);
+
+    await tester.tap(secondUp);
+    await tester.pump();
+
+    expect(commandService.moveCommand?.categoriaId, 'category-2');
+    expect(commandService.moveCommand?.direccion.name, 'arriba');
+  });
 }
 
 class _FakeCategoriaRepository implements CategoriaRepository {
@@ -184,6 +235,7 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 class _FakeCategoriaCommandService implements CategoriaCommandService {
   CrearCategoriaCommand? command;
   EditarCategoriaCommand? editCommand;
+  MoverCategoriaCommand? moveCommand;
 
   @override
   Future<void> crearCategoria(CrearCategoriaCommand command) async {
@@ -193,6 +245,12 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
   @override
   Future<bool> editarCategoria(EditarCategoriaCommand command) async {
     editCommand = command;
+    return true;
+  }
+
+  @override
+  Future<bool> moverCategoria(MoverCategoriaCommand command) async {
+    moveCommand = command;
     return true;
   }
 }

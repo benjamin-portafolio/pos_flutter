@@ -4,6 +4,8 @@ import 'sync_projection.dart';
 abstract interface class CategoriaProjectionStore {
   Future<CategoriaProjection?> findById(String id);
 
+  Future<List<CategoriaProjection>> findAllOrdered();
+
   Future<void> insert(CategoriaProjection projection);
 
   Future<void> update(CategoriaProjection projection);
@@ -13,6 +15,8 @@ abstract interface class CategoriaProjectionStore {
     required String eventId,
     int? serverSequence,
   });
+
+  Future<void> advanceLastServerSequence(String id, int serverSequence);
 
   Future<void> deleteById(String id);
 
@@ -34,5 +38,5 @@ class CategoriaProjection extends SyncProjection {
 
   final String nombre;
   final ColorCategoria color;
-  final int? orden;
+  final int orden;
 }

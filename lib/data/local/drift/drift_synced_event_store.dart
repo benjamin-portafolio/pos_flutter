@@ -13,6 +13,7 @@ class DriftSyncedEventStore implements SyncedEventStore {
   Future<void> applySyncedEvents(
     List<SyncEvent> events, {
     required Future<void> Function(SyncEvent event) applyEvent,
+    required Future<void> Function(SyncEvent event) acknowledgeEcho,
     Future<void> Function()? afterApply,
   }) async {
     if (events.isEmpty) {
@@ -24,8 +25,16 @@ class DriftSyncedEventStore implements SyncedEventStore {
 
     await _db.transaction(() async {
       for (final event in events) {
+        // Un evento ya aplicado puede volver como eco después de que otras
+        // acciones locales hayan avanzado la proyección.
+        final alreadyAppliedLocally = await _isAlreadyApplied(event.eventId);
         await _upsertSyncedEvent(event);
-        await applyEvent(event);
+        await _markEventRefsSynced(event);
+        if (alreadyAppliedLocally) {
+          await acknowledgeEcho(event);
+        } else {
+          await applyEvent(event);
+        }
       }
 
       if (afterApply != null) {
@@ -72,6 +81,27 @@ class DriftSyncedEventStore implements SyncedEventStore {
         applicationStatus: const Value('applied'),
         deliveryStatus: const Value('delivered'),
         rejectionReason: Value(event.rejectionReason),
+      ),
+    );
+  }
+
+  Future<bool> _isAlreadyApplied(String eventId) async {
+    final existing = await (_db.select(
+      _db.events,
+    )..where((event) => event.eventId.equals(eventId))).getSingleOrNull();
+    return existing?.applicationStatus == 'applied';
+  }
+
+  Future<void> _markEventRefsSynced(SyncEvent event) async {
+    final serverSequence = event.serverSequence;
+    if (serverSequence == null) return;
+
+    await (_db.update(
+      _db.eventRefs,
+    )..where((ref) => ref.eventId.equals(event.eventId))).write(
+      EventRefsCompanion(
+        serverSequence: Value(serverSequence),
+        source: const Value('server'),
       ),
     );
   }

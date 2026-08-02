@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
+import 'package:pos_flutter/application/sync/categoria_movida_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/categoria_event_registry.dart';
@@ -15,6 +16,7 @@ import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/pending_event_revalidator.dart';
 import 'package:pos_flutter/application/sync/remote_event_applier.dart';
+import 'package:pos_flutter/application/sync/server_echo_acknowledger.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_preflight_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -73,6 +75,9 @@ void main() {
     remoteEventApplier = RemoteEventApplier(
       eventStore: DriftSyncedEventStore(db: db),
       eventProcessor: eventProcessor,
+      serverEchoAcknowledger: ServerEchoAcknowledger(
+        categoriaProjectionStore: categoriaProjectionStore,
+      ),
     );
     pendingEventRevalidator = PendingEventRevalidator(
       syncPersistence: syncPersistence,
@@ -82,6 +87,8 @@ void main() {
       categoriaConflictProjectionRestorer: CategoriaConflictProjectionRestorer(
         categoriaProjectionStore,
       ),
+      categoriaMovidaConflictProjectionRestorer:
+          CategoriaMovidaConflictProjectionRestorer(categoriaProjectionStore),
     );
   });
 
@@ -319,6 +326,162 @@ void main() {
       expect(category.lastServerSequence, 6);
     },
   );
+
+  test(
+    'categoria_movida conserva el orden oficial si preflight reordenó la lista',
+    () async {
+      await remoteEventApplier.applySyncedEvents([
+        SyncEvent.fromJson(
+          _remoteCategoriaCreada(
+            eventId: 'remote_category_1_created',
+            aggregateId: 'category_1',
+            serverSequence: 5,
+            sortOrder: 0,
+          ),
+        ),
+        SyncEvent.fromJson(
+          _remoteCategoriaCreada(
+            eventId: 'remote_category_2_created',
+            aggregateId: 'category_2',
+            serverSequence: 6,
+            sortOrder: 1,
+          ),
+        ),
+      ]);
+      await checkpointDao.actualizarLastFullPullServerSequence(6);
+      await localEventStore.appendAndApply(
+        _localCategoriaMovida(),
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+          LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+        ],
+      );
+
+      final service = buildPreflightService(
+        client: MockClient((_) async {
+          return http.Response(
+            jsonEncode({
+              'events': [_remoteCategoriaMovida()],
+              'preflight_sequence': 7,
+              'has_more': false,
+              'requires_full_pull_before_push': false,
+              'reason': null,
+            }),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      final report = await service.preflightPendingEvents();
+      final categories = await categoriaDao.obtenerCategorias();
+      final localEvent = (await db.select(db.events).get()).singleWhere(
+        (event) => event.eventId == 'local_category_moved',
+      );
+
+      expect(report.localConflicts, 1);
+      expect(localEvent.deliveryStatus, 'conflict');
+      expect(categories.map((category) => category.id), [
+        'category_2',
+        'category_1',
+      ]);
+      expect(categories.map((category) => category.lastEventId).toSet(), {
+        'remote_category_moved',
+      });
+    },
+  );
+
+  test(
+    'movimiento B conserva pending cuando su base local A ya fue entregada',
+    () async {
+      await remoteEventApplier.applySyncedEvents([
+        SyncEvent.fromJson(
+          _remoteCategoriaCreada(
+            eventId: 'remote_category_1_created',
+            aggregateId: 'category_1',
+            serverSequence: 5,
+            sortOrder: 0,
+          ),
+        ),
+        SyncEvent.fromJson(
+          _remoteCategoriaCreada(
+            eventId: 'remote_category_2_created',
+            aggregateId: 'category_2',
+            serverSequence: 6,
+            sortOrder: 1,
+          ),
+        ),
+      ]);
+
+      final movementA = _localCategoriaMovidaA();
+      final movementB = _localCategoriaMovidaB();
+      for (final event in [movementA, movementB]) {
+        await localEventStore.appendAndApply(
+          event,
+          refs: const [
+            LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+            LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          ],
+        );
+      }
+
+      final waitingReport = await pendingEventRevalidator
+          .revalidatePendingEvents();
+      var events = await db.select(db.events).get();
+      expect(waitingReport.checked, 2);
+      expect(waitingReport.conflicts, 0);
+      expect(
+        events
+            .where(
+              (event) =>
+                  event.eventId == movementA.eventId ||
+                  event.eventId == movementB.eventId,
+            )
+            .map((event) => event.deliveryStatus)
+            .toSet(),
+        {'pending'},
+      );
+
+      await remoteEventApplier.applySyncedEvents([
+        movementA.copyWith(
+          serverSequence: 7,
+          createdAtServer: DateTime.utc(2026, 6, 9, 20, 33),
+          deliveryStatus: 'delivered',
+        ),
+      ]);
+
+      final report = await pendingEventRevalidator.revalidatePendingEvents();
+      events = await db.select(db.events).get();
+      final categories = await categoriaDao.obtenerCategorias();
+
+      expect(report.checked, 1);
+      expect(report.conflicts, 0);
+      expect(
+        events
+            .singleWhere((event) => event.eventId == movementA.eventId)
+            .deliveryStatus,
+        'delivered',
+      );
+      expect(
+        events
+            .singleWhere((event) => event.eventId == movementB.eventId)
+            .deliveryStatus,
+        'pending',
+      );
+      expect(categories.map((category) => category.id), [
+        'category_1',
+        'category_2',
+      ]);
+      expect(categories.map((category) => category.sortOrder), [0, 1]);
+      expect(categories.map((category) => category.lastEventId).toSet(), {
+        movementB.eventId,
+      });
+      expect(
+        categories.map((category) => category.lastServerSequence).toSet(),
+        {7},
+      );
+    },
+  );
 }
 
 SyncEvent _localEspacioEvent({
@@ -392,14 +555,100 @@ SyncEvent _localCategoriaActualizada() {
   );
 }
 
+SyncEvent _localCategoriaMovida() {
+  return SyncEvent(
+    eventId: 'local_category_moved',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_movida',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    baseServerSequence: 5,
+    baseVersion: 1,
+    createdAtLocal: DateTime.parse('2026-06-09T20:32:00.000Z'),
+    payload: const {
+      'base_event_id': 'remote_category_1_created',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 0, 'to': 1},
+      },
+      'displaced_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'remote_category_2_created',
+        'base_version': 1,
+        'base_server_sequence': 6,
+        'sort_order': {'from': 1, 'to': 0},
+      },
+    },
+  );
+}
+
+SyncEvent _localCategoriaMovidaA() {
+  return SyncEvent(
+    eventId: 'local_movement_a',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_movida',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    baseServerSequence: 5,
+    baseVersion: 1,
+    createdAtLocal: DateTime.utc(2026, 6, 9, 20, 32),
+    payload: const {
+      'base_event_id': 'remote_category_1_created',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 0, 'to': 1},
+      },
+      'displaced_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'remote_category_2_created',
+        'base_version': 1,
+        'base_server_sequence': 6,
+        'sort_order': {'from': 1, 'to': 0},
+      },
+    },
+  );
+}
+
+SyncEvent _localCategoriaMovidaB() {
+  return SyncEvent(
+    eventId: 'local_movement_b',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_movida',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    baseServerSequence: 5,
+    baseVersion: 2,
+    createdAtLocal: DateTime.utc(2026, 6, 9, 20, 32, 1),
+    payload: const {
+      'base_event_id': 'local_movement_a',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 1, 'to': 0},
+      },
+      'displaced_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'local_movement_a',
+        'base_version': 2,
+        'base_server_sequence': 6,
+        'sort_order': {'from': 0, 'to': 1},
+      },
+    },
+  );
+}
+
 Map<String, Object?> _remoteCategoriaCreada({
   required String eventId,
+  String aggregateId = 'category_1',
   required int serverSequence,
+  int sortOrder = 0,
 }) {
   return {
     'event_id': eventId,
     'aggregate_type': 'category',
-    'aggregate_id': 'category_1',
+    'aggregate_id': aggregateId,
     'event_type': 'categoria_creada',
     'device_id': 'other_device',
     'user_id': 'user_02',
@@ -409,7 +658,43 @@ Map<String, Object?> _remoteCategoriaCreada({
     'base_version': 1,
     'created_at_local': '2026-06-09T20:30:00.000Z',
     'created_at_server': '2026-06-09T20:31:00.000Z',
-    'payload': {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': null},
+    'payload': {
+      'name': 'Bebidas',
+      'color_key': 'cyan',
+      'sort_order': sortOrder,
+    },
+    'sync_status': 'synced',
+  };
+}
+
+Map<String, Object?> _remoteCategoriaMovida() {
+  return {
+    'event_id': 'remote_category_moved',
+    'aggregate_type': 'category',
+    'aggregate_id': 'category_1',
+    'event_type': 'categoria_movida',
+    'device_id': 'other_device',
+    'user_id': 'user_02',
+    'local_sequence': 3,
+    'server_sequence': 7,
+    'base_server_sequence': 5,
+    'base_version': 1,
+    'created_at_local': '2026-06-09T20:33:00.000Z',
+    'created_at_server': '2026-06-09T20:34:00.000Z',
+    'payload': {
+      'base_event_id': 'remote_category_1_created',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 0, 'to': 1},
+      },
+      'displaced_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'remote_category_2_created',
+        'base_version': 1,
+        'base_server_sequence': 6,
+        'sort_order': {'from': 1, 'to': 0},
+      },
+    },
     'sync_status': 'synced',
   };
 }

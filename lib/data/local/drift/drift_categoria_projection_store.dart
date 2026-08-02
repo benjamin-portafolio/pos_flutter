@@ -17,13 +17,19 @@ class DriftCategoriaProjectionStore implements CategoriaProjectionStore {
   }
 
   @override
+  Future<List<CategoriaProjection>> findAllOrdered() async {
+    final rows = await _categoriaDao.obtenerCategorias();
+    return rows.map(_fromRow).toList(growable: false);
+  }
+
+  @override
   Future<void> insert(CategoriaProjection projection) async {
     await _categoriaDao.insertarCategoria(
       drift.CategoriesCompanion.insert(
         id: projection.id,
         name: projection.nombre,
         colorKey: Value(projection.color.key),
-        sortOrder: Value(projection.orden),
+        sortOrder: projection.orden,
         active: Value(projection.active),
         version: Value(projection.version),
         createdEventId: Value(projection.createdEventId),
@@ -61,6 +67,11 @@ class DriftCategoriaProjectionStore implements CategoriaProjectionStore {
       eventId: eventId,
       serverSequence: serverSequence,
     );
+  }
+
+  @override
+  Future<void> advanceLastServerSequence(String id, int serverSequence) async {
+    await _categoriaDao.avanzarLastServerSequence(id, serverSequence);
   }
 
   @override

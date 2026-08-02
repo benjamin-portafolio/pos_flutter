@@ -11,6 +11,7 @@ import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/categoria_conflict_projection_restorer.dart';
+import '../../application/sync/categoria_movida_conflict_projection_restorer.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/categoria_event_handler.dart';
 import '../../application/sync/handlers/categoria_event_registry.dart';
@@ -21,6 +22,7 @@ import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
+import '../../application/sync/server_echo_acknowledger.dart';
 import '../../application/sync/sync_availability_monitor.dart';
 import '../../application/sync/sync_conflict_projection_cleaner.dart';
 import '../../application/sync/sync_conflict_report_service.dart';
@@ -75,15 +77,26 @@ void registerApplicationDependencies(
       },
     ),
   );
+  getIt.registerLazySingleton<ServerEchoAcknowledger>(
+    () => ServerEchoAcknowledger(
+      categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+    ),
+  );
   getIt.registerLazySingleton<RemoteEventApplier>(
     () => RemoteEventApplier(
       eventStore: getIt<SyncedEventStore>(),
       eventProcessor: getIt<EventProcessor>(),
+      serverEchoAcknowledger: getIt<ServerEchoAcknowledger>(),
     ),
   );
   getIt.registerLazySingleton<CategoriaConflictProjectionRestorer>(
     () =>
         CategoriaConflictProjectionRestorer(getIt<CategoriaProjectionStore>()),
+  );
+  getIt.registerLazySingleton<CategoriaMovidaConflictProjectionRestorer>(
+    () => CategoriaMovidaConflictProjectionRestorer(
+      getIt<CategoriaProjectionStore>(),
+    ),
   );
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
@@ -93,6 +106,8 @@ void registerApplicationDependencies(
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
+      categoriaMovidaConflictProjectionRestorer:
+          getIt<CategoriaMovidaConflictProjectionRestorer>(),
     ),
   );
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
@@ -101,6 +116,8 @@ void registerApplicationDependencies(
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
+      categoriaMovidaConflictProjectionRestorer:
+          getIt<CategoriaMovidaConflictProjectionRestorer>(),
     ),
   );
   getIt.registerLazySingleton<LocalEventStore>(
@@ -123,7 +140,6 @@ void registerApplicationDependencies(
     () => SyncConflictReportService(
       syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
-      conflictProjectionCleaner: getIt<SyncConflictProjectionCleaner>(),
     ),
   );
   getIt.registerLazySingleton<SyncPullService>(

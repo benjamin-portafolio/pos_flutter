@@ -1,8 +1,10 @@
 import 'categoria_conflict_projection_restorer.dart';
+import 'categoria_movida_conflict_projection_restorer.dart';
 import 'models/pending_revalidation_report.dart';
 import 'models/sync_event.dart';
 import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_creada_payload.dart';
+import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
@@ -17,12 +19,16 @@ class PendingEventRevalidator {
     required CategoriaProjectionStore categoriaProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
+    required CategoriaMovidaConflictProjectionRestorer
+    categoriaMovidaConflictProjectionRestorer,
   }) : _syncPersistence = syncPersistence,
        _syncedEventHistory = syncedEventHistory,
        _espacioProjectionStore = espacioProjectionStore,
        _categoriaProjectionStore = categoriaProjectionStore,
        _categoriaConflictProjectionRestorer =
-           categoriaConflictProjectionRestorer;
+           categoriaConflictProjectionRestorer,
+       _categoriaMovidaConflictProjectionRestorer =
+           categoriaMovidaConflictProjectionRestorer;
 
   final SyncPersistence _syncPersistence;
   final SyncedEventHistory _syncedEventHistory;
@@ -30,37 +36,90 @@ class PendingEventRevalidator {
   final CategoriaProjectionStore _categoriaProjectionStore;
   final CategoriaConflictProjectionRestorer
   _categoriaConflictProjectionRestorer;
+  final CategoriaMovidaConflictProjectionRestorer
+  _categoriaMovidaConflictProjectionRestorer;
 
   Future<PendingRevalidationReport> revalidatePendingEvents() async {
     final events = await _syncPersistence.pendingEvents();
-    var conflicts = 0;
+    final detected = <({SyncEvent event, _PendingConflict conflict})>[];
+    final conflictedEventIds = <String>{};
 
     for (final event in events) {
-      final conflict = switch (event.eventType) {
-        EspacioCreadoPayload.eventType => await _espacioCreadoConflict(event),
-        CategoriaCreadaPayload.eventType => await _categoriaCreadaConflict(
-          event,
-        ),
-        CategoriaActualizadaPayload.eventType =>
-          await _categoriaActualizadaConflict(event),
-        _ => null,
-      };
+      final dependencyConflict = await _dependencyConflict(
+        event,
+        conflictedEventIds,
+      );
+      final conflict =
+          dependencyConflict ??
+          switch (event.eventType) {
+            EspacioCreadoPayload.eventType => await _espacioCreadoConflict(
+              event,
+            ),
+            CategoriaCreadaPayload.eventType => await _categoriaCreadaConflict(
+              event,
+            ),
+            CategoriaActualizadaPayload.eventType =>
+              await _categoriaActualizadaConflict(event),
+            CategoriaMovidaPayload.eventType => await _categoriaMovidaConflict(
+              event,
+            ),
+            _ => null,
+          };
 
       if (conflict == null) continue;
 
+      detected.add((event: event, conflict: conflict));
+      conflictedEventIds.add(event.eventId);
+    }
+
+    for (final entry in detected) {
       await _syncPersistence.updateEventSyncStatus(
-        event.eventId,
+        entry.event.eventId,
         'conflict',
-        rejectionReason: conflict.reason,
+        rejectionReason: entry.conflict.reason,
       );
-      await _hideConflictProjection(event, conflict);
-      conflicts++;
+    }
+    for (final entry in detected.reversed) {
+      await _hideConflictProjection(entry.event, entry.conflict);
     }
 
     return PendingRevalidationReport(
       checked: events.length,
-      conflicts: conflicts,
+      conflicts: detected.length,
     );
+  }
+
+  Future<_PendingConflict?> _dependencyConflict(
+    SyncEvent event,
+    Set<String> conflictedEventIds,
+  ) async {
+    if (event.eventType == CategoriaActualizadaPayload.eventType) {
+      final payload = CategoriaActualizadaPayload.fromJson(event.payload);
+      if (conflictedEventIds.contains(payload.baseEventId) ||
+          await _dependencyFailed(payload.baseEventId)) {
+        return const _PendingConflict(
+          'La categoría depende de otro evento local en conflicto.',
+        );
+      }
+    }
+    if (event.eventType == CategoriaMovidaPayload.eventType) {
+      final payload = CategoriaMovidaPayload.fromJson(event.payload);
+      if (conflictedEventIds.contains(payload.baseEventId) ||
+          conflictedEventIds.contains(payload.categoriaDesplazadaBaseEventId) ||
+          await _dependencyFailed(payload.baseEventId) ||
+          await _dependencyFailed(payload.categoriaDesplazadaBaseEventId)) {
+        return const _PendingConflict(
+          'El movimiento depende de otro evento local en conflicto.',
+        );
+      }
+    }
+    return null;
+  }
+
+  Future<bool> _dependencyFailed(String eventId) async {
+    final dependency = await _syncedEventHistory.eventById(eventId);
+    return dependency?.deliveryStatus == 'conflict' ||
+        dependency?.deliveryStatus == 'rejected';
   }
 
   Future<_PendingConflict?> _categoriaCreadaConflict(SyncEvent event) async {
@@ -87,10 +146,16 @@ class PendingEventRevalidator {
       );
     }
 
-    final baseServerSequence = event.baseServerSequence;
+    final payload = CategoriaActualizadaPayload.fromJson(event.payload);
+    final resolvedBase = await _resolveBase(
+      baseEventId: payload.baseEventId,
+      fallbackServerSequence: event.baseServerSequence,
+    );
+    if (resolvedBase.waitsForLocalDependency) return null;
+
+    final baseServerSequence = resolvedBase.serverSequence;
     if (baseServerSequence == null) return null;
 
-    final payload = CategoriaActualizadaPayload.fromJson(event.payload);
     final officialEvents = await _syncedEventHistory.eventsForAggregateAfter(
       aggregateType: CategoriaActualizadaPayload.aggregateType,
       aggregateId: event.aggregateId,
@@ -119,6 +184,105 @@ class PendingEventRevalidator {
     );
   }
 
+  Future<_PendingConflict?> _categoriaMovidaConflict(SyncEvent event) async {
+    final payload = CategoriaMovidaPayload.fromJson(event.payload);
+    final moved = await _categoriaProjectionStore.findById(event.aggregateId);
+    final displaced = await _categoriaProjectionStore.findById(
+      payload.categoriaDesplazadaId,
+    );
+    if (moved == null || displaced == null) {
+      return const _PendingConflict(
+        'Ya no existe una categoría involucrada en el movimiento.',
+      );
+    }
+
+    final movedBase = await _resolveBase(
+      baseEventId: payload.baseEventId,
+      fallbackServerSequence: event.baseServerSequence,
+    );
+    final displacedBase = await _resolveBase(
+      baseEventId: payload.categoriaDesplazadaBaseEventId,
+      fallbackServerSequence: payload.categoriaDesplazadaBaseServerSequence,
+    );
+    if (movedBase.waitsForLocalDependency &&
+        displacedBase.waitsForLocalDependency) {
+      return null;
+    }
+
+    final movedSequence = movedBase.serverSequence ?? -1;
+    final displacedSequence = displacedBase.serverSequence ?? -1;
+    final historyStart = switch ((
+      movedBase.waitsForLocalDependency,
+      displacedBase.waitsForLocalDependency,
+    )) {
+      (true, false) => displacedSequence,
+      (false, true) => movedSequence,
+      (false, false) =>
+        movedSequence < displacedSequence ? movedSequence : displacedSequence,
+      (true, true) => -1,
+    };
+    final officialEvents = await _syncedEventHistory.eventsByTypeAfter(
+      eventType: CategoriaMovidaPayload.eventType,
+      serverSequence: historyStart,
+    );
+    final officialCategoryIds = <String>{};
+    final localCategoryIds = {event.aggregateId, payload.categoriaDesplazadaId};
+
+    for (final officialEvent in officialEvents) {
+      if (officialEvent.eventId == event.eventId) continue;
+      final officialPayload = CategoriaMovidaPayload.fromJson(
+        officialEvent.payload,
+      );
+      final officialIds = {
+        officialEvent.aggregateId,
+        officialPayload.categoriaDesplazadaId,
+      };
+      final sequence = officialEvent.serverSequence;
+      if (sequence == null) continue;
+
+      if (!movedBase.waitsForLocalDependency &&
+          sequence > movedSequence &&
+          officialIds.contains(event.aggregateId)) {
+        officialCategoryIds.add(event.aggregateId);
+      }
+      if (!displacedBase.waitsForLocalDependency &&
+          sequence > displacedSequence &&
+          officialIds.contains(payload.categoriaDesplazadaId)) {
+        officialCategoryIds.add(payload.categoriaDesplazadaId);
+      }
+    }
+
+    officialCategoryIds.retainAll(localCategoryIds);
+    if (officialCategoryIds.isEmpty) return null;
+    return _PendingConflict(
+      'El orden cambió oficialmente para una categoría involucrada.',
+      officialCategoryIds: officialCategoryIds,
+    );
+  }
+
+  Future<_ResolvedBase> _resolveBase({
+    required String baseEventId,
+    required int? fallbackServerSequence,
+  }) async {
+    final baseEvent = await _syncedEventHistory.eventById(baseEventId);
+    if (baseEvent == null) {
+      return _ResolvedBase(serverSequence: fallbackServerSequence);
+    }
+
+    if (baseEvent.deliveryStatus != 'delivered' ||
+        baseEvent.serverSequence == null) {
+      return const _ResolvedBase(waitsForLocalDependency: true);
+    }
+
+    final officialSequence = baseEvent.serverSequence!;
+    final effectiveSequence =
+        fallbackServerSequence == null ||
+            officialSequence > fallbackServerSequence
+        ? officialSequence
+        : fallbackServerSequence;
+    return _ResolvedBase(serverSequence: effectiveSequence);
+  }
+
   Future<void> _hideConflictProjection(
     SyncEvent event,
     _PendingConflict conflict,
@@ -132,6 +296,11 @@ class PendingEventRevalidator {
         await _categoriaConflictProjectionRestorer.restore(
           event,
           officialChangedFields: conflict.officialChangedFields,
+        );
+      case CategoriaMovidaPayload.eventType:
+        await _categoriaMovidaConflictProjectionRestorer.restore(
+          event,
+          officialCategoryIds: conflict.officialCategoryIds,
         );
     }
   }
@@ -165,8 +334,23 @@ class PendingEventRevalidator {
 }
 
 class _PendingConflict {
-  const _PendingConflict(this.reason, {this.officialChangedFields = const {}});
+  const _PendingConflict(
+    this.reason, {
+    this.officialChangedFields = const {},
+    this.officialCategoryIds = const {},
+  });
 
   final String reason;
   final Set<String> officialChangedFields;
+  final Set<String> officialCategoryIds;
+}
+
+class _ResolvedBase {
+  const _ResolvedBase({
+    this.serverSequence,
+    this.waitsForLocalDependency = false,
+  });
+
+  final int? serverSequence;
+  final bool waitsForLocalDependency;
 }

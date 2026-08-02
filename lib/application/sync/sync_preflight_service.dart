@@ -8,6 +8,7 @@ import 'models/pending_revalidation_report.dart';
 import 'models/sync_event.dart';
 import 'models/sync_preflight_report.dart';
 import 'pending_event_revalidator.dart';
+import 'payloads/categoria_movida_payload.dart';
 import 'remote_event_applier.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
@@ -179,6 +180,7 @@ class SyncPreflightService {
     if (refs.any((ref) => ref.relationship != 'affects')) return true;
 
     for (final event in events) {
+      if (event.eventType == CategoriaMovidaPayload.eventType) return true;
       if (event.eventType.endsWith('_actualizado')) return true;
       if (_readChangedFields(event.payload).isNotEmpty) {
         return true;

@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'exceptions/sync_push_exception.dart';
 import 'models/sync_event.dart';
 import 'models/sync_push_report.dart';
+import 'payloads/categoria_actualizada_payload.dart';
+import 'payloads/categoria_movida_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
@@ -27,11 +29,31 @@ class SyncPushService {
 
   Future<SyncPushReport> pushPendingEvents() async {
     final events = await _syncPersistence.pendingEvents();
-    return _pushEvents(events);
+    final pendingEventIds = events.map((event) => event.eventId).toSet();
+    final eligibleEvents = <SyncEvent>[];
+    final waitingEvents = <SyncEvent>[];
+    for (final event in events) {
+      final target = _dependsOnEventIds(event, pendingEventIds)
+          ? waitingEvents
+          : eligibleEvents;
+      target.add(event);
+    }
+    return _pushEvents(eligibleEvents, waitingEvents: waitingEvents);
   }
 
-  Future<SyncPushReport> _pushEvents(List<SyncEvent> events) async {
-    if (events.isEmpty) return const SyncPushReport.empty();
+  Future<SyncPushReport> _pushEvents(
+    List<SyncEvent> events, {
+    List<SyncEvent> waitingEvents = const [],
+  }) async {
+    if (events.isEmpty) {
+      return SyncPushReport(
+        total: waitingEvents.length,
+        synced: 0,
+        rejected: 0,
+        conflicts: 0,
+        pending: waitingEvents.length,
+      );
+    }
 
     final response = await _postEvents(events);
     final Map<String, Object?> decodedBody;
@@ -49,6 +71,7 @@ class SyncPushService {
     var rejected = 0;
     var conflicts = 0;
     var pending = 0;
+    final conflictEvents = <SyncEvent>[];
 
     for (final event in events) {
       final result = remoteResults[event.eventId];
@@ -103,7 +126,7 @@ class SyncPushService {
                 serverSequence,
               );
             }
-            await _conflictProjectionCleaner.hideConflictProjection(event);
+            conflictEvents.add(event);
             conflicts++;
           } else if (effectiveStatus == 'rejected') {
             await _syncPersistence.updateEventSyncStatus(
@@ -157,7 +180,7 @@ class SyncPushService {
               serverSequence,
             );
           }
-          await _conflictProjectionCleaner.hideConflictProjection(event);
+          conflictEvents.add(event);
           conflicts++;
           break;
         default:
@@ -166,13 +189,49 @@ class SyncPushService {
       }
     }
 
+    final conflictedEventIds = conflictEvents
+        .map((event) => event.eventId)
+        .toSet();
+    var waitingConflicts = 0;
+    for (final event in waitingEvents) {
+      if (!_dependsOnEventIds(event, conflictedEventIds)) continue;
+
+      await _syncPersistence.updateEventSyncStatus(
+        event.eventId,
+        'conflict',
+        rejectionReason: 'El evento depende de otro evento local en conflicto.',
+      );
+      conflictEvents.add(event);
+      conflictedEventIds.add(event.eventId);
+      waitingConflicts++;
+      conflicts++;
+    }
+
+    for (final event in conflictEvents.reversed) {
+      await _conflictProjectionCleaner.hideConflictProjection(event);
+    }
+
     return SyncPushReport(
-      total: events.length,
+      total: events.length + waitingEvents.length,
       synced: synced,
       rejected: rejected,
       conflicts: conflicts,
-      pending: pending,
+      pending: pending + waitingEvents.length - waitingConflicts,
     );
+  }
+
+  bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
+    switch (event.eventType) {
+      case CategoriaActualizadaPayload.eventType:
+        final payload = CategoriaActualizadaPayload.fromJson(event.payload);
+        return eventIds.contains(payload.baseEventId);
+      case CategoriaMovidaPayload.eventType:
+        final payload = CategoriaMovidaPayload.fromJson(event.payload);
+        return eventIds.contains(payload.baseEventId) ||
+            eventIds.contains(payload.categoriaDesplazadaBaseEventId);
+      default:
+        return false;
+    }
   }
 
   Future<http.Response> _postEvents(List<SyncEvent> events) async {

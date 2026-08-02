@@ -18,6 +18,13 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
         .get();
   }
 
+  /// Obtiene un evento por su identificador para resolver dependencias locales.
+  Future<EventRecord?> obtenerEventoPorId(String eventId) {
+    return (select(
+      events,
+    )..where((event) => event.eventId.equals(eventId))).getSingleOrNull();
+  }
+
   /// Obtiene eventos oficiales posteriores a una base para revalidar cambios
   /// pendientes del mismo agregado.
   Future<List<EventRecord>> obtenerEventosSincronizadosDelAgregadoDespuesDe({
@@ -31,6 +38,25 @@ class EventDao extends DatabaseAccessor<AppDatabase> with _$EventDaoMixin {
                 event.deliveryStatus.equals('delivered') &
                 event.aggregateType.equals(aggregateType) &
                 event.aggregateId.equals(aggregateId) &
+                event.serverSequence.isBiggerThanValue(serverSequence),
+          )
+          ..orderBy([
+            (event) => OrderingTerm(expression: event.serverSequence),
+          ]))
+        .get();
+  }
+
+  /// Obtiene eventos oficiales de un tipo posteriores a una base. Permite
+  /// revalidar eventos que afectan mas de un agregado principal.
+  Future<List<EventRecord>> obtenerEventosSincronizadosPorTipoDespuesDe({
+    required String eventType,
+    required int serverSequence,
+  }) {
+    return (select(events)
+          ..where(
+            (event) =>
+                event.deliveryStatus.equals('delivered') &
+                event.eventType.equals(eventType) &
                 event.serverSequence.isBiggerThanValue(serverSequence),
           )
           ..orderBy([

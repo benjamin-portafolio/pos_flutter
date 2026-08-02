@@ -5,12 +5,16 @@ class InventoryCategoryCard extends StatelessWidget {
     required this.name,
     required this.color,
     required this.onTap,
+    required this.onMoveUp,
+    required this.onMoveDown,
     super.key,
   });
 
   final String name;
   final Color color;
   final VoidCallback onTap;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -49,9 +53,23 @@ class InventoryCategoryCard extends StatelessWidget {
                 ),
                 const Icon(Icons.delete_forever, color: Color(0xFFFF493D)),
                 const SizedBox(width: 22),
-                Icon(Icons.arrow_drop_down, color: primaryColor, size: 32),
-                const SizedBox(width: 16),
-                Icon(Icons.arrow_drop_up, color: primaryColor, size: 32),
+                IconButton(
+                  key: const Key('move_category_down_button'),
+                  onPressed: onMoveDown,
+                  color: primaryColor,
+                  disabledColor: primaryColor.withValues(alpha: 0.35),
+                  tooltip: 'Bajar categoría',
+                  icon: const Icon(Icons.arrow_drop_down, size: 32),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  key: const Key('move_category_up_button'),
+                  onPressed: onMoveUp,
+                  color: primaryColor,
+                  disabledColor: primaryColor.withValues(alpha: 0.35),
+                  tooltip: 'Subir categoría',
+                  icon: const Icon(Icons.arrow_drop_up, size: 32),
+                ),
               ],
             ),
           ),

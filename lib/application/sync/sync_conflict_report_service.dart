@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'exceptions/sync_conflict_report_exception.dart';
 import 'models/sync_event.dart';
 import 'models/sync_push_report.dart';
-import 'sync_conflict_projection_cleaner.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
 
@@ -13,16 +12,13 @@ class SyncConflictReportService {
   SyncConflictReportService({
     required SyncPersistence syncPersistence,
     required SyncEndpointConfig endpointConfig,
-    required SyncConflictProjectionCleaner conflictProjectionCleaner,
     http.Client? client,
   }) : _syncPersistence = syncPersistence,
        _endpointConfig = endpointConfig,
-       _conflictProjectionCleaner = conflictProjectionCleaner,
        _client = client ?? http.Client();
 
   final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
-  final SyncConflictProjectionCleaner _conflictProjectionCleaner;
   final http.Client _client;
 
   Future<SyncPushReport> reportLocalConflicts() async {
@@ -55,7 +51,6 @@ class SyncConflictReportService {
         if (serverSequence != null) {
           await _syncPersistence.markRefsSynced(event.eventId, serverSequence);
         }
-        await _conflictProjectionCleaner.hideConflictProjection(event);
         conflicts++;
       } else if (effectiveStatus == 'rejected') {
         await _syncPersistence.updateEventSyncStatus(

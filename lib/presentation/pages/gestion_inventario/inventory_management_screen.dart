@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_categoria_command.dart';
 import '../../../application/commands/editar_categoria_command.dart';
+import '../../../application/commands/mover_categoria_command.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/categorias/categoria.dart';
+import '../../../domain/categorias/direccion_movimiento_categoria.dart';
 import '../../../domain/repositories/categoria_repository.dart';
 import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
@@ -53,6 +55,8 @@ class InventoryManagementScreen extends StatelessWidget {
               categoriaRepository: categories,
               onEditCategory: (categoria) =>
                   _openCategoryForm(context, categoria: categoria),
+              onMoveCategory: (categoria, direccion) =>
+                  _moveCategory(context, categoria, direccion),
             ),
             const SizedBox.expand(key: Key('inventory_ingredients_tab_view')),
           ],
@@ -111,6 +115,25 @@ class InventoryManagementScreen extends StatelessWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo guardar la categoría.')),
+      );
+    }
+  }
+
+  Future<void> _moveCategory(
+    BuildContext context,
+    Categoria categoria,
+    DireccionMovimientoCategoria direccion,
+  ) async {
+    try {
+      final service =
+          categoriaCommandService ?? getIt<CategoriaCommandService>();
+      await service.moverCategoria(
+        MoverCategoriaCommand(categoriaId: categoria.id, direccion: direccion),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo mover la categoría.')),
       );
     }
   }

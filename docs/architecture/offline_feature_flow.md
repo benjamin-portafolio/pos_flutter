@@ -99,6 +99,7 @@ lib/application/sync/models/sync_event.dart
 lib/application/sync/payloads/espacio_creado_payload.dart
 lib/application/sync/payloads/categoria_creada_payload.dart
 lib/application/sync/payloads/categoria_actualizada_payload.dart
+lib/application/sync/payloads/categoria_movida_payload.dart
 lib/application/sync/local_event_store.dart
 lib/application/sync/event_processor.dart
 lib/application/sync/handlers/espacio_event_handler.dart
@@ -160,12 +161,19 @@ Contratos existentes:
 | `espacio_creado` | `EspacioCreadoPayload` | `nombre`, `identificacion`, `visibilidad` |
 | `categoria_creada` | `CategoriaCreadaPayload` | `name`, `color_key`, `sort_order` |
 | `categoria_actualizada` | `CategoriaActualizadaPayload` | `base_event_id`, `changed_fields`, `changes` |
+| `categoria_movida` | `CategoriaMovidaPayload` | bases y cambios de `sort_order` de dos categorias |
 
 `categoria_actualizada` transporta solo cambios de `name` y `color_key`. Cada
 entrada de `changes` conserva los valores `from` y `to`; `base_event_id`
 identifica el ultimo evento conocido al iniciar la edicion. El sobre tambien
 debe incluir `base_version` y, cuando exista estado oficial, la
 `base_server_sequence`.
+
+`categoria_movida` intercambia las posiciones consecutivas de la categoria
+principal y otra categoria desplazada. El payload conserva `from` y `to`, el
+evento base, la version y la secuencia oficial conocidas para ambas. El evento
+declara una referencia `affects` por cada categoria y el handler actualiza las
+dos proyecciones dentro de la misma transaccion.
 
 Un payload invalido recibido por pull hace fallar su aplicacion. Como los
 eventos de la pagina y el checkpoint se procesan en una misma transaccion, la
@@ -244,6 +252,58 @@ Para un evento `*_creado`:
 - Si el registro no existe, insertarlo.
 - Si existe y `createdEventId` coincide con el evento, ignorarlo.
 - Si existe y `createdEventId` no coincide, fallar o marcar conflicto segun la regla del agregado.
+
+### Confirmaciones o ecos del servidor
+
+Esta regla se aplica a todos los tipos de evento, no solo a un agregado:
+
+- Antes de guardar un evento recibido del servidor,
+  `DriftSyncedEventStore` consulta por `event_id` dentro de la misma
+  transaccion.
+- Si el evento ya existe localmente con `application_status = applied`, la
+  copia remota es una confirmacion o eco. Se actualizan el estado y los
+  metadatos de sincronizacion del evento (`delivery_status`,
+  `server_sequence`, `created_at_server` y motivo cuando corresponda), junto
+  con la secuencia y el origen de sus `event_refs`. Para los eventos de
+  categoria implementados, un reconocedor de ecos avanza tambien
+  `lastServerSequence` en las proyecciones afectadas sin modificar sus campos
+  de negocio, `version` ni `lastEventId`; no se vuelve a llamar a
+  `EventProcessor`.
+- La decision no depende de `lastEventId` de la proyeccion. Esa proyeccion
+  puede haber avanzado por eventos locales posteriores y reaplicar el eco
+  podria sobrescribirlos.
+- Si el `event_id` no existe o su `application_status` no es `applied`, se
+  conserva el flujo remoto normal: guardar el evento y aplicarlo mediante
+  `EventProcessor`.
+
+La deteccion, la actualizacion de metadata y la aplicacion cuando corresponda
+deben permanecer en una sola transaccion. La idempotencia propia de cada
+handler sigue siendo necesaria para eventos remotos nuevos y para otros
+contextos de aplicacion.
+
+### Dependencias causales entre eventos locales
+
+Cuando `base_event_id` referencia otro evento local con
+`delivery_status = pending`, el evento dependiente ya esta aplicado en la
+proyeccion optimista, pero todavia no debe incluirse en el mismo push que su
+base. Primero se envia la raiz de la cadena y el dependiente permanece
+`pending`.
+
+Al confirmarse la base, la revalidacion resuelve su `server_sequence` mediante
+`base_event_id` y la usa como base oficial efectiva. Esto evita comparar el
+dependiente contra una secuencia anterior conservada en la proyeccion y evita
+clasificar el eco de su propia base como un cambio concurrente.
+
+```text
+A pending -> B se aplica localmente y espera el push
+A delivered(server_sequence = N) -> B se revalida desde N y puede enviarse
+A conflict -> B tambien entra en conflict
+```
+
+Si una base entra en conflicto, sus dependientes se reclasifican en la misma
+operacion y las proyecciones se restauran desde el ultimo evento hacia el
+primero. El servicio que reporta esos conflictos al servidor solo completa
+metadatos; no vuelve a restaurar una proyeccion ya corregida.
 
 ## Lo que no debe hacerse
 

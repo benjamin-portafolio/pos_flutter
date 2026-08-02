@@ -27,14 +27,27 @@ void main() {
       expect(await store.readRequireWifiForServerDetection(), isFalse);
     });
 
+    test(
+      'uses the configured initial value when no preference exists',
+      () async {
+        final store = SyncDetectionSettingsFileStore(
+          directoryProvider: () async => directory,
+          defaultRequireWifiForServerDetection: true,
+        );
+
+        expect(await store.readRequireWifiForServerDetection(), isTrue);
+      },
+    );
+
     test('persists and reads the wifi detection preference', () async {
       final store = SyncDetectionSettingsFileStore(
         directoryProvider: () async => directory,
+        defaultRequireWifiForServerDetection: true,
       );
 
-      await store.saveRequireWifiForServerDetection(true);
+      await store.saveRequireWifiForServerDetection(false);
 
-      expect(await store.readRequireWifiForServerDetection(), isTrue);
+      expect(await store.readRequireWifiForServerDetection(), isFalse);
     });
   });
 }

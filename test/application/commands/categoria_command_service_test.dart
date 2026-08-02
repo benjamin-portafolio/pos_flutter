@@ -3,10 +3,12 @@ import 'package:pos_flutter/application/commands/categoria_command_service.dart'
 import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
 import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
+import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
+import 'package:pos_flutter/domain/categorias/direccion_movimiento_categoria.dart';
 
 void main() {
   late _CapturingLocalEventStore eventStore;
@@ -43,7 +45,7 @@ void main() {
       expect(event.payload, {
         'name': 'Bebidas',
         'color_key': 'cyan',
-        'sort_order': null,
+        'sort_order': 0,
       });
       expect(eventStore.refs, hasLength(1));
       expect(eventStore.refs.single.refType, 'category');
@@ -81,7 +83,7 @@ void main() {
         id: 'category_1',
         nombre: 'Bebidas',
         color: ColorCategoria.cyan,
-        orden: null,
+        orden: 0,
         active: true,
         version: 3,
         createdEventId: 'event_created',
@@ -122,7 +124,7 @@ void main() {
       id: 'category_1',
       nombre: 'Bebidas',
       color: ColorCategoria.cyan,
-      orden: null,
+      orden: 0,
       active: true,
       version: 1,
       createdEventId: 'event_created',
@@ -139,6 +141,91 @@ void main() {
     );
 
     expect(changed, isFalse);
+    expect(eventStore.event, isNull);
+  });
+
+  test('moverCategoria intercambia dos posiciones en un solo evento', () async {
+    categoriaProjectionStore.projections = const [
+      CategoriaProjection(
+        id: 'category_1',
+        nombre: 'Bebidas',
+        color: ColorCategoria.cyan,
+        orden: 0,
+        active: true,
+        version: 2,
+        createdEventId: 'event_created_1',
+        lastEventId: 'event_previous_1',
+        lastServerSequence: 10,
+      ),
+      CategoriaProjection(
+        id: 'category_2',
+        nombre: 'Comidas',
+        color: ColorCategoria.amber,
+        orden: 1,
+        active: true,
+        version: 3,
+        createdEventId: 'event_created_2',
+        lastEventId: 'event_previous_2',
+        lastServerSequence: 11,
+      ),
+    ];
+
+    final moved = await service.moverCategoria(
+      const MoverCategoriaCommand(
+        categoriaId: 'category_2',
+        direccion: DireccionMovimientoCategoria.arriba,
+      ),
+    );
+
+    expect(moved, isTrue);
+    final event = eventStore.event!;
+    expect(event.eventType, 'categoria_movida');
+    expect(event.aggregateId, 'category_2');
+    expect(event.baseVersion, 3);
+    expect(event.baseServerSequence, 11);
+    expect(event.payload, {
+      'base_event_id': 'event_previous_2',
+      'changed_fields': ['sort_order'],
+      'changes': {
+        'sort_order': {'from': 1, 'to': 0},
+      },
+      'displaced_category': {
+        'category_id': 'category_1',
+        'base_event_id': 'event_previous_1',
+        'base_version': 2,
+        'base_server_sequence': 10,
+        'sort_order': {'from': 0, 'to': 1},
+      },
+    });
+    expect(eventStore.refs.map((ref) => ref.refId), [
+      'category_2',
+      'category_1',
+    ]);
+  });
+
+  test('moverCategoria no crea evento fuera de los límites', () async {
+    categoriaProjectionStore.projections = const [
+      CategoriaProjection(
+        id: 'category_1',
+        nombre: 'Bebidas',
+        color: ColorCategoria.cyan,
+        orden: 0,
+        active: true,
+        version: 1,
+        createdEventId: 'event_created',
+        lastEventId: 'event_created',
+        lastServerSequence: null,
+      ),
+    ];
+
+    final moved = await service.moverCategoria(
+      const MoverCategoriaCommand(
+        categoriaId: 'category_1',
+        direccion: DireccionMovimientoCategoria.arriba,
+      ),
+    );
+
+    expect(moved, isFalse);
     expect(eventStore.event, isNull);
   });
 }
@@ -158,10 +245,30 @@ class _CapturingLocalEventStore implements LocalEventStore {
 }
 
 class _FakeCategoriaProjectionStore implements CategoriaProjectionStore {
-  CategoriaProjection? projection;
+  List<CategoriaProjection> projections = [];
+
+  CategoriaProjection? get projection =>
+      projections.isEmpty ? null : projections.single;
+
+  set projection(CategoriaProjection? value) {
+    projections = value == null ? [] : [value];
+  }
 
   @override
-  Future<CategoriaProjection?> findById(String id) async => projection;
+  Future<CategoriaProjection?> findById(String id) async {
+    return projections.cast<CategoriaProjection?>().firstWhere(
+      (projection) => projection?.id == id,
+      orElse: () => null,
+    );
+  }
+
+  @override
+  Future<List<CategoriaProjection>> findAllOrdered() async =>
+      List.of(projections)
+        ..sort((left, right) => left.orden.compareTo(right.orden));
+
+  @override
+  Future<void> advanceLastServerSequence(String id, int serverSequence) async {}
 
   @override
   Future<void> deleteById(String id) async {}
@@ -171,12 +278,17 @@ class _FakeCategoriaProjectionStore implements CategoriaProjectionStore {
 
   @override
   Future<void> insert(CategoriaProjection projection) async {
-    this.projection = projection;
+    projections.add(projection);
   }
 
   @override
   Future<void> update(CategoriaProjection projection) async {
-    this.projection = projection;
+    final index = projections.indexWhere((value) => value.id == projection.id);
+    if (index < 0) {
+      projections.add(projection);
+    } else {
+      projections[index] = projection;
+    }
   }
 
   @override

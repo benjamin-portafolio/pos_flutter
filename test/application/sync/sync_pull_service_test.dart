@@ -11,6 +11,7 @@ import 'package:pos_flutter/application/sync/handlers/categoria_event_registry.d
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
 import 'package:pos_flutter/application/sync/remote_event_applier.dart';
+import 'package:pos_flutter/application/sync/server_echo_acknowledger.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -43,6 +44,9 @@ void main() {
   });
 
   test('pullAvailableEvents aplica eventos y avanza checkpoint', () async {
+    final categoriaProjectionStore = DriftCategoriaProjectionStore(
+      categoriaDao: categoriaDao,
+    );
     final eventProcessor = EventProcessor(
       handlers: {
         ...espacioEventHandlers(
@@ -51,9 +55,7 @@ void main() {
           ),
         ),
         ...categoriaEventHandlers(
-          CategoriaEventHandler(
-            DriftCategoriaProjectionStore(categoriaDao: categoriaDao),
-          ),
+          CategoriaEventHandler(categoriaProjectionStore),
         ),
       },
     );
@@ -62,6 +64,9 @@ void main() {
       remoteEventApplier: RemoteEventApplier(
         eventStore: DriftSyncedEventStore(db: db),
         eventProcessor: eventProcessor,
+        serverEchoAcknowledger: ServerEchoAcknowledger(
+          categoriaProjectionStore: categoriaProjectionStore,
+        ),
       ),
       endpointConfig: SyncEndpointConfig(
         initialBaseUrl: 'http://localhost:3000',
@@ -144,7 +149,7 @@ Map<String, Object?> _remoteCategoriaEvent({
     'base_version': 1,
     'created_at_local': '2026-06-09T20:30:00.000Z',
     'created_at_server': '2026-06-09T20:31:00.000Z',
-    'payload': {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': null},
+    'payload': {'name': 'Bebidas', 'color_key': 'cyan', 'sort_order': 0},
     'sync_status': 'synced',
   };
 }

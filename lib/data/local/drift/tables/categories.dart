@@ -13,9 +13,8 @@ class Categories extends Table with CommonFields {
   /// Clave estable del color que la interfaz usara para representar la categoria.
   TextColumn get colorKey => text().withDefault(const Constant('neutral'))();
 
-  /// Posicion opcional de la categoria en los listados.
-  /// Las categorias sin posicion explicita aparecen al final.
-  IntColumn get sortOrder => integer().nullable()();
+  /// Posicion consecutiva de la categoria en los listados, comenzando en cero.
+  IntColumn get sortOrder => integer()();
 
   @override
   Set<Column> get primaryKey => {id};
