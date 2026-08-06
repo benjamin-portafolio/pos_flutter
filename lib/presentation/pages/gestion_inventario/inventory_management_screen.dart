@@ -4,6 +4,8 @@ import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_categoria_command.dart';
 import '../../../application/commands/editar_categoria_command.dart';
 import '../../../application/commands/mover_categoria_command.dart';
+import '../../../application/commands/crear_articulo_command.dart';
+import '../../../application/commands/producto_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/categorias/categoria.dart';
 import '../../../domain/categorias/direccion_movimiento_categoria.dart';
@@ -11,17 +13,21 @@ import '../../../domain/repositories/categoria_repository.dart';
 import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
 import 'categorias/models/categoria_form_result.dart';
+import 'articulos/article_form_screen.dart';
+import 'articulos/models/articulo_form_result.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
   const InventoryManagementScreen({
     this.categoriaRepository,
     this.categoriaCommandService,
+    this.productoCommandService,
     super.key,
   });
 
   final CategoriaRepository? categoriaRepository;
   final CategoriaCommandService? categoriaCommandService;
+  final ProductoCommandService? productoCommandService;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +79,45 @@ class InventoryManagementScreen extends StatelessWidget {
   void _showAddOptions(BuildContext context) {
     InventoryAddOptionsBottomSheet.show(
       context: context,
+      onAddArticle: () => _openArticleForm(context),
       onAddCategory: () => _openCategoryForm(context),
+    );
+  }
+
+  Future<void> _openArticleForm(BuildContext context) async {
+    final categories = categoriaRepository ?? getIt<CategoriaRepository>();
+    try {
+      final categorias = await categories.obtenerCategorias();
+      if (!context.mounted) return;
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ArticleFormScreen(
+            categorias: categorias,
+            onSave: (result) => _createArticle(result),
+          ),
+        ),
+      );
+      if (saved == true && context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Artículo guardado.')));
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el alta de artículo.')),
+      );
+    }
+  }
+
+  Future<void> _createArticle(ArticuloFormResult result) {
+    final service = productoCommandService ?? getIt<ProductoCommandService>();
+    return service.crearArticulo(
+      CrearArticuloCommand(
+        nombre: result.nombre,
+        categoriaId: result.categoriaId,
+        precioVenta: result.precioVenta,
+      ),
     );
   }
 

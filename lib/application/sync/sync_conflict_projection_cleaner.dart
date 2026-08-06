@@ -5,19 +5,23 @@ import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_creada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
+import 'payloads/producto_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
+import 'projections/producto_projection_store.dart';
 
 class SyncConflictProjectionCleaner {
   SyncConflictProjectionCleaner({
     required EspacioProjectionStore espacioProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
+    ProductoProjectionStore? productoProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
     required CategoriaMovidaConflictProjectionRestorer
     categoriaMovidaConflictProjectionRestorer,
   }) : _espacioProjectionStore = espacioProjectionStore,
        _categoriaProjectionStore = categoriaProjectionStore,
+       _productoProjectionStore = productoProjectionStore,
        _categoriaConflictProjectionRestorer =
            categoriaConflictProjectionRestorer,
        _categoriaMovidaConflictProjectionRestorer =
@@ -25,6 +29,7 @@ class SyncConflictProjectionCleaner {
 
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
+  final ProductoProjectionStore? _productoProjectionStore;
   final CategoriaConflictProjectionRestorer
   _categoriaConflictProjectionRestorer;
   final CategoriaMovidaConflictProjectionRestorer
@@ -39,6 +44,8 @@ class SyncConflictProjectionCleaner {
       await _categoriaConflictProjectionRestorer.restore(event);
     } else if (event.eventType == CategoriaMovidaPayload.eventType) {
       await _categoriaMovidaConflictProjectionRestorer.restore(event);
+    } else if (event.eventType == ProductoCreadoPayload.eventType) {
+      await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
     }
   }
 }

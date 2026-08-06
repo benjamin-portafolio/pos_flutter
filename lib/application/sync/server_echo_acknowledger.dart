@@ -2,14 +2,19 @@ import 'models/sync_event.dart';
 import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_creada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
+import 'payloads/producto_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
+import 'projections/producto_projection_store.dart';
 
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
     required CategoriaProjectionStore categoriaProjectionStore,
-  }) : _categoriaProjectionStore = categoriaProjectionStore;
+    ProductoProjectionStore? productoProjectionStore,
+  }) : _categoriaProjectionStore = categoriaProjectionStore,
+       _productoProjectionStore = productoProjectionStore;
 
   final CategoriaProjectionStore _categoriaProjectionStore;
+  final ProductoProjectionStore? _productoProjectionStore;
 
   Future<void> acknowledge(SyncEvent event) async {
     final serverSequence = event.serverSequence;
@@ -31,6 +36,12 @@ class ServerEchoAcknowledger {
         );
         await _categoriaProjectionStore.advanceLastServerSequence(
           payload.categoriaDesplazadaId,
+          serverSequence,
+        );
+        return;
+      case ProductoCreadoPayload.eventType:
+        await _productoProjectionStore?.advanceLastServerSequence(
+          event.aggregateId,
           serverSequence,
         );
         return;

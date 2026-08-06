@@ -11,8 +11,11 @@ import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.da
 import 'package:pos_flutter/application/sync/handlers/categoria_event_registry.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
+import 'package:pos_flutter/application/sync/handlers/producto_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/producto_event_registry.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
 import 'package:pos_flutter/application/sync/sync_conflict_projection_cleaner.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_push_service.dart';
@@ -20,6 +23,7 @@ import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
 
 void main() {
@@ -28,10 +32,12 @@ void main() {
   late EspacioDao espacioDao;
   late EventDao eventDao;
   late EventRefDao eventRefDao;
+  late ProductoDao productoDao;
   late SyncCheckpointDao checkpointDao;
   late DriftSyncPersistence syncPersistence;
   late DriftCategoriaProjectionStore categoriaProjectionStore;
   late DriftEspacioProjectionStore espacioProjectionStore;
+  late DriftProductoProjectionStore productoProjectionStore;
   late DriftLocalEventStore localEventStore;
 
   setUp(() {
@@ -40,6 +46,7 @@ void main() {
     espacioDao = EspacioDao(db);
     eventDao = EventDao(db);
     eventRefDao = EventRefDao(db);
+    productoDao = ProductoDao(db);
     checkpointDao = SyncCheckpointDao(db);
     syncPersistence = DriftSyncPersistence(
       eventDao: eventDao,
@@ -52,6 +59,9 @@ void main() {
     categoriaProjectionStore = DriftCategoriaProjectionStore(
       categoriaDao: categoriaDao,
     );
+    productoProjectionStore = DriftProductoProjectionStore(
+      productoDao: productoDao,
+    );
     localEventStore = DriftLocalEventStore(
       db: db,
       eventDao: eventDao,
@@ -61,6 +71,9 @@ void main() {
           ...espacioEventHandlers(EspacioEventHandler(espacioProjectionStore)),
           ...categoriaEventHandlers(
             CategoriaEventHandler(categoriaProjectionStore),
+          ),
+          ...productoEventHandlers(
+            ProductoEventHandler(productoProjectionStore),
           ),
         },
       ),
@@ -237,6 +250,82 @@ void main() {
   );
 
   test(
+    'espera a entregar una categoría local antes de enviar el artículo',
+    () async {
+      final category = _localCategoriaCreada();
+      final product = _localProductoCreado();
+      await localEventStore.appendAndApply(
+        category,
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        ],
+      );
+      await localEventStore.appendAndApply(
+        product,
+        refs: const [
+          LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+          LocalEventRef.affects(refType: 'product_variant', refId: 'variant_1'),
+          LocalEventRef(
+            refType: 'category',
+            refId: 'category_1',
+            relationship: 'uses',
+          ),
+        ],
+      );
+
+      var requestCount = 0;
+      final service = SyncPushService(
+        syncPersistence: syncPersistence,
+        endpointConfig: SyncEndpointConfig(
+          initialBaseUrl: 'http://localhost:3000',
+        ),
+        conflictProjectionCleaner: SyncConflictProjectionCleaner(
+          espacioProjectionStore: espacioProjectionStore,
+          categoriaProjectionStore: categoriaProjectionStore,
+          productoProjectionStore: productoProjectionStore,
+          categoriaConflictProjectionRestorer:
+              CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+          categoriaMovidaConflictProjectionRestorer:
+              CategoriaMovidaConflictProjectionRestorer(
+                categoriaProjectionStore,
+              ),
+        ),
+        client: MockClient((request) async {
+          requestCount++;
+          final body = jsonDecode(request.body) as Map<String, Object?>;
+          final sentEvents = (body['events'] as List).cast<Map>();
+          final expected = requestCount == 1 ? category : product;
+          expect(sentEvents, hasLength(1));
+          expect(sentEvents.single['event_id'], expected.eventId);
+          return http.Response(
+            jsonEncode({
+              'results': [
+                {
+                  'event_id': expected.eventId,
+                  'status': 'accepted',
+                  'server_sequence': requestCount,
+                  'created_at_server': '2026-08-05T20:31:00.000Z',
+                },
+              ],
+            }),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      final first = await service.pushPendingEvents();
+      final second = await service.pushPendingEvents();
+
+      expect(first.synced, 1);
+      expect(first.pending, 1);
+      expect(second.synced, 1);
+      expect(second.pending, 0);
+      expect(requestCount, 2);
+    },
+  );
+
+  test(
     'propaga el conflicto de la base y restaura movimientos dependientes',
     () async {
       final created1 = _localCategoriaCreada();
@@ -394,6 +483,31 @@ SyncEvent _localCategoriaActualizada() {
         'name': {'from': 'Bebidas', 'to': 'Bebidas frías'},
       },
     },
+  );
+}
+
+SyncEvent _localProductoCreado() {
+  return SyncEvent(
+    eventId: 'local_product_created',
+    aggregateType: ProductoCreadoPayload.aggregateType,
+    aggregateId: 'product_1',
+    eventType: ProductoCreadoPayload.eventType,
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.parse('2026-08-05T20:30:01.000Z'),
+    baseVersion: 1,
+    payload: ProductoCreadoPayload.simple(
+      nombre: 'Café',
+      categoriaId: 'category_1',
+      varianteId: 'variant_1',
+      precioVentaMenor: 4550,
+      dependenciaCategoria: const ProductoCreadoDependencia(
+        refId: 'category_1',
+        baseEventId: 'local_category_created',
+        baseVersion: 1,
+        baseServerSequence: null,
+      ),
+    ).toJson(),
   );
 }
 

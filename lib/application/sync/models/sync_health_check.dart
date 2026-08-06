@@ -5,7 +5,6 @@ class SyncHealthCheck {
     required this.statusCode,
     required this.body,
     required this.status,
-    required this.apiVersion,
     required this.latestServerSequence,
     required this.serverTime,
   });
@@ -20,26 +19,20 @@ class SyncHealthCheck {
       statusCode: statusCode,
       body: body,
       status: data['status'] as String?,
-      apiVersion: _readInt(data['api_version']),
       latestServerSequence: _readInt(data['latest_server_sequence']),
       serverTime: _readDateTime(data['server_time']),
     );
   }
 
-  static const supportedApiVersion = 1;
-
   final int statusCode;
   final String body;
   final String? status;
-  final int? apiVersion;
   final int? latestServerSequence;
   final DateTime? serverTime;
 
   bool get isHttpSuccessful => statusCode >= 200 && statusCode < 300;
 
-  bool get isCompatible => apiVersion == supportedApiVersion;
-
-  bool get isAvailable => isHttpSuccessful && status == 'ok' && isCompatible;
+  bool get isAvailable => isHttpSuccessful && status == 'ok';
 
   bool get isMisconfigured {
     if (statusCode >= 400 && statusCode < 500) return true;
@@ -49,7 +42,6 @@ class SyncHealthCheck {
   String get failureMessage {
     if (!isHttpSuccessful) return 'HTTP $statusCode';
     if (status != 'ok') return 'Respuesta health invalida.';
-    if (!isCompatible) return 'Version de sync no compatible.';
     return 'Servidor no disponible.';
   }
 

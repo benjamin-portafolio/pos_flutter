@@ -2,20 +2,25 @@ import 'package:flutter/material.dart';
 
 class InventoryAddOptionsBottomSheet extends StatelessWidget {
   const InventoryAddOptionsBottomSheet({
+    required this.onAddArticle,
     required this.onAddCategory,
     super.key,
   });
 
+  final VoidCallback onAddArticle;
   final VoidCallback onAddCategory;
 
   static Future<void> show({
     required BuildContext context,
+    required VoidCallback onAddArticle,
     required VoidCallback onAddCategory,
   }) {
     return showModalBottomSheet<void>(
       context: context,
-      builder: (_) =>
-          InventoryAddOptionsBottomSheet(onAddCategory: onAddCategory),
+      builder: (_) => InventoryAddOptionsBottomSheet(
+        onAddArticle: onAddArticle,
+        onAddCategory: onAddCategory,
+      ),
     );
   }
 
@@ -29,10 +34,14 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: _InventoryAddOption(
-                    key: Key('add_article_option'),
+                    key: const Key('add_article_option'),
                     label: 'Añadir artículo',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onAddArticle();
+                    },
                   ),
                 ),
                 Expanded(

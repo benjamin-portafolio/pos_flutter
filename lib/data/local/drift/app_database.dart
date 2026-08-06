@@ -8,6 +8,8 @@ import 'package:pos_flutter/data/local/drift/tables/categories.dart';
 import 'package:pos_flutter/data/local/drift/tables/espacios.dart';
 import 'package:pos_flutter/data/local/drift/tables/events.dart';
 import 'package:pos_flutter/data/local/drift/tables/event_refs.dart';
+import 'package:pos_flutter/data/local/drift/tables/product_variants.dart';
+import 'package:pos_flutter/data/local/drift/tables/products.dart';
 import 'package:pos_flutter/data/local/drift/tables/sync_checkpoints.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 
@@ -16,6 +18,7 @@ part 'daos/categoria_dao.dart';
 part 'daos/espacio_dao.dart';
 part 'daos/event_dao.dart';
 part 'daos/event_ref_dao.dart';
+part 'daos/producto_dao.dart';
 part 'daos/sync_checkpoint_dao.dart';
 
 const _databaseFileName = 'pos_db.sqlite';
@@ -24,8 +27,23 @@ const _resetDatabaseOnStartup = true;
 
 /// Database class configuring connection, schema and registered tables/DAOs.
 @DriftDatabase(
-  tables: [Categories, Espacios, Events, EventRefs, SyncCheckpoints],
-  daos: [CategoriaDao, EspacioDao, EventDao, EventRefDao, SyncCheckpointDao],
+  tables: [
+    Categories,
+    Products,
+    ProductVariants,
+    Espacios,
+    Events,
+    EventRefs,
+    SyncCheckpoints,
+  ],
+  daos: [
+    CategoriaDao,
+    ProductoDao,
+    EspacioDao,
+    EventDao,
+    EventRefDao,
+    SyncCheckpointDao,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());

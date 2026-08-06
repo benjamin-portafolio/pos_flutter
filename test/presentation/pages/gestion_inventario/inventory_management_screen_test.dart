@@ -4,6 +4,8 @@ import 'package:pos_flutter/application/commands/categoria_command_service.dart'
 import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
 import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
+import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
+import 'package:pos_flutter/application/commands/producto_command_service.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
@@ -133,6 +135,47 @@ void main() {
     expect(commandService.command!.color, ColorCategoria.amber);
   });
 
+  testWidgets('abre y guarda el alta sencilla de artículo', (tester) async {
+    final productService = _FakeProductoCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoCommandService: productService,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Agregar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Añadir artículo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AÑADIR ARTÍCULO'), findsOneWidget);
+    expect(find.text('Avance'), findsNothing);
+    expect(find.text('Cambiar imagen'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('article_name_field')),
+      ' Café americano ',
+    );
+    await tester.enterText(
+      find.byKey(const Key('article_price_field')),
+      '45.50',
+    );
+    await tester.tap(find.byKey(const Key('article_category_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bebidas').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    expect(productService.command?.nombre, ' Café americano ');
+    expect(productService.command?.categoriaId, 'category-1');
+    expect(productService.command?.precioVenta, '45.50');
+    expect(find.text('Artículo guardado.'), findsOneWidget);
+  });
+
   testWidgets('abre la categoría con un toque y guarda sus cambios', (
     tester,
   ) async {
@@ -252,5 +295,14 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
   Future<bool> moverCategoria(MoverCategoriaCommand command) async {
     moveCommand = command;
     return true;
+  }
+}
+
+class _FakeProductoCommandService implements ProductoCommandService {
+  CrearArticuloCommand? command;
+
+  @override
+  Future<void> crearArticulo(CrearArticuloCommand command) async {
+    this.command = command;
   }
 }

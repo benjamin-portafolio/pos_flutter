@@ -177,7 +177,6 @@ SyncHealthCheck _availableHealth({required int latestServerSequence}) {
     statusCode: 200,
     body: '',
     status: 'ok',
-    apiVersion: SyncHealthService.supportedApiVersion,
     latestServerSequence: latestServerSequence,
     serverTime: DateTime(2026),
   );

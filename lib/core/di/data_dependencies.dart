@@ -8,6 +8,7 @@ import '../../application/backup/backup_store.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
+import '../../application/sync/projections/producto_projection_store.dart';
 import '../../application/sync/sync_detection_settings_store.dart';
 import '../../application/sync/sync_endpoint_store.dart';
 import '../../application/sync/sync_persistence.dart';
@@ -22,6 +23,7 @@ import '../../data/local/backup/database_state_reader.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_categoria_projection_store.dart';
 import '../../data/local/drift/drift_espacio_projection_store.dart';
+import '../../data/local/drift/drift_producto_projection_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
 import '../../data/local/drift/drift_synced_event_store.dart';
 import '../../data/local/identity/device_identity_file_store.dart';
@@ -81,6 +83,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<CategoriaDao>(
     () => CategoriaDao(getIt<AppDatabase>()),
   );
+  getIt.registerLazySingleton<ProductoDao>(
+    () => ProductoDao(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
   getIt.registerLazySingleton<EventRefDao>(
     () => EventRefDao(getIt<AppDatabase>()),
@@ -121,6 +126,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<CategoriaProjectionStore>(
     () => DriftCategoriaProjectionStore(categoriaDao: getIt<CategoriaDao>()),
+  );
+  getIt.registerLazySingleton<ProductoProjectionStore>(
+    () => DriftProductoProjectionStore(productoDao: getIt<ProductoDao>()),
   );
 
   getIt.registerLazySingleton<EspacioRepository>(

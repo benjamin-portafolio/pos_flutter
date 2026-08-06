@@ -6,8 +6,10 @@ import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_creada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
+import 'payloads/producto_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
+import 'projections/producto_projection_store.dart';
 import 'sync_persistence.dart';
 import 'synced_event_history.dart';
 
@@ -17,6 +19,7 @@ class PendingEventRevalidator {
     required SyncedEventHistory syncedEventHistory,
     required EspacioProjectionStore espacioProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
+    ProductoProjectionStore? productoProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
     required CategoriaMovidaConflictProjectionRestorer
@@ -25,6 +28,7 @@ class PendingEventRevalidator {
        _syncedEventHistory = syncedEventHistory,
        _espacioProjectionStore = espacioProjectionStore,
        _categoriaProjectionStore = categoriaProjectionStore,
+       _productoProjectionStore = productoProjectionStore,
        _categoriaConflictProjectionRestorer =
            categoriaConflictProjectionRestorer,
        _categoriaMovidaConflictProjectionRestorer =
@@ -34,6 +38,7 @@ class PendingEventRevalidator {
   final SyncedEventHistory _syncedEventHistory;
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
+  final ProductoProjectionStore? _productoProjectionStore;
   final CategoriaConflictProjectionRestorer
   _categoriaConflictProjectionRestorer;
   final CategoriaMovidaConflictProjectionRestorer
@@ -61,6 +66,9 @@ class PendingEventRevalidator {
             CategoriaActualizadaPayload.eventType =>
               await _categoriaActualizadaConflict(event),
             CategoriaMovidaPayload.eventType => await _categoriaMovidaConflict(
+              event,
+            ),
+            ProductoCreadoPayload.eventType => await _productoCreadoConflict(
               event,
             ),
             _ => null,
@@ -112,6 +120,44 @@ class PendingEventRevalidator {
           'El movimiento depende de otro evento local en conflicto.',
         );
       }
+    }
+    if (event.eventType == ProductoCreadoPayload.eventType) {
+      final payload = ProductoCreadoPayload.fromJson(event.payload);
+      final baseEventId = payload.dependenciaCategoria?.baseEventId;
+      if (baseEventId != null &&
+          (conflictedEventIds.contains(baseEventId) ||
+              await _dependencyFailed(baseEventId))) {
+        return const _PendingConflict(
+          'El artículo depende de una categoría local en conflicto.',
+        );
+      }
+    }
+    return null;
+  }
+
+  Future<_PendingConflict?> _productoCreadoConflict(SyncEvent event) async {
+    final store = _productoProjectionStore;
+    if (store == null) return null;
+
+    final existing = await store.findProductById(event.aggregateId);
+    if (existing != null && existing.createdEventId != event.eventId) {
+      return _PendingConflict(
+        'Ya existe un artículo oficial con id ${event.aggregateId}.',
+      );
+    }
+    final payload = ProductoCreadoPayload.fromJson(event.payload);
+    final variant = await store.findVariantById(payload.variante.id);
+    if (variant != null && variant.createdEventId != event.eventId) {
+      return _PendingConflict(
+        'Ya existe una variante oficial con id ${payload.variante.id}.',
+      );
+    }
+    if (payload.categoriaId != null &&
+        await _categoriaProjectionStore.findById(payload.categoriaId!) ==
+            null) {
+      return const _PendingConflict(
+        'Ya no existe la categoría elegida para el artículo.',
+      );
     }
     return null;
   }
@@ -302,6 +348,8 @@ class PendingEventRevalidator {
           event,
           officialCategoryIds: conflict.officialCategoryIds,
         );
+      case ProductoCreadoPayload.eventType:
+        await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
     }
   }
 

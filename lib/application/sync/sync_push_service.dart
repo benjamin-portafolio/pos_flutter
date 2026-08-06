@@ -7,6 +7,7 @@ import 'models/sync_event.dart';
 import 'models/sync_push_report.dart';
 import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
+import 'payloads/producto_creado_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
@@ -229,6 +230,10 @@ class SyncPushService {
         final payload = CategoriaMovidaPayload.fromJson(event.payload);
         return eventIds.contains(payload.baseEventId) ||
             eventIds.contains(payload.categoriaDesplazadaBaseEventId);
+      case ProductoCreadoPayload.eventType:
+        final payload = ProductoCreadoPayload.fromJson(event.payload);
+        final baseEventId = payload.dependenciaCategoria?.baseEventId;
+        return baseEventId != null && eventIds.contains(baseEventId);
       default:
         return false;
     }

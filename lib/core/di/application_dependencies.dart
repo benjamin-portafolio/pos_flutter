@@ -9,6 +9,7 @@ import '../../application/config/app_config_store.dart';
 import '../../application/commands/categoria_command_service.dart';
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/local_command_context.dart';
+import '../../application/commands/producto_command_service.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/categoria_conflict_projection_restorer.dart';
 import '../../application/sync/categoria_movida_conflict_projection_restorer.dart';
@@ -17,10 +18,13 @@ import '../../application/sync/handlers/categoria_event_handler.dart';
 import '../../application/sync/handlers/categoria_event_registry.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
+import '../../application/sync/handlers/producto_event_handler.dart';
+import '../../application/sync/handlers/producto_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
+import '../../application/sync/projections/producto_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/server_echo_acknowledger.dart';
 import '../../application/sync/sync_availability_monitor.dart';
@@ -69,17 +73,22 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<CategoriaEventHandler>(
     () => CategoriaEventHandler(getIt<CategoriaProjectionStore>()),
   );
+  getIt.registerLazySingleton<ProductoEventHandler>(
+    () => ProductoEventHandler(getIt<ProductoProjectionStore>()),
+  );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
         ...espacioEventHandlers(getIt<EspacioEventHandler>()),
         ...categoriaEventHandlers(getIt<CategoriaEventHandler>()),
+        ...productoEventHandlers(getIt<ProductoEventHandler>()),
       },
     ),
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+      productoProjectionStore: getIt<ProductoProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<RemoteEventApplier>(
@@ -104,6 +113,7 @@ void registerApplicationDependencies(
       syncedEventHistory: getIt<SyncedEventHistory>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+      productoProjectionStore: getIt<ProductoProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
       categoriaMovidaConflictProjectionRestorer:
@@ -114,6 +124,7 @@ void registerApplicationDependencies(
     () => SyncConflictProjectionCleaner(
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+      productoProjectionStore: getIt<ProductoProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
       categoriaMovidaConflictProjectionRestorer:
@@ -211,6 +222,13 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<CategoriaCommandService>(
     () => CategoriaCommandService(
+      eventStore: getIt<LocalEventStore>(),
+      commandContext: getIt<LocalCommandContext>(),
+      categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<ProductoCommandService>(
+    () => ProductoCommandService(
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),

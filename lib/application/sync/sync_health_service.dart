@@ -15,8 +15,6 @@ class SyncHealthService {
        _client = client ?? http.Client(),
        _timeout = timeout;
 
-  static const supportedApiVersion = SyncHealthCheck.supportedApiVersion;
-
   final SyncEndpointConfig _endpointConfig;
   final http.Client _client;
   final Duration _timeout;
