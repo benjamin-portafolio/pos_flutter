@@ -6,9 +6,12 @@ import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
 import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/producto_command_service.dart';
+import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
+import 'package:pos_flutter/domain/articulos/variante_listado.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
+import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/inventory_categories_tab.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/widgets/inventory_category_card.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
@@ -21,6 +24,27 @@ void main() {
     orden: 0,
   );
   final categoriaRepository = _FakeCategoriaRepository([categoria]);
+  final productoRepository = _FakeProductoRepository(const [
+    ArticuloListado(
+      productoId: 'product-1',
+      nombre: 'Café',
+      activo: true,
+      categoriaId: 'category-1',
+      categoriaNombre: 'Bebidas',
+      categoriaColor: ColorCategoria.blue,
+      variantePredeterminadaId: 'variant-1',
+      precioPredeterminadoMenor: 4550,
+      variantesActivas: [
+        VarianteListado(
+          varianteId: 'variant-1',
+          nombre: null,
+          precioVentaMenor: 4550,
+          predeterminada: true,
+          orden: 0,
+        ),
+      ],
+    ),
+  ]);
 
   testWidgets('shows the three inventory tabs without modifiers', (
     tester,
@@ -29,6 +53,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
         ),
       ),
     );
@@ -46,6 +71,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
         ),
       ),
     );
@@ -65,6 +91,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
         ),
       ),
     );
@@ -88,6 +115,105 @@ void main() {
     expect(controller.index, 2);
   });
 
+  testWidgets(
+    'busca con debounce y conserva búsqueda y filtros al cambiar de pestaña',
+    (tester) async {
+      final repository = _FakeProductoRepository([
+        ...productoRepository.articulos,
+        const ArticuloListado(
+          productoId: 'product-2',
+          nombre: 'Té verde',
+          activo: true,
+          categoriaId: null,
+          categoriaNombre: null,
+          categoriaColor: null,
+          variantePredeterminadaId: 'variant-2',
+          precioPredeterminadoMenor: 3200,
+          variantesActivas: [
+            VarianteListado(
+              varianteId: 'variant-2',
+              nombre: null,
+              precioVentaMenor: 3200,
+              predeterminada: true,
+              orden: 0,
+            ),
+          ],
+        ),
+      ]);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: InventoryManagementScreen(
+            categoriaRepository: categoriaRepository,
+            productoRepository: repository,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('open_article_search_button')));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('article_search_field')),
+        'Caf',
+      );
+      await tester.pump(const Duration(milliseconds: 199));
+
+      expect(repository.queries.last.search, '');
+      expect(find.text('Té verde'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+
+      expect(repository.queries.last.search, 'Caf');
+      expect(find.text('Café'), findsOneWidget);
+      expect(find.text('Té verde'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('open_article_filters_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('article_filter_category_category-1')),
+      );
+      await tester.tap(find.byKey(const Key('apply_article_filters_button')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('CATEGORÍA'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ARTÍCULOS'));
+      await tester.pumpAndSettle();
+
+      final searchField = tester.widget<TextField>(
+        find.byKey(const Key('article_search_field')),
+      );
+      expect(searchField.controller!.text, 'Caf');
+      expect(
+        find.bySemanticsLabel('Filtrar artículos, 1 filtro aplicado'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('close_article_search_button')));
+      await tester.pump();
+      expect(find.text('GESTIÓN DEL INVENTARIO'), findsOneWidget);
+      expect(repository.queries.last.search, 'Caf');
+      expect(repository.queries.last.categoryIds, {'category-1'});
+
+      await tester.tap(find.byKey(const Key('open_article_search_button')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('article_search_field')))
+            .controller!
+            .text,
+        'Caf',
+      );
+
+      await tester.tap(find.byKey(const Key('clear_article_search_button')));
+      await tester.pump();
+
+      expect(repository.queries.last.search, '');
+      expect(repository.queries.last.categoryIds, {'category-1'});
+    },
+  );
+
   testWidgets('abre el menú completo y crea una categoría con color', (
     tester,
   ) async {
@@ -96,6 +222,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
           categoriaCommandService: commandService,
         ),
       ),
@@ -141,6 +268,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
           productoCommandService: productService,
         ),
       ),
@@ -184,6 +312,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
           categoriaCommandService: commandService,
         ),
       ),
@@ -229,6 +358,7 @@ void main() {
       MaterialApp(
         home: InventoryManagementScreen(
           categoriaRepository: repository,
+          productoRepository: productoRepository,
           categoriaCommandService: commandService,
         ),
       ),
@@ -273,6 +403,49 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
   @override
   Stream<List<Categoria>> watchCategorias() => Stream.value(categorias);
+}
+
+class _FakeProductoRepository implements ProductoRepository {
+  _FakeProductoRepository(this.articulos);
+
+  final List<ArticuloListado> articulos;
+  final List<_ProductQuery> queries = [];
+
+  @override
+  Stream<List<ArticuloListado>> watchArticulos({
+    String busqueda = '',
+    Set<String> categoriaIds = const <String>{},
+    bool incluirSinCategoria = false,
+  }) {
+    queries.add(
+      _ProductQuery(search: busqueda, categoryIds: Set.of(categoriaIds)),
+    );
+    final normalizedSearch = busqueda.trim().toLowerCase();
+    return Stream.value(
+      articulos
+          .where((article) {
+            final matchesSearch =
+                normalizedSearch.isEmpty ||
+                article.nombre.toLowerCase().contains(normalizedSearch);
+            final hasCategoryFilter =
+                categoriaIds.isNotEmpty || incluirSinCategoria;
+            final matchesCategory =
+                !hasCategoryFilter ||
+                (article.categoriaId == null
+                    ? incluirSinCategoria
+                    : categoriaIds.contains(article.categoriaId));
+            return matchesSearch && matchesCategory;
+          })
+          .toList(growable: false),
+    );
+  }
+}
+
+class _ProductQuery {
+  const _ProductQuery({required this.search, required this.categoryIds});
+
+  final String search;
+  final Set<String> categoryIds;
 }
 
 class _FakeCategoriaCommandService implements CategoriaCommandService {

@@ -5,6 +5,64 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     with _$ProductoDaoMixin {
   ProductoDao(super.db);
 
+  Stream<List<ProductoListadoRow>> watchProductosListado({
+    String busqueda = '',
+    Set<String> categoriaIds = const <String>{},
+    bool incluirSinCategoria = false,
+  }) {
+    final query = select(products).join([
+      leftOuterJoin(categories, categories.id.equalsExp(products.categoryId)),
+      leftOuterJoin(
+        productVariants,
+        productVariants.productId.equalsExp(products.id) &
+            productVariants.active.equals(true),
+      ),
+    ])..where(products.active.equals(true));
+
+    final normalizedSearch = busqueda.trim().toLowerCase();
+    if (normalizedSearch.isNotEmpty) {
+      query.where(
+        products.name.lower().like(
+          '%${_escapeLike(normalizedSearch)}%',
+          escapeChar: r'\',
+        ),
+      );
+    }
+
+    Expression<bool>? categoryPredicate;
+    if (categoriaIds.isNotEmpty) {
+      categoryPredicate = products.categoryId.isIn(categoriaIds);
+    }
+    if (incluirSinCategoria) {
+      final withoutCategory = products.categoryId.isNull();
+      categoryPredicate = categoryPredicate == null
+          ? withoutCategory
+          : categoryPredicate | withoutCategory;
+    }
+    if (categoryPredicate != null) {
+      query.where(categoryPredicate);
+    }
+
+    query.orderBy([
+      OrderingTerm(expression: products.name.lower()),
+      OrderingTerm(expression: products.id),
+      OrderingTerm(expression: productVariants.sortOrder),
+      OrderingTerm(expression: productVariants.id),
+    ]);
+
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => ProductoListadoRow(
+              producto: row.readTable(products),
+              categoria: row.readTableOrNull(categories),
+              variante: row.readTableOrNull(productVariants),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
   Future<ProductRow?> obtenerProductoPorId(String id) {
     return (select(
       products,
@@ -78,4 +136,23 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
       products,
     )..where((product) => product.createdEventId.equals(eventId))).go();
   }
+
+  String _escapeLike(String value) {
+    return value
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
+  }
+}
+
+class ProductoListadoRow {
+  const ProductoListadoRow({
+    required this.producto,
+    required this.categoria,
+    required this.variante,
+  });
+
+  final ProductRow producto;
+  final CategoryRow? categoria;
+  final ProductVariantRow? variante;
 }

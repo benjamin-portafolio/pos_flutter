@@ -32,8 +32,10 @@ import '../../data/local/sync/sync_detection_settings_file_store.dart';
 import '../../data/local/sync/sync_endpoint_file_store.dart';
 import '../../data/repositories/categoria_repository_impl.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
+import '../../data/repositories/producto_repository_impl.dart';
 import '../../domain/repositories/categoria_repository.dart';
 import '../../domain/repositories/espacio_repository.dart';
+import '../../domain/repositories/producto_repository.dart';
 
 class DataDependencyBootstrap {
   const DataDependencyBootstrap({
@@ -136,6 +138,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<CategoriaRepository>(
     () => CategoriaRepositoryImpl(categoriaDao: getIt<CategoriaDao>()),
+  );
+  getIt.registerLazySingleton<ProductoRepository>(
+    () => ProductoRepositoryImpl(productoDao: getIt<ProductoDao>()),
   );
 
   return DataDependencyBootstrap(
