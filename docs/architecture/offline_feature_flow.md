@@ -162,6 +162,16 @@ Contratos existentes:
 | `categoria_creada` | `CategoriaCreadaPayload` | `name`, `color_key`, `sort_order` |
 | `categoria_actualizada` | `CategoriaActualizadaPayload` | `base_event_id`, `changed_fields`, `changes` |
 | `categoria_movida` | `CategoriaMovidaPayload` | bases y cambios de `sort_order` de dos categorias |
+| `producto_creado` | `ProductoCreadoPayload` | `product`, una variante sencilla y dependencias locales opcionales |
+
+`producto_creado` conserva `product.category_id` y una referencia `category`
+con relacion `uses` cuando el articulo pertenece a una categoria. Una categoria
+oficial no agrega una base de estado al payload: cambios de nombre, color u
+orden no son antecedentes de la creación del producto. Si la categoria fue
+creada localmente y `categoria_creada` sigue pendiente, el payload declara
+solamente `depends_on_event_id` para diferir el push hasta entregar esa
+creacion. El lector mantiene compatibilidad explicita con el formato legado de
+`base_event_id`, `base_version` y `base_server_sequence`.
 
 `categoria_actualizada` transporta solo cambios de `name` y `color_key`. Cada
 entrada de `changes` conserva los valores `from` y `to`; `base_event_id`

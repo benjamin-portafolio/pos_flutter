@@ -29,12 +29,13 @@ class ProductoCreadoPayload {
       categoriaId,
       'product.category_id',
     );
-    if ((normalizedCategoryId == null) != (dependenciaCategoria == null)) {
+    if (normalizedCategoryId == null && dependenciaCategoria != null) {
       throw const FormatException(
-        'La dependencia de categoria debe coincidir con product.category_id.',
+        'Un producto sin categoria no puede declarar dependencia de categoria.',
       );
     }
-    if (dependenciaCategoria?.refId != normalizedCategoryId) {
+    if (dependenciaCategoria != null &&
+        dependenciaCategoria.refId != normalizedCategoryId) {
       throw const FormatException(
         'La dependencia no coincide con product.category_id.',
       );
@@ -86,12 +87,12 @@ class ProductoCreadoPayload {
     }
     final dependency = dependencies.isEmpty
         ? null
-        : ProductoCreadoDependencia.fromJson(
+        : _parseProductoCreadoDependencia(
             _requiredMap(dependencies.single, 'dependencies[0]'),
+            categoriaId: categoriaId,
           );
 
-    if ((categoriaId == null) != (dependency == null) ||
-        dependency?.refId != categoriaId) {
+    if (categoriaId == null && dependencies.isNotEmpty) {
       throw const FormatException(
         'La dependencia de categoria no coincide con product.category_id.',
       );
@@ -169,57 +170,65 @@ class ProductoCreadoVariante {
 class ProductoCreadoDependencia {
   const ProductoCreadoDependencia({
     required this.refId,
-    required this.baseEventId,
-    required this.baseVersion,
-    required this.baseServerSequence,
+    required this.dependsOnEventId,
   });
 
   final String refId;
-  final String? baseEventId;
-  final int baseVersion;
-  final int? baseServerSequence;
-
-  factory ProductoCreadoDependencia.fromJson(Map<String, Object?> json) {
-    if (json['ref_type'] != 'category') {
-      throw const FormatException(
-        'El alta sencilla solo admite dependencias category.',
-      );
-    }
-    final baseEventId = _optionalNonEmptyString(
-      json['base_event_id'],
-      'dependencies[0].base_event_id',
-    );
-    final baseVersion = _requiredInt(json['base_version']);
-    final baseServerSequence = _optionalNonNegativeInt(
-      json['base_server_sequence'],
-      'dependencies[0].base_server_sequence',
-    );
-    if (baseVersion < 1) {
-      throw const FormatException(
-        'dependencies[0].base_version debe ser >= 1.',
-      );
-    }
-    if (baseEventId == null && baseServerSequence == null) {
-      throw const FormatException(
-        'La dependencia requiere base_event_id o base_server_sequence.',
-      );
-    }
-
-    return ProductoCreadoDependencia(
-      refId: _requiredString(json['ref_id'], 'dependencies[0].ref_id'),
-      baseEventId: baseEventId,
-      baseVersion: baseVersion,
-      baseServerSequence: baseServerSequence,
-    );
-  }
+  final String dependsOnEventId;
 
   Map<String, Object?> toJson() => {
     'ref_type': 'category',
     'ref_id': refId,
-    'base_event_id': baseEventId,
-    'base_version': baseVersion,
-    'base_server_sequence': baseServerSequence,
+    'depends_on_event_id': dependsOnEventId,
   };
+}
+
+ProductoCreadoDependencia? _parseProductoCreadoDependencia(
+  Map<String, Object?> json, {
+  required String? categoriaId,
+}) {
+  if (json['ref_type'] != 'category') {
+    throw const FormatException(
+      'El alta sencilla solo admite dependencias category.',
+    );
+  }
+  final refId = _requiredString(json['ref_id'], 'dependencies[0].ref_id');
+  if (refId != categoriaId) {
+    throw const FormatException(
+      'La dependencia de categoria no coincide con product.category_id.',
+    );
+  }
+
+  if (json.containsKey('depends_on_event_id')) {
+    return ProductoCreadoDependencia(
+      refId: refId,
+      dependsOnEventId: _requiredString(
+        json['depends_on_event_id'],
+        'dependencies[0].depends_on_event_id',
+      ),
+    );
+  }
+
+  final baseEventId = _optionalNonEmptyString(
+    json['base_event_id'],
+    'dependencies[0].base_event_id',
+  );
+  final baseVersion = _requiredInt(json['base_version']);
+  final baseServerSequence = _optionalNonNegativeInt(
+    json['base_server_sequence'],
+    'dependencies[0].base_server_sequence',
+  );
+  if (baseVersion < 1) {
+    throw const FormatException('dependencies[0].base_version debe ser >= 1.');
+  }
+  if (baseEventId == null && baseServerSequence == null) {
+    throw const FormatException(
+      'La dependencia legada requiere base_event_id o base_server_sequence.',
+    );
+  }
+  if (baseEventId == null) return null;
+
+  return ProductoCreadoDependencia(refId: refId, dependsOnEventId: baseEventId);
 }
 
 Map<String, Object?> _requiredMap(Object? value, String fieldName) {

@@ -232,6 +232,7 @@ void registerApplicationDependencies(
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
+      syncedEventHistory: getIt<SyncedEventHistory>(),
     ),
   );
 }

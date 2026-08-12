@@ -503,9 +503,7 @@ SyncEvent _localProductoCreado() {
       precioVentaMenor: 4550,
       dependenciaCategoria: const ProductoCreadoDependencia(
         refId: 'category_1',
-        baseEventId: 'local_category_created',
-        baseVersion: 1,
-        baseServerSequence: null,
+        dependsOnEventId: 'local_category_created',
       ),
     ).toJson(),
   );

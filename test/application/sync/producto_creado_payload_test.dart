@@ -43,4 +43,66 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test('una categoría oficial no requiere dependencia de evento', () {
+    final payload = ProductoCreadoPayload.simple(
+      nombre: 'Café',
+      categoriaId: 'category_1',
+      varianteId: 'variant_1',
+      precioVentaMenor: 5000,
+    );
+
+    expect(payload.toJson()['dependencies'], isEmpty);
+    expect(
+      ProductoCreadoPayload.fromJson(payload.toJson()).categoriaId,
+      'category_1',
+    );
+  });
+
+  test('serializa la dependencia local con depends_on_event_id', () {
+    final payload = ProductoCreadoPayload.simple(
+      nombre: 'Café',
+      categoriaId: 'category_1',
+      varianteId: 'variant_1',
+      precioVentaMenor: 5000,
+      dependenciaCategoria: const ProductoCreadoDependencia(
+        refId: 'category_1',
+        dependsOnEventId: 'category_created_1',
+      ),
+    );
+
+    expect(payload.toJson()['dependencies'], [
+      {
+        'ref_type': 'category',
+        'ref_id': 'category_1',
+        'depends_on_event_id': 'category_created_1',
+      },
+    ]);
+  });
+
+  test('lee una dependencia legada y la normaliza al contrato nuevo', () {
+    final json = ProductoCreadoPayload.simple(
+      nombre: 'Café',
+      categoriaId: 'category_1',
+      varianteId: 'variant_1',
+      precioVentaMenor: 5000,
+    ).toJson();
+    json['dependencies'] = [
+      {
+        'ref_type': 'category',
+        'ref_id': 'category_1',
+        'base_event_id': 'legacy_category_event',
+        'base_version': 4,
+        'base_server_sequence': 20,
+      },
+    ];
+
+    expect(ProductoCreadoPayload.fromJson(json).toJson()['dependencies'], [
+      {
+        'ref_type': 'category',
+        'ref_id': 'category_1',
+        'depends_on_event_id': 'legacy_category_event',
+      },
+    ]);
+  });
 }

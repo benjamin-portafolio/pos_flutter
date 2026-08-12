@@ -232,8 +232,10 @@ class SyncPushService {
             eventIds.contains(payload.categoriaDesplazadaBaseEventId);
       case ProductoCreadoPayload.eventType:
         final payload = ProductoCreadoPayload.fromJson(event.payload);
-        final baseEventId = payload.dependenciaCategoria?.baseEventId;
-        return baseEventId != null && eventIds.contains(baseEventId);
+        final dependencyEventId =
+            payload.dependenciaCategoria?.dependsOnEventId;
+        return dependencyEventId != null &&
+            eventIds.contains(dependencyEventId);
       default:
         return false;
     }

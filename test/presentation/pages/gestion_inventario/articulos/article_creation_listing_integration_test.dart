@@ -9,6 +9,8 @@ import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/producto_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/producto_event_registry.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
+import 'package:pos_flutter/application/sync/models/sync_event.dart';
+import 'package:pos_flutter/application/sync/synced_event_history.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
@@ -48,6 +50,7 @@ void main() {
         userId: 'test-user',
       ),
       categoriaProjectionStore: _EmptyCategoriaProjectionStore(),
+      syncedEventHistory: _EmptySyncedEventHistory(),
     );
 
     await tester.pumpWidget(
@@ -121,4 +124,22 @@ class _EmptyCategoriaProjectionStore implements CategoriaProjectionStore {
     required String eventId,
     int? serverSequence,
   }) async {}
+}
+
+class _EmptySyncedEventHistory implements SyncedEventHistory {
+  @override
+  Future<SyncEvent?> eventById(String eventId) async => null;
+
+  @override
+  Future<List<SyncEvent>> eventsByTypeAfter({
+    required String eventType,
+    required int serverSequence,
+  }) async => const [];
+
+  @override
+  Future<List<SyncEvent>> eventsForAggregateAfter({
+    required String aggregateType,
+    required String aggregateId,
+    required int serverSequence,
+  }) async => const [];
 }

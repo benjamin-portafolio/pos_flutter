@@ -123,10 +123,10 @@ class PendingEventRevalidator {
     }
     if (event.eventType == ProductoCreadoPayload.eventType) {
       final payload = ProductoCreadoPayload.fromJson(event.payload);
-      final baseEventId = payload.dependenciaCategoria?.baseEventId;
-      if (baseEventId != null &&
-          (conflictedEventIds.contains(baseEventId) ||
-              await _dependencyFailed(baseEventId))) {
+      final dependencyEventId = payload.dependenciaCategoria?.dependsOnEventId;
+      if (dependencyEventId != null &&
+          (conflictedEventIds.contains(dependencyEventId) ||
+              await _dependencyFailed(dependencyEventId))) {
         return const _PendingConflict(
           'El artículo depende de una categoría local en conflicto.',
         );
