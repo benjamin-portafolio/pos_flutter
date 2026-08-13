@@ -9,13 +9,20 @@ abstract interface class ProductoProjectionStore {
     String productId,
   );
 
-  Future<int> countProductsByCategoryId(String categoryId);
+  Future<List<ProductoProjection>> findProductsByCategoryId(String categoryId);
 
   Future<void> insertProduct(ProductoProjection projection);
 
   Future<void> insertVariant(ProductoVarianteProjection projection);
 
+  Future<void> updateProduct(ProductoProjection projection);
+
   Future<void> advanceLastServerSequence(String productId, int serverSequence);
+
+  Future<void> advanceProductLastServerSequence(
+    String productId,
+    int serverSequence,
+  );
 
   Future<void> deleteProductById(String id);
 

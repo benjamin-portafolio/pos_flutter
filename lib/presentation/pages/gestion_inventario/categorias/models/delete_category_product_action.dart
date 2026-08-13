@@ -1,0 +1,1 @@
+enum DeleteCategoryProductAction { move, uncategorize }

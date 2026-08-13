@@ -200,6 +200,7 @@ class CategoriaEventHandler {
 
   Future<void> applyCategoriaEliminada(SyncEvent event) async {
     final payload = CategoriaEliminadaPayload.fromJson(event.payload);
+    payload.validateForSourceCategory(event.aggregateId);
     if (event.aggregateType != CategoriaEliminadaPayload.aggregateType ||
         event.baseVersion == null ||
         event.baseVersion! < 1 ||
@@ -219,6 +220,18 @@ class CategoriaEventHandler {
     // idempotente cuando las categorías desplazadas todavía acreditan que este
     // mismo evento ya aplicó la compactación.
     if (existing == null) {
+      for (final linked in payload.productosVinculados) {
+        final current = await _productoProjectionStore?.findProductById(
+          linked.productoId,
+        );
+        if (current == null ||
+            current.lastEventId != event.eventId ||
+            current.categoriaId != linked.categoriaNuevaId) {
+          throw StateError(
+            'categoria_eliminada encontró productos que no acreditan su aplicación previa.',
+          );
+        }
+      }
       for (final shifted in payload.categoriasDesplazadas) {
         final current = await _categoriaProjectionStore.findById(
           shifted.categoriaId,
@@ -237,15 +250,17 @@ class CategoriaEventHandler {
     final ordered = await _categoriaProjectionStore.findAllOrdered();
     _validateConsecutiveOrder(ordered);
     _validateDeleteBase(event, payload, existing);
-    if ((await _productoProjectionStore?.countProductsByCategoryId(
-              event.aggregateId,
-            ) ??
-            0) >
-        0) {
+    final productStore = _productoProjectionStore;
+    if (productStore == null && payload.productosVinculados.isNotEmpty) {
       throw StateError(
-        'No se puede aplicar categoria_eliminada con artículos vinculados.',
+        'No está disponible la proyección de artículos para aplicar la eliminación.',
       );
     }
+    final currentLinked = productStore == null
+        ? const <ProductoProjection>[]
+        : await productStore.findProductsByCategoryId(event.aggregateId);
+    _validateLinkedProducts(event, payload, currentLinked);
+    await _validateDestination(payload);
 
     final expectedShifted = ordered
         .where((category) => category.orden > existing.orden)
@@ -271,6 +286,25 @@ class CategoriaEventHandler {
       }
     }
 
+    for (final declared in payload.productosVinculados) {
+      final current = currentLinked.firstWhere(
+        (product) => product.id == declared.productoId,
+      );
+      await productStore!.updateProduct(
+        ProductoProjection(
+          id: current.id,
+          nombre: current.nombre,
+          categoriaId: declared.categoriaNuevaId,
+          active: current.active,
+          version: current.version + 1,
+          createdEventId: current.createdEventId,
+          lastEventId: event.eventId,
+          lastServerSequence:
+              event.serverSequence ?? current.lastServerSequence,
+        ),
+      );
+    }
+
     await _categoriaProjectionStore.deleteById(existing.id);
     for (var index = 0; index < expectedShifted.length; index++) {
       final current = expectedShifted[index];
@@ -288,6 +322,53 @@ class CategoriaEventHandler {
           lastServerSequence:
               event.serverSequence ?? current.lastServerSequence,
         ),
+      );
+    }
+  }
+
+  void _validateLinkedProducts(
+    SyncEvent event,
+    CategoriaEliminadaPayload payload,
+    List<ProductoProjection> current,
+  ) {
+    final currentById = {for (final product in current) product.id: product};
+    if (currentById.length != payload.productosVinculados.length) {
+      throw StateError(
+        'categoria_eliminada no coincide con el conjunto actual de artículos.',
+      );
+    }
+    for (final declared in payload.productosVinculados) {
+      final product = currentById[declared.productoId];
+      final baseEventId = product?.lastEventId ?? product?.createdEventId;
+      if (product == null ||
+          product.categoriaId != event.aggregateId ||
+          declared.categoriaAnteriorId != event.aggregateId ||
+          baseEventId != declared.baseEventId ||
+          product.version != declared.baseVersion ||
+          declared.baseServerSequence != null &&
+              product.lastServerSequence != declared.baseServerSequence) {
+        throw StateError(
+          'categoria_eliminada no coincide con la base de un artículo.',
+        );
+      }
+    }
+  }
+
+  Future<void> _validateDestination(CategoriaEliminadaPayload payload) async {
+    final destination = payload.resolucionProductos.categoriaDestino;
+    if (destination == null) return;
+    final current = await _categoriaProjectionStore.findById(
+      destination.categoriaId,
+    );
+    final baseEventId = current?.lastEventId ?? current?.createdEventId;
+    if (current == null ||
+        !current.active ||
+        baseEventId != destination.baseEventId ||
+        current.version != destination.baseVersion ||
+        destination.baseServerSequence != null &&
+            current.lastServerSequence != destination.baseServerSequence) {
+      throw StateError(
+        'categoria_eliminada no coincide con la base de la categoría destino.',
       );
     }
   }

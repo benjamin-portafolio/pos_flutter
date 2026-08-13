@@ -137,6 +137,9 @@ class PendingEventRevalidator {
       final payload = CategoriaEliminadaPayload.fromJson(event.payload);
       final baseEventIds = {
         payload.baseEventId,
+        if (payload.resolucionProductos.categoriaDestino != null)
+          payload.resolucionProductos.categoriaDestino!.baseEventId,
+        ...payload.productosVinculados.map((product) => product.baseEventId),
         ...payload.categoriasDesplazadas.map(
           (category) => category.baseEventId,
         ),
@@ -337,12 +340,26 @@ class PendingEventRevalidator {
 
   Future<_PendingConflict?> _categoriaEliminadaConflict(SyncEvent event) async {
     final payload = CategoriaEliminadaPayload.fromJson(event.payload);
+    payload.validateForSourceCategory(event.aggregateId);
     final store = _productoProjectionStore;
     if (store != null &&
-        await store.countProductsByCategoryId(event.aggregateId) > 0) {
+        (await store.findProductsByCategoryId(event.aggregateId)).isNotEmpty) {
       return const _PendingConflict(
         'La categoría recibió artículos oficiales antes de eliminarse.',
       );
+    }
+    if (store != null) {
+      for (final linked in payload.productosVinculados) {
+        final current = await store.findProductById(linked.productoId);
+        if (current == null ||
+            current.categoriaId != linked.categoriaNuevaId ||
+            current.lastEventId != event.eventId ||
+            current.version != linked.baseVersion + 1) {
+          return const _PendingConflict(
+            'Cambió un artículo confirmado antes de eliminar la categoría.',
+          );
+        }
+      }
     }
     final restored = await _categoriaProjectionStore.findById(
       event.aggregateId,
@@ -351,6 +368,38 @@ class PendingEventRevalidator {
       return const _PendingConflict(
         'La categoría cambió oficialmente antes de eliminarse.',
       );
+    }
+    final destination = payload.resolucionProductos.categoriaDestino;
+    if (destination != null) {
+      final current = await _categoriaProjectionStore.findById(
+        destination.categoriaId,
+      );
+      CategoriaEliminadaCategoriaDesplazada? shifted;
+      for (final category in payload.categoriasDesplazadas) {
+        if (category.categoriaId == destination.categoriaId) {
+          shifted = category;
+          break;
+        }
+      }
+      final baseEventId = current?.lastEventId ?? current?.createdEventId;
+      final matches = shifted == null
+          ? current != null &&
+                current.active &&
+                baseEventId == destination.baseEventId &&
+                current.version == destination.baseVersion &&
+                (destination.baseServerSequence == null ||
+                    current.lastServerSequence ==
+                        destination.baseServerSequence)
+          : current != null &&
+                current.active &&
+                current.lastEventId == event.eventId &&
+                current.version == destination.baseVersion + 1 &&
+                current.orden == shifted.ordenNuevo;
+      if (!matches) {
+        return const _PendingConflict(
+          'La categoría destino cambió antes de eliminar la categoría origen.',
+        );
+      }
     }
     for (final shifted in payload.categoriasDesplazadas) {
       final existing = await _categoriaProjectionStore.findById(

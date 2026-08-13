@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
+import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
@@ -247,8 +248,9 @@ class _FakeProductoRepository implements ProductoRepository {
   final List<_Query> queries = [];
 
   @override
-  Future<int> contarArticulosPorCategoria(String categoriaId) async =>
-      articles.where((article) => article.categoriaId == categoriaId).length;
+  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
+    String categoriaId,
+  ) async => const [];
 
   @override
   Stream<List<ArticuloListado>> watchArticulos({
@@ -289,7 +291,9 @@ class _SequencedProductoRepository implements ProductoRepository {
   int subscriptions = 0;
 
   @override
-  Future<int> contarArticulosPorCategoria(String categoriaId) async => 0;
+  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
+    String categoriaId,
+  ) async => const [];
 
   @override
   Stream<List<ArticuloListado>> watchArticulos({

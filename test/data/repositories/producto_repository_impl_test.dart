@@ -175,7 +175,7 @@ void main() {
     expect(articles.map((article) => article.productoId), ['percent']);
   });
 
-  test('cuenta productos activos e inactivos sin contar variantes', () async {
+  test('obtiene productos activos e inactivos sin contar variantes', () async {
     await _insertCategory(
       db,
       id: 'category-count',
@@ -212,7 +212,14 @@ void main() {
       sortOrder: 1,
     );
 
-    expect(await repository.contarArticulosPorCategoria('category-count'), 2);
+    final linked = await repository.obtenerArticulosPorCategoria(
+      'category-count',
+    );
+    expect(linked.map((article) => article.productoId), [
+      'product-active',
+      'product-inactive',
+    ]);
+    expect(linked.map((article) => article.activo), [true, false]);
   });
 
   test('emite automáticamente después de un commit local', () async {

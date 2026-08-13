@@ -28,6 +28,7 @@ class CategoriaRepositoryImpl implements CategoriaRepository {
       nombre: row.name,
       color: ColorCategoria.fromKey(row.colorKey),
       orden: row.sortOrder,
+      activa: row.active,
     );
   }
 }

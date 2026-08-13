@@ -10,6 +10,7 @@ import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
 import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/producto_command_service.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
+import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
@@ -395,7 +396,7 @@ void main() {
     expect(commandService.moveCommand?.direccion.name, 'arriba');
   });
 
-  testWidgets('bloquea eliminación y usa singular cuando hay un artículo', (
+  testWidgets('ofrece resoluciones y usa singular cuando hay un artículo', (
     tester,
   ) async {
     final commandService = _FakeCategoriaCommandService();
@@ -414,10 +415,170 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('tiene 1 artículo vinculado.'), findsOneWidget);
-    expect(find.text('Cerrar'), findsOneWidget);
+    expect(find.text('Mover a otra categoría'), findsOneWidget);
+    expect(find.text('Dejar sin categoría'), findsOneWidget);
+    expect(find.text('Eliminar todos'), findsNothing);
     expect(commandService.deleteCommand, isNull);
-    await tester.tap(find.text('Cerrar'));
+    await tester.tap(
+      find.byKey(const Key('cancel_delete_category_with_products_button')),
+    );
     await tester.pumpAndSettle();
+    expect(commandService.deleteCommand, isNull);
+  });
+
+  testWidgets('mueve artículos por ID y elimina después de confirmar', (
+    tester,
+  ) async {
+    const destination = Categoria(
+      id: 'category-2',
+      nombre: 'Comida',
+      color: ColorCategoria.amber,
+      orden: 1,
+    );
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: _FakeCategoriaRepository([
+            categoria,
+            destination,
+          ]),
+          productoRepository: productoRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move_category_products_option')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('destination_category_option_category-1')),
+      findsNothing,
+    );
+    final continueButton = tester.widget<FilledButton>(
+      find.byKey(const Key('confirm_destination_category_button')),
+    );
+    expect(continueButton.onPressed, isNull);
+    await tester.tap(
+      find.byKey(const Key('destination_category_option_category-2')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('confirm_destination_category_button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Se moverá 1 artículo de “Bebidas” a “Comida”'),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const Key('confirm_move_and_delete_category_button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      commandService.deleteCommand?.resolucion,
+      ResolucionProductosCategoria.move,
+    );
+    expect(commandService.deleteCommand?.categoriaDestinoId, 'category-2');
+    expect(commandService.deleteCommand?.productoIdsConfirmados, ['product-1']);
+    expect(find.text('Categoría eliminada.'), findsOneWidget);
+  });
+
+  testWidgets('deja artículos sin categoría y elimina', (tester) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('uncategorize_category_products_option')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('quedará sin categoría'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('confirm_uncategorize_and_delete_category_button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      commandService.deleteCommand?.resolucion,
+      ResolucionProductosCategoria.uncategorize,
+    );
+    expect(commandService.deleteCommand?.categoriaDestinoId, isNull);
+    expect(commandService.deleteCommand?.productoIdsConfirmados, ['product-1']);
+  });
+
+  testWidgets('sin destinos permite regresar y conservar sin categoría', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('move_category_products_option')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No hay otra categoría disponible.'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('back_from_destination_picker_button')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Dejar sin categoría'), findsOneWidget);
+    expect(commandService.deleteCommand, isNull);
+  });
+
+  testWidgets('cancelar confirmación de resolución no genera comando', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('uncategorize_category_products_option')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('cancel_category_product_resolution_button')),
+    );
+    await tester.pumpAndSettle();
+
     expect(commandService.deleteCommand, isNull);
   });
 
@@ -579,11 +740,19 @@ class _FakeProductoRepository implements ProductoRepository {
   final List<_ProductQuery> queries = [];
 
   @override
-  Future<int> contarArticulosPorCategoria(String categoriaId) async {
+  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
+    String categoriaId,
+  ) async {
     if (countError != null) throw countError!;
     return articulos
         .where((articulo) => articulo.categoriaId == categoriaId)
-        .length;
+        .map(
+          (articulo) => ArticuloVinculadoCategoria(
+            productoId: articulo.productoId,
+            activo: articulo.activo,
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override

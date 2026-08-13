@@ -20,7 +20,12 @@ import 'articulos/models/articulo_form_result.dart';
 import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
 import 'categorias/models/categoria_form_result.dart';
+import 'categorias/models/delete_category_product_action.dart';
+import 'categorias/models/linked_category_products_summary.dart';
+import 'categorias/widgets/category_destination_picker_dialog.dart';
 import 'categorias/widgets/delete_category_dialog.dart';
+import 'categorias/widgets/delete_category_options_dialog.dart';
+import 'categorias/widgets/delete_category_products_confirmation_dialog.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
@@ -358,10 +363,12 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       builder: (_) =>
           DeleteCategoryDialog.checking(categoryName: categoria.nombre),
     );
-    int linkedCount;
+    late LinkedCategoryProductsSummary linkedProducts;
     try {
-      linkedCount = await widget.productoRepository.contarArticulosPorCategoria(
-        categoria.id,
+      linkedProducts = LinkedCategoryProductsSummary(
+        await widget.productoRepository.obtenerArticulosPorCategoria(
+          categoria.id,
+        ),
       );
     } catch (_) {
       if (!context.mounted) return;
@@ -376,52 +383,17 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       setState(() => _deletingCategory = false);
       return;
     }
-    if (!context.mounted) return;
-    Navigator.of(context, rootNavigator: true).pop();
+    if (!mounted) return;
+    Navigator.of(this.context, rootNavigator: true).pop();
 
-    if (linkedCount > 0) {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => DeleteCategoryDialog.blocked(
-          categoryName: categoria.nombre,
-          linkedCount: linkedCount,
-        ),
-      );
-      if (mounted) setState(() => _deletingCategory = false);
-      return;
+    bool? confirmed;
+    try {
+      confirmed = linkedProducts.total == 0
+          ? await _confirmEmptyCategoryDeletion(categoria)
+          : await _resolveProductsAndDelete(categoria, linkedProducts);
+    } catch (_) {
+      confirmed = false;
     }
-
-    var deleting = false;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setDialogState) => DeleteCategoryDialog.confirm(
-          categoryName: categoria.nombre,
-          deleting: deleting,
-          onDelete: () async {
-            if (deleting) return;
-            setDialogState(() => deleting = true);
-            try {
-              final service =
-                  widget.categoriaCommandService ??
-                  getIt<CategoriaCommandService>();
-              await service.eliminarCategoria(
-                EliminarCategoriaCommand(categoriaId: categoria.id),
-              );
-              if (dialogContext.mounted) {
-                Navigator.of(dialogContext).pop(true);
-              }
-            } catch (_) {
-              if (dialogContext.mounted) {
-                Navigator.of(dialogContext).pop(false);
-              }
-            }
-          },
-        ),
-      ),
-    );
     if (!mounted) return;
     setState(() => _deletingCategory = false);
     if (confirmed == null) return;
@@ -434,5 +406,122 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         ),
       ),
     );
+  }
+
+  Future<bool?> _confirmEmptyCategoryDeletion(Categoria categoria) {
+    var deleting = false;
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialogState) => DeleteCategoryDialog.confirm(
+          categoryName: categoria.nombre,
+          deleting: deleting,
+          onDelete: () async {
+            if (deleting) return;
+            setDialogState(() => deleting = true);
+            final result = await _executeCategoryDeletion(
+              categoria: categoria,
+              productoIdsConfirmados: const [],
+              resolucion: ResolucionProductosCategoria.none,
+            );
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop(result);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _resolveProductsAndDelete(
+    Categoria categoria,
+    LinkedCategoryProductsSummary linkedProducts,
+  ) async {
+    while (mounted) {
+      final action = await showDialog<DeleteCategoryProductAction>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => DeleteCategoryOptionsDialog(
+          categoryName: categoria.nombre,
+          linkedCount: linkedProducts.total,
+        ),
+      );
+      if (action == null || !mounted) return null;
+
+      Categoria? destination;
+      if (action == DeleteCategoryProductAction.move) {
+        final categories = await widget.categoriaRepository.obtenerCategorias();
+        if (!mounted) return null;
+        final available = categories
+            .where(
+              (candidate) => candidate.id != categoria.id && candidate.activa,
+            )
+            .toList(growable: false);
+        destination = await showDialog<Categoria>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) =>
+              CategoryDestinationPickerDialog(categories: available),
+        );
+        if (destination == null) continue;
+      }
+      if (!mounted) return null;
+
+      var deleting = false;
+      return showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (_, setDialogState) =>
+              DeleteCategoryProductsConfirmationDialog(
+                categoryName: categoria.nombre,
+                linkedCount: linkedProducts.total,
+                action: action,
+                destinationName: destination?.nombre,
+                deleting: deleting,
+                onConfirm: () async {
+                  if (deleting) return;
+                  setDialogState(() => deleting = true);
+                  final result = await _executeCategoryDeletion(
+                    categoria: categoria,
+                    productoIdsConfirmados: linkedProducts.productIds,
+                    resolucion: action == DeleteCategoryProductAction.move
+                        ? ResolucionProductosCategoria.move
+                        : ResolucionProductosCategoria.uncategorize,
+                    categoriaDestinoId: destination?.id,
+                  );
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop(result);
+                  }
+                },
+              ),
+        ),
+      );
+    }
+    return null;
+  }
+
+  Future<bool> _executeCategoryDeletion({
+    required Categoria categoria,
+    required List<String> productoIdsConfirmados,
+    required ResolucionProductosCategoria resolucion,
+    String? categoriaDestinoId,
+  }) async {
+    try {
+      final service =
+          widget.categoriaCommandService ?? getIt<CategoriaCommandService>();
+      await service.eliminarCategoria(
+        EliminarCategoriaCommand(
+          categoriaId: categoria.id,
+          resolucion: resolucion,
+          categoriaDestinoId: categoriaDestinoId,
+          productoIdsConfirmados: productoIdsConfirmados,
+        ),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

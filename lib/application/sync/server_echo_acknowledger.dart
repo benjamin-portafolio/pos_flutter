@@ -42,6 +42,12 @@ class ServerEchoAcknowledger {
         return;
       case CategoriaEliminadaPayload.eventType:
         final payload = CategoriaEliminadaPayload.fromJson(event.payload);
+        for (final product in payload.productosVinculados) {
+          await _productoProjectionStore?.advanceProductLastServerSequence(
+            product.productoId,
+            serverSequence,
+          );
+        }
         for (final category in payload.categoriasDesplazadas) {
           await _categoriaProjectionStore.advanceLastServerSequence(
             category.categoriaId,

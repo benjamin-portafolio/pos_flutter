@@ -29,17 +29,22 @@ class RemoteEventPreparer {
     );
 
     final preparedConflictIds = <String>{};
+    final officialRefKeys = _officialRefKeys(officialEvent);
     for (final local in pending) {
       if (local.eventType != CategoriaEliminadaPayload.eventType) continue;
       final affected =
           officialEvent.eventType == ProductoCreadoPayload.eventType
           ? ProductoCreadoPayload.fromJson(officialEvent.payload).categoriaId ==
-                local.aggregateId
+                    local.aggregateId ||
+                refs.any(
+                  (ref) =>
+                      ref.eventId == local.eventId &&
+                      officialRefKeys.contains('${ref.refType}:${ref.refId}'),
+                )
           : refs.any(
               (ref) =>
                   ref.eventId == local.eventId &&
-                  ref.refType == 'category' &&
-                  _officialCategoryIds(officialEvent).contains(ref.refId),
+                  officialRefKeys.contains('${ref.refType}:${ref.refId}'),
             );
       if (!affected) continue;
 
@@ -74,8 +79,11 @@ class RemoteEventPreparer {
         final affectsOrder = refs.any(
           (ref) =>
               ref.eventId == local.eventId &&
-              ref.refType == 'category' &&
-              categoryIds.contains(ref.refId),
+              (ref.refType == 'category' && categoryIds.contains(ref.refId) ||
+                  ref.refType == 'product' &&
+                      officialPayload.productosVinculados.any(
+                        (product) => product.productoId == ref.refId,
+                      )),
         );
         if (!affectsOrder) continue;
       }
@@ -96,6 +104,8 @@ class RemoteEventPreparer {
         final payload = CategoriaEliminadaPayload.fromJson(event.payload);
         return {
           event.aggregateId,
+          if (payload.resolucionProductos.categoriaDestino != null)
+            payload.resolucionProductos.categoriaDestino!.categoriaId,
           ...payload.categoriasDesplazadas.map(
             (category) => category.categoriaId,
           ),
@@ -112,5 +122,22 @@ class RemoteEventPreparer {
             ? {event.aggregateId}
             : const <String>{};
     }
+  }
+
+  Set<String> _officialRefKeys(SyncEvent event) {
+    final keys = _officialCategoryIds(
+      event,
+    ).map((id) => 'category:$id').toSet();
+    if (event.eventType == CategoriaEliminadaPayload.eventType) {
+      final payload = CategoriaEliminadaPayload.fromJson(event.payload);
+      keys.addAll(
+        payload.productosVinculados.map(
+          (product) => 'product:${product.productoId}',
+        ),
+      );
+    } else if (event.aggregateType == 'product') {
+      keys.add('product:${event.aggregateId}');
+    }
+    return keys;
   }
 }

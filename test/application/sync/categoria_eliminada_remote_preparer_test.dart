@@ -15,6 +15,7 @@ import 'package:pos_flutter/application/sync/remote_event_preparer.dart';
 import 'package:pos_flutter/application/sync/server_echo_acknowledger.dart';
 import 'package:pos_flutter/application/sync/sync_conflict_projection_cleaner.dart';
 import 'package:pos_flutter/application/sync/projections/espacio_projection_store.dart';
+import 'package:pos_flutter/application/sync/projections/producto_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
@@ -45,6 +46,7 @@ void main() {
     );
     final deletedRestorer = CategoriaEliminadaConflictProjectionRestorer(
       categoryStore,
+      productStore,
     );
     final cleaner = SyncConflictProjectionCleaner(
       espacioProjectionStore: _UnusedEspacioProjectionStore(),
@@ -112,6 +114,96 @@ void main() {
       expect(deletion.deliveryStatus, 'conflict');
     },
   );
+
+  test(
+    'cambio oficial del destino restaura productos movidos y conserva lo oficial',
+    () async {
+      await remoteApplier.applySyncedEvents([
+        _categoryCreated(),
+        _destinationCategoryCreated(),
+        _productCreated(serverSequence: 3),
+      ]);
+      await localStore.appendAndApply(
+        _categoryDeletedMovingProduct(),
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+          LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+          LocalEventRef.uses(refType: 'category', refId: 'category_2'),
+        ],
+      );
+
+      expect(await categoriaDao.obtenerCategoriaPorId('category_1'), isNull);
+      expect(
+        (await productoDao.obtenerProductoPorId('product_1'))?.categoryId,
+        'category_2',
+      );
+
+      await remoteApplier.applySyncedEvents([_destinationCategoryUpdated()]);
+
+      final source = await categoriaDao.obtenerCategoriaPorId('category_1');
+      final destination = await categoriaDao.obtenerCategoriaPorId(
+        'category_2',
+      );
+      final product = await productoDao.obtenerProductoPorId('product_1');
+      expect(source, isNotNull);
+      expect(destination?.name, 'Destino oficial');
+      expect(destination?.version, 2);
+      expect(product?.categoryId, 'category_1');
+      expect(product?.version, 1);
+      expect(product?.lastEventId, 'official_product');
+      expect(product?.lastServerSequence, 3);
+      final deletion = await (db.select(
+        db.events,
+      )..where((event) => event.eventId.equals('local_delete'))).getSingle();
+      expect(deletion.deliveryStatus, 'conflict');
+    },
+  );
+
+  test('restauración no sobrescribe un producto oficial posterior', () async {
+    await remoteApplier.applySyncedEvents([
+      _categoryCreated(),
+      _destinationCategoryCreated(),
+      _productCreated(serverSequence: 3),
+    ]);
+    await localStore.appendAndApply(
+      _categoryDeletedMovingProduct(),
+      refs: const [
+        LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+        LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+        LocalEventRef.uses(refType: 'category', refId: 'category_2'),
+      ],
+    );
+    final productStore = DriftProductoProjectionStore(productoDao: productoDao);
+    final current = await productStore.findProductById('product_1');
+    await productStore.updateProduct(
+      ProductoProjection(
+        id: current!.id,
+        nombre: current.nombre,
+        categoriaId: null,
+        active: current.active,
+        version: 5,
+        createdEventId: current.createdEventId,
+        lastEventId: 'official_later',
+        lastServerSequence: 9,
+      ),
+    );
+    final categoryStore = DriftCategoriaProjectionStore(
+      categoriaDao: categoriaDao,
+    );
+
+    await CategoriaEliminadaConflictProjectionRestorer(
+      categoryStore,
+      productStore,
+    ).restore(_categoryDeletedMovingProduct());
+
+    final preserved = await productoDao.obtenerProductoPorId('product_1');
+    expect(preserved?.categoryId, isNull);
+    expect(preserved?.version, 5);
+    expect(preserved?.lastEventId, 'official_later');
+    expect(preserved?.lastServerSequence, 9);
+  });
 
   test(
     'eliminación oficial retira producto local pendiente antes del hard delete',
@@ -239,17 +331,99 @@ SyncEvent _categoryDeleted({
   },
 );
 
-SyncEvent _productCreated() => SyncEvent(
+SyncEvent _productCreated({int serverSequence = 2}) => SyncEvent(
   eventId: 'official_product',
   aggregateType: 'product',
   aggregateId: 'product_1',
   eventType: 'producto_creado',
   deviceId: 'server_device',
   userId: 'user',
-  serverSequence: 2,
+  serverSequence: serverSequence,
   baseVersion: 1,
   createdAtLocal: DateTime.utc(2026, 1, 3),
   payload: _productPayload('variant_1'),
+);
+
+SyncEvent _destinationCategoryCreated() => SyncEvent(
+  eventId: 'destination_created',
+  aggregateType: 'category',
+  aggregateId: 'category_2',
+  eventType: 'categoria_creada',
+  deviceId: 'server_device',
+  userId: 'user',
+  serverSequence: 2,
+  baseVersion: 1,
+  createdAtLocal: DateTime.utc(2026, 1, 2),
+  payload: const {'name': 'Destino', 'color_key': 'amber', 'sort_order': 1},
+);
+
+SyncEvent _destinationCategoryUpdated() => SyncEvent(
+  eventId: 'destination_updated',
+  aggregateType: 'category',
+  aggregateId: 'category_2',
+  eventType: 'categoria_actualizada',
+  deviceId: 'server_device',
+  userId: 'user',
+  serverSequence: 4,
+  baseServerSequence: 2,
+  baseVersion: 1,
+  createdAtLocal: DateTime.utc(2026, 1, 4),
+  payload: const {
+    'base_event_id': 'destination_created',
+    'changed_fields': ['name'],
+    'changes': {
+      'name': {'from': 'Destino', 'to': 'Destino oficial'},
+    },
+  },
+);
+
+SyncEvent _categoryDeletedMovingProduct() => SyncEvent(
+  eventId: 'local_delete',
+  aggregateType: 'category',
+  aggregateId: 'category_1',
+  eventType: 'categoria_eliminada',
+  deviceId: 'local_device',
+  userId: 'user',
+  baseServerSequence: 1,
+  baseVersion: 1,
+  createdAtLocal: DateTime.utc(2026, 1, 3),
+  payload: const {
+    'base_event_id': 'category_created',
+    'deleted_category': {
+      'name': 'Bebidas',
+      'color_key': 'cyan',
+      'sort_order': 0,
+      'active': true,
+      'created_event_id': 'category_created',
+    },
+    'product_resolution': {
+      'type': 'move',
+      'destination_category': {
+        'category_id': 'category_2',
+        'base_event_id': 'destination_created',
+        'base_version': 1,
+        'base_server_sequence': 2,
+      },
+    },
+    'linked_products': [
+      {
+        'product_id': 'product_1',
+        'base_event_id': 'official_product',
+        'base_version': 1,
+        'base_server_sequence': 3,
+        'category_id': {'from': 'category_1', 'to': 'category_2'},
+      },
+    ],
+    'shifted_categories': [
+      {
+        'category_id': 'category_2',
+        'base_event_id': 'destination_created',
+        'base_version': 1,
+        'base_server_sequence': 2,
+        'sort_order': {'from': 1, 'to': 0},
+      },
+    ],
+  },
 );
 
 SyncEvent _categoryUpdated() => SyncEvent(

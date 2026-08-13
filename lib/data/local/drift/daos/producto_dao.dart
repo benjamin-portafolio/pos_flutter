@@ -87,13 +87,11 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
-  Future<int> contarProductosPorCategoria(String categoryId) async {
-    final count = products.id.count();
-    final query = selectOnly(products)
-      ..addColumns([count])
-      ..where(products.categoryId.equals(categoryId));
-    final row = await query.getSingle();
-    return row.read(count) ?? 0;
+  Future<List<ProductRow>> obtenerProductosPorCategoria(String categoryId) {
+    return (select(products)
+          ..where((product) => product.categoryId.equals(categoryId))
+          ..orderBy([(product) => OrderingTerm(expression: product.id)]))
+        .get();
   }
 
   Future<int> insertarProducto(ProductsCompanion entity) {
@@ -102,6 +100,15 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertarVariante(ProductVariantsCompanion entity) {
     return into(productVariants).insert(entity);
+  }
+
+  Future<void> actualizarProducto(
+    String productId,
+    ProductsCompanion entity,
+  ) async {
+    await (update(
+      products,
+    )..where((product) => product.id.equals(productId))).write(entity);
   }
 
   Future<void> avanzarLastServerSequence(
@@ -128,6 +135,21 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         .write(
           ProductVariantsCompanion(lastServerSequence: Value(serverSequence)),
         );
+  }
+
+  Future<void> avanzarLastServerSequenceProducto(
+    String productId,
+    int serverSequence,
+  ) async {
+    await (update(products)..where(
+          (product) =>
+              product.id.equals(productId) &
+              (product.lastServerSequence.isNull() |
+                  product.lastServerSequence.isSmallerThanValue(
+                    serverSequence,
+                  )),
+        ))
+        .write(ProductsCompanion(lastServerSequence: Value(serverSequence)));
   }
 
   Future<void> eliminarProductoPorId(String id) async {

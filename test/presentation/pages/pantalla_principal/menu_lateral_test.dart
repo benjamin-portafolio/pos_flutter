@@ -11,6 +11,7 @@ import 'package:pos_flutter/application/sync/sync_orchestrator.dart';
 import 'package:pos_flutter/application/sync/sync_server_detection_config.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
+import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
@@ -203,7 +204,9 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
 class _FakeProductoRepository implements ProductoRepository {
   @override
-  Future<int> contarArticulosPorCategoria(String categoriaId) async => 0;
+  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
+    String categoriaId,
+  ) async => const [];
 
   @override
   Stream<List<ArticuloListado>> watchArticulos({

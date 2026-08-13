@@ -1,4 +1,5 @@
 import '../../domain/articulos/articulo_listado.dart';
+import '../../domain/articulos/articulo_vinculado_categoria.dart';
 import '../../domain/articulos/variante_listado.dart';
 import '../../domain/categorias/color_categoria.dart';
 import '../../domain/repositories/producto_repository.dart';
@@ -11,8 +12,18 @@ class ProductoRepositoryImpl implements ProductoRepository {
   final drift.ProductoDao _productoDao;
 
   @override
-  Future<int> contarArticulosPorCategoria(String categoriaId) {
-    return _productoDao.contarProductosPorCategoria(categoriaId);
+  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
+    String categoriaId,
+  ) async {
+    final rows = await _productoDao.obtenerProductosPorCategoria(categoriaId);
+    return rows
+        .map(
+          (row) => ArticuloVinculadoCategoria(
+            productoId: row.id,
+            activo: row.active,
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override

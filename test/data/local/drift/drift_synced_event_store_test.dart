@@ -12,12 +12,14 @@ import 'package:pos_flutter/application/sync/server_echo_acknowledger.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_synced_event_store.dart';
 
 void main() {
   late AppDatabase db;
   late CategoriaDao categoriaDao;
   late DriftCategoriaProjectionStore categoriaProjectionStore;
+  late DriftProductoProjectionStore productoProjectionStore;
   late EventProcessor eventProcessor;
   late DriftLocalEventStore localEventStore;
   late ServerEchoAcknowledger serverEchoAcknowledger;
@@ -29,9 +31,15 @@ void main() {
     categoriaProjectionStore = DriftCategoriaProjectionStore(
       categoriaDao: categoriaDao,
     );
+    productoProjectionStore = DriftProductoProjectionStore(
+      productoDao: ProductoDao(db),
+    );
     eventProcessor = EventProcessor(
       handlers: categoriaEventHandlers(
-        CategoriaEventHandler(categoriaProjectionStore),
+        CategoriaEventHandler(
+          categoriaProjectionStore,
+          productoProjectionStore,
+        ),
       ),
     );
     localEventStore = DriftLocalEventStore(
@@ -48,6 +56,7 @@ void main() {
     );
     serverEchoAcknowledger = ServerEchoAcknowledger(
       categoriaProjectionStore: categoriaProjectionStore,
+      productoProjectionStore: productoProjectionStore,
     );
     syncedEventStore = DriftSyncedEventStore(db: db);
   });
@@ -257,6 +266,59 @@ void main() {
     expect(category?.lastEventId, deletion.eventId);
     expect(category?.lastServerSequence, 21);
   });
+
+  test(
+    'eco de categoria_eliminada completa metadata del producto una vez',
+    () async {
+      final first = _createdEvent(0);
+      final second = _createdEvent(1);
+      for (final event in [first, second]) {
+        await localEventStore.appendAndApply(
+          event,
+          refs: [
+            LocalEventRef.affects(
+              refType: 'category',
+              refId: event.aggregateId,
+            ),
+          ],
+        );
+      }
+      await db
+          .into(db.products)
+          .insert(
+            ProductsCompanion.insert(
+              id: 'product_1',
+              name: 'Producto',
+              categoryId: const Value('category_1'),
+              version: const Value(2),
+              createdEventId: const Value('product_created'),
+              lastEventId: const Value('product_base'),
+            ),
+          );
+      final deletion = _deletionWithProduct();
+      await localEventStore.appendAndApply(
+        deletion,
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+          LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+          LocalEventRef.uses(refType: 'category', refId: 'category_2'),
+        ],
+      );
+
+      await syncedEventStore.applySyncedEvents(
+        [deletion.copyWith(serverSequence: 21, deliveryStatus: 'delivered')],
+        applyEvent: eventProcessor.apply,
+        acknowledgeEcho: serverEchoAcknowledger.acknowledge,
+      );
+
+      final product = await ProductoDao(db).obtenerProductoPorId('product_1');
+      expect(product?.categoryId, 'category_2');
+      expect(product?.version, 3);
+      expect(product?.lastEventId, deletion.eventId);
+      expect(product?.lastServerSequence, 21);
+    },
+  );
 }
 
 SyncEvent _createdEvent(int index) {
@@ -353,6 +415,56 @@ SyncEvent _deletion() {
       },
       'product_resolution': {'type': 'none'},
       'linked_products': [],
+      'shifted_categories': [
+        {
+          'category_id': 'category_2',
+          'base_event_id': 'event_created_2',
+          'base_version': 1,
+          'base_server_sequence': null,
+          'sort_order': {'from': 1, 'to': 0},
+        },
+      ],
+    },
+  );
+}
+
+SyncEvent _deletionWithProduct() {
+  return SyncEvent(
+    eventId: 'deletion_product',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime.utc(2026, 1, 3),
+    payload: const {
+      'base_event_id': 'event_created_1',
+      'deleted_category': {
+        'name': 'Categoría 1',
+        'color_key': 'neutral',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'event_created_1',
+      },
+      'product_resolution': {
+        'type': 'move',
+        'destination_category': {
+          'category_id': 'category_2',
+          'base_event_id': 'event_created_2',
+          'base_version': 1,
+          'base_server_sequence': null,
+        },
+      },
+      'linked_products': [
+        {
+          'product_id': 'product_1',
+          'base_event_id': 'product_base',
+          'base_version': 2,
+          'base_server_sequence': null,
+          'category_id': {'from': 'category_1', 'to': 'category_2'},
+        },
+      ],
       'shifted_categories': [
         {
           'category_id': 'category_2',

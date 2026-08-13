@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.dart';
@@ -155,6 +156,72 @@ void main() {
     expect(categories.single.sortOrder, 0);
     expect(categories.single.version, 2);
   });
+
+  test(
+    'categoria_eliminada mueve productos activos e inactivos una sola vez',
+    () async {
+      await handler.applyCategoriaCreada(_event());
+      await handler.applyCategoriaCreada(
+        _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
+      );
+      await _insertProduct(db, id: 'product_1', active: true);
+      await _insertProduct(db, id: 'product_2', active: false);
+      final deletion = _deletedWithProductsEvent(move: true);
+
+      await handler.applyCategoriaEliminada(deletion);
+      await handler.applyCategoriaEliminada(deletion);
+
+      final products = await db.select(db.products).get();
+      expect(products.map((product) => product.categoryId).toSet(), {
+        'category_2',
+      });
+      expect(
+        products.map((product) => product.active),
+        containsAll([true, false]),
+      );
+      expect(products.every((product) => product.version == 3), isTrue);
+      expect(
+        products.every((product) => product.lastEventId == 'event_deleted'),
+        isTrue,
+      );
+      expect(await categoriaDao.obtenerCategoriaPorId('category_1'), isNull);
+    },
+  );
+
+  test('categoria_eliminada deja varios productos sin categoría', () async {
+    await handler.applyCategoriaCreada(_event());
+    await _insertProduct(db, id: 'product_1', active: true);
+    await _insertProduct(db, id: 'product_2', active: false);
+
+    await handler.applyCategoriaEliminada(
+      _deletedWithProductsEvent(move: false),
+    );
+
+    final products = await db.select(db.products).get();
+    expect(products.every((product) => product.categoryId == null), isTrue);
+    expect(products.every((product) => product.version == 3), isTrue);
+  });
+
+  test(
+    'categoria_eliminada rechaza un producto concurrente no confirmado',
+    () async {
+      await handler.applyCategoriaCreada(_event());
+      await _insertProduct(db, id: 'product_1', active: true);
+      await _insertProduct(db, id: 'product_2', active: true);
+      await _insertProduct(db, id: 'product_new', active: true);
+
+      await expectLater(
+        handler.applyCategoriaEliminada(_deletedWithProductsEvent(move: false)),
+        throwsStateError,
+      );
+      expect(await categoriaDao.obtenerCategoriaPorId('category_1'), isNotNull);
+      final products = await db.select(db.products).get();
+      expect(
+        products.every((product) => product.categoryId == 'category_1'),
+        isTrue,
+      );
+    },
+  );
 }
 
 SyncEvent _event({
@@ -256,4 +323,81 @@ SyncEvent _deletedEvent() {
       ],
     },
   );
+}
+
+SyncEvent _deletedWithProductsEvent({required bool move}) {
+  return SyncEvent(
+    eventId: 'event_deleted',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026),
+    payload: {
+      'base_event_id': 'event_1',
+      'deleted_category': {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'event_1',
+      },
+      'product_resolution': move
+          ? {
+              'type': 'move',
+              'destination_category': {
+                'category_id': 'category_2',
+                'base_event_id': 'event_2',
+                'base_version': 1,
+                'base_server_sequence': null,
+              },
+            }
+          : {'type': 'uncategorize'},
+      'linked_products': [
+        _linkedProduct('product_1', move: move),
+        _linkedProduct('product_2', move: move),
+      ],
+      'shifted_categories': move
+          ? [
+              {
+                'category_id': 'category_2',
+                'base_event_id': 'event_2',
+                'base_version': 1,
+                'base_server_sequence': null,
+                'sort_order': {'from': 1, 'to': 0},
+              },
+            ]
+          : [],
+    },
+  );
+}
+
+Map<String, Object?> _linkedProduct(String id, {required bool move}) => {
+  'product_id': id,
+  'base_event_id': '${id}_base',
+  'base_version': 2,
+  'base_server_sequence': null,
+  'category_id': {'from': 'category_1', 'to': move ? 'category_2' : null},
+};
+
+Future<void> _insertProduct(
+  AppDatabase db, {
+  required String id,
+  required bool active,
+}) async {
+  await db
+      .into(db.products)
+      .insert(
+        ProductsCompanion.insert(
+          id: id,
+          name: 'Producto $id',
+          categoryId: const Value('category_1'),
+          active: Value(active),
+          version: const Value(2),
+          createdEventId: Value('${id}_created'),
+          lastEventId: Value('${id}_base'),
+        ),
+      );
 }

@@ -108,6 +108,7 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<CategoriaEliminadaConflictProjectionRestorer>(
     () => CategoriaEliminadaConflictProjectionRestorer(
       getIt<CategoriaProjectionStore>(),
+      getIt<ProductoProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<RemoteEventPreparer>(

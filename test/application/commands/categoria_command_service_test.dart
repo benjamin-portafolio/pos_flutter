@@ -184,6 +184,161 @@ void main() {
     );
   }
 
+  test(
+    'eliminarCategoria mueve productos y declara bases y refs exactas',
+    () async {
+      categoriaProjectionStore.projections = const [
+        CategoriaProjection(
+          id: 'category_1',
+          nombre: 'Origen',
+          color: ColorCategoria.cyan,
+          orden: 0,
+          active: true,
+          version: 2,
+          createdEventId: 'source_created',
+          lastEventId: 'source_base',
+          lastServerSequence: 10,
+        ),
+        CategoriaProjection(
+          id: 'category_2',
+          nombre: 'Destino',
+          color: ColorCategoria.amber,
+          orden: 1,
+          active: true,
+          version: 4,
+          createdEventId: 'destination_created',
+          lastEventId: 'destination_base',
+          lastServerSequence: 30,
+        ),
+      ];
+      productoProjectionStore.linkedProducts = const [
+        ProductoProjection(
+          id: 'product_2',
+          nombre: 'Inactivo',
+          categoriaId: 'category_1',
+          active: false,
+          version: 3,
+          createdEventId: 'product_2_created',
+          lastEventId: 'product_2_base',
+          lastServerSequence: 26,
+        ),
+        ProductoProjection(
+          id: 'product_1',
+          nombre: 'Activo',
+          categoriaId: 'category_1',
+          active: true,
+          version: 2,
+          createdEventId: 'product_1_created',
+          lastEventId: 'product_1_base',
+          lastServerSequence: 25,
+        ),
+      ];
+
+      await service.eliminarCategoria(
+        const EliminarCategoriaCommand(
+          categoriaId: 'category_1',
+          resolucion: ResolucionProductosCategoria.move,
+          categoriaDestinoId: 'category_2',
+          productoIdsConfirmados: ['product_2', 'product_1'],
+        ),
+      );
+
+      final payload = eventStore.event!.payload;
+      expect(payload['product_resolution'], {
+        'type': 'move',
+        'destination_category': {
+          'category_id': 'category_2',
+          'base_event_id': 'destination_base',
+          'base_version': 4,
+          'base_server_sequence': 30,
+        },
+      });
+      expect(
+        (payload['linked_products']! as List).map(
+          (value) => (value as Map)['product_id'],
+        ),
+        ['product_1', 'product_2'],
+      );
+      expect(
+        eventStore.refs.map(
+          (ref) => '${ref.refType}:${ref.refId}:${ref.relationship}',
+        ),
+        [
+          'category:category_1:affects',
+          'category:category_2:affects',
+          'product:product_1:affects',
+          'product:product_2:affects',
+          'category:category_2:uses',
+        ],
+      );
+    },
+  );
+
+  test('eliminarCategoria deja productos sin categoría', () async {
+    categoriaProjectionStore.projections = const [
+      CategoriaProjection(
+        id: 'category_1',
+        nombre: 'Origen',
+        color: ColorCategoria.cyan,
+        orden: 0,
+        active: true,
+        version: 1,
+        createdEventId: 'source_created',
+        lastEventId: 'source_base',
+        lastServerSequence: null,
+      ),
+    ];
+    productoProjectionStore.linkedProductCount = 1;
+
+    await service.eliminarCategoria(
+      const EliminarCategoriaCommand(
+        categoriaId: 'category_1',
+        resolucion: ResolucionProductosCategoria.uncategorize,
+        productoIdsConfirmados: ['product_0'],
+      ),
+    );
+
+    expect(eventStore.event!.payload['product_resolution'], {
+      'type': 'uncategorize',
+    });
+    final linked =
+        (eventStore.event!.payload['linked_products']! as List).single as Map;
+    expect((linked['category_id'] as Map)['to'], isNull);
+    expect(eventStore.refs.map((ref) => ref.refId), [
+      'category_1',
+      'product_0',
+    ]);
+  });
+
+  test('eliminarCategoria rechaza si cambió el conjunto confirmado', () async {
+    categoriaProjectionStore.projections = const [
+      CategoriaProjection(
+        id: 'category_1',
+        nombre: 'Origen',
+        color: ColorCategoria.cyan,
+        orden: 0,
+        active: true,
+        version: 1,
+        createdEventId: 'source_created',
+        lastEventId: 'source_base',
+        lastServerSequence: null,
+      ),
+    ];
+    productoProjectionStore.linkedProductCount = 1;
+
+    await expectLater(
+      service.eliminarCategoria(
+        const EliminarCategoriaCommand(
+          categoriaId: 'category_1',
+          resolucion: ResolucionProductosCategoria.uncategorize,
+          productoIdsConfirmados: ['different_product'],
+        ),
+      ),
+      throwsStateError,
+    );
+    expect(eventStore.event, isNull);
+  });
+
   test('crearCategoria permite neutral cuando no se eligió color', () async {
     await service.crearCategoria(
       const CrearCategoriaCommand(
@@ -430,11 +585,31 @@ class _FakeCategoriaProjectionStore implements CategoriaProjectionStore {
 }
 
 class _FakeProductoProjectionStore implements ProductoProjectionStore {
-  int linkedProductCount = 0;
+  List<ProductoProjection> linkedProducts = [];
+
+  set linkedProductCount(int value) {
+    linkedProducts = List.generate(
+      value,
+      (index) => ProductoProjection(
+        id: 'product_$index',
+        nombre: 'Producto $index',
+        categoriaId: 'category_1',
+        active: true,
+        version: 1,
+        createdEventId: 'product_event_$index',
+        lastEventId: 'product_event_$index',
+        lastServerSequence: null,
+      ),
+    );
+  }
 
   @override
-  Future<int> countProductsByCategoryId(String categoryId) async {
-    return linkedProductCount;
+  Future<List<ProductoProjection>> findProductsByCategoryId(
+    String categoryId,
+  ) async {
+    return linkedProducts
+        .where((product) => product.categoriaId == categoryId)
+        .toList(growable: false);
   }
 
   @override

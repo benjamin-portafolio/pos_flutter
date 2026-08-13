@@ -22,6 +22,9 @@ class LocalEventRef {
     required String refId,
   }) : this(refType: refType, refId: refId, relationship: 'requires_unique');
 
+  const LocalEventRef.uses({required String refType, required String refId})
+    : this(refType: refType, refId: refId, relationship: 'uses');
+
   final String refType;
   final String refId;
   final String relationship;

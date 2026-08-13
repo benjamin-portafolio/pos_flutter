@@ -166,34 +166,15 @@ class CategoriaCommandService {
   }
 
   Future<void> eliminarCategoria(EliminarCategoriaCommand command) async {
-    final categorias = await _categoriaProjectionStore.findAllOrdered();
-    _validateConsecutiveOrder(categorias, action: 'eliminar');
-
-    final index = categorias.indexWhere(
-      (categoria) => categoria.id == command.categoriaId,
-    );
-    if (index < 0) {
-      throw StateError(
-        'No existe la categoría que se intenta eliminar: '
-        '${command.categoriaId}',
-      );
-    }
-
     final productoProjectionStore = _productoProjectionStore;
     if (productoProjectionStore == null) {
       throw StateError(
         'No está disponible la proyección de artículos para eliminar.',
       );
     }
-    if (await productoProjectionStore.countProductsByCategoryId(
-          command.categoriaId,
-        ) >
-        0) {
-      throw StateError('La categoría todavía tiene artículos vinculados.');
-    }
 
-    // Se vuelve a leer el orden después del conteo para no construir el evento
-    // sobre una proyección que cambió durante la consulta.
+    // Estas son las lecturas base definitivas. El handler vuelve a validarlas
+    // dentro de la transacción de appendAndApply antes de modificar proyecciones.
     final currentCategories = await _categoriaProjectionStore.findAllOrdered();
     _validateConsecutiveOrder(currentCategories, action: 'eliminar');
     final currentIndex = currentCategories.indexWhere(
@@ -206,6 +187,19 @@ class CategoriaCommandService {
       );
     }
     final deleted = currentCategories[currentIndex];
+    final linkedProducts = await productoProjectionStore
+        .findProductsByCategoryId(deleted.id);
+    final actualProductIds =
+        linkedProducts.map((product) => product.id).toList(growable: false)
+          ..sort();
+    final confirmedProductIds = command.productoIdsConfirmados.toList()..sort();
+    if (confirmedProductIds.toSet().length != confirmedProductIds.length ||
+        !_sameStrings(actualProductIds, confirmedProductIds)) {
+      throw StateError(
+        'El conjunto de artículos vinculados cambió desde la confirmación.',
+      );
+    }
+
     final baseEventId = _baseEventId(deleted);
     final createdEventId = deleted.createdEventId;
     if (createdEventId == null) {
@@ -227,6 +221,68 @@ class CategoriaCommandService {
           );
         })
         .toList(growable: false);
+
+    CategoriaEliminadaResolucion productResolution;
+    String? targetCategoryId;
+    switch (command.resolucion) {
+      case ResolucionProductosCategoria.none:
+        if (linkedProducts.isNotEmpty || command.categoriaDestinoId != null) {
+          throw StateError(
+            'La resolución none solo puede eliminar una categoría vacía.',
+          );
+        }
+        productResolution = const CategoriaEliminadaResolucion.none();
+      case ResolucionProductosCategoria.move:
+        final destinationId = command.categoriaDestinoId;
+        if (destinationId == null || destinationId.trim().isEmpty) {
+          throw StateError('Mover artículos requiere una categoría destino.');
+        }
+        if (destinationId == deleted.id) {
+          throw StateError(
+            'La categoría destino debe ser diferente de la categoría origen.',
+          );
+        }
+        final destinationIndex = currentCategories.indexWhere(
+          (category) => category.id == destinationId,
+        );
+        final destination = destinationIndex < 0
+            ? null
+            : currentCategories[destinationIndex];
+        if (destination == null || !destination.active) {
+          throw StateError('La categoría destino no está disponible.');
+        }
+        targetCategoryId = destination.id;
+        productResolution = CategoriaEliminadaResolucion.move(
+          CategoriaEliminadaCategoriaDestino(
+            categoriaId: destination.id,
+            baseEventId: _baseEventId(destination),
+            baseVersion: destination.version,
+            baseServerSequence: destination.lastServerSequence,
+          ),
+        );
+      case ResolucionProductosCategoria.uncategorize:
+        if (command.categoriaDestinoId != null) {
+          throw StateError(
+            'Dejar sin categoría no admite una categoría destino.',
+          );
+        }
+        productResolution = const CategoriaEliminadaResolucion.uncategorize();
+    }
+
+    final linkedPayload =
+        linkedProducts
+            .map(
+              (product) => CategoriaEliminadaProductoVinculado(
+                productoId: product.id,
+                baseEventId: _productBaseEventId(product),
+                baseVersion: product.version,
+                baseServerSequence: product.lastServerSequence,
+                categoriaAnteriorId: deleted.id,
+                categoriaNuevaId: targetCategoryId,
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.productoId.compareTo(right.productoId));
     final payload = CategoriaEliminadaPayload.fromValues(
       baseEventId: baseEventId,
       categoriaEliminada: CategoriaEliminadaSnapshot(
@@ -236,8 +292,11 @@ class CategoriaCommandService {
         active: deleted.active,
         createdEventId: createdEventId,
       ),
+      resolucionProductos: productResolution,
+      productosVinculados: linkedPayload,
       categoriasDesplazadas: shifted,
     );
+    payload.validateForSourceCategory(deleted.id);
     final event = SyncEvent(
       eventId: _uuid.v4(),
       aggregateType: CategoriaEliminadaPayload.aggregateType,
@@ -261,8 +320,32 @@ class CategoriaCommandService {
             refId: category.categoriaId,
           ),
         ),
+        ...linkedPayload.map(
+          (product) => LocalEventRef.affects(
+            refType: 'product',
+            refId: product.productoId,
+          ),
+        ),
+        if (targetCategoryId != null)
+          LocalEventRef.uses(refType: 'category', refId: targetCategoryId),
       ],
     );
+  }
+
+  String _productBaseEventId(ProductoProjection projection) {
+    final value = projection.lastEventId ?? projection.createdEventId;
+    if (value == null) {
+      throw StateError('El artículo ${projection.id} no tiene un evento base.');
+    }
+    return value;
+  }
+
+  bool _sameStrings(List<String> left, List<String> right) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
   }
 
   String _baseEventId(CategoriaProjection projection) {

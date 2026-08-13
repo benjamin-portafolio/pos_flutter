@@ -1,7 +1,10 @@
 import '../articulos/articulo_listado.dart';
+import '../articulos/articulo_vinculado_categoria.dart';
 
 abstract interface class ProductoRepository {
-  Future<int> contarArticulosPorCategoria(String categoriaId);
+  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
+    String categoriaId,
+  );
 
   Stream<List<ArticuloListado>> watchArticulos({
     String busqueda = '',

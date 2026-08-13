@@ -30,8 +30,11 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
   }
 
   @override
-  Future<int> countProductsByCategoryId(String categoryId) {
-    return _productoDao.contarProductosPorCategoria(categoryId);
+  Future<List<ProductoProjection>> findProductsByCategoryId(
+    String categoryId,
+  ) async {
+    final rows = await _productoDao.obtenerProductosPorCategoria(categoryId);
+    return rows.map(_productFromRow).toList(growable: false);
   }
 
   @override
@@ -70,8 +73,35 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
   }
 
   @override
+  Future<void> updateProduct(ProductoProjection projection) async {
+    await _productoDao.actualizarProducto(
+      projection.id,
+      drift.ProductsCompanion(
+        name: Value(projection.nombre),
+        categoryId: Value(projection.categoriaId),
+        active: Value(projection.active),
+        version: Value(projection.version),
+        createdEventId: Value(projection.createdEventId),
+        lastEventId: Value(projection.lastEventId),
+        lastServerSequence: Value(projection.lastServerSequence),
+      ),
+    );
+  }
+
+  @override
   Future<void> advanceLastServerSequence(String productId, int serverSequence) {
     return _productoDao.avanzarLastServerSequence(productId, serverSequence);
+  }
+
+  @override
+  Future<void> advanceProductLastServerSequence(
+    String productId,
+    int serverSequence,
+  ) {
+    return _productoDao.avanzarLastServerSequenceProducto(
+      productId,
+      serverSequence,
+    );
   }
 
   @override
