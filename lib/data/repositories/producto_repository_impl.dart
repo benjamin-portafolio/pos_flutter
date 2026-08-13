@@ -11,6 +11,11 @@ class ProductoRepositoryImpl implements ProductoRepository {
   final drift.ProductoDao _productoDao;
 
   @override
+  Future<int> contarArticulosPorCategoria(String categoriaId) {
+    return _productoDao.contarProductosPorCategoria(categoriaId);
+  }
+
+  @override
   Stream<List<ArticuloListado>> watchArticulos({
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},

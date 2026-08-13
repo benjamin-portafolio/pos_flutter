@@ -6,10 +6,13 @@ import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
 import '../sync/payloads/categoria_actualizada_payload.dart';
 import '../sync/payloads/categoria_creada_payload.dart';
+import '../sync/payloads/categoria_eliminada_payload.dart';
 import '../sync/payloads/categoria_movida_payload.dart';
 import '../sync/projections/categoria_projection_store.dart';
+import '../sync/projections/producto_projection_store.dart';
 import 'crear_categoria_command.dart';
 import 'editar_categoria_command.dart';
+import 'eliminar_categoria_command.dart';
 import 'local_command_context.dart';
 import 'mover_categoria_command.dart';
 
@@ -18,13 +21,16 @@ class CategoriaCommandService {
     required LocalEventStore eventStore,
     required LocalCommandContext commandContext,
     required CategoriaProjectionStore categoriaProjectionStore,
+    ProductoProjectionStore? productoProjectionStore,
   }) : _eventStore = eventStore,
        _commandContext = commandContext,
-       _categoriaProjectionStore = categoriaProjectionStore;
+       _categoriaProjectionStore = categoriaProjectionStore,
+       _productoProjectionStore = productoProjectionStore;
 
   final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final CategoriaProjectionStore _categoriaProjectionStore;
+  final ProductoProjectionStore? _productoProjectionStore;
   final Uuid _uuid = const Uuid();
 
   Future<void> crearCategoria(CrearCategoriaCommand command) async {
@@ -159,6 +165,106 @@ class CategoriaCommandService {
     return true;
   }
 
+  Future<void> eliminarCategoria(EliminarCategoriaCommand command) async {
+    final categorias = await _categoriaProjectionStore.findAllOrdered();
+    _validateConsecutiveOrder(categorias, action: 'eliminar');
+
+    final index = categorias.indexWhere(
+      (categoria) => categoria.id == command.categoriaId,
+    );
+    if (index < 0) {
+      throw StateError(
+        'No existe la categoría que se intenta eliminar: '
+        '${command.categoriaId}',
+      );
+    }
+
+    final productoProjectionStore = _productoProjectionStore;
+    if (productoProjectionStore == null) {
+      throw StateError(
+        'No está disponible la proyección de artículos para eliminar.',
+      );
+    }
+    if (await productoProjectionStore.countProductsByCategoryId(
+          command.categoriaId,
+        ) >
+        0) {
+      throw StateError('La categoría todavía tiene artículos vinculados.');
+    }
+
+    // Se vuelve a leer el orden después del conteo para no construir el evento
+    // sobre una proyección que cambió durante la consulta.
+    final currentCategories = await _categoriaProjectionStore.findAllOrdered();
+    _validateConsecutiveOrder(currentCategories, action: 'eliminar');
+    final currentIndex = currentCategories.indexWhere(
+      (categoria) => categoria.id == command.categoriaId,
+    );
+    if (currentIndex < 0) {
+      throw StateError(
+        'No existe la categoría que se intenta eliminar: '
+        '${command.categoriaId}',
+      );
+    }
+    final deleted = currentCategories[currentIndex];
+    final baseEventId = _baseEventId(deleted);
+    final createdEventId = deleted.createdEventId;
+    if (createdEventId == null) {
+      throw StateError(
+        'La categoría no tiene un evento creador para restaurar la proyección.',
+      );
+    }
+
+    final shifted = currentCategories
+        .skip(currentIndex + 1)
+        .map((category) {
+          return CategoriaEliminadaCategoriaDesplazada(
+            categoriaId: category.id,
+            baseEventId: _baseEventId(category),
+            baseVersion: category.version,
+            baseServerSequence: category.lastServerSequence,
+            ordenAnterior: category.orden,
+            ordenNuevo: category.orden - 1,
+          );
+        })
+        .toList(growable: false);
+    final payload = CategoriaEliminadaPayload.fromValues(
+      baseEventId: baseEventId,
+      categoriaEliminada: CategoriaEliminadaSnapshot(
+        nombre: deleted.nombre,
+        color: deleted.color,
+        orden: deleted.orden,
+        active: deleted.active,
+        createdEventId: createdEventId,
+      ),
+      categoriasDesplazadas: shifted,
+    );
+    final event = SyncEvent(
+      eventId: _uuid.v4(),
+      aggregateType: CategoriaEliminadaPayload.aggregateType,
+      aggregateId: deleted.id,
+      eventType: CategoriaEliminadaPayload.eventType,
+      deviceId: _commandContext.deviceId,
+      userId: _commandContext.userId,
+      baseServerSequence: deleted.lastServerSequence,
+      baseVersion: deleted.version,
+      createdAtLocal: DateTime.now(),
+      payload: payload.toJson(),
+    );
+
+    await _eventStore.appendAndApply(
+      event,
+      refs: [
+        LocalEventRef.affects(refType: 'category', refId: deleted.id),
+        ...shifted.map(
+          (category) => LocalEventRef.affects(
+            refType: 'category',
+            refId: category.categoriaId,
+          ),
+        ),
+      ],
+    );
+  }
+
   String _baseEventId(CategoriaProjection projection) {
     final value = projection.lastEventId ?? projection.createdEventId;
     if (value == null) {
@@ -169,11 +275,14 @@ class CategoriaCommandService {
     return value;
   }
 
-  void _validateConsecutiveOrder(List<CategoriaProjection> categorias) {
+  void _validateConsecutiveOrder(
+    List<CategoriaProjection> categorias, {
+    String action = 'mover',
+  }) {
     for (var index = 0; index < categorias.length; index++) {
       if (categorias[index].orden != index) {
         throw StateError(
-          'El orden de categorías debe ser consecutivo antes de mover.',
+          'El orden de categorías debe ser consecutivo antes de $action.',
         );
       }
     }

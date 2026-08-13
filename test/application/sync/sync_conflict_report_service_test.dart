@@ -40,6 +40,7 @@ void main() {
     eventRefDao = EventRefDao(db);
     checkpointDao = SyncCheckpointDao(db);
     syncPersistence = DriftSyncPersistence(
+      db: db,
       eventDao: eventDao,
       eventRefDao: eventRefDao,
       syncCheckpointDao: checkpointDao,

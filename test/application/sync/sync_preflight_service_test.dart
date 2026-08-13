@@ -48,6 +48,7 @@ void main() {
     eventRefDao = EventRefDao(db);
     checkpointDao = SyncCheckpointDao(db);
     syncPersistence = DriftSyncPersistence(
+      db: db,
       eventDao: eventDao,
       eventRefDao: eventRefDao,
       syncCheckpointDao: checkpointDao,
@@ -134,6 +135,49 @@ void main() {
 
     expect(report.skipped, isTrue);
     expect(report.reason, 'not_required');
+  });
+
+  test('categoria_eliminada exige preflight aunque solo use affects', () async {
+    await localEventStore.appendAndApply(
+      SyncEvent.fromJson(
+        _remoteCategoriaCreada(
+            eventId: 'local_category_created',
+            serverSequence: 1,
+          )
+          ..remove('server_sequence')
+          ..remove('created_at_server'),
+      ),
+      refs: const [
+        LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+      ],
+    );
+    await localEventStore.appendAndApply(
+      _localCategoriaEliminada(),
+      refs: const [
+        LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+      ],
+    );
+    var calls = 0;
+    final service = buildPreflightService(
+      client: MockClient((request) async {
+        calls++;
+        return http.Response(
+          jsonEncode({
+            'events': [],
+            'preflight_sequence': 1,
+            'has_more': false,
+            'requires_full_pull_before_push': false,
+            'reason': null,
+          }),
+          200,
+        );
+      }),
+    );
+
+    final report = await service.preflightPendingEvents();
+
+    expect(calls, 1);
+    expect(report.skipped, isFalse);
   });
 
   test(
@@ -579,6 +623,32 @@ SyncEvent _localCategoriaMovida() {
         'base_server_sequence': 6,
         'sort_order': {'from': 1, 'to': 0},
       },
+    },
+  );
+}
+
+SyncEvent _localCategoriaEliminada() {
+  return SyncEvent(
+    eventId: 'local_category_deleted',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    baseVersion: 1,
+    createdAtLocal: DateTime.utc(2026, 6, 9, 20, 31),
+    payload: const {
+      'base_event_id': 'local_category_created',
+      'deleted_category': {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'local_category_created',
+      },
+      'product_resolution': {'type': 'none'},
+      'linked_products': [],
+      'shifted_categories': [],
     },
   );
 }

@@ -7,16 +7,24 @@ import 'app_database.dart';
 
 class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
   DriftSyncPersistence({
+    required AppDatabase db,
     required EventDao eventDao,
     required EventRefDao eventRefDao,
     required SyncCheckpointDao syncCheckpointDao,
-  }) : _eventDao = eventDao,
+  }) : _db = db,
+       _eventDao = eventDao,
        _eventRefDao = eventRefDao,
        _syncCheckpointDao = syncCheckpointDao;
 
+  final AppDatabase _db;
   final EventDao _eventDao;
   final EventRefDao _eventRefDao;
   final SyncCheckpointDao _syncCheckpointDao;
+
+  @override
+  Future<T> runInTransaction<T>(Future<T> Function() action) {
+    return _db.transaction(action);
+  }
 
   @override
   Future<List<SyncEvent>> pendingEvents() async {

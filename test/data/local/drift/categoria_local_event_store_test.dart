@@ -10,6 +10,7 @@ import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 
 void main() {
   late AppDatabase db;
@@ -143,7 +144,142 @@ void main() {
         mode == AppMode.serverSync ? 'pending' : 'not_required',
       );
     });
+
+    test(
+      '${mode.name} elimina y compacta categorías de forma atómica',
+      () async {
+        final store = _store(mode, db, categoriaDao, eventDao);
+        await store.appendAndApply(
+          _event(),
+          refs: const [
+            LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+          ],
+        );
+        await store.appendAndApply(
+          _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
+          refs: const [
+            LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          ],
+        );
+
+        await store.appendAndApply(
+          _deletedEvent(),
+          refs: const [
+            LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+            LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+          ],
+        );
+
+        final categories = await categoriaDao.obtenerCategorias();
+        expect(categories.single.id, 'category_2');
+        expect(categories.single.sortOrder, 0);
+        final refs = await db.select(db.eventRefs).get();
+        expect(refs, mode == AppMode.serverSync ? hasLength(4) : isEmpty);
+        final deletion = await (db.select(
+          db.events,
+        )..where((event) => event.eventId.equals('event_3'))).getSingle();
+        expect(
+          deletion.deliveryStatus,
+          mode == AppMode.serverSync ? 'pending' : 'not_required',
+        );
+      },
+    );
   }
+
+  for (final scenario in const [
+    (name: 'primera', count: 4, deletedIndex: 0),
+    (name: 'intermedia', count: 4, deletedIndex: 2),
+    (name: 'última', count: 4, deletedIndex: 3),
+    (name: 'única', count: 1, deletedIndex: 0),
+  ]) {
+    test('elimina categoría ${scenario.name} y deja orden 0..n-1', () async {
+      final store = _store(AppMode.serverSync, db, categoriaDao, eventDao);
+      for (var index = 0; index < scenario.count; index++) {
+        await store.appendAndApply(
+          _event(
+            eventId: 'event_$index',
+            aggregateId: 'category_$index',
+            sortOrder: index,
+          ),
+          refs: [
+            LocalEventRef.affects(
+              refType: 'category',
+              refId: 'category_$index',
+            ),
+          ],
+        );
+      }
+
+      final deletion = _deletedEventAt(
+        count: scenario.count,
+        deletedIndex: scenario.deletedIndex,
+      );
+      await store.appendAndApply(
+        deletion,
+        refs: [
+          LocalEventRef.affects(
+            refType: 'category',
+            refId: deletion.aggregateId,
+          ),
+          for (
+            var index = scenario.deletedIndex + 1;
+            index < scenario.count;
+            index++
+          )
+            LocalEventRef.affects(
+              refType: 'category',
+              refId: 'category_$index',
+            ),
+        ],
+      );
+
+      final categories = await categoriaDao.obtenerCategorias();
+      expect(categories.map((category) => category.id), [
+        for (var index = 0; index < scenario.count; index++)
+          if (index != scenario.deletedIndex) 'category_$index',
+      ]);
+      expect(
+        categories.map((category) => category.sortOrder),
+        List.generate(scenario.count - 1, (index) => index),
+      );
+    });
+  }
+
+  test('revierte evento, refs y proyección si falla la compactación', () async {
+    final store = _store(AppMode.serverSync, db, categoriaDao, eventDao);
+    for (var index = 0; index < 2; index++) {
+      await store.appendAndApply(
+        _event(
+          eventId: 'event_$index',
+          aggregateId: 'category_$index',
+          sortOrder: index,
+        ),
+        refs: [
+          LocalEventRef.affects(refType: 'category', refId: 'category_$index'),
+        ],
+      );
+    }
+
+    await expectLater(
+      store.appendAndApply(
+        _deletedEventAt(count: 2, deletedIndex: 0, shiftedBaseVersion: 99),
+        refs: const [
+          LocalEventRef.affects(refType: 'category', refId: 'category_0'),
+          LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        ],
+      ),
+      throwsStateError,
+    );
+
+    final categories = await categoriaDao.obtenerCategorias();
+    expect(categories.map((category) => category.id), [
+      'category_0',
+      'category_1',
+    ]);
+    expect(categories.map((category) => category.sortOrder), [0, 1]);
+    expect(await db.select(db.events).get(), hasLength(2));
+    expect(await db.select(db.eventRefs).get(), hasLength(2));
+  });
 }
 
 DriftLocalEventStore _store(
@@ -160,6 +296,7 @@ DriftLocalEventStore _store(
       handlers: categoriaEventHandlers(
         CategoriaEventHandler(
           DriftCategoriaProjectionStore(categoriaDao: categoriaDao),
+          DriftProductoProjectionStore(productoDao: ProductoDao(db)),
         ),
       ),
     ),
@@ -210,6 +347,79 @@ SyncEvent _movedEvent() {
         'base_server_sequence': null,
         'sort_order': {'from': 0, 'to': 1},
       },
+    },
+  );
+}
+
+SyncEvent _deletedEvent() {
+  return SyncEvent(
+    eventId: 'event_3',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026, 1, 3),
+    payload: const {
+      'base_event_id': 'event_1',
+      'deleted_category': {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'event_1',
+      },
+      'product_resolution': {'type': 'none'},
+      'linked_products': [],
+      'shifted_categories': [
+        {
+          'category_id': 'category_2',
+          'base_event_id': 'event_2',
+          'base_version': 1,
+          'base_server_sequence': null,
+          'sort_order': {'from': 1, 'to': 0},
+        },
+      ],
+    },
+  );
+}
+
+SyncEvent _deletedEventAt({
+  required int count,
+  required int deletedIndex,
+  int? shiftedBaseVersion,
+}) {
+  return SyncEvent(
+    eventId: 'delete_$deletedIndex',
+    aggregateType: 'category',
+    aggregateId: 'category_$deletedIndex',
+    eventType: 'categoria_eliminada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026, 1, 3),
+    payload: {
+      'base_event_id': 'event_$deletedIndex',
+      'deleted_category': {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
+        'sort_order': deletedIndex,
+        'active': true,
+        'created_event_id': 'event_$deletedIndex',
+      },
+      'product_resolution': const {'type': 'none'},
+      'linked_products': const <Object?>[],
+      'shifted_categories': [
+        for (var index = deletedIndex + 1; index < count; index++)
+          {
+            'category_id': 'category_$index',
+            'base_event_id': 'event_$index',
+            'base_version': shiftedBaseVersion ?? 1,
+            'base_server_sequence': null,
+            'sort_order': {'from': index, 'to': index - 1},
+          },
+      ],
     },
   );
 }

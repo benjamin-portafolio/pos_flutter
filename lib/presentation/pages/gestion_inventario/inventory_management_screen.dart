@@ -6,6 +6,7 @@ import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_articulo_command.dart';
 import '../../../application/commands/crear_categoria_command.dart';
 import '../../../application/commands/editar_categoria_command.dart';
+import '../../../application/commands/eliminar_categoria_command.dart';
 import '../../../application/commands/mover_categoria_command.dart';
 import '../../../application/commands/producto_command_service.dart';
 import '../../../core/di/injection.dart';
@@ -19,6 +20,7 @@ import 'articulos/models/articulo_form_result.dart';
 import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
 import 'categorias/models/categoria_form_result.dart';
+import 'categorias/widgets/delete_category_dialog.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
@@ -77,6 +79,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
   Timer? _searchTimer;
   int _selectedTab = 0;
   bool _searchOpen = false;
+  bool _deletingCategory = false;
   String _appliedSearch = '';
 
   @override
@@ -129,6 +132,8 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                 _openCategoryForm(context, categoria: categoria),
             onMoveCategory: (categoria, direccion) =>
                 _moveCategory(context, categoria, direccion),
+            onDeleteCategory: (categoria) =>
+                _deleteCategory(context, categoria),
           ),
           const SizedBox.expand(key: Key('inventory_ingredients_tab_view')),
         ],
@@ -338,5 +343,96 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         const SnackBar(content: Text('No se pudo mover la categoría.')),
       );
     }
+  }
+
+  Future<void> _deleteCategory(
+    BuildContext context,
+    Categoria categoria,
+  ) async {
+    if (_deletingCategory) return;
+    setState(() => _deletingCategory = true);
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          DeleteCategoryDialog.checking(categoryName: categoria.nombre),
+    );
+    int linkedCount;
+    try {
+      linkedCount = await widget.productoRepository.contarArticulosPorCategoria(
+        categoria.id,
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo comprobar si la categoría tiene artículos vinculados.',
+          ),
+        ),
+      );
+      setState(() => _deletingCategory = false);
+      return;
+    }
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    if (linkedCount > 0) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => DeleteCategoryDialog.blocked(
+          categoryName: categoria.nombre,
+          linkedCount: linkedCount,
+        ),
+      );
+      if (mounted) setState(() => _deletingCategory = false);
+      return;
+    }
+
+    var deleting = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialogState) => DeleteCategoryDialog.confirm(
+          categoryName: categoria.nombre,
+          deleting: deleting,
+          onDelete: () async {
+            if (deleting) return;
+            setDialogState(() => deleting = true);
+            try {
+              final service =
+                  widget.categoriaCommandService ??
+                  getIt<CategoriaCommandService>();
+              await service.eliminarCategoria(
+                EliminarCategoriaCommand(categoriaId: categoria.id),
+              );
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop(true);
+              }
+            } catch (_) {
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop(false);
+              }
+            }
+          },
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _deletingCategory = false);
+    if (confirmed == null) return;
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          confirmed
+              ? 'Categoría eliminada.'
+              : 'No se pudo eliminar la categoría. Inténtalo nuevamente.',
+        ),
+      ),
+    );
   }
 }

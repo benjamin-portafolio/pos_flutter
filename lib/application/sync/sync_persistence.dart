@@ -1,6 +1,8 @@
 import 'models/sync_event.dart';
 
 abstract interface class SyncPersistence {
+  Future<T> runInTransaction<T>(Future<T> Function() action);
+
   Future<List<SyncEvent>> pendingEvents();
 
   Future<List<SyncEvent>> unreportedConflictEvents();

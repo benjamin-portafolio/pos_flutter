@@ -7,6 +7,7 @@ class InventoryCategoryCard extends StatelessWidget {
     required this.onTap,
     required this.onMoveUp,
     required this.onMoveDown,
+    required this.onDeleteCategory,
     super.key,
   });
 
@@ -15,6 +16,7 @@ class InventoryCategoryCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
+  final VoidCallback onDeleteCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +53,18 @@ class InventoryCategoryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(Icons.delete_forever, color: Color(0xFFFF493D)),
-                const SizedBox(width: 22),
+                Semantics(
+                  label: 'Eliminar categoría $name',
+                  button: true,
+                  child: IconButton(
+                    key: const Key('delete_category_button'),
+                    onPressed: onDeleteCategory,
+                    color: const Color(0xFFFF493D),
+                    tooltip: 'Eliminar categoría',
+                    icon: const Icon(Icons.delete_forever),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 IconButton(
                   key: const Key('move_category_down_button'),
                   onPressed: onMoveDown,

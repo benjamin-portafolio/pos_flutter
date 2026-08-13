@@ -87,6 +87,15 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  Future<int> contarProductosPorCategoria(String categoryId) async {
+    final count = products.id.count();
+    final query = selectOnly(products)
+      ..addColumns([count])
+      ..where(products.categoryId.equals(categoryId));
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
+
   Future<int> insertarProducto(ProductsCompanion entity) {
     return into(products).insert(entity);
   }

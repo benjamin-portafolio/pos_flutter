@@ -2,22 +2,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/categoria_command_service.dart';
 import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
 import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
+import 'package:pos_flutter/application/commands/eliminar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
+import 'package:pos_flutter/application/sync/projections/producto_projection_store.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/categorias/direccion_movimiento_categoria.dart';
 
 void main() {
   late _CapturingLocalEventStore eventStore;
   late _FakeCategoriaProjectionStore categoriaProjectionStore;
+  late _FakeProductoProjectionStore productoProjectionStore;
   late CategoriaCommandService service;
 
   setUp(() {
     eventStore = _CapturingLocalEventStore();
     categoriaProjectionStore = _FakeCategoriaProjectionStore();
+    productoProjectionStore = _FakeProductoProjectionStore();
     service = CategoriaCommandService(
       eventStore: eventStore,
       commandContext: const LocalCommandContext(
@@ -25,6 +29,7 @@ void main() {
         userId: 'test_user',
       ),
       categoriaProjectionStore: categoriaProjectionStore,
+      productoProjectionStore: productoProjectionStore,
     );
   });
 
@@ -53,6 +58,131 @@ void main() {
       expect(eventStore.refs.single.relationship, 'affects');
     },
   );
+
+  test(
+    'eliminarCategoria crea snapshot, desplazamientos y refs exactas',
+    () async {
+      categoriaProjectionStore.projections = const [
+        CategoriaProjection(
+          id: 'category_1',
+          nombre: 'Bebidas',
+          color: ColorCategoria.cyan,
+          orden: 0,
+          active: true,
+          version: 2,
+          createdEventId: 'created_1',
+          lastEventId: 'base_1',
+          lastServerSequence: 10,
+        ),
+        CategoriaProjection(
+          id: 'category_2',
+          nombre: 'Comida',
+          color: ColorCategoria.amber,
+          orden: 1,
+          active: true,
+          version: 3,
+          createdEventId: 'created_2',
+          lastEventId: 'base_2',
+          lastServerSequence: 11,
+        ),
+      ];
+
+      await service.eliminarCategoria(
+        const EliminarCategoriaCommand(categoriaId: 'category_1'),
+      );
+
+      expect(eventStore.event!.eventType, 'categoria_eliminada');
+      expect(eventStore.event!.baseVersion, 2);
+      expect(eventStore.event!.baseServerSequence, 10);
+      expect(eventStore.event!.payload['product_resolution'], {'type': 'none'});
+      expect(eventStore.event!.payload['linked_products'], isEmpty);
+      expect(eventStore.refs.map((ref) => ref.refId), [
+        'category_1',
+        'category_2',
+      ]);
+    },
+  );
+
+  test(
+    'eliminarCategoria rechaza categoría inexistente y orden corrupto',
+    () async {
+      await expectLater(
+        service.eliminarCategoria(
+          const EliminarCategoriaCommand(categoriaId: 'missing'),
+        ),
+        throwsStateError,
+      );
+      categoriaProjectionStore.projections = const [
+        CategoriaProjection(
+          id: 'category_1',
+          nombre: 'Bebidas',
+          color: ColorCategoria.cyan,
+          orden: 1,
+          active: true,
+          version: 1,
+          createdEventId: 'created_1',
+          lastEventId: 'created_1',
+          lastServerSequence: null,
+        ),
+      ];
+      await expectLater(
+        service.eliminarCategoria(
+          const EliminarCategoriaCommand(categoriaId: 'category_1'),
+        ),
+        throwsStateError,
+      );
+
+      categoriaProjectionStore.projections = const [
+        CategoriaProjection(
+          id: 'category_1',
+          nombre: 'Bebidas',
+          color: ColorCategoria.cyan,
+          orden: 0,
+          active: true,
+          version: 1,
+          createdEventId: null,
+          lastEventId: null,
+          lastServerSequence: null,
+        ),
+      ];
+      await expectLater(
+        service.eliminarCategoria(
+          const EliminarCategoriaCommand(categoriaId: 'category_1'),
+        ),
+        throwsStateError,
+      );
+    },
+  );
+
+  for (final active in [true, false]) {
+    test(
+      'eliminarCategoria bloquea un producto ${active ? 'activo' : 'inactivo'}',
+      () async {
+        categoriaProjectionStore.projections = const [
+          CategoriaProjection(
+            id: 'category_1',
+            nombre: 'Bebidas',
+            color: ColorCategoria.cyan,
+            orden: 0,
+            active: true,
+            version: 1,
+            createdEventId: 'category_created',
+            lastEventId: 'category_created',
+            lastServerSequence: null,
+          ),
+        ];
+        productoProjectionStore.linkedProductCount = 1;
+
+        await expectLater(
+          service.eliminarCategoria(
+            const EliminarCategoriaCommand(categoriaId: 'category_1'),
+          ),
+          throwsStateError,
+        );
+        expect(eventStore.event, isNull);
+      },
+    );
+  }
 
   test('crearCategoria permite neutral cuando no se eligió color', () async {
     await service.crearCategoria(
@@ -297,4 +427,16 @@ class _FakeCategoriaProjectionStore implements CategoriaProjectionStore {
     required String eventId,
     int? serverSequence,
   }) async {}
+}
+
+class _FakeProductoProjectionStore implements ProductoProjectionStore {
+  int linkedProductCount = 0;
+
+  @override
+  Future<int> countProductsByCategoryId(String categoryId) async {
+    return linkedProductCount;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

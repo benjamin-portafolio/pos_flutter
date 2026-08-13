@@ -247,6 +247,10 @@ class _FakeProductoRepository implements ProductoRepository {
   final List<_Query> queries = [];
 
   @override
+  Future<int> contarArticulosPorCategoria(String categoriaId) async =>
+      articles.where((article) => article.categoriaId == categoriaId).length;
+
+  @override
   Stream<List<ArticuloListado>> watchArticulos({
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
@@ -283,6 +287,9 @@ class _SequencedProductoRepository implements ProductoRepository {
 
   final List<Stream<List<ArticuloListado>>> streams;
   int subscriptions = 0;
+
+  @override
+  Future<int> contarArticulosPorCategoria(String categoriaId) async => 0;
 
   @override
   Stream<List<ArticuloListado>> watchArticulos({

@@ -203,6 +203,9 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
 class _FakeProductoRepository implements ProductoRepository {
   @override
+  Future<int> contarArticulosPorCategoria(String categoriaId) async => 0;
+
+  @override
   Stream<List<ArticuloListado>> watchArticulos({
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},

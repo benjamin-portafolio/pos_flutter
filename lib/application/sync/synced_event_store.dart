@@ -5,6 +5,7 @@ abstract interface class SyncedEventStore {
     List<SyncEvent> events, {
     required Future<void> Function(SyncEvent event) applyEvent,
     required Future<void> Function(SyncEvent event) acknowledgeEcho,
+    Future<void> Function(SyncEvent event)? prepareEvent,
     Future<void> Function()? afterApply,
   });
 }

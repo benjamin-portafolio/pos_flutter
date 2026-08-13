@@ -1,13 +1,19 @@
 import '../models/sync_event.dart';
 import '../payloads/categoria_actualizada_payload.dart';
 import '../payloads/categoria_creada_payload.dart';
+import '../payloads/categoria_eliminada_payload.dart';
 import '../payloads/categoria_movida_payload.dart';
 import '../projections/categoria_projection_store.dart';
+import '../projections/producto_projection_store.dart';
 
 class CategoriaEventHandler {
-  CategoriaEventHandler(this._categoriaProjectionStore);
+  CategoriaEventHandler(
+    this._categoriaProjectionStore, [
+    this._productoProjectionStore,
+  ]);
 
   final CategoriaProjectionStore _categoriaProjectionStore;
+  final ProductoProjectionStore? _productoProjectionStore;
 
   Future<void> applyCategoriaCreada(SyncEvent event) async {
     final payload = CategoriaCreadaPayload.fromJson(event.payload);
@@ -192,6 +198,100 @@ class CategoriaEventHandler {
     );
   }
 
+  Future<void> applyCategoriaEliminada(SyncEvent event) async {
+    final payload = CategoriaEliminadaPayload.fromJson(event.payload);
+    if (event.aggregateType != CategoriaEliminadaPayload.aggregateType ||
+        event.baseVersion == null ||
+        event.baseVersion! < 1 ||
+        event.baseServerSequence != null && event.baseServerSequence! < 0 ||
+        payload.categoriasDesplazadas.any(
+          (category) => category.categoriaId == event.aggregateId,
+        )) {
+      throw const FormatException(
+        'Envelope inválido para categoria_eliminada.',
+      );
+    }
+    final existing = await _categoriaProjectionStore.findById(
+      event.aggregateId,
+    );
+
+    // El hard delete no conserva una proyección tombstone. La ausencia solo es
+    // idempotente cuando las categorías desplazadas todavía acreditan que este
+    // mismo evento ya aplicó la compactación.
+    if (existing == null) {
+      for (final shifted in payload.categoriasDesplazadas) {
+        final current = await _categoriaProjectionStore.findById(
+          shifted.categoriaId,
+        );
+        if (current == null ||
+            current.lastEventId != event.eventId ||
+            current.orden != shifted.ordenNuevo) {
+          throw StateError(
+            'categoria_eliminada encontró una ausencia no atribuible al evento.',
+          );
+        }
+      }
+      return;
+    }
+
+    final ordered = await _categoriaProjectionStore.findAllOrdered();
+    _validateConsecutiveOrder(ordered);
+    _validateDeleteBase(event, payload, existing);
+    if ((await _productoProjectionStore?.countProductsByCategoryId(
+              event.aggregateId,
+            ) ??
+            0) >
+        0) {
+      throw StateError(
+        'No se puede aplicar categoria_eliminada con artículos vinculados.',
+      );
+    }
+
+    final expectedShifted = ordered
+        .where((category) => category.orden > existing.orden)
+        .toList(growable: false);
+    if (expectedShifted.length != payload.categoriasDesplazadas.length) {
+      throw StateError(
+        'categoria_eliminada no declara todas las categorías desplazadas.',
+      );
+    }
+    for (var index = 0; index < expectedShifted.length; index++) {
+      final current = expectedShifted[index];
+      final declared = payload.categoriasDesplazadas[index];
+      final currentBaseEventId = current.lastEventId ?? current.createdEventId;
+      if (current.id != declared.categoriaId ||
+          currentBaseEventId != declared.baseEventId ||
+          current.version != declared.baseVersion ||
+          declared.baseServerSequence != null &&
+              current.lastServerSequence != declared.baseServerSequence ||
+          current.orden != declared.ordenAnterior) {
+        throw StateError(
+          'categoria_eliminada no coincide con la base de orden local.',
+        );
+      }
+    }
+
+    await _categoriaProjectionStore.deleteById(existing.id);
+    for (var index = 0; index < expectedShifted.length; index++) {
+      final current = expectedShifted[index];
+      final declared = payload.categoriasDesplazadas[index];
+      await _categoriaProjectionStore.update(
+        CategoriaProjection(
+          id: current.id,
+          nombre: current.nombre,
+          color: current.color,
+          orden: declared.ordenNuevo,
+          active: current.active,
+          version: current.version + 1,
+          createdEventId: current.createdEventId,
+          lastEventId: event.eventId,
+          lastServerSequence:
+              event.serverSequence ?? current.lastServerSequence,
+        ),
+      );
+    }
+  }
+
   void _validateLocalBase(
     SyncEvent event,
     CategoriaActualizadaPayload payload,
@@ -231,6 +331,36 @@ class CategoriaEventHandler {
       throw StateError(
         'categoria_movida no coincide con el orden local actual.',
       );
+    }
+  }
+
+  void _validateDeleteBase(
+    SyncEvent event,
+    CategoriaEliminadaPayload payload,
+    CategoriaProjection existing,
+  ) {
+    final snapshot = payload.categoriaEliminada;
+    final currentBaseEventId = existing.lastEventId ?? existing.createdEventId;
+    if (event.baseVersion != existing.version ||
+        currentBaseEventId != payload.baseEventId ||
+        existing.nombre != snapshot.nombre ||
+        existing.color != snapshot.color ||
+        existing.orden != snapshot.orden ||
+        existing.active != snapshot.active ||
+        existing.createdEventId != snapshot.createdEventId) {
+      throw StateError(
+        'categoria_eliminada no coincide con la instantánea local.',
+      );
+    }
+  }
+
+  void _validateConsecutiveOrder(List<CategoriaProjection> categories) {
+    for (var index = 0; index < categories.length; index++) {
+      if (categories[index].orden != index) {
+        throw StateError(
+          'categoria_eliminada requiere un orden local consecutivo.',
+        );
+      }
     }
   }
 

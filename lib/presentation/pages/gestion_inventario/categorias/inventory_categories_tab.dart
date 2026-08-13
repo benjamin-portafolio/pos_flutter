@@ -11,12 +11,14 @@ class InventoryCategoriesTab extends StatelessWidget {
     required this.categoriaRepository,
     required this.onEditCategory,
     required this.onMoveCategory,
+    required this.onDeleteCategory,
     super.key,
   });
 
   final CategoriaRepository categoriaRepository;
   final ValueChanged<Categoria> onEditCategory;
   final void Function(Categoria, DireccionMovimientoCategoria) onMoveCategory;
+  final ValueChanged<Categoria> onDeleteCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class InventoryCategoriesTab extends StatelessWidget {
                 name: categoria.nombre,
                 color: CategoryColorPalette.resolve(categoria.color),
                 onTap: () => onEditCategory(categoria),
+                onDeleteCategory: () => onDeleteCategory(categoria),
                 onMoveUp: index == 0
                     ? null
                     : () => onMoveCategory(

@@ -175,6 +175,46 @@ void main() {
     expect(articles.map((article) => article.productoId), ['percent']);
   });
 
+  test('cuenta productos activos e inactivos sin contar variantes', () async {
+    await _insertCategory(
+      db,
+      id: 'category-count',
+      name: 'Conteo',
+      colorKey: 'amber',
+    );
+    await _insertProduct(
+      db,
+      id: 'product-active',
+      name: 'Activo',
+      categoryId: 'category-count',
+    );
+    await _insertProduct(
+      db,
+      id: 'product-inactive',
+      name: 'Inactivo',
+      categoryId: 'category-count',
+      active: false,
+    );
+    await _insertVariant(
+      db,
+      id: 'variant-1',
+      productId: 'product-active',
+      price: 1000,
+      isDefault: true,
+      sortOrder: 0,
+    );
+    await _insertVariant(
+      db,
+      id: 'variant-2',
+      productId: 'product-active',
+      price: 2000,
+      isDefault: false,
+      sortOrder: 1,
+    );
+
+    expect(await repository.contarArticulosPorCategoria('category-count'), 2);
+  });
+
   test('emite automáticamente después de un commit local', () async {
     final expectation = expectLater(
       repository.watchArticulos(),

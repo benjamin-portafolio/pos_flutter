@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
+import 'package:pos_flutter/application/sync/categoria_eliminada_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/categoria_movida_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.dart';
@@ -49,6 +50,7 @@ void main() {
     productoDao = ProductoDao(db);
     checkpointDao = SyncCheckpointDao(db);
     syncPersistence = DriftSyncPersistence(
+      db: db,
       eventDao: eventDao,
       eventRefDao: eventRefDao,
       syncCheckpointDao: checkpointDao,
@@ -432,6 +434,79 @@ void main() {
       expect(categories.map((category) => category.lastServerSequence), [5, 6]);
     },
   );
+
+  test('conflicto de push restaura categoria_eliminada', () async {
+    final created = _localCategoriaCreada();
+    await localEventStore.appendAndApply(
+      created,
+      refs: const [
+        LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+      ],
+    );
+    await syncPersistence.updateEventSyncStatus(
+      created.eventId,
+      'delivered',
+      serverSequence: 5,
+    );
+    await categoriaProjectionStore.advanceLastServerSequence('category_1', 5);
+    final deletion = _localCategoriaEliminada();
+    await localEventStore.appendAndApply(
+      deletion,
+      refs: const [
+        LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+      ],
+    );
+
+    final deletionRestorer = CategoriaEliminadaConflictProjectionRestorer(
+      categoriaProjectionStore,
+    );
+    final service = SyncPushService(
+      syncPersistence: syncPersistence,
+      endpointConfig: SyncEndpointConfig(
+        initialBaseUrl: 'http://localhost:3000',
+      ),
+      conflictProjectionCleaner: SyncConflictProjectionCleaner(
+        espacioProjectionStore: espacioProjectionStore,
+        categoriaProjectionStore: categoriaProjectionStore,
+        productoProjectionStore: productoProjectionStore,
+        categoriaConflictProjectionRestorer:
+            CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+        categoriaMovidaConflictProjectionRestorer:
+            CategoriaMovidaConflictProjectionRestorer(categoriaProjectionStore),
+        categoriaEliminadaConflictProjectionRestorer: deletionRestorer,
+      ),
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        final sentEvents = (body['events'] as List).cast<Map>();
+        expect(sentEvents.single['event_type'], 'categoria_eliminada');
+        return http.Response(
+          jsonEncode({
+            'results': [
+              {
+                'event_id': deletion.eventId,
+                'status': 'conflict',
+                'server_sequence': 6,
+                'reason': 'La categoría recibió un artículo oficial.',
+              },
+            ],
+          }),
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final report = await service.pushPendingEvents();
+
+    expect(report.conflicts, 1);
+    final category = await categoriaDao.obtenerCategoriaPorId('category_1');
+    expect(category?.name, 'Bebidas');
+    expect(category?.lastServerSequence, 5);
+    final storedDeletion = await (db.select(
+      db.events,
+    )..where((event) => event.eventId.equals(deletion.eventId))).getSingle();
+    expect(storedDeletion.deliveryStatus, 'conflict');
+  });
 }
 
 SyncEvent _localEspacioEvent() {
@@ -482,6 +557,33 @@ SyncEvent _localCategoriaActualizada() {
       'changes': {
         'name': {'from': 'Bebidas', 'to': 'Bebidas frías'},
       },
+    },
+  );
+}
+
+SyncEvent _localCategoriaEliminada() {
+  return SyncEvent(
+    eventId: 'local_category_deleted',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'device_tablet_01',
+    userId: 'user_01',
+    createdAtLocal: DateTime.parse('2026-06-09T20:30:02.000Z'),
+    baseServerSequence: 5,
+    baseVersion: 1,
+    payload: const {
+      'base_event_id': 'local_category_created',
+      'deleted_category': {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'local_category_created',
+      },
+      'product_resolution': {'type': 'none'},
+      'linked_products': [],
+      'shifted_categories': [],
     },
   );
 }

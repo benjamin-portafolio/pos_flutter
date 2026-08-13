@@ -9,6 +9,8 @@ abstract interface class ProductoProjectionStore {
     String productId,
   );
 
+  Future<int> countProductsByCategoryId(String categoryId);
+
   Future<void> insertProduct(ProductoProjection projection);
 
   Future<void> insertVariant(ProductoVarianteProjection projection);

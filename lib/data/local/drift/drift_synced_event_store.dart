@@ -14,11 +14,12 @@ class DriftSyncedEventStore implements SyncedEventStore {
     List<SyncEvent> events, {
     required Future<void> Function(SyncEvent event) applyEvent,
     required Future<void> Function(SyncEvent event) acknowledgeEcho,
+    Future<void> Function(SyncEvent event)? prepareEvent,
     Future<void> Function()? afterApply,
   }) async {
     if (events.isEmpty) {
       if (afterApply != null) {
-        await afterApply();
+        await _db.transaction(afterApply);
       }
       return;
     }
@@ -28,6 +29,9 @@ class DriftSyncedEventStore implements SyncedEventStore {
         // Un evento ya aplicado puede volver como eco después de que otras
         // acciones locales hayan avanzado la proyección.
         final alreadyAppliedLocally = await _isAlreadyApplied(event.eventId);
+        if (!alreadyAppliedLocally && prepareEvent != null) {
+          await prepareEvent(event);
+        }
         await _upsertSyncedEvent(event);
         await _markEventRefsSynced(event);
         if (alreadyAppliedLocally) {

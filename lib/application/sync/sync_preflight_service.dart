@@ -9,6 +9,7 @@ import 'models/sync_event.dart';
 import 'models/sync_preflight_report.dart';
 import 'pending_event_revalidator.dart';
 import 'payloads/categoria_movida_payload.dart';
+import 'payloads/categoria_eliminada_payload.dart';
 import 'remote_event_applier.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
@@ -77,16 +78,16 @@ class SyncPreflightService {
       maxEvents: maxEvents,
     );
 
-    if (response.events.isNotEmpty) {
-      await _remoteEventApplier.applySyncedEvents(response.events);
-    }
-
-    await _syncPersistence.updateLastPreflightServerSequence(
-      response.preflightSequence,
+    late PendingRevalidationReport revalidation;
+    await _remoteEventApplier.applySyncedEvents(
+      response.events,
+      afterApply: () async {
+        await _syncPersistence.updateLastPreflightServerSequence(
+          response.preflightSequence,
+        );
+        revalidation = await _pendingEventRevalidator.revalidatePendingEvents();
+      },
     );
-
-    final revalidation = await _pendingEventRevalidator
-        .revalidatePendingEvents();
 
     return SyncPreflightReport(
       skipped: false,
@@ -181,6 +182,7 @@ class SyncPreflightService {
 
     for (final event in events) {
       if (event.eventType == CategoriaMovidaPayload.eventType) return true;
+      if (event.eventType == CategoriaEliminadaPayload.eventType) return true;
       if (event.eventType.endsWith('_actualizado')) return true;
       if (_readChangedFields(event.payload).isNotEmpty) {
         return true;

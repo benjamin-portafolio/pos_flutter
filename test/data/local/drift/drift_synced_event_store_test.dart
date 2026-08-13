@@ -214,6 +214,49 @@ void main() {
     expect(category?.lastEventId, event.eventId);
     expect(category?.lastServerSequence, 20);
   });
+
+  test('eco de categoria_eliminada no recrea ni compacta de nuevo', () async {
+    final first = _createdEvent(0);
+    final second = _createdEvent(1);
+    for (final event in [first, second]) {
+      await localEventStore.appendAndApply(
+        event,
+        refs: [
+          LocalEventRef.affects(refType: 'category', refId: event.aggregateId),
+        ],
+      );
+    }
+    final deletion = _deletion();
+    await localEventStore.appendAndApply(
+      deletion,
+      refs: const [
+        LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+        LocalEventRef.affects(refType: 'category', refId: 'category_2'),
+      ],
+    );
+
+    await syncedEventStore.applySyncedEvents(
+      [
+        deletion.copyWith(
+          serverSequence: 21,
+          createdAtServer: DateTime.utc(2026, 1, 3, 12),
+          deliveryStatus: 'delivered',
+        ),
+      ],
+      applyEvent: eventProcessor.apply,
+      acknowledgeEcho: serverEchoAcknowledger.acknowledge,
+    );
+
+    expect(
+      await categoriaDao.obtenerCategoriaPorId('category_1'),
+      equals(null),
+    );
+    final category = await categoriaDao.obtenerCategoriaPorId('category_2');
+    expect(category?.sortOrder, 0);
+    expect(category?.version, 2);
+    expect(category?.lastEventId, deletion.eventId);
+    expect(category?.lastServerSequence, 21);
+  });
 }
 
 SyncEvent _createdEvent(int index) {
@@ -285,6 +328,40 @@ SyncEvent _movementB() {
         'base_server_sequence': null,
         'sort_order': {'from': 0, 'to': 1},
       },
+    },
+  );
+}
+
+SyncEvent _deletion() {
+  return SyncEvent(
+    eventId: 'deletion_1',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime.utc(2026, 1, 3),
+    payload: const {
+      'base_event_id': 'event_created_1',
+      'deleted_category': {
+        'name': 'Categoría 1',
+        'color_key': 'neutral',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'event_created_1',
+      },
+      'product_resolution': {'type': 'none'},
+      'linked_products': [],
+      'shifted_categories': [
+        {
+          'category_id': 'category_2',
+          'base_event_id': 'event_created_2',
+          'base_version': 1,
+          'base_server_sequence': null,
+          'sort_order': {'from': 1, 'to': 0},
+        },
+      ],
     },
   );
 }

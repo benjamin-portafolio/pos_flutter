@@ -1,8 +1,10 @@
 import 'categoria_conflict_projection_restorer.dart';
+import 'categoria_eliminada_conflict_projection_restorer.dart';
 import 'categoria_movida_conflict_projection_restorer.dart';
 import 'models/sync_event.dart';
 import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_creada_payload.dart';
+import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
@@ -19,13 +21,17 @@ class SyncConflictProjectionCleaner {
     categoriaConflictProjectionRestorer,
     required CategoriaMovidaConflictProjectionRestorer
     categoriaMovidaConflictProjectionRestorer,
+    CategoriaEliminadaConflictProjectionRestorer?
+    categoriaEliminadaConflictProjectionRestorer,
   }) : _espacioProjectionStore = espacioProjectionStore,
        _categoriaProjectionStore = categoriaProjectionStore,
        _productoProjectionStore = productoProjectionStore,
        _categoriaConflictProjectionRestorer =
            categoriaConflictProjectionRestorer,
        _categoriaMovidaConflictProjectionRestorer =
-           categoriaMovidaConflictProjectionRestorer;
+           categoriaMovidaConflictProjectionRestorer,
+       _categoriaEliminadaConflictProjectionRestorer =
+           categoriaEliminadaConflictProjectionRestorer;
 
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
@@ -34,6 +40,8 @@ class SyncConflictProjectionCleaner {
   _categoriaConflictProjectionRestorer;
   final CategoriaMovidaConflictProjectionRestorer
   _categoriaMovidaConflictProjectionRestorer;
+  final CategoriaEliminadaConflictProjectionRestorer?
+  _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
     if (event.eventType == EspacioCreadoPayload.eventType) {
@@ -44,6 +52,8 @@ class SyncConflictProjectionCleaner {
       await _categoriaConflictProjectionRestorer.restore(event);
     } else if (event.eventType == CategoriaMovidaPayload.eventType) {
       await _categoriaMovidaConflictProjectionRestorer.restore(event);
+    } else if (event.eventType == CategoriaEliminadaPayload.eventType) {
+      await _categoriaEliminadaConflictProjectionRestorer?.restore(event);
     } else if (event.eventType == ProductoCreadoPayload.eventType) {
       await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
     }

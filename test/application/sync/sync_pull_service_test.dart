@@ -33,6 +33,7 @@ void main() {
     espacioDao = EspacioDao(db);
     checkpointDao = SyncCheckpointDao(db);
     syncPersistence = DriftSyncPersistence(
+      db: db,
       eventDao: EventDao(db),
       eventRefDao: EventRefDao(db),
       syncCheckpointDao: checkpointDao,

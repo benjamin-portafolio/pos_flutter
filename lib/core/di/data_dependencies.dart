@@ -109,6 +109,7 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<DriftSyncPersistence>(
     () => DriftSyncPersistence(
+      db: getIt<AppDatabase>(),
       eventDao: getIt<EventDao>(),
       eventRefDao: getIt<EventRefDao>(),
       syncCheckpointDao: getIt<SyncCheckpointDao>(),

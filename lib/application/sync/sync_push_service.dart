@@ -6,6 +6,7 @@ import 'exceptions/sync_push_exception.dart';
 import 'models/sync_event.dart';
 import 'models/sync_push_report.dart';
 import 'payloads/categoria_actualizada_payload.dart';
+import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
@@ -68,35 +69,17 @@ class SyncPushService {
       throw SyncPushException('Respuesta invalida del servidor: $error');
     }
 
-    var synced = 0;
-    var rejected = 0;
-    var conflicts = 0;
-    var pending = 0;
-    final conflictEvents = <SyncEvent>[];
+    return _syncPersistence.runInTransaction(() async {
+      var synced = 0;
+      var rejected = 0;
+      var conflicts = 0;
+      var pending = 0;
+      final conflictEvents = <SyncEvent>[];
 
-    for (final event in events) {
-      final result = remoteResults[event.eventId];
-      switch (result?.status) {
-        case 'accepted':
-          await _syncPersistence.updateEventSyncStatus(
-            event.eventId,
-            'delivered',
-            serverSequence: result?.serverSequence,
-            serverTime: result?.serverTime,
-            rejectionReason: result?.reason,
-          );
-          final serverSequence = result?.serverSequence;
-          if (serverSequence != null) {
-            await _syncPersistence.markRefsSynced(
-              event.eventId,
-              serverSequence,
-            );
-          }
-          synced++;
-          break;
-        case 'duplicate':
-          final effectiveStatus = result?.originalSyncStatus ?? 'delivered';
-          if (effectiveStatus == 'delivered') {
+      for (final event in events) {
+        final result = remoteResults[event.eventId];
+        switch (result?.status) {
+          case 'accepted':
             await _syncPersistence.updateEventSyncStatus(
               event.eventId,
               'delivered',
@@ -112,7 +95,80 @@ class SyncPushService {
               );
             }
             synced++;
-          } else if (effectiveStatus == 'conflict') {
+            break;
+          case 'duplicate':
+            final effectiveStatus = result?.originalSyncStatus ?? 'delivered';
+            if (effectiveStatus == 'delivered') {
+              await _syncPersistence.updateEventSyncStatus(
+                event.eventId,
+                'delivered',
+                serverSequence: result?.serverSequence,
+                serverTime: result?.serverTime,
+                rejectionReason: result?.reason,
+              );
+              final serverSequence = result?.serverSequence;
+              if (serverSequence != null) {
+                await _syncPersistence.markRefsSynced(
+                  event.eventId,
+                  serverSequence,
+                );
+              }
+              synced++;
+            } else if (effectiveStatus == 'conflict') {
+              await _syncPersistence.updateEventSyncStatus(
+                event.eventId,
+                'conflict',
+                serverSequence: result?.serverSequence,
+                serverTime: result?.serverTime,
+                rejectionReason: result?.reason,
+              );
+              final serverSequence = result?.serverSequence;
+              if (serverSequence != null) {
+                await _syncPersistence.markRefsSynced(
+                  event.eventId,
+                  serverSequence,
+                );
+              }
+              conflictEvents.add(event);
+              conflicts++;
+            } else if (effectiveStatus == 'rejected') {
+              await _syncPersistence.updateEventSyncStatus(
+                event.eventId,
+                'rejected',
+                serverSequence: result?.serverSequence,
+                serverTime: result?.serverTime,
+                rejectionReason: result?.reason,
+              );
+              final serverSequence = result?.serverSequence;
+              if (serverSequence != null) {
+                await _syncPersistence.markRefsSynced(
+                  event.eventId,
+                  serverSequence,
+                );
+              }
+              rejected++;
+            } else {
+              pending++;
+            }
+            break;
+          case 'rejected':
+            await _syncPersistence.updateEventSyncStatus(
+              event.eventId,
+              'rejected',
+              serverSequence: result?.serverSequence,
+              serverTime: result?.serverTime,
+              rejectionReason: result?.reason,
+            );
+            final serverSequence = result?.serverSequence;
+            if (serverSequence != null) {
+              await _syncPersistence.markRefsSynced(
+                event.eventId,
+                serverSequence,
+              );
+            }
+            rejected++;
+            break;
+          case 'conflict':
             await _syncPersistence.updateEventSyncStatus(
               event.eventId,
               'conflict',
@@ -129,96 +185,44 @@ class SyncPushService {
             }
             conflictEvents.add(event);
             conflicts++;
-          } else if (effectiveStatus == 'rejected') {
-            await _syncPersistence.updateEventSyncStatus(
-              event.eventId,
-              'rejected',
-              serverSequence: result?.serverSequence,
-              serverTime: result?.serverTime,
-              rejectionReason: result?.reason,
-            );
-            final serverSequence = result?.serverSequence;
-            if (serverSequence != null) {
-              await _syncPersistence.markRefsSynced(
-                event.eventId,
-                serverSequence,
-              );
-            }
-            rejected++;
-          } else {
+            break;
+          default:
             pending++;
-          }
-          break;
-        case 'rejected':
-          await _syncPersistence.updateEventSyncStatus(
-            event.eventId,
-            'rejected',
-            serverSequence: result?.serverSequence,
-            serverTime: result?.serverTime,
-            rejectionReason: result?.reason,
-          );
-          final serverSequence = result?.serverSequence;
-          if (serverSequence != null) {
-            await _syncPersistence.markRefsSynced(
-              event.eventId,
-              serverSequence,
-            );
-          }
-          rejected++;
-          break;
-        case 'conflict':
-          await _syncPersistence.updateEventSyncStatus(
-            event.eventId,
-            'conflict',
-            serverSequence: result?.serverSequence,
-            serverTime: result?.serverTime,
-            rejectionReason: result?.reason,
-          );
-          final serverSequence = result?.serverSequence;
-          if (serverSequence != null) {
-            await _syncPersistence.markRefsSynced(
-              event.eventId,
-              serverSequence,
-            );
-          }
-          conflictEvents.add(event);
-          conflicts++;
-          break;
-        default:
-          pending++;
-          break;
+            break;
+        }
       }
-    }
 
-    final conflictedEventIds = conflictEvents
-        .map((event) => event.eventId)
-        .toSet();
-    var waitingConflicts = 0;
-    for (final event in waitingEvents) {
-      if (!_dependsOnEventIds(event, conflictedEventIds)) continue;
+      final conflictedEventIds = conflictEvents
+          .map((event) => event.eventId)
+          .toSet();
+      var waitingConflicts = 0;
+      for (final event in waitingEvents) {
+        if (!_dependsOnEventIds(event, conflictedEventIds)) continue;
 
-      await _syncPersistence.updateEventSyncStatus(
-        event.eventId,
-        'conflict',
-        rejectionReason: 'El evento depende de otro evento local en conflicto.',
+        await _syncPersistence.updateEventSyncStatus(
+          event.eventId,
+          'conflict',
+          rejectionReason:
+              'El evento depende de otro evento local en conflicto.',
+        );
+        conflictEvents.add(event);
+        conflictedEventIds.add(event.eventId);
+        waitingConflicts++;
+        conflicts++;
+      }
+
+      for (final event in conflictEvents.reversed) {
+        await _conflictProjectionCleaner.hideConflictProjection(event);
+      }
+
+      return SyncPushReport(
+        total: events.length + waitingEvents.length,
+        synced: synced,
+        rejected: rejected,
+        conflicts: conflicts,
+        pending: pending + waitingEvents.length - waitingConflicts,
       );
-      conflictEvents.add(event);
-      conflictedEventIds.add(event.eventId);
-      waitingConflicts++;
-      conflicts++;
-    }
-
-    for (final event in conflictEvents.reversed) {
-      await _conflictProjectionCleaner.hideConflictProjection(event);
-    }
-
-    return SyncPushReport(
-      total: events.length + waitingEvents.length,
-      synced: synced,
-      rejected: rejected,
-      conflicts: conflicts,
-      pending: pending + waitingEvents.length - waitingConflicts,
-    );
+    });
   }
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
@@ -230,6 +234,12 @@ class SyncPushService {
         final payload = CategoriaMovidaPayload.fromJson(event.payload);
         return eventIds.contains(payload.baseEventId) ||
             eventIds.contains(payload.categoriaDesplazadaBaseEventId);
+      case CategoriaEliminadaPayload.eventType:
+        final payload = CategoriaEliminadaPayload.fromJson(event.payload);
+        return eventIds.contains(payload.baseEventId) ||
+            payload.categoriasDesplazadas.any(
+              (category) => eventIds.contains(category.baseEventId),
+            );
       case ProductoCreadoPayload.eventType:
         final payload = ProductoCreadoPayload.fromJson(event.payload);
         final dependencyEventId =

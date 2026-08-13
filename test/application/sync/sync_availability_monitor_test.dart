@@ -30,6 +30,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     eventDao = EventDao(db);
     syncPersistence = DriftSyncPersistence(
+      db: db,
       eventDao: eventDao,
       eventRefDao: EventRefDao(db),
       syncCheckpointDao: SyncCheckpointDao(db),

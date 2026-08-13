@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/categoria_command_service.dart';
 import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
 import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
+import 'package:pos_flutter/application/commands/eliminar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
 import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/producto_command_service.dart';
@@ -391,6 +394,169 @@ void main() {
     expect(commandService.moveCommand?.categoriaId, 'category-2');
     expect(commandService.moveCommand?.direccion.name, 'arriba');
   });
+
+  testWidgets('bloquea eliminación y usa singular cuando hay un artículo', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('tiene 1 artículo vinculado.'), findsOneWidget);
+    expect(find.text('Cerrar'), findsOneWidget);
+    expect(commandService.deleteCommand, isNull);
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(commandService.deleteCommand, isNull);
+  });
+
+  testWidgets('confirma categoría vacía, elimina y muestra éxito', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: _FakeProductoRepository(const []),
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eliminar categoría'), findsOneWidget);
+    expect(
+      find.text(
+        '¿Quieres eliminar la categoría “Bebidas”? Esta acción no se puede deshacer.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('confirm_delete_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(commandService.deleteCommand?.categoriaId, 'category-1');
+    expect(find.text('Categoría eliminada.'), findsOneWidget);
+  });
+
+  testWidgets('cancelar no genera evento de eliminación', (tester) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: _FakeProductoRepository(const []),
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel_delete_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(commandService.deleteCommand, isNull);
+  });
+
+  testWidgets('muestra error recuperable si falla la eliminación', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService()
+      ..deleteError = StateError('falló');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: _FakeProductoRepository(const []),
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm_delete_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No se pudo eliminar la categoría. Inténtalo nuevamente.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('bloquea doble confirmación mientras elimina', (tester) async {
+    final commandService = _FakeCategoriaCommandService()
+      ..deleteCompleter = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: _FakeProductoRepository(const []),
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+    final confirm = find.byKey(const Key('confirm_delete_category_button'));
+    await tester.tap(confirm);
+    await tester.pump();
+    await tester.tap(confirm, warnIfMissed: false);
+    await tester.pump();
+
+    expect(commandService.deleteCalls, 1);
+    commandService.deleteCompleter!.complete();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('un fallo de conteo no abre una ruta destructiva', (
+    tester,
+  ) async {
+    final commandService = _FakeCategoriaCommandService();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: _FakeProductoRepository(
+            const [],
+            countError: StateError('falló'),
+          ),
+          categoriaCommandService: commandService,
+        ),
+      ),
+    );
+    await tester.tap(find.text('CATEGORÍA'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_category_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'No se pudo comprobar si la categoría tiene artículos vinculados.',
+      ),
+      findsOneWidget,
+    );
+    expect(commandService.deleteCommand, isNull);
+  });
 }
 
 class _FakeCategoriaRepository implements CategoriaRepository {
@@ -406,10 +572,19 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
-  _FakeProductoRepository(this.articulos);
+  _FakeProductoRepository(this.articulos, {this.countError});
 
   final List<ArticuloListado> articulos;
+  final Object? countError;
   final List<_ProductQuery> queries = [];
+
+  @override
+  Future<int> contarArticulosPorCategoria(String categoriaId) async {
+    if (countError != null) throw countError!;
+    return articulos
+        .where((articulo) => articulo.categoriaId == categoriaId)
+        .length;
+  }
 
   @override
   Stream<List<ArticuloListado>> watchArticulos({
@@ -452,6 +627,18 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
   CrearCategoriaCommand? command;
   EditarCategoriaCommand? editCommand;
   MoverCategoriaCommand? moveCommand;
+  EliminarCategoriaCommand? deleteCommand;
+  Object? deleteError;
+  Completer<void>? deleteCompleter;
+  int deleteCalls = 0;
+
+  @override
+  Future<void> eliminarCategoria(EliminarCategoriaCommand command) async {
+    deleteCalls++;
+    deleteCommand = command;
+    if (deleteError != null) throw deleteError!;
+    await deleteCompleter?.future;
+  }
 
   @override
   Future<void> crearCategoria(CrearCategoriaCommand command) async {

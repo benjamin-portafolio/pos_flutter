@@ -30,6 +30,11 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
   }
 
   @override
+  Future<int> countProductsByCategoryId(String categoryId) {
+    return _productoDao.contarProductosPorCategoria(categoryId);
+  }
+
+  @override
   Future<void> insertProduct(ProductoProjection projection) async {
     await _productoDao.insertarProducto(
       drift.ProductsCompanion.insert(

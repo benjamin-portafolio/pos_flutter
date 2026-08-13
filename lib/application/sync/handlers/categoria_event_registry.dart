@@ -1,6 +1,7 @@
 import '../event_handler.dart';
 import '../payloads/categoria_actualizada_payload.dart';
 import '../payloads/categoria_creada_payload.dart';
+import '../payloads/categoria_eliminada_payload.dart';
 import '../payloads/categoria_movida_payload.dart';
 import 'categoria_event_handler.dart';
 
@@ -10,4 +11,5 @@ Map<String, EventHandler> categoriaEventHandlers(
   CategoriaCreadaPayload.eventType: handler.applyCategoriaCreada,
   CategoriaActualizadaPayload.eventType: handler.applyCategoriaActualizada,
   CategoriaMovidaPayload.eventType: handler.applyCategoriaMovida,
+  CategoriaEliminadaPayload.eventType: handler.applyCategoriaEliminada,
 };

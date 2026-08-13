@@ -4,6 +4,7 @@ import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.da
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 
 void main() {
@@ -16,6 +17,7 @@ void main() {
     categoriaDao = CategoriaDao(db);
     handler = CategoriaEventHandler(
       DriftCategoriaProjectionStore(categoriaDao: categoriaDao),
+      DriftProductoProjectionStore(productoDao: ProductoDao(db)),
     );
   });
 
@@ -137,6 +139,22 @@ void main() {
       isTrue,
     );
   });
+
+  test('categoria_eliminada es idempotente y no compacta dos veces', () async {
+    await handler.applyCategoriaCreada(_event());
+    await handler.applyCategoriaCreada(
+      _event(eventId: 'event_2', aggregateId: 'category_2', sortOrder: 1),
+    );
+    final deletion = _deletedEvent();
+
+    await handler.applyCategoriaEliminada(deletion);
+    await handler.applyCategoriaEliminada(deletion);
+
+    final categories = await categoriaDao.obtenerCategorias();
+    expect(categories.single.id, 'category_2');
+    expect(categories.single.sortOrder, 0);
+    expect(categories.single.version, 2);
+  });
 }
 
 SyncEvent _event({
@@ -203,5 +221,39 @@ SyncEvent _updatedEvent({
     baseVersion: 1,
     createdAtLocal: DateTime(2026),
     payload: payload,
+  );
+}
+
+SyncEvent _deletedEvent() {
+  return SyncEvent(
+    eventId: 'event_deleted',
+    aggregateType: 'category',
+    aggregateId: 'category_1',
+    eventType: 'categoria_eliminada',
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026),
+    payload: const {
+      'base_event_id': 'event_1',
+      'deleted_category': {
+        'name': 'Bebidas',
+        'color_key': 'cyan',
+        'sort_order': 0,
+        'active': true,
+        'created_event_id': 'event_1',
+      },
+      'product_resolution': {'type': 'none'},
+      'linked_products': [],
+      'shifted_categories': [
+        {
+          'category_id': 'category_2',
+          'base_event_id': 'event_2',
+          'base_version': 1,
+          'base_server_sequence': null,
+          'sort_order': {'from': 1, 'to': 0},
+        },
+      ],
+    },
   );
 }
