@@ -64,7 +64,7 @@ void main() {
 
     expect(find.text('ARTÍCULOS'), findsOneWidget);
     expect(find.text('CATEGORÍA'), findsOneWidget);
-    expect(find.text('INGREDIENTES'), findsOneWidget);
+    expect(find.text('RECURSOS'), findsOneWidget);
     expect(find.text('MODIFICADORES'), findsNothing);
   });
 
@@ -238,7 +238,7 @@ void main() {
     expect(find.text('Añadir artículo'), findsOneWidget);
     expect(find.text('Añadir categoría'), findsOneWidget);
     expect(find.text('Añadir modificador'), findsOneWidget);
-    expect(find.text('Agregar ingrediente'), findsOneWidget);
+    expect(find.text('Añadir recurso de inventario'), findsOneWidget);
     expect(find.text('Edición masiva'), findsOneWidget);
 
     await tester.tap(find.text('Añadir categoría'));

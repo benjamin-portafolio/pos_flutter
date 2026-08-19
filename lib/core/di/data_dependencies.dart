@@ -8,6 +8,7 @@ import '../../application/backup/backup_store.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
+import '../../application/sync/projections/inventory_projection_store.dart';
 import '../../application/sync/projections/producto_projection_store.dart';
 import '../../application/sync/sync_detection_settings_store.dart';
 import '../../application/sync/sync_endpoint_store.dart';
@@ -23,6 +24,7 @@ import '../../data/local/backup/database_state_reader.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_categoria_projection_store.dart';
 import '../../data/local/drift/drift_espacio_projection_store.dart';
+import '../../data/local/drift/drift_inventory_projection_store.dart';
 import '../../data/local/drift/drift_producto_projection_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
 import '../../data/local/drift/drift_synced_event_store.dart';
@@ -32,9 +34,13 @@ import '../../data/local/sync/sync_detection_settings_file_store.dart';
 import '../../data/local/sync/sync_endpoint_file_store.dart';
 import '../../data/repositories/categoria_repository_impl.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
+import '../../data/repositories/recurso_inventario_repository_impl.dart';
+import '../../data/repositories/unidad_inventario_repository_impl.dart';
 import '../../data/repositories/producto_repository_impl.dart';
 import '../../domain/repositories/categoria_repository.dart';
 import '../../domain/repositories/espacio_repository.dart';
+import '../../domain/repositories/recurso_inventario_repository.dart';
+import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
 
 class DataDependencyBootstrap {
@@ -89,6 +95,10 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => ProductoDao(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<UnitDao>(() => UnitDao(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<InventoryDao>(
+    () => InventoryDao(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<EventRefDao>(
     () => EventRefDao(getIt<AppDatabase>()),
   );
@@ -133,6 +143,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<ProductoProjectionStore>(
     () => DriftProductoProjectionStore(productoDao: getIt<ProductoDao>()),
   );
+  getIt.registerLazySingleton<InventoryProjectionStore>(
+    () => DriftInventoryProjectionStore(
+      inventoryDao: getIt<InventoryDao>(),
+      unitDao: getIt<UnitDao>(),
+    ),
+  );
 
   getIt.registerLazySingleton<EspacioRepository>(
     () => EspacioRepositoryImpl(espacioDao: getIt<EspacioDao>()),
@@ -142,6 +158,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<ProductoRepository>(
     () => ProductoRepositoryImpl(productoDao: getIt<ProductoDao>()),
+  );
+  getIt.registerLazySingleton<UnidadInventarioRepository>(
+    () => UnidadInventarioRepositoryImpl(unitDao: getIt<UnitDao>()),
+  );
+  getIt.registerLazySingleton<RecursoInventarioRepository>(
+    () => RecursoInventarioRepositoryImpl(inventoryDao: getIt<InventoryDao>()),
   );
 
   return DataDependencyBootstrap(

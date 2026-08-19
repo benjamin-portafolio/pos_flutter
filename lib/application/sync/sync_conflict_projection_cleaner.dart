@@ -8,15 +8,18 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/recurso_inventario_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
 import 'projections/producto_projection_store.dart';
+import 'projections/inventory_projection_store.dart';
 
 class SyncConflictProjectionCleaner {
   SyncConflictProjectionCleaner({
     required EspacioProjectionStore espacioProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
+    InventoryProjectionStore? inventoryProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
     required CategoriaMovidaConflictProjectionRestorer
@@ -26,6 +29,7 @@ class SyncConflictProjectionCleaner {
   }) : _espacioProjectionStore = espacioProjectionStore,
        _categoriaProjectionStore = categoriaProjectionStore,
        _productoProjectionStore = productoProjectionStore,
+       _inventoryProjectionStore = inventoryProjectionStore,
        _categoriaConflictProjectionRestorer =
            categoriaConflictProjectionRestorer,
        _categoriaMovidaConflictProjectionRestorer =
@@ -36,6 +40,7 @@ class SyncConflictProjectionCleaner {
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
+  final InventoryProjectionStore? _inventoryProjectionStore;
   final CategoriaConflictProjectionRestorer
   _categoriaConflictProjectionRestorer;
   final CategoriaMovidaConflictProjectionRestorer
@@ -56,6 +61,8 @@ class SyncConflictProjectionCleaner {
       await _categoriaEliminadaConflictProjectionRestorer?.restore(event);
     } else if (event.eventType == ProductoCreadoPayload.eventType) {
       await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
+    } else if (event.eventType == RecursoInventarioCreadoPayload.eventType) {
+      await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
     }
   }
 }

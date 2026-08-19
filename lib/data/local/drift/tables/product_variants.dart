@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'common_fields.dart';
+import 'inventory_items.dart';
 import 'products.dart';
 
 /// Proyeccion local de la unica presentacion vendible creada por el alta
@@ -25,6 +26,21 @@ class ProductVariants extends Table with CommonFields {
   /// Comportamiento de inventario; este alcance solo materializa `none`.
   TextColumn get inventoryBehavior =>
       text().withDefault(const Constant('none'))();
+
+  /// Activa el control de inventario para esta variante. El valor legado
+  /// `inventory_behavior = none` se migra a `false` sin crear recursos.
+  BoolColumn get inventoryEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// Recurso afectado directamente por la venta, elegido explícitamente.
+  TextColumn get directInventoryItemId => text().nullable().references(
+    InventoryItems,
+    #id,
+    onDelete: KeyAction.restrict,
+  )();
+
+  /// Cantidad atómica consumida por venta cuando el vínculo directo está activo.
+  IntColumn get directQuantityAtomic => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

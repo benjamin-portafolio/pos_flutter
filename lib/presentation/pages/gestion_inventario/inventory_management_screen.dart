@@ -5,15 +5,19 @@ import 'package:flutter/material.dart';
 import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_articulo_command.dart';
 import '../../../application/commands/crear_categoria_command.dart';
+import '../../../application/commands/crear_recurso_inventario_command.dart';
 import '../../../application/commands/editar_categoria_command.dart';
 import '../../../application/commands/eliminar_categoria_command.dart';
 import '../../../application/commands/mover_categoria_command.dart';
 import '../../../application/commands/producto_command_service.dart';
+import '../../../application/commands/inventory_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/categorias/categoria.dart';
 import '../../../domain/categorias/direccion_movimiento_categoria.dart';
 import '../../../domain/repositories/categoria_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
+import '../../../domain/repositories/recurso_inventario_repository.dart';
+import '../../../domain/repositories/unidad_inventario_repository.dart';
 import 'articulos/article_form_screen.dart';
 import 'articulos/inventory_articles_tab.dart';
 import 'articulos/models/articulo_form_result.dart';
@@ -26,6 +30,9 @@ import 'categorias/widgets/category_destination_picker_dialog.dart';
 import 'categorias/widgets/delete_category_dialog.dart';
 import 'categorias/widgets/delete_category_options_dialog.dart';
 import 'categorias/widgets/delete_category_products_confirmation_dialog.dart';
+import 'recursos/inventory_resource_form_screen.dart';
+import 'recursos/inventory_resources_tab.dart';
+import 'recursos/models/inventory_resource_form_result.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
@@ -34,6 +41,9 @@ class InventoryManagementScreen extends StatelessWidget {
     this.productoRepository,
     this.categoriaCommandService,
     this.productoCommandService,
+    this.recursoInventarioRepository,
+    this.unidadInventarioRepository,
+    this.inventoryCommandService,
     super.key,
   });
 
@@ -41,6 +51,9 @@ class InventoryManagementScreen extends StatelessWidget {
   final ProductoRepository? productoRepository;
   final CategoriaCommandService? categoriaCommandService;
   final ProductoCommandService? productoCommandService;
+  final RecursoInventarioRepository? recursoInventarioRepository;
+  final UnidadInventarioRepository? unidadInventarioRepository;
+  final InventoryCommandService? inventoryCommandService;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +65,13 @@ class InventoryManagementScreen extends StatelessWidget {
         productoRepository: productoRepository ?? getIt<ProductoRepository>(),
         categoriaCommandService: categoriaCommandService,
         productoCommandService: productoCommandService,
+        recursoInventarioRepository:
+            recursoInventarioRepository ??
+            (getIt.isRegistered<RecursoInventarioRepository>()
+                ? getIt<RecursoInventarioRepository>()
+                : null),
+        unidadInventarioRepository: unidadInventarioRepository,
+        inventoryCommandService: inventoryCommandService,
       ),
     );
   }
@@ -63,12 +83,18 @@ class _InventoryManagementBody extends StatefulWidget {
     required this.productoRepository,
     required this.categoriaCommandService,
     required this.productoCommandService,
+    required this.recursoInventarioRepository,
+    required this.unidadInventarioRepository,
+    required this.inventoryCommandService,
   });
 
   final CategoriaRepository categoriaRepository;
   final ProductoRepository productoRepository;
   final CategoriaCommandService? categoriaCommandService;
   final ProductoCommandService? productoCommandService;
+  final RecursoInventarioRepository? recursoInventarioRepository;
+  final UnidadInventarioRepository? unidadInventarioRepository;
+  final InventoryCommandService? inventoryCommandService;
 
   @override
   State<_InventoryManagementBody> createState() =>
@@ -118,7 +144,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           tabs: [
             Tab(text: 'ARTÍCULOS'),
             Tab(text: 'CATEGORÍA'),
-            Tab(text: 'INGREDIENTES'),
+            Tab(text: 'RECURSOS'),
           ],
         ),
       ),
@@ -140,7 +166,13 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             onDeleteCategory: (categoria) =>
                 _deleteCategory(context, categoria),
           ),
-          const SizedBox.expand(key: Key('inventory_ingredients_tab_view')),
+          if (widget.recursoInventarioRepository case final repository?)
+            InventoryResourcesTab(repository: repository)
+          else
+            const Center(
+              key: Key('inventory_resources_unavailable'),
+              child: Text('Recursos de inventario'),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -251,6 +283,54 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       context: context,
       onAddArticle: () => _openArticleForm(context),
       onAddCategory: () => _openCategoryForm(context),
+      onAddInventoryResource: () => _openInventoryResourceForm(context),
+    );
+  }
+
+  Future<void> _openInventoryResourceForm(BuildContext context) async {
+    try {
+      final repository =
+          widget.unidadInventarioRepository ??
+          getIt<UnidadInventarioRepository>();
+      final units = await repository.obtenerUnidadesActivas();
+      if (!context.mounted) return;
+      if (units.isEmpty) {
+        throw StateError('No hay unidades activas.');
+      }
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => InventoryResourceFormScreen(
+            units: units,
+            onSave: _createInventoryResource,
+          ),
+        ),
+      );
+      if (saved == true && context.mounted) {
+        _tabController?.animateTo(2);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recurso de inventario guardado.')),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir el alta del recurso de inventario.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _createInventoryResource(InventoryResourceFormResult result) {
+    final service =
+        widget.inventoryCommandService ?? getIt<InventoryCommandService>();
+    return service.crearRecurso(
+      CrearRecursoInventarioCommand(
+        nombre: result.nombre,
+        defaultUnitId: result.unidad.id,
+        quantityDeltaAtomic: result.quantityDeltaAtomic,
+        movementReason: result.movementReason,
+      ),
     );
   }
 

@@ -8,6 +8,7 @@ import '../../application/config/app_config_controller.dart';
 import '../../application/config/app_config_store.dart';
 import '../../application/commands/categoria_command_service.dart';
 import '../../application/commands/espacio_command_service.dart';
+import '../../application/commands/inventory_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/commands/producto_command_service.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
@@ -19,12 +20,15 @@ import '../../application/sync/handlers/categoria_event_handler.dart';
 import '../../application/sync/handlers/categoria_event_registry.dart';
 import '../../application/sync/handlers/espacio_event_handler.dart';
 import '../../application/sync/handlers/espacio_event_registry.dart';
+import '../../application/sync/handlers/inventory_event_handler.dart';
+import '../../application/sync/handlers/inventory_event_registry.dart';
 import '../../application/sync/handlers/producto_event_handler.dart';
 import '../../application/sync/handlers/producto_event_registry.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
+import '../../application/sync/projections/inventory_projection_store.dart';
 import '../../application/sync/projections/producto_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/remote_event_preparer.dart';
@@ -81,12 +85,16 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<ProductoEventHandler>(
     () => ProductoEventHandler(getIt<ProductoProjectionStore>()),
   );
+  getIt.registerLazySingleton<InventoryEventHandler>(
+    () => InventoryEventHandler(getIt<InventoryProjectionStore>()),
+  );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
         ...espacioEventHandlers(getIt<EspacioEventHandler>()),
         ...categoriaEventHandlers(getIt<CategoriaEventHandler>()),
         ...productoEventHandlers(getIt<ProductoEventHandler>()),
+        ...inventoryEventHandlers(getIt<InventoryEventHandler>()),
       },
     ),
   );
@@ -94,6 +102,7 @@ void registerApplicationDependencies(
     () => ServerEchoAcknowledger(
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
+      inventoryProjectionStore: getIt<InventoryProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<CategoriaConflictProjectionRestorer>(
@@ -134,6 +143,7 @@ void registerApplicationDependencies(
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
+      inventoryProjectionStore: getIt<InventoryProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
       categoriaMovidaConflictProjectionRestorer:
@@ -147,6 +157,7 @@ void registerApplicationDependencies(
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
+      inventoryProjectionStore: getIt<InventoryProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
       categoriaMovidaConflictProjectionRestorer:
@@ -258,6 +269,13 @@ void registerApplicationDependencies(
       commandContext: getIt<LocalCommandContext>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),
+    ),
+  );
+  getIt.registerLazySingleton<InventoryCommandService>(
+    () => InventoryCommandService(
+      eventStore: getIt<LocalEventStore>(),
+      commandContext: getIt<LocalCommandContext>(),
+      inventoryProjectionStore: getIt<InventoryProjectionStore>(),
     ),
   );
 }

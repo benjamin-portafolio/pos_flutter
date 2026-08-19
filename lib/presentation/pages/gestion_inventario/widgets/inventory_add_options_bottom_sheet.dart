@@ -4,22 +4,26 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
   const InventoryAddOptionsBottomSheet({
     required this.onAddArticle,
     required this.onAddCategory,
+    required this.onAddInventoryResource,
     super.key,
   });
 
   final VoidCallback onAddArticle;
   final VoidCallback onAddCategory;
+  final VoidCallback onAddInventoryResource;
 
   static Future<void> show({
     required BuildContext context,
     required VoidCallback onAddArticle,
     required VoidCallback onAddCategory,
+    required VoidCallback onAddInventoryResource,
   }) {
     return showModalBottomSheet<void>(
       context: context,
       builder: (_) => InventoryAddOptionsBottomSheet(
         onAddArticle: onAddArticle,
         onAddCategory: onAddCategory,
+        onAddInventoryResource: onAddInventoryResource,
       ),
     );
   }
@@ -56,18 +60,22 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const Row(
+            Row(
               children: [
                 Expanded(
-                  child: _InventoryAddOption(
+                  child: const _InventoryAddOption(
                     key: Key('add_modifier_option'),
                     label: 'Añadir modificador',
                   ),
                 ),
                 Expanded(
                   child: _InventoryAddOption(
-                    key: Key('add_ingredient_option'),
-                    label: 'Agregar ingrediente',
+                    key: const Key('add_inventory_resource_option'),
+                    label: 'Añadir recurso de inventario',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onAddInventoryResource();
+                    },
                   ),
                 ),
               ],

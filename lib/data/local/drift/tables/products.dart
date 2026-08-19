@@ -18,6 +18,11 @@ class Products extends Table with CommonFields {
     onDelete: KeyAction.restrict,
   )();
 
+  /// Estrategia de inventario del producto. `direct` permite que una variante
+  /// apunte explícitamente a un recurso; no crea ese recurso automáticamente.
+  TextColumn get inventoryMode =>
+      text().withDefault(const Constant('direct'))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

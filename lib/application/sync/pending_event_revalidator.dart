@@ -9,9 +9,11 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/recurso_inventario_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
 import 'projections/producto_projection_store.dart';
+import 'projections/inventory_projection_store.dart';
 import 'sync_persistence.dart';
 import 'synced_event_history.dart';
 
@@ -22,6 +24,7 @@ class PendingEventRevalidator {
     required EspacioProjectionStore espacioProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
+    InventoryProjectionStore? inventoryProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
     required CategoriaMovidaConflictProjectionRestorer
@@ -33,6 +36,7 @@ class PendingEventRevalidator {
        _espacioProjectionStore = espacioProjectionStore,
        _categoriaProjectionStore = categoriaProjectionStore,
        _productoProjectionStore = productoProjectionStore,
+       _inventoryProjectionStore = inventoryProjectionStore,
        _categoriaConflictProjectionRestorer =
            categoriaConflictProjectionRestorer,
        _categoriaMovidaConflictProjectionRestorer =
@@ -45,6 +49,7 @@ class PendingEventRevalidator {
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
+  final InventoryProjectionStore? _inventoryProjectionStore;
   final CategoriaConflictProjectionRestorer
   _categoriaConflictProjectionRestorer;
   final CategoriaMovidaConflictProjectionRestorer
@@ -81,6 +86,8 @@ class PendingEventRevalidator {
             ProductoCreadoPayload.eventType => await _productoCreadoConflict(
               event,
             ),
+            RecursoInventarioCreadoPayload.eventType =>
+              await _inventoryItemCreadoConflict(event),
             _ => null,
           };
 
@@ -189,6 +196,36 @@ class PendingEventRevalidator {
             null) {
       return const _PendingConflict(
         'Ya no existe la categoría elegida para el artículo.',
+      );
+    }
+    return null;
+  }
+
+  Future<_PendingConflict?> _inventoryItemCreadoConflict(
+    SyncEvent event,
+  ) async {
+    final store = _inventoryProjectionStore;
+    if (store == null) return null;
+    final payload = RecursoInventarioCreadoPayload.fromJson(event.payload);
+    final item = await store.findItemById(event.aggregateId);
+    if (item != null && item.createdEventId != event.eventId) {
+      return _PendingConflict(
+        'Ya existe un recurso oficial con id ${event.aggregateId}.',
+      );
+    }
+    final movementId = payload.initialMovement?.movementId;
+    if (movementId != null) {
+      final movement = await store.findMovementById(movementId);
+      if (movement != null && movement.eventId != event.eventId) {
+        return _PendingConflict(
+          'Ya existe un movimiento oficial con id $movementId.',
+        );
+      }
+    }
+    final unit = await store.findUnitById(payload.defaultUnitId);
+    if (unit == null || !unit.active) {
+      return const _PendingConflict(
+        'La unidad del recurso ya no existe o está inactiva.',
       );
     }
     return null;
@@ -469,6 +506,8 @@ class PendingEventRevalidator {
         await _categoriaEliminadaConflictProjectionRestorer?.restore(event);
       case ProductoCreadoPayload.eventType:
         await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
+      case RecursoInventarioCreadoPayload.eventType:
+        await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
     }
   }
 
