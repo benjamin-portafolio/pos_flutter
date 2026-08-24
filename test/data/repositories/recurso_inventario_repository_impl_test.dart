@@ -16,48 +16,21 @@ void main() {
       inventoryDao: InventoryDao(db),
     );
     await db.customSelect('SELECT 1').get();
-    await _seedRelations(db);
+    await _seedResources(db);
   });
 
   tearDown(() => db.close());
 
-  test('lista balance y roles derivados mediante relaciones', () async {
+  test('lista recursos activos con saldo y unidad', () async {
     final resources = await repository.watchRecursos().first;
     expect(resources.map((resource) => resource.nombre), ['Harina', 'Sal']);
 
     final flour = resources.first;
     expect(flour.existenciaAtomica, 2500);
     expect(flour.unidadPredeterminada.simbolo, 'kg');
-    expect(flour.vinculadoAVariante, isTrue);
-    expect(flour.nombresVariantesVinculadas, ['Pan']);
-
-    final salt = resources.last;
-    expect(salt.usadoEnRecetas, isTrue);
-    expect(salt.cantidadRecetas, 1);
   });
 
-  test('aplica búsqueda y todos los filtros sin columna type', () async {
-    expect(
-      (await repository
-              .watchRecursos(filtro: InventoryResourceFilter.withoutSaleLink)
-              .first)
-          .map((resource) => resource.nombre),
-      ['Sal'],
-    );
-    expect(
-      (await repository
-              .watchRecursos(filtro: InventoryResourceFilter.linkedToVariant)
-              .first)
-          .map((resource) => resource.nombre),
-      ['Harina'],
-    );
-    expect(
-      (await repository
-              .watchRecursos(filtro: InventoryResourceFilter.usedInRecipes)
-              .first)
-          .map((resource) => resource.nombre),
-      ['Sal'],
-    );
+  test('aplica búsqueda y filtro de inactivos', () async {
     expect(
       (await repository
               .watchRecursos(filtro: InventoryResourceFilter.inactive)
@@ -72,7 +45,7 @@ void main() {
   });
 }
 
-Future<void> _seedRelations(AppDatabase db) async {
+Future<void> _seedResources(AppDatabase db) async {
   for (final item in [
     ('item-flour', 'Harina', true, InventoryUnitIds.kilogram, 2500),
     ('item-salt', 'Sal', true, InventoryUnitIds.gram, 100),
@@ -101,39 +74,4 @@ Future<void> _seedRelations(AppDatabase db) async {
           ),
         );
   }
-
-  await db
-      .into(db.products)
-      .insert(
-        ProductsCompanion.insert(
-          id: 'product-pan',
-          name: 'Pan',
-          createdEventId: const Value('event-product'),
-          lastEventId: const Value('event-product'),
-        ),
-      );
-  await db
-      .into(db.productVariants)
-      .insert(
-        ProductVariantsCompanion.insert(
-          id: 'variant-pan',
-          productId: 'product-pan',
-          salePriceMinor: 5000,
-          isDefault: true,
-          sortOrder: 0,
-          directInventoryItemId: const Value('item-flour'),
-          directQuantityAtomic: const Value(1),
-          createdEventId: const Value('event-product'),
-          lastEventId: const Value('event-product'),
-        ),
-      );
-  await db
-      .into(db.recipeComponents)
-      .insert(
-        const RecipeComponentsCompanion(
-          variantId: Value('variant-pan'),
-          inventoryItemId: Value('item-salt'),
-          quantityAtomic: Value(2),
-        ),
-      );
 }

@@ -12,19 +12,23 @@ class UnidadInventarioRepositoryImpl implements UnidadInventarioRepository {
   @override
   Future<List<UnidadInventario>> obtenerUnidadesActivas() async {
     final rows = await _unitDao.obtenerUnidadesActivas();
-    return rows
-        .map(
-          (row) => UnidadInventario(
-            id: row.unitId,
-            code: row.code,
-            nombre: row.name,
-            simbolo: row.symbol,
-            dimension: DimensionUnidad.fromCode(row.dimension),
-            factorAtomico: row.atomicFactor,
-            maximosDecimales: row.maxFractionDigits,
-            activa: row.active,
-          ),
-        )
-        .toList(growable: false);
+    return rows.map(_toDomain).toList(growable: false);
   }
+
+  @override
+  Future<UnidadInventario?> obtenerUnidadPorId(String unidadId) async {
+    final row = await _unitDao.obtenerUnidadPorId(unidadId);
+    return row == null ? null : _toDomain(row);
+  }
+
+  UnidadInventario _toDomain(UnitRow row) => UnidadInventario(
+    id: row.unitId,
+    code: row.code,
+    nombre: row.name,
+    simbolo: row.symbol,
+    dimension: DimensionUnidad.fromCode(row.dimension),
+    factorAtomico: row.atomicFactor,
+    maximosDecimales: row.maxFractionDigits,
+    activa: row.active,
+  );
 }

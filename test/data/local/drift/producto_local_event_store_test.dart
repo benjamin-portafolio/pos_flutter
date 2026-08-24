@@ -8,6 +8,8 @@ import 'package:pos_flutter/application/sync/handlers/producto_event_registry.da
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
+import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
+import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
@@ -51,10 +53,12 @@ void main() {
         final refs = await db.select(db.eventRefs).get();
 
         expect(product?.name, 'Café');
+        expect(product?.saleMode, 'unit');
+        expect(product?.saleUnitId, isNull);
+        expect(product?.priceReferenceQuantityAtomic, isNull);
         expect(variants, hasLength(1));
         expect(variants.single.salePriceMinor, 4550);
         expect(variants.single.isDefault, isTrue);
-        expect(variants.single.inventoryBehavior, 'none');
         expect(
           storedEvent.deliveryStatus,
           mode == AppMode.standalone ? 'not_required' : 'pending',
@@ -75,6 +79,34 @@ void main() {
 
     expect(await db.select(db.products).get(), hasLength(1));
     expect(await db.select(db.productVariants).get(), hasLength(1));
+  });
+
+  test('server_sync proyecta measured y persiste la ref unit', () async {
+    final store = _store(AppMode.serverSync, db, productoDao, eventDao);
+    await store.appendAndApply(
+      _event(
+        saleConfiguration: MeasuredSaleConfiguration(
+          saleUnitId: InventoryUnitIds.kilogram,
+          priceReferenceQuantityAtomic: 1000,
+        ),
+      ),
+      refs: const [
+        LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+        LocalEventRef.affects(refType: 'product_variant', refId: 'variant_1'),
+        LocalEventRef.uses(refType: 'unit', refId: InventoryUnitIds.kilogram),
+      ],
+    );
+
+    final product = await productoDao.obtenerProductoPorId('product_1');
+    final refs = await db.select(db.eventRefs).get();
+    expect(product?.saleMode, 'measured');
+    expect(product?.saleUnitId, InventoryUnitIds.kilogram);
+    expect(product?.priceReferenceQuantityAtomic, 1000);
+    expect(refs.map((ref) => ref.refType), [
+      'product',
+      'product_variant',
+      'unit',
+    ]);
   });
 
   test(
@@ -134,6 +166,7 @@ SyncEvent _event({
   String eventId = 'event_1',
   String productId = 'product_1',
   int? serverSequence,
+  SaleConfiguration saleConfiguration = const UnitSaleConfiguration(),
 }) {
   return SyncEvent(
     eventId: eventId,
@@ -150,6 +183,7 @@ SyncEvent _event({
       categoriaId: null,
       varianteId: 'variant_1',
       precioVentaMenor: 4550,
+      saleConfiguration: saleConfiguration,
     ).toJson(),
   );
 }

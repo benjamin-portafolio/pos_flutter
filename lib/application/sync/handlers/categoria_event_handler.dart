@@ -295,6 +295,7 @@ class CategoriaEventHandler {
           id: current.id,
           nombre: current.nombre,
           categoriaId: declared.categoriaNuevaId,
+          saleConfiguration: current.saleConfiguration,
           active: current.active,
           version: current.version + 1,
           createdEventId: current.createdEventId,

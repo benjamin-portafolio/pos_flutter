@@ -12,7 +12,6 @@ import 'package:pos_flutter/data/local/drift/tables/inventory_items.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_movements.dart';
 import 'package:pos_flutter/data/local/drift/tables/product_variants.dart';
 import 'package:pos_flutter/data/local/drift/tables/products.dart';
-import 'package:pos_flutter/data/local/drift/tables/recipe_components.dart';
 import 'package:pos_flutter/data/local/drift/tables/sync_checkpoints.dart';
 import 'package:pos_flutter/data/local/drift/tables/units.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
@@ -45,7 +44,6 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     InventoryItems,
     InventoryBalances,
     InventoryMovements,
-    RecipeComponents,
   ],
   daos: [
     CategoriaDao,
@@ -64,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -74,29 +72,22 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (m, from, to) async {
       if (from < 4) {
-        await m.addColumn(products, products.inventoryMode);
         await m.createTable(units);
         await _seedInventoryUnits();
         await m.createTable(inventoryItems);
-        await m.addColumn(productVariants, productVariants.inventoryEnabled);
-        await m.addColumn(
-          productVariants,
-          productVariants.directInventoryItemId,
-        );
-        await m.addColumn(
-          productVariants,
-          productVariants.directQuantityAtomic,
-        );
-        await customStatement('''
-          UPDATE product_variants
-          SET inventory_enabled = CASE
-            WHEN inventory_behavior = 'none' THEN 0
-            ELSE inventory_enabled
-          END
-        ''');
         await m.createTable(inventoryBalances);
         await m.createTable(inventoryMovements);
-        await m.createTable(recipeComponents);
+      }
+      if (from < 5) {
+        await m.addColumn(products, products.saleMode);
+        await m.addColumn(products, products.saleUnitId);
+        await m.addColumn(products, products.priceReferenceQuantityAtomic);
+      }
+      if (from < 6) {
+        await customStatement('DROP TABLE IF EXISTS recipe_components');
+        await m.alterTable(TableMigration(products));
+        await m.alterTable(TableMigration(productVariants));
+        await m.alterTable(TableMigration(inventoryMovements));
       }
     },
     beforeOpen: (_) async {

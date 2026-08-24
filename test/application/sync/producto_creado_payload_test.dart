@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
+import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 
 void main() {
   test('normaliza y conserva la forma canónica del alta sencilla', () {
@@ -11,7 +12,11 @@ void main() {
     );
 
     expect(ProductoCreadoPayload.fromJson(payload.toJson()).toJson(), {
-      'product': {'name': 'Café', 'category_id': null},
+      'product': {
+        'name': 'Café',
+        'category_id': null,
+        'sale_configuration': {'mode': 'unit'},
+      },
       'variants': [
         {
           'variant_id': 'variant_1',
@@ -21,11 +26,36 @@ void main() {
           'sale_price_minor': 5050,
           'is_default': true,
           'sort_order': 0,
-          'inventory_configuration': {'behavior': 'none'},
         },
       ],
       'dependencies': <Object?>[],
     });
+  });
+
+  test('serializa measured y su dependencia de unidad', () {
+    final payload = ProductoCreadoPayload.simple(
+      nombre: 'Queso',
+      categoriaId: null,
+      varianteId: 'variant_1',
+      precioVentaMenor: 18000,
+      saleConfiguration: MeasuredSaleConfiguration(
+        saleUnitId: 'unit_kg',
+        priceReferenceQuantityAtomic: 1000,
+      ),
+    );
+
+    expect(payload.toJson()['product'], {
+      'name': 'Queso',
+      'category_id': null,
+      'sale_configuration': {
+        'mode': 'measured',
+        'sale_unit_id': 'unit_kg',
+        'price_reference_quantity_atomic': 1000,
+      },
+    });
+    expect(payload.toJson()['dependencies'], [
+      {'ref_type': 'unit', 'ref_id': 'unit_kg'},
+    ]);
   });
 
   test('rechaza variantes avanzadas en el alcance sencillo', () {

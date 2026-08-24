@@ -3,17 +3,23 @@ import 'package:flutter/services.dart';
 
 import '../../../../domain/articulos/nombre_producto.dart';
 import '../../../../domain/articulos/precio_venta.dart';
+import '../../../../domain/articulos/sale_configuration.dart';
+import '../../../../domain/articulos/sale_mode.dart';
 import '../../../../domain/categorias/categoria.dart';
+import '../../../../domain/inventario/dimension_unidad.dart';
+import '../../../../domain/inventario/unidad_inventario.dart';
 import 'models/articulo_form_result.dart';
 
 class ArticleFormScreen extends StatefulWidget {
   const ArticleFormScreen({
     required this.categorias,
+    required this.unidadesVenta,
     required this.onSave,
     super.key,
   });
 
   final List<Categoria> categorias;
+  final List<UnidadInventario> unidadesVenta;
   final Future<void> Function(ArticuloFormResult result) onSave;
 
   @override
@@ -27,6 +33,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   String? _selectedCategoryId;
+  SaleMode _saleMode = SaleMode.unit;
+  UnidadInventario? _selectedSaleUnit;
+  bool _showSaleUnitError = false;
   String? _saveError;
   bool _saving = false;
   bool _canPop = false;
@@ -139,14 +148,13 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const _FormCard(
-                    child: ListTile(
-                      leading: Icon(Icons.sell_outlined),
-                      title: Text('Vender por unidad'),
-                      subtitle: Text(
-                        'Artículo sencillo sin control de inventario',
-                      ),
-                    ),
+                  _SaleModeCard(
+                    saleMode: _saleMode,
+                    selectedUnit: _selectedSaleUnit,
+                    enabled: !_saving,
+                    showUnitError: _showSaleUnitError,
+                    onSelectMode: _selectSaleMode,
+                    onSelectUnit: _selectSaleUnit,
                   ),
                   const SizedBox(height: 12),
                   _FormCard(
@@ -160,11 +168,11 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                       inputFormatters: const [_CurrencyInputFormatter()],
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      decoration: const InputDecoration(
-                        labelText: 'Precio de venta *',
+                      decoration: InputDecoration(
+                        labelText: _priceLabel,
                         hintText: '0.00',
                         border: InputBorder.none,
-                        prefixIcon: Icon(Icons.attach_money),
+                        prefixIcon: const Icon(Icons.attach_money),
                       ),
                       validator: _validatePrice,
                     ),
@@ -211,9 +219,69 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     }
   }
 
-  Future<void> _submit() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
+  String get _priceLabel {
+    final unit = _selectedSaleUnit;
+    return _saleMode == SaleMode.measured && unit != null
+        ? 'Precio de venta por 1 ${unit.simbolo} *'
+        : 'Precio de venta *';
+  }
 
+  List<UnidadInventario> get _fractionalSaleUnits => widget.unidadesVenta
+      .where(
+        (unit) =>
+            unit.activa &&
+            (unit.dimension == DimensionUnidad.mass ||
+                unit.dimension == DimensionUnidad.volume),
+      )
+      .toList(growable: false);
+
+  Future<void> _selectSaleMode() async {
+    final selected = await showModalBottomSheet<SaleMode>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => _SaleModeBottomSheet(selected: _saleMode),
+    );
+    if (selected == null || selected == _saleMode || !mounted) return;
+    setState(() {
+      _saleMode = selected;
+      _showSaleUnitError = false;
+      if (selected == SaleMode.unit) _selectedSaleUnit = null;
+    });
+  }
+
+  Future<void> _selectSaleUnit() async {
+    final units = _fractionalSaleUnits;
+    final selected = await showModalBottomSheet<UnidadInventario>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => _SaleUnitBottomSheet(
+        units: units,
+        selectedUnitId: _selectedSaleUnit?.id,
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _selectedSaleUnit = selected;
+      _showSaleUnitError = false;
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_saving) return;
+    final validFields = _formKey.currentState!.validate();
+    final validSaleUnit =
+        _saleMode == SaleMode.unit || _selectedSaleUnit != null;
+    if (!validSaleUnit) setState(() => _showSaleUnitError = true);
+    if (!validFields || !validSaleUnit) return;
+
+    final saleConfiguration = _saleMode == SaleMode.unit
+        ? const UnitSaleConfiguration()
+        : MeasuredSaleConfiguration(
+            saleUnitId: _selectedSaleUnit!.id,
+            priceReferenceQuantityAtomic: _selectedSaleUnit!.factorAtomico,
+          );
     setState(() {
       _saving = true;
       _saveError = null;
@@ -224,6 +292,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           nombre: _nameController.text,
           precioVenta: _priceController.text,
           categoriaId: _selectedCategoryId,
+          saleConfiguration: saleConfiguration,
         ),
       );
       if (!mounted) return;
@@ -275,7 +344,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   bool get _hasChanges =>
       _nameController.text.isNotEmpty ||
       _priceController.text.isNotEmpty ||
-      _selectedCategoryId != null;
+      _selectedCategoryId != null ||
+      _saleMode != SaleMode.unit;
 }
 
 class _FormCard extends StatelessWidget {
@@ -294,6 +364,233 @@ class _FormCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SaleModeCard extends StatelessWidget {
+  const _SaleModeCard({
+    required this.saleMode,
+    required this.selectedUnit,
+    required this.enabled,
+    required this.showUnitError,
+    required this.onSelectMode,
+    required this.onSelectUnit,
+  });
+
+  final SaleMode saleMode;
+  final UnidadInventario? selectedUnit;
+  final bool enabled;
+  final bool showUnitError;
+  final VoidCallback onSelectMode;
+  final VoidCallback onSelectUnit;
+
+  @override
+  Widget build(BuildContext context) {
+    final measured = saleMode == SaleMode.measured;
+    final errorColor = Theme.of(context).colorScheme.error;
+    return _FormCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: ListTile(
+                    key: const Key('sale_mode_selector'),
+                    enabled: enabled,
+                    onTap: enabled ? onSelectMode : null,
+                    leading: const Icon(Icons.sell_outlined),
+                    title: Text(
+                      measured ? 'Vender por fracción' : 'Vender por unidad',
+                    ),
+                    trailing: const Icon(Icons.arrow_drop_down),
+                  ),
+                ),
+                if (measured) ...[
+                  const VerticalDivider(width: 1),
+                  InkWell(
+                    key: const Key('sale_unit_selector'),
+                    onTap: enabled ? onSelectUnit : null,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 88),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              selectedUnit?.simbolo ?? 'Unidad',
+                              style: TextStyle(
+                                color: showUnitError && selectedUnit == null
+                                    ? errorColor
+                                    : null,
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (measured && showUnitError && selectedUnit == null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Selecciona una unidad de venta.',
+                key: const Key('sale_unit_error'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: errorColor),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SaleModeBottomSheet extends StatelessWidget {
+  const _SaleModeBottomSheet({required this.selected});
+
+  final SaleMode selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SelectionBottomSheet<SaleMode>(
+      title: 'Forma de venta',
+      selected: selected,
+      options: const [
+        _SelectionOption(
+          value: SaleMode.unit,
+          key: Key('sale_mode_unit_option'),
+          title: 'Vender por unidad',
+          description: 'Vender como un conjunto o unidad fija.',
+          icon: Icons.shopping_bag_outlined,
+        ),
+        _SelectionOption(
+          value: SaleMode.measured,
+          key: Key('sale_mode_measured_option'),
+          title: 'Vender por fracción',
+          description:
+              'Vender a granel utilizando una unidad de medida, por ejemplo kg, g, L o ml.',
+          icon: Icons.scale_outlined,
+        ),
+      ],
+    );
+  }
+}
+
+class _SaleUnitBottomSheet extends StatelessWidget {
+  const _SaleUnitBottomSheet({
+    required this.units,
+    required this.selectedUnitId,
+  });
+
+  final List<UnidadInventario> units;
+  final String? selectedUnitId;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Unidad de venta',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            if (units.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text('No hay unidades activas de masa o volumen.'),
+              )
+            else
+              ...units.map(
+                (unit) => Card(
+                  child: ListTile(
+                    key: Key('sale_unit_option_${unit.code}'),
+                    onTap: () => Navigator.of(context).pop(unit),
+                    leading: const Icon(Icons.straighten),
+                    title: Text(unit.nombre),
+                    subtitle: Text(unit.simbolo),
+                    trailing: unit.id == selectedUnitId
+                        ? const Icon(Icons.check)
+                        : null,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectionBottomSheet<T> extends StatelessWidget {
+  const _SelectionBottomSheet({
+    required this.title,
+    required this.selected,
+    required this.options,
+  });
+
+  final String title;
+  final T selected;
+  final List<_SelectionOption<T>> options;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            ...options.map(
+              (option) => Card(
+                child: ListTile(
+                  key: option.key,
+                  onTap: () => Navigator.of(context).pop(option.value),
+                  leading: Icon(option.icon),
+                  title: Text(option.title),
+                  subtitle: Text(option.description),
+                  trailing: option.value == selected
+                      ? const Icon(Icons.check)
+                      : null,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectionOption<T> {
+  const _SelectionOption({
+    required this.value,
+    required this.key,
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
+
+  final T value;
+  final Key key;
+  final String title;
+  final String description;
+  final IconData icon;
 }
 
 class _CurrencyInputFormatter extends TextInputFormatter {

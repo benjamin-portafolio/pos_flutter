@@ -1,10 +1,13 @@
 import '../../../domain/articulos/nombre_producto.dart';
 import '../../../domain/articulos/precio_venta.dart';
+import '../../../domain/articulos/sale_configuration.dart';
+import '../../../domain/articulos/sale_mode.dart';
 
 class ProductoCreadoPayload {
   const ProductoCreadoPayload({
     required this.nombre,
     required this.categoriaId,
+    required this.saleConfiguration,
     required this.variante,
     required this.dependenciaCategoria,
   });
@@ -14,6 +17,7 @@ class ProductoCreadoPayload {
 
   final String nombre;
   final String? categoriaId;
+  final SaleConfiguration saleConfiguration;
   final ProductoCreadoVariante variante;
   final ProductoCreadoDependencia? dependenciaCategoria;
 
@@ -22,6 +26,7 @@ class ProductoCreadoPayload {
     required String? categoriaId,
     required String varianteId,
     required int precioVentaMenor,
+    SaleConfiguration saleConfiguration = const UnitSaleConfiguration(),
     ProductoCreadoDependencia? dependenciaCategoria,
   }) {
     final normalizedName = NombreProducto.fromInput(nombre).value;
@@ -40,10 +45,10 @@ class ProductoCreadoPayload {
         'La dependencia no coincide con product.category_id.',
       );
     }
-
     return ProductoCreadoPayload(
       nombre: normalizedName,
       categoriaId: normalizedCategoryId,
+      saleConfiguration: saleConfiguration,
       variante: ProductoCreadoVariante(
         id: _requiredString(varianteId, 'variants[0].variant_id'),
         precioVentaMenor: PrecioVenta.fromUnidadMenor(
@@ -63,6 +68,9 @@ class ProductoCreadoPayload {
       product['category_id'],
       'product.category_id',
     );
+    final saleConfiguration = product.containsKey('sale_configuration')
+        ? _parseSaleConfiguration(product['sale_configuration'])
+        : const UnitSaleConfiguration();
 
     final variants = json['variants'];
     if (variants is! List || variants.length != 1) {
@@ -80,37 +88,88 @@ class ProductoCreadoPayload {
         'producto_creado requiere dependencies como arreglo.',
       );
     }
-    if (dependencies.length > 1) {
-      throw const FormatException(
-        'El alta sencilla solo admite la dependencia de categoria.',
+    ProductoCreadoDependencia? categoryDependency;
+    String? saleUnitDependencyId;
+    for (var index = 0; index < dependencies.length; index++) {
+      final dependency = _requiredMap(
+        dependencies[index],
+        'dependencies[$index]',
       );
-    }
-    final dependency = dependencies.isEmpty
-        ? null
-        : _parseProductoCreadoDependencia(
-            _requiredMap(dependencies.single, 'dependencies[0]'),
+      switch (dependency['ref_type']) {
+        case 'category':
+          if (categoryDependency != null) {
+            throw const FormatException(
+              'producto_creado no admite dependencias category duplicadas.',
+            );
+          }
+          categoryDependency = _parseProductoCreadoDependencia(
+            dependency,
             categoriaId: categoriaId,
+            fieldName: 'dependencies[$index]',
           );
+        case 'unit':
+          if (saleUnitDependencyId != null) {
+            throw const FormatException(
+              'producto_creado no admite dependencias unit duplicadas.',
+            );
+          }
+          if (dependency.keys.any(
+            (key) => key != 'ref_type' && key != 'ref_id',
+          )) {
+            throw const FormatException(
+              'La dependencia unit solo admite ref_type y ref_id.',
+            );
+          }
+          saleUnitDependencyId = _requiredString(
+            dependency['ref_id'],
+            'dependencies[$index].ref_id',
+          );
+        default:
+          throw const FormatException(
+            'El alta sencilla solo admite dependencias category y unit.',
+          );
+      }
+    }
 
-    if (categoriaId == null && dependencies.isNotEmpty) {
+    if (categoriaId == null && categoryDependency != null) {
       throw const FormatException(
         'La dependencia de categoria no coincide con product.category_id.',
       );
     }
-
+    switch (saleConfiguration) {
+      case UnitSaleConfiguration():
+        if (saleUnitDependencyId != null) {
+          throw const FormatException(
+            'La venta por unidad no puede declarar dependencia unit.',
+          );
+        }
+      case MeasuredSaleConfiguration():
+        if (saleUnitDependencyId != saleConfiguration.saleUnitId) {
+          throw const FormatException(
+            'La dependencia unit no coincide con sale_unit_id.',
+          );
+        }
+    }
     return ProductoCreadoPayload(
       nombre: nombre,
       categoriaId: categoriaId,
+      saleConfiguration: saleConfiguration,
       variante: variant,
-      dependenciaCategoria: dependency,
+      dependenciaCategoria: categoryDependency,
     );
   }
 
   Map<String, Object?> toJson() => {
-    'product': {'name': nombre, 'category_id': categoriaId},
+    'product': {
+      'name': nombre,
+      'category_id': categoriaId,
+      'sale_configuration': _saleConfigurationToJson(saleConfiguration),
+    },
     'variants': [variante.toJson()],
     'dependencies': [
       if (dependenciaCategoria != null) dependenciaCategoria!.toJson(),
+      if (saleConfiguration case final MeasuredSaleConfiguration measured)
+        {'ref_type': 'unit', 'ref_id': measured.saleUnitId},
     ],
   };
 }
@@ -137,16 +196,6 @@ class ProductoCreadoVariante {
         'La variante sencilla debe ser predeterminada y usar sort_order 0.',
       );
     }
-    final inventory = _requiredMap(
-      json['inventory_configuration'],
-      'variants[0].inventory_configuration',
-    );
-    if (inventory['behavior'] != 'none') {
-      throw const FormatException(
-        'El alta sencilla solo admite inventory behavior none.',
-      );
-    }
-
     return ProductoCreadoVariante(
       id: _requiredString(json['variant_id'], 'variants[0].variant_id'),
       precioVentaMenor: PrecioVenta.fromUnidadMenor(
@@ -163,7 +212,6 @@ class ProductoCreadoVariante {
     'sale_price_minor': precioVentaMenor,
     'is_default': true,
     'sort_order': 0,
-    'inventory_configuration': {'behavior': 'none'},
   };
 }
 
@@ -183,16 +231,58 @@ class ProductoCreadoDependencia {
   };
 }
 
+SaleConfiguration _parseSaleConfiguration(Object? value) {
+  final json = _requiredMap(value, 'product.sale_configuration');
+  final modeValue = _requiredString(
+    json['mode'],
+    'product.sale_configuration.mode',
+  );
+  switch (modeValue) {
+    case 'unit':
+      if (json.containsKey('sale_unit_id') ||
+          json.containsKey('price_reference_quantity_atomic')) {
+        throw const FormatException(
+          'La venta por unidad no admite campos medidos.',
+        );
+      }
+      return const UnitSaleConfiguration();
+    case 'measured':
+      final reference = _requiredInt(json['price_reference_quantity_atomic']);
+      if (reference <= 0) {
+        throw const FormatException(
+          'price_reference_quantity_atomic debe ser positivo.',
+        );
+      }
+      return MeasuredSaleConfiguration(
+        saleUnitId: _requiredString(
+          json['sale_unit_id'],
+          'product.sale_configuration.sale_unit_id',
+        ),
+        priceReferenceQuantityAtomic: reference,
+      );
+    default:
+      throw FormatException('Modo de venta no soportado: $modeValue.');
+  }
+}
+
+Map<String, Object?> _saleConfigurationToJson(
+  SaleConfiguration configuration,
+) => switch (configuration) {
+  UnitSaleConfiguration() => {'mode': SaleMode.unit.code},
+  MeasuredSaleConfiguration() => {
+    'mode': SaleMode.measured.code,
+    'sale_unit_id': configuration.saleUnitId,
+    'price_reference_quantity_atomic':
+        configuration.priceReferenceQuantityAtomic,
+  },
+};
+
 ProductoCreadoDependencia? _parseProductoCreadoDependencia(
   Map<String, Object?> json, {
   required String? categoriaId,
+  required String fieldName,
 }) {
-  if (json['ref_type'] != 'category') {
-    throw const FormatException(
-      'El alta sencilla solo admite dependencias category.',
-    );
-  }
-  final refId = _requiredString(json['ref_id'], 'dependencies[0].ref_id');
+  final refId = _requiredString(json['ref_id'], '$fieldName.ref_id');
   if (refId != categoriaId) {
     throw const FormatException(
       'La dependencia de categoria no coincide con product.category_id.',
@@ -204,26 +294,26 @@ ProductoCreadoDependencia? _parseProductoCreadoDependencia(
       refId: refId,
       dependsOnEventId: _requiredString(
         json['depends_on_event_id'],
-        'dependencies[0].depends_on_event_id',
+        '$fieldName.depends_on_event_id',
       ),
     );
   }
 
   final baseEventId = _optionalNonEmptyString(
     json['base_event_id'],
-    'dependencies[0].base_event_id',
+    '$fieldName.base_event_id',
   );
   final baseVersion = _requiredInt(json['base_version']);
   final baseServerSequence = _optionalNonNegativeInt(
     json['base_server_sequence'],
-    'dependencies[0].base_server_sequence',
+    '$fieldName.base_server_sequence',
   );
   if (baseVersion < 1) {
-    throw const FormatException('dependencies[0].base_version debe ser >= 1.');
+    throw FormatException('$fieldName.base_version debe ser >= 1.');
   }
   if (baseEventId == null && baseServerSequence == null) {
-    throw const FormatException(
-      'La dependencia legada requiere base_event_id o base_server_sequence.',
+    throw FormatException(
+      '$fieldName requiere base_event_id o base_server_sequence.',
     );
   }
   if (baseEventId == null) return null;

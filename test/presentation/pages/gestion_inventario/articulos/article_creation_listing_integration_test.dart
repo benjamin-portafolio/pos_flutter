@@ -16,6 +16,7 @@ import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 import 'package:pos_flutter/data/repositories/categoria_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/producto_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/widgets/inventory_article_card.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 
@@ -51,6 +52,9 @@ void main() {
       ),
       categoriaProjectionStore: _EmptyCategoriaProjectionStore(),
       syncedEventHistory: _EmptySyncedEventHistory(),
+      unidadInventarioRepository: UnidadInventarioRepositoryImpl(
+        unitDao: UnitDao(db),
+      ),
     );
 
     await tester.pumpWidget(

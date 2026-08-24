@@ -44,36 +44,6 @@ class InventoryResourceCard extends StatelessWidget {
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            if (resource.vinculadoAVariante || resource.usadoEnRecetas) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  if (resource.vinculadoAVariante)
-                    const Chip(
-                      avatar: Icon(Icons.point_of_sale, size: 18),
-                      label: Text('Vinculado a variante'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  if (resource.usadoEnRecetas)
-                    Chip(
-                      avatar: const Icon(Icons.restaurant_menu, size: 18),
-                      label: Text(
-                        'Usado en recetas (${resource.cantidadRecetas})',
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
-              ),
-            ],
-            if (resource.nombresVariantesVinculadas.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Producto/variante: ${resource.nombresVariantesVinculadas.join(', ')}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
           ],
         ),
       ),

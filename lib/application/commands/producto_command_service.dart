@@ -2,6 +2,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/articulos/nombre_producto.dart';
 import '../../domain/articulos/precio_venta.dart';
+import '../../domain/articulos/sale_configuration.dart';
+import '../../domain/inventario/dimension_unidad.dart';
+import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
 import '../sync/payloads/categoria_creada_payload.dart';
@@ -17,21 +20,27 @@ class ProductoCommandService {
     required LocalCommandContext commandContext,
     required CategoriaProjectionStore categoriaProjectionStore,
     required SyncedEventHistory syncedEventHistory,
+    required UnidadInventarioRepository unidadInventarioRepository,
   }) : _eventStore = eventStore,
        _commandContext = commandContext,
        _categoriaProjectionStore = categoriaProjectionStore,
-       _syncedEventHistory = syncedEventHistory;
+       _syncedEventHistory = syncedEventHistory,
+       _unidadInventarioRepository = unidadInventarioRepository;
 
   final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final SyncedEventHistory _syncedEventHistory;
+  final UnidadInventarioRepository _unidadInventarioRepository;
   final Uuid _uuid = const Uuid();
 
   Future<void> crearArticulo(CrearArticuloCommand command) async {
     final nombre = NombreProducto.fromInput(command.nombre);
     final precio = PrecioVenta.fromInput(command.precioVenta);
     final categoriaId = _normalizeOptional(command.categoriaId);
+    final saleConfiguration = await _validateSaleConfiguration(
+      command.saleConfiguration,
+    );
     final dependency = categoriaId == null
         ? null
         : await _categoryDependency(categoriaId);
@@ -42,6 +51,7 @@ class ProductoCommandService {
       categoriaId: categoriaId,
       varianteId: variantId,
       precioVentaMenor: precio.unidadMenor,
+      saleConfiguration: saleConfiguration,
       dependenciaCategoria: dependency,
     );
     final event = SyncEvent(
@@ -67,8 +77,39 @@ class ProductoCommandService {
             refId: categoriaId,
             relationship: 'uses',
           ),
+        if (saleConfiguration is MeasuredSaleConfiguration)
+          LocalEventRef.uses(
+            refType: 'unit',
+            refId: saleConfiguration.saleUnitId,
+          ),
       ],
     );
+  }
+
+  Future<SaleConfiguration> _validateSaleConfiguration(
+    SaleConfiguration configuration,
+  ) async {
+    if (configuration is UnitSaleConfiguration) return configuration;
+    final measured = configuration as MeasuredSaleConfiguration;
+    final unit = await _unidadInventarioRepository.obtenerUnidadPorId(
+      measured.saleUnitId,
+    );
+    if (unit == null) {
+      throw StateError('No existe la unidad de venta seleccionada.');
+    }
+    if (!unit.activa) {
+      throw StateError('La unidad de venta seleccionada no está activa.');
+    }
+    if (unit.dimension != DimensionUnidad.mass &&
+        unit.dimension != DimensionUnidad.volume) {
+      throw StateError('La venta por fracción requiere masa o volumen.');
+    }
+    if (measured.priceReferenceQuantityAtomic != unit.factorAtomico) {
+      throw StateError(
+        'La referencia del precio debe coincidir con el factor de la unidad.',
+      );
+    }
+    return measured;
   }
 
   Future<ProductoCreadoDependencia?> _categoryDependency(

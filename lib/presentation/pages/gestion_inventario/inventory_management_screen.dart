@@ -14,6 +14,7 @@ import '../../../application/commands/inventory_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/categorias/categoria.dart';
 import '../../../domain/categorias/direccion_movimiento_categoria.dart';
+import '../../../domain/inventario/unidad_inventario.dart';
 import '../../../domain/repositories/categoria_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/recurso_inventario_repository.dart';
@@ -336,12 +337,28 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
 
   Future<void> _openArticleForm(BuildContext context) async {
     try {
-      final categorias = await widget.categoriaRepository.obtenerCategorias();
+      final unitRepository =
+          widget.unidadInventarioRepository ??
+          (getIt.isRegistered<UnidadInventarioRepository>()
+              ? getIt<UnidadInventarioRepository>()
+              : null);
+      final results = await Future.wait<Object>([
+        widget.categoriaRepository.obtenerCategorias(),
+        unitRepository?.obtenerUnidadesActivas() ?? Future.value(const []),
+      ]);
+      final categorias = results[0] as List<Categoria>;
+      final unidades = (results[1] as List)
+          .whereType<UnidadInventario>()
+          .where((unit) => unit.activa)
+          .toList(growable: false);
       if (!context.mounted) return;
       final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) =>
-              ArticleFormScreen(categorias: categorias, onSave: _createArticle),
+          builder: (_) => ArticleFormScreen(
+            categorias: categorias,
+            unidadesVenta: unidades,
+            onSave: _createArticle,
+          ),
         ),
       );
       if (saved == true && context.mounted) {
@@ -365,6 +382,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         nombre: result.nombre,
         categoriaId: result.categoriaId,
         precioVenta: result.precioVenta,
+        saleConfiguration: result.saleConfiguration,
       ),
     );
   }

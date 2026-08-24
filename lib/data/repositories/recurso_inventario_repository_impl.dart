@@ -21,9 +21,6 @@ class RecursoInventarioRepositoryImpl implements RecursoInventarioRepository {
           busqueda: busqueda,
           filtro: switch (filtro) {
             InventoryResourceFilter.all => 'all',
-            InventoryResourceFilter.withoutSaleLink => 'without_sale_link',
-            InventoryResourceFilter.linkedToVariant => 'linked_to_variant',
-            InventoryResourceFilter.usedInRecipes => 'used_in_recipes',
             InventoryResourceFilter.inactive => 'inactive',
           },
         )
@@ -45,9 +42,6 @@ class RecursoInventarioRepositoryImpl implements RecursoInventarioRepository {
                     maximosDecimales: row.maxFractionDigits,
                     activa: row.unitActive,
                   ),
-                  vinculadoAVariante: row.linkedToVariant,
-                  cantidadRecetas: row.recipeCount,
-                  nombresVariantesVinculadas: row.linkedNames,
                 ),
               )
               .toList(growable: false),

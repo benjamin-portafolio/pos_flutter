@@ -73,6 +73,7 @@ class CategoriaEliminadaConflictProjectionRestorer {
           id: product.id,
           nombre: product.nombre,
           categoriaId: linked.categoriaAnteriorId,
+          saleConfiguration: product.saleConfiguration,
           active: product.active,
           version: linked.baseVersion,
           createdEventId: product.createdEventId,

@@ -6,7 +6,7 @@ import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/recursos/widgets/inventory_resource_card.dart';
 
 void main() {
-  testWidgets('muestra saldo, estado y roles derivados', (tester) async {
+  testWidgets('muestra saldo y estado', (tester) async {
     const unit = UnidadInventario(
       id: 'kg',
       code: 'kg',
@@ -23,9 +23,6 @@ void main() {
       activo: false,
       existenciaAtomica: -250,
       unidadPredeterminada: unit,
-      vinculadoAVariante: true,
-      cantidadRecetas: 2,
-      nombresVariantesVinculadas: ['Pan artesanal'],
     );
 
     await tester.pumpWidget(
@@ -37,8 +34,5 @@ void main() {
     expect(find.text('Harina'), findsOneWidget);
     expect(find.text('−0.25 kg'), findsOneWidget);
     expect(find.text('Inactivo'), findsOneWidget);
-    expect(find.text('Vinculado a variante'), findsOneWidget);
-    expect(find.text('Usado en recetas (2)'), findsOneWidget);
-    expect(find.text('Producto/variante: Pan artesanal'), findsOneWidget);
   });
 }

@@ -16,7 +16,7 @@ class InventoryMovements extends Table {
   TextColumn get saleItemId => text().nullable()();
 
   /// Evento auditable que originó este movimiento.
-  TextColumn get eventId => text().unique()();
+  TextColumn get eventId => text()();
 
   /// Movimiento original cuando este registro sea una reversión.
   TextColumn get reversalOfMovementId => text().nullable().references(

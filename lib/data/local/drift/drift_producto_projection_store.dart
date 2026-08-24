@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../application/sync/projections/producto_projection_store.dart';
+import '../../../domain/articulos/sale_configuration.dart';
 import 'app_database.dart' as drift;
 
 class DriftProductoProjectionStore implements ProductoProjectionStore {
@@ -44,6 +45,11 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         id: projection.id,
         name: projection.nombre,
         categoryId: Value(projection.categoriaId),
+        saleMode: Value(projection.saleConfiguration.mode.code),
+        saleUnitId: Value(projection.saleConfiguration.saleUnitId),
+        priceReferenceQuantityAtomic: Value(
+          projection.saleConfiguration.priceReferenceQuantityAtomic,
+        ),
         active: Value(projection.active),
         version: Value(projection.version),
         createdEventId: Value(projection.createdEventId),
@@ -62,7 +68,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         salePriceMinor: projection.precioVentaMenor,
         isDefault: projection.esPredeterminada,
         sortOrder: projection.orden,
-        inventoryBehavior: Value(projection.comportamientoInventario),
         active: Value(projection.active),
         version: Value(projection.version),
         createdEventId: Value(projection.createdEventId),
@@ -79,6 +84,11 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       drift.ProductsCompanion(
         name: Value(projection.nombre),
         categoryId: Value(projection.categoriaId),
+        saleMode: Value(projection.saleConfiguration.mode.code),
+        saleUnitId: Value(projection.saleConfiguration.saleUnitId),
+        priceReferenceQuantityAtomic: Value(
+          projection.saleConfiguration.priceReferenceQuantityAtomic,
+        ),
         active: Value(projection.active),
         version: Value(projection.version),
         createdEventId: Value(projection.createdEventId),
@@ -119,6 +129,12 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       id: row.id,
       nombre: row.name,
       categoriaId: row.categoryId,
+      saleConfiguration: row.saleMode == 'measured'
+          ? MeasuredSaleConfiguration(
+              saleUnitId: row.saleUnitId!,
+              priceReferenceQuantityAtomic: row.priceReferenceQuantityAtomic!,
+            )
+          : const UnitSaleConfiguration(),
       active: row.active,
       version: row.version,
       createdEventId: row.createdEventId,
@@ -134,7 +150,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       precioVentaMenor: row.salePriceMinor,
       esPredeterminada: row.isDefault,
       orden: row.sortOrder,
-      comportamientoInventario: row.inventoryBehavior,
       active: row.active,
       version: row.version,
       createdEventId: row.createdEventId,

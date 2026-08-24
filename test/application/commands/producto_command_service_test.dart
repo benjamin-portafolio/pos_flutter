@@ -8,17 +8,23 @@ import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.da
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
 import 'package:pos_flutter/application/sync/synced_event_history.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
+import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
+import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
+import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
+import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
 
 void main() {
   late _CapturingLocalEventStore eventStore;
   late _FakeCategoriaProjectionStore categoryStore;
   late _FakeSyncedEventHistory eventHistory;
+  late _FakeUnidadInventarioRepository unitRepository;
   late ProductoCommandService service;
 
   setUp(() {
     eventStore = _CapturingLocalEventStore();
     categoryStore = _FakeCategoriaProjectionStore();
     eventHistory = _FakeSyncedEventHistory();
+    unitRepository = _FakeUnidadInventarioRepository();
     service = ProductoCommandService(
       eventStore: eventStore,
       commandContext: const LocalCommandContext(
@@ -27,6 +33,7 @@ void main() {
       ),
       categoriaProjectionStore: categoryStore,
       syncedEventHistory: eventHistory,
+      unidadInventarioRepository: unitRepository,
     );
   });
 
@@ -161,7 +168,58 @@ void main() {
     );
     expect(eventStore.event, isNull);
   });
+
+  test('measured usa atomicFactor y declara la referencia de unidad', () async {
+    unitRepository.units['unit_kg'] = _kilogram;
+
+    await service.crearArticulo(
+      CrearArticuloCommand(
+        nombre: 'Queso',
+        precioVenta: '180',
+        saleConfiguration: MeasuredSaleConfiguration(
+          saleUnitId: 'unit_kg',
+          priceReferenceQuantityAtomic: 1000,
+        ),
+      ),
+    );
+
+    final payload = ProductoCreadoPayload.fromJson(eventStore.event!.payload);
+    expect(payload.saleConfiguration, isA<MeasuredSaleConfiguration>());
+    expect(eventStore.refs.last.refType, 'unit');
+    expect(eventStore.refs.last.refId, 'unit_kg');
+    expect(eventStore.refs.last.relationship, 'uses');
+  });
+
+  test('rechaza una referencia distinta al atomicFactor', () async {
+    unitRepository.units['unit_kg'] = _kilogram;
+
+    await expectLater(
+      service.crearArticulo(
+        CrearArticuloCommand(
+          nombre: 'Queso',
+          precioVenta: '180',
+          saleConfiguration: MeasuredSaleConfiguration(
+            saleUnitId: 'unit_kg',
+            priceReferenceQuantityAtomic: 1,
+          ),
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(eventStore.event, isNull);
+  });
 }
+
+const _kilogram = UnidadInventario(
+  id: 'unit_kg',
+  code: 'kg',
+  nombre: 'Kilogramo',
+  simbolo: 'kg',
+  dimension: DimensionUnidad.mass,
+  factorAtomico: 1000,
+  maximosDecimales: 3,
+  activa: true,
+);
 
 SyncEvent _categoryCreatedEvent({String deliveryStatus = 'pending'}) {
   return SyncEvent(
@@ -242,4 +300,16 @@ class _FakeSyncedEventHistory implements SyncedEventHistory {
     required String aggregateId,
     required int serverSequence,
   }) async => const [];
+}
+
+class _FakeUnidadInventarioRepository implements UnidadInventarioRepository {
+  final Map<String, UnidadInventario> units = {};
+
+  @override
+  Future<List<UnidadInventario>> obtenerUnidadesActivas() async =>
+      units.values.where((unit) => unit.activa).toList();
+
+  @override
+  Future<UnidadInventario?> obtenerUnidadPorId(String unidadId) async =>
+      units[unidadId];
 }

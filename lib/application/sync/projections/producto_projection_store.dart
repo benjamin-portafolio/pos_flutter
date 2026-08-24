@@ -1,3 +1,4 @@
+import '../../../domain/articulos/sale_configuration.dart';
 import 'sync_projection.dart';
 
 abstract interface class ProductoProjectionStore {
@@ -34,6 +35,7 @@ class ProductoProjection extends SyncProjection {
     required super.id,
     required this.nombre,
     required this.categoriaId,
+    this.saleConfiguration = const UnitSaleConfiguration(),
     required super.active,
     required super.version,
     required super.createdEventId,
@@ -43,6 +45,7 @@ class ProductoProjection extends SyncProjection {
 
   final String nombre;
   final String? categoriaId;
+  final SaleConfiguration saleConfiguration;
 }
 
 class ProductoVarianteProjection extends SyncProjection {
@@ -52,7 +55,6 @@ class ProductoVarianteProjection extends SyncProjection {
     required this.precioVentaMenor,
     required this.esPredeterminada,
     required this.orden,
-    required this.comportamientoInventario,
     required super.active,
     required super.version,
     required super.createdEventId,
@@ -64,5 +66,4 @@ class ProductoVarianteProjection extends SyncProjection {
   final int precioVentaMenor;
   final bool esPredeterminada;
   final int orden;
-  final String comportamientoInventario;
 }

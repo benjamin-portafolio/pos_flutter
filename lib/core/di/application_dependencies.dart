@@ -49,6 +49,7 @@ import '../../application/sync/synced_event_history.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_local_event_store.dart';
+import '../../domain/repositories/unidad_inventario_repository.dart';
 
 void registerApplicationDependencies(
   GetIt getIt, {
@@ -269,6 +270,7 @@ void registerApplicationDependencies(
       commandContext: getIt<LocalCommandContext>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),
+      unidadInventarioRepository: getIt<UnidadInventarioRepository>(),
     ),
   );
   getIt.registerLazySingleton<InventoryCommandService>(
