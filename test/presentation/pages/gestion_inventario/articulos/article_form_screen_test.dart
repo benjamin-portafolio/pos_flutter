@@ -12,12 +12,52 @@ void main() {
 
     expect(find.text('Vender por unidad'), findsOneWidget);
     expect(find.byKey(const Key('sale_unit_selector')), findsNothing);
+    expect(find.text('Sencillo'), findsOneWidget);
+    expect(find.text('Avanzado'), findsOneWidget);
+    expect(find.byKey(const Key('article_price_field')), findsOneWidget);
+    expect(find.byKey(const Key('add_article_variant_button')), findsNothing);
 
     await tester.tap(find.byKey(const Key('sale_mode_selector')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('sale_mode_unit_option')), findsOneWidget);
     expect(find.byKey(const Key('sale_mode_measured_option')), findsOneWidget);
   });
+
+  testWidgets(
+    'el alta avanzada oculta el precio y deja agregar variante pendiente',
+    (tester) async {
+      await _pumpForm(tester);
+
+      await tester.tap(find.text('Avanzado'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('article_price_field')), findsNothing);
+      expect(
+        find.byKey(const Key('add_article_variant_button')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('add_article_variant_button')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(const Key('save_article_button')))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.text('Sencillo'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('article_price_field')), findsOneWidget);
+      expect(find.byKey(const Key('add_article_variant_button')), findsNothing);
+    },
+  );
 
   testWidgets('measured ofrece masa y volumen, usa factor y cambia precio', (
     tester,

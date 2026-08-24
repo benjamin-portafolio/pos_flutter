@@ -35,6 +35,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   String? _selectedCategoryId;
   SaleMode _saleMode = SaleMode.unit;
   UnidadInventario? _selectedSaleUnit;
+  _ArticleCreationMode _creationMode = _ArticleCreationMode.simple;
   bool _showSaleUnitError = false;
   String? _saveError;
   bool _saving = false;
@@ -69,7 +70,10 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
               padding: const EdgeInsets.only(right: 8),
               child: TextButton.icon(
                 key: const Key('save_article_button'),
-                onPressed: _saving ? null : _submit,
+                onPressed:
+                    _saving || _creationMode == _ArticleCreationMode.advanced
+                    ? null
+                    : _submit,
                 style: TextButton.styleFrom(
                   backgroundColor: colorScheme.primary,
                   foregroundColor: colorScheme.onPrimary,
@@ -157,26 +161,59 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                     onSelectUnit: _selectSaleUnit,
                   ),
                   const SizedBox(height: 12),
-                  _FormCard(
-                    child: TextFormField(
-                      key: const Key('article_price_field'),
-                      controller: _priceController,
-                      enabled: !_saving,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                  SegmentedButton<_ArticleCreationMode>(
+                    key: const Key('article_creation_mode_selector'),
+                    segments: const [
+                      ButtonSegment(
+                        value: _ArticleCreationMode.simple,
+                        label: Text('Sencillo'),
                       ),
-                      inputFormatters: const [_CurrencyInputFormatter()],
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
-                      decoration: InputDecoration(
-                        labelText: _priceLabel,
-                        hintText: '0.00',
-                        border: InputBorder.none,
-                        prefixIcon: const Icon(Icons.attach_money),
+                      ButtonSegment(
+                        value: _ArticleCreationMode.advanced,
+                        label: Text('Avanzado'),
                       ),
-                      validator: _validatePrice,
-                    ),
+                    ],
+                    selected: {_creationMode},
+                    showSelectedIcon: false,
+                    expandedInsets: EdgeInsets.zero,
+                    onSelectionChanged: _saving
+                        ? null
+                        : (selection) => _selectCreationMode(selection.single),
                   ),
+                  const SizedBox(height: 12),
+                  if (_creationMode == _ArticleCreationMode.simple)
+                    _FormCard(
+                      child: TextFormField(
+                        key: const Key('article_price_field'),
+                        controller: _priceController,
+                        enabled: !_saving,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: const [_CurrencyInputFormatter()],
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          labelText: _priceLabel,
+                          hintText: '0.00',
+                          border: InputBorder.none,
+                          prefixIcon: const Icon(Icons.attach_money),
+                        ),
+                        validator: _validatePrice,
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: FilledButton.icon(
+                          key: const Key('add_article_variant_button'),
+                          onPressed: null,
+                          icon: const Icon(Icons.add),
+                          label: const Text('AGREGAR VARIANTE'),
+                        ),
+                      ),
+                    ),
                   if (_saveError != null) ...[
                     const SizedBox(height: 16),
                     Material(
@@ -226,6 +263,15 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         : 'Precio de venta *';
   }
 
+  void _selectCreationMode(_ArticleCreationMode mode) {
+    if (mode == _creationMode) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _creationMode = mode;
+      _saveError = null;
+    });
+  }
+
   List<UnidadInventario> get _fractionalSaleUnits => widget.unidadesVenta
       .where(
         (unit) =>
@@ -269,7 +315,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_saving) return;
+    if (_saving || _creationMode == _ArticleCreationMode.advanced) return;
     final validFields = _formKey.currentState!.validate();
     final validSaleUnit =
         _saleMode == SaleMode.unit || _selectedSaleUnit != null;
@@ -345,8 +391,11 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       _nameController.text.isNotEmpty ||
       _priceController.text.isNotEmpty ||
       _selectedCategoryId != null ||
-      _saleMode != SaleMode.unit;
+      _saleMode != SaleMode.unit ||
+      _creationMode != _ArticleCreationMode.simple;
 }
+
+enum _ArticleCreationMode { simple, advanced }
 
 class _FormCard extends StatelessWidget {
   const _FormCard({required this.child});
