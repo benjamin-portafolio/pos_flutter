@@ -65,7 +65,10 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       drift.ProductVariantsCompanion.insert(
         id: projection.id,
         productId: projection.productoId,
+        name: Value(projection.nombre),
+        nameKey: Value(projection.nameKey),
         salePriceMinor: projection.precioVentaMenor,
+        standardCostMinor: Value(projection.costoEstandarMenor),
         isDefault: projection.esPredeterminada,
         sortOrder: projection.orden,
         active: Value(projection.active),
@@ -147,7 +150,10 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     return ProductoVarianteProjection(
       id: row.id,
       productoId: row.productId,
+      nombre: row.name,
+      nameKey: row.nameKey,
       precioVentaMenor: row.salePriceMinor,
+      costoEstandarMenor: row.standardCostMinor,
       esPredeterminada: row.isDefault,
       orden: row.sortOrder,
       active: row.active,

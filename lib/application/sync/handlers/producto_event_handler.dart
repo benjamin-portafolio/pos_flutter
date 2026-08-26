@@ -37,21 +37,22 @@ class ProductoEventHandler {
       }
     }
 
-    final existingVariant = await _productoProjectionStore.findVariantById(
-      payload.variante.id,
-    );
-    if (existingVariant != null) {
+    final pendingProductsToRemove = <String>{};
+    for (final variant in payload.variantes) {
+      final existingVariant = await _productoProjectionStore.findVariantById(
+        variant.id,
+      );
+      if (existingVariant == null) continue;
       final canRemoveLocalPending =
           event.serverSequence != null &&
           existingVariant.lastServerSequence == null;
       if (!canRemoveLocalPending) {
-        throw StateError(
-          'Ya existe una variante con id ${payload.variante.id}.',
-        );
+        throw StateError('Ya existe una variante con id ${variant.id}.');
       }
-      await _productoProjectionStore.deleteProductById(
-        existingVariant.productoId,
-      );
+      pendingProductsToRemove.add(existingVariant.productoId);
+    }
+    for (final productId in pendingProductsToRemove) {
+      await _productoProjectionStore.deleteProductById(productId);
     }
 
     final version = event.baseVersion ?? 1;
@@ -68,20 +69,25 @@ class ProductoEventHandler {
         lastServerSequence: event.serverSequence,
       ),
     );
-    await _productoProjectionStore.insertVariant(
-      ProductoVarianteProjection(
-        id: payload.variante.id,
-        productoId: event.aggregateId,
-        precioVentaMenor: payload.variante.precioVentaMenor,
-        esPredeterminada: true,
-        orden: 0,
-        active: true,
-        version: version,
-        createdEventId: event.eventId,
-        lastEventId: event.eventId,
-        lastServerSequence: event.serverSequence,
-      ),
-    );
+    for (final variant in payload.variantes) {
+      await _productoProjectionStore.insertVariant(
+        ProductoVarianteProjection(
+          id: variant.id,
+          productoId: event.aggregateId,
+          nombre: variant.nombre,
+          nameKey: variant.nameKey,
+          precioVentaMenor: variant.precioVentaMenor,
+          costoEstandarMenor: variant.costoEstandarMenor,
+          esPredeterminada: variant.esPredeterminada,
+          orden: variant.orden,
+          active: true,
+          version: version,
+          createdEventId: event.eventId,
+          lastEventId: event.eventId,
+          lastServerSequence: event.serverSequence,
+        ),
+      );
+    }
   }
 
   Future<bool> _removeLocalPendingProductForRemoteEvent(

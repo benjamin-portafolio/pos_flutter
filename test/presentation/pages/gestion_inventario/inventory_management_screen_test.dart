@@ -304,7 +304,9 @@ void main() {
 
     expect(productService.command?.nombre, ' Café americano ');
     expect(productService.command?.categoriaId, 'category-1');
-    expect(productService.command?.precioVenta, '45.50');
+    expect(productService.command?.variantes.single.precioVenta, '45.50');
+    expect(productService.command?.variantes.single.nombre, isNull);
+    expect(productService.command?.variantes.single.costoEstandar, isNull);
     expect(find.text('Artículo guardado.'), findsOneWidget);
   });
 

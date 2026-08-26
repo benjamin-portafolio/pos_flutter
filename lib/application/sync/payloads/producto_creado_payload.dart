@@ -1,14 +1,16 @@
+import '../../../domain/articulos/costo_estandar.dart';
 import '../../../domain/articulos/nombre_producto.dart';
+import '../../../domain/articulos/nombre_variante.dart';
 import '../../../domain/articulos/precio_venta.dart';
 import '../../../domain/articulos/sale_configuration.dart';
 import '../../../domain/articulos/sale_mode.dart';
 
 class ProductoCreadoPayload {
-  const ProductoCreadoPayload({
+  const ProductoCreadoPayload._({
     required this.nombre,
     required this.categoriaId,
     required this.saleConfiguration,
-    required this.variante,
+    required this.variantes,
     required this.dependenciaCategoria,
   });
 
@@ -18,8 +20,30 @@ class ProductoCreadoPayload {
   final String nombre;
   final String? categoriaId;
   final SaleConfiguration saleConfiguration;
-  final ProductoCreadoVariante variante;
+  final List<ProductoCreadoVariante> variantes;
   final ProductoCreadoDependencia? dependenciaCategoria;
+
+  factory ProductoCreadoPayload.create({
+    required String nombre,
+    required String? categoriaId,
+    required SaleConfiguration saleConfiguration,
+    required List<ProductoCreadoVariante> variantes,
+    ProductoCreadoDependencia? dependenciaCategoria,
+  }) {
+    final normalizedName = NombreProducto.fromInput(nombre).value;
+    final normalizedCategoryId = _optionalNonEmptyString(
+      categoriaId,
+      'product.category_id',
+    );
+    _validateCategoryDependency(normalizedCategoryId, dependenciaCategoria);
+    return ProductoCreadoPayload._(
+      nombre: normalizedName,
+      categoriaId: normalizedCategoryId,
+      saleConfiguration: saleConfiguration,
+      variantes: _validateVariants(variantes),
+      dependenciaCategoria: dependenciaCategoria,
+    );
+  }
 
   factory ProductoCreadoPayload.simple({
     required String nombre,
@@ -29,32 +53,20 @@ class ProductoCreadoPayload {
     SaleConfiguration saleConfiguration = const UnitSaleConfiguration(),
     ProductoCreadoDependencia? dependenciaCategoria,
   }) {
-    final normalizedName = NombreProducto.fromInput(nombre).value;
-    final normalizedCategoryId = _optionalNonEmptyString(
-      categoriaId,
-      'product.category_id',
-    );
-    if (normalizedCategoryId == null && dependenciaCategoria != null) {
-      throw const FormatException(
-        'Un producto sin categoria no puede declarar dependencia de categoria.',
-      );
-    }
-    if (dependenciaCategoria != null &&
-        dependenciaCategoria.refId != normalizedCategoryId) {
-      throw const FormatException(
-        'La dependencia no coincide con product.category_id.',
-      );
-    }
-    return ProductoCreadoPayload(
-      nombre: normalizedName,
-      categoriaId: normalizedCategoryId,
+    return ProductoCreadoPayload.create(
+      nombre: nombre,
+      categoriaId: categoriaId,
       saleConfiguration: saleConfiguration,
-      variante: ProductoCreadoVariante(
-        id: _requiredString(varianteId, 'variants[0].variant_id'),
-        precioVentaMenor: PrecioVenta.fromUnidadMenor(
-          precioVentaMenor,
-        ).unidadMenor,
-      ),
+      variantes: [
+        ProductoCreadoVariante.create(
+          id: varianteId,
+          nombre: null,
+          precioVentaMenor: precioVentaMenor,
+          costoEstandarMenor: null,
+          esPredeterminada: true,
+          orden: 0,
+        ),
+      ],
       dependenciaCategoria: dependenciaCategoria,
     );
   }
@@ -72,15 +84,21 @@ class ProductoCreadoPayload {
         ? _parseSaleConfiguration(product['sale_configuration'])
         : const UnitSaleConfiguration();
 
-    final variants = json['variants'];
-    if (variants is! List || variants.length != 1) {
+    final variantsJson = json['variants'];
+    if (variantsJson is! List || variantsJson.isEmpty) {
       throw const FormatException(
-        'producto_creado sencillo requiere exactamente una variante.',
+        'producto_creado requiere una o más variantes.',
       );
     }
-    final variant = ProductoCreadoVariante.fromJson(
-      _requiredMap(variants.single, 'variants[0]'),
-    );
+    final variantes = <ProductoCreadoVariante>[];
+    for (var index = 0; index < variantsJson.length; index++) {
+      variantes.add(
+        ProductoCreadoVariante.fromJson(
+          _requiredMap(variantsJson[index], 'variants[$index]'),
+          fieldName: 'variants[$index]',
+        ),
+      );
+    }
 
     final dependencies = json['dependencies'];
     if (dependencies is! List) {
@@ -89,6 +107,7 @@ class ProductoCreadoPayload {
       );
     }
     ProductoCreadoDependencia? categoryDependency;
+    var categoryDependencySeen = false;
     String? saleUnitDependencyId;
     for (var index = 0; index < dependencies.length; index++) {
       final dependency = _requiredMap(
@@ -97,11 +116,12 @@ class ProductoCreadoPayload {
       );
       switch (dependency['ref_type']) {
         case 'category':
-          if (categoryDependency != null) {
+          if (categoryDependencySeen) {
             throw const FormatException(
               'producto_creado no admite dependencias category duplicadas.',
             );
           }
+          categoryDependencySeen = true;
           categoryDependency = _parseProductoCreadoDependencia(
             dependency,
             categoriaId: categoriaId,
@@ -126,12 +146,12 @@ class ProductoCreadoPayload {
           );
         default:
           throw const FormatException(
-            'El alta sencilla solo admite dependencias category y unit.',
+            'producto_creado solo admite dependencias category y unit.',
           );
       }
     }
 
-    if (categoriaId == null && categoryDependency != null) {
+    if (categoriaId == null && categoryDependencySeen) {
       throw const FormatException(
         'La dependencia de categoria no coincide con product.category_id.',
       );
@@ -150,11 +170,12 @@ class ProductoCreadoPayload {
           );
         }
     }
-    return ProductoCreadoPayload(
+
+    return ProductoCreadoPayload._(
       nombre: nombre,
       categoriaId: categoriaId,
       saleConfiguration: saleConfiguration,
-      variante: variant,
+      variantes: _validateVariants(variantes),
       dependenciaCategoria: categoryDependency,
     );
   }
@@ -165,7 +186,7 @@ class ProductoCreadoPayload {
       'category_id': categoriaId,
       'sale_configuration': _saleConfigurationToJson(saleConfiguration),
     },
-    'variants': [variante.toJson()],
+    'variants': variantes.map((variant) => variant.toJson()).toList(),
     'dependencies': [
       if (dependenciaCategoria != null) dependenciaCategoria!.toJson(),
       if (saleConfiguration case final MeasuredSaleConfiguration measured)
@@ -175,43 +196,97 @@ class ProductoCreadoPayload {
 }
 
 class ProductoCreadoVariante {
-  const ProductoCreadoVariante({
+  const ProductoCreadoVariante._({
     required this.id,
+    required this.nombre,
+    required this.nameKey,
     required this.precioVentaMenor,
+    required this.costoEstandarMenor,
+    required this.esPredeterminada,
+    required this.orden,
   });
 
-  final String id;
-  final int precioVentaMenor;
-
-  factory ProductoCreadoVariante.fromJson(Map<String, Object?> json) {
-    if (json['name'] != null ||
-        json['sku'] != null ||
-        json['barcode'] != null) {
-      throw const FormatException(
-        'La variante sencilla no admite nombre, SKU ni codigo de barras.',
-      );
-    }
-    if (json['is_default'] != true || _requiredInt(json['sort_order']) != 0) {
-      throw const FormatException(
-        'La variante sencilla debe ser predeterminada y usar sort_order 0.',
-      );
-    }
-    return ProductoCreadoVariante(
-      id: _requiredString(json['variant_id'], 'variants[0].variant_id'),
+  factory ProductoCreadoVariante.create({
+    required String id,
+    required String? nombre,
+    required int precioVentaMenor,
+    required int? costoEstandarMenor,
+    required bool esPredeterminada,
+    required int orden,
+  }) {
+    final normalizedName = NombreVariante.fromInput(nombre);
+    return ProductoCreadoVariante._(
+      id: _requiredUuidV4(id, 'variant_id'),
+      nombre: normalizedName.value,
+      nameKey: normalizedName.nameKey,
       precioVentaMenor: PrecioVenta.fromUnidadMenor(
-        _requiredInt(json['sale_price_minor']),
+        precioVentaMenor,
       ).unidadMenor,
+      costoEstandarMenor: costoEstandarMenor == null
+          ? null
+          : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
+      esPredeterminada: esPredeterminada,
+      orden: orden,
     );
+  }
+
+  final String id;
+  final String? nombre;
+  final String? nameKey;
+  final int precioVentaMenor;
+  final int? costoEstandarMenor;
+  final bool esPredeterminada;
+  final int orden;
+
+  factory ProductoCreadoVariante.fromJson(
+    Map<String, Object?> json, {
+    required String fieldName,
+  }) {
+    if (json['sku'] != null || json['barcode'] != null) {
+      throw FormatException('$fieldName no admite SKU ni código de barras.');
+    }
+    final rawName = json['name'];
+    if (rawName != null && rawName is! String) {
+      throw FormatException('$fieldName.name debe ser string o null.');
+    }
+    final standardCost = json.containsKey('standard_cost_minor')
+        ? json['standard_cost_minor']
+        : null;
+    final parsedCost = standardCost == null
+        ? null
+        : _requiredInt(standardCost, '$fieldName.standard_cost_minor');
+    final isDefault = json['is_default'];
+    if (isDefault is! bool) {
+      throw FormatException('$fieldName.is_default debe ser booleano.');
+    }
+    try {
+      return ProductoCreadoVariante.create(
+        id: _requiredString(json['variant_id'], '$fieldName.variant_id'),
+        nombre: rawName as String?,
+        precioVentaMenor: _requiredInt(
+          json['sale_price_minor'],
+          '$fieldName.sale_price_minor',
+        ),
+        costoEstandarMenor: parsedCost,
+        esPredeterminada: isDefault,
+        orden: _requiredInt(json['sort_order'], '$fieldName.sort_order'),
+      );
+    } on ArgumentError catch (error) {
+      throw FormatException(
+        error.message?.toString() ?? '$fieldName inválida.',
+      );
+    }
   }
 
   Map<String, Object?> toJson() => {
     'variant_id': id,
-    'name': null,
+    'name': nombre,
     'sku': null,
     'barcode': null,
     'sale_price_minor': precioVentaMenor,
-    'is_default': true,
-    'sort_order': 0,
+    'standard_cost_minor': costoEstandarMenor,
+    'is_default': esPredeterminada,
+    'sort_order': orden,
   };
 }
 
@@ -231,6 +306,64 @@ class ProductoCreadoDependencia {
   };
 }
 
+List<ProductoCreadoVariante> _validateVariants(
+  List<ProductoCreadoVariante> variants,
+) {
+  if (variants.isEmpty) {
+    throw const FormatException(
+      'producto_creado requiere una o más variantes.',
+    );
+  }
+  final ids = <String>{};
+  final nameKeys = <String>{};
+  var defaults = 0;
+  for (var index = 0; index < variants.length; index++) {
+    final variant = variants[index];
+    if (!ids.add(variant.id)) {
+      throw const FormatException('Los IDs de variantes no pueden repetirse.');
+    }
+    final nameKey = variant.nameKey;
+    if (nameKey != null && !nameKeys.add(nameKey)) {
+      throw const FormatException(
+        'Los nombres de variantes no pueden repetirse.',
+      );
+    }
+    if (variant.orden != index) {
+      throw const FormatException(
+        'sort_order debe ser consecutivo desde cero.',
+      );
+    }
+    if (variant.esPredeterminada) defaults++;
+    if (variant.esPredeterminada != (index == 0)) {
+      throw const FormatException(
+        'La primera variante debe ser la única predeterminada.',
+      );
+    }
+  }
+  if (defaults != 1) {
+    throw const FormatException(
+      'producto_creado requiere exactamente una variante predeterminada.',
+    );
+  }
+  return List.unmodifiable(variants);
+}
+
+void _validateCategoryDependency(
+  String? categoryId,
+  ProductoCreadoDependencia? dependency,
+) {
+  if (categoryId == null && dependency != null) {
+    throw const FormatException(
+      'Un producto sin categoria no puede declarar dependencia de categoria.',
+    );
+  }
+  if (dependency != null && dependency.refId != categoryId) {
+    throw const FormatException(
+      'La dependencia no coincide con product.category_id.',
+    );
+  }
+}
+
 SaleConfiguration _parseSaleConfiguration(Object? value) {
   final json = _requiredMap(value, 'product.sale_configuration');
   final modeValue = _requiredString(
@@ -247,7 +380,10 @@ SaleConfiguration _parseSaleConfiguration(Object? value) {
       }
       return const UnitSaleConfiguration();
     case 'measured':
-      final reference = _requiredInt(json['price_reference_quantity_atomic']);
+      final reference = _requiredInt(
+        json['price_reference_quantity_atomic'],
+        'product.sale_configuration.price_reference_quantity_atomic',
+      );
       if (reference <= 0) {
         throw const FormatException(
           'price_reference_quantity_atomic debe ser positivo.',
@@ -303,7 +439,10 @@ ProductoCreadoDependencia? _parseProductoCreadoDependencia(
     json['base_event_id'],
     '$fieldName.base_event_id',
   );
-  final baseVersion = _requiredInt(json['base_version']);
+  final baseVersion = _requiredInt(
+    json['base_version'],
+    '$fieldName.base_version',
+  );
   final baseServerSequence = _optionalNonNegativeInt(
     json['base_server_sequence'],
     '$fieldName.base_server_sequence',
@@ -336,6 +475,17 @@ String _requiredString(Object? value, String fieldName) {
   return value.trim();
 }
 
+String _requiredUuidV4(String value, String fieldName) {
+  final normalized = _requiredString(value, fieldName);
+  if (!RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  ).hasMatch(normalized)) {
+    throw FormatException('$fieldName debe ser un UUID v4.');
+  }
+  return normalized;
+}
+
 String? _optionalNonEmptyString(Object? value, String fieldName) {
   if (value == null) return null;
   if (value is! String) {
@@ -345,21 +495,21 @@ String? _optionalNonEmptyString(Object? value, String fieldName) {
   return normalized.isEmpty ? null : normalized;
 }
 
-int _requiredInt(Object? value) {
+int _requiredInt(Object? value, String fieldName) {
   final parsed = switch (value) {
     int() => value,
     num() when value == value.roundToDouble() => value.toInt(),
     _ => null,
   };
   if (parsed == null) {
-    throw const FormatException('Se esperaba un entero en producto_creado.');
+    throw FormatException('$fieldName debe ser un entero.');
   }
   return parsed;
 }
 
 int? _optionalNonNegativeInt(Object? value, String fieldName) {
   if (value == null) return null;
-  final parsed = _requiredInt(value);
+  final parsed = _requiredInt(value, fieldName);
   if (parsed < 0) {
     throw FormatException('$fieldName debe ser >= 0 o null.');
   }

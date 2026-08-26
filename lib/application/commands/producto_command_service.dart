@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:uuid/uuid.dart';
 
+import '../../domain/articulos/costo_estandar.dart';
 import '../../domain/articulos/nombre_producto.dart';
+import '../../domain/articulos/nombre_variante.dart';
 import '../../domain/articulos/precio_venta.dart';
 import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/inventario/dimension_unidad.dart';
@@ -36,7 +40,39 @@ class ProductoCommandService {
 
   Future<void> crearArticulo(CrearArticuloCommand command) async {
     final nombre = NombreProducto.fromInput(command.nombre);
-    final precio = PrecioVenta.fromInput(command.precioVenta);
+    final capturedVariants = command.variantes.isEmpty
+        ? [
+            CrearArticuloVarianteCommand(
+              nombre: null,
+              precioVenta: command.precioVenta ?? '',
+              costoEstandar: null,
+            ),
+          ]
+        : command.variantes;
+    final normalizedVariants = <_NormalizedVariant>[];
+    final nameKeys = <String>{};
+    for (final captured in capturedVariants) {
+      final name = NombreVariante.fromInput(captured.nombre);
+      final nameKey = name.nameKey;
+      if (nameKey != null && !nameKeys.add(nameKey)) {
+        throw ArgumentError.value(
+          captured.nombre,
+          'nombreVariante',
+          'Los nombres de variantes no pueden repetirse.',
+        );
+      }
+      normalizedVariants.add(
+        _NormalizedVariant(
+          nombre: name.value,
+          precioVentaMenor: PrecioVenta.fromInput(
+            captured.precioVenta,
+          ).unidadMenor,
+          costoEstandarMenor: CostoEstandar.fromInput(
+            captured.costoEstandar,
+          )?.unidadMenor,
+        ),
+      );
+    }
     final categoriaId = _normalizeOptional(command.categoriaId);
     final saleConfiguration = await _validateSaleConfiguration(
       command.saleConfiguration,
@@ -45,17 +81,31 @@ class ProductoCommandService {
         ? null
         : await _categoryDependency(categoriaId);
     final productId = _uuid.v4();
-    final variantId = _uuid.v4();
-    final payload = ProductoCreadoPayload.simple(
+    final variantIds = List.generate(
+      normalizedVariants.length,
+      (_) => _uuid.v4(),
+      growable: false,
+    );
+    final eventId = _uuid.v4();
+    final payload = ProductoCreadoPayload.create(
       nombre: nombre.value,
       categoriaId: categoriaId,
-      varianteId: variantId,
-      precioVentaMenor: precio.unidadMenor,
       saleConfiguration: saleConfiguration,
+      variantes: [
+        for (var index = 0; index < normalizedVariants.length; index++)
+          ProductoCreadoVariante.create(
+            id: variantIds[index],
+            nombre: normalizedVariants[index].nombre,
+            precioVentaMenor: normalizedVariants[index].precioVentaMenor,
+            costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
+            esPredeterminada: index == 0,
+            orden: index,
+          ),
+      ],
       dependenciaCategoria: dependency,
     );
     final event = SyncEvent(
-      eventId: _uuid.v4(),
+      eventId: eventId,
       aggregateType: ProductoCreadoPayload.aggregateType,
       aggregateId: productId,
       eventType: ProductoCreadoPayload.eventType,
@@ -70,7 +120,17 @@ class ProductoCommandService {
       event,
       refs: [
         LocalEventRef.affects(refType: 'product', refId: productId),
-        LocalEventRef.affects(refType: 'product_variant', refId: variantId),
+        for (var index = 0; index < payload.variantes.length; index++) ...[
+          LocalEventRef.affects(
+            refType: 'product_variant',
+            refId: payload.variantes[index].id,
+          ),
+          if (payload.variantes[index].nameKey case final nameKey?)
+            LocalEventRef.requiresUnique(
+              refType: 'product_variant_name',
+              refId: _variantNameRefId(productId, nameKey),
+            ),
+        ],
         if (categoriaId != null)
           LocalEventRef(
             refType: 'category',
@@ -155,4 +215,21 @@ class ProductoCommandService {
     final normalized = value?.trim();
     return normalized == null || normalized.isEmpty ? null : normalized;
   }
+
+  String _variantNameRefId(String productId, String nameKey) {
+    final encoded = base64Url.encode(utf8.encode(nameKey)).replaceAll('=', '');
+    return '$productId:$encoded';
+  }
+}
+
+class _NormalizedVariant {
+  const _NormalizedVariant({
+    required this.nombre,
+    required this.precioVentaMenor,
+    required this.costoEstandarMenor,
+  });
+
+  final String? nombre;
+  final int precioVentaMenor;
+  final int? costoEstandarMenor;
 }

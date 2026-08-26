@@ -31,7 +31,7 @@ void main() {
 
   for (final mode in [AppMode.standalone, AppMode.serverSync]) {
     test(
-      '${mode.name} aplica producto y variante en una transacción',
+      '${mode.name} aplica producto y variantes en una transacción',
       () async {
         final store = _store(mode, db, productoDao, eventDao);
         await store.appendAndApply(
@@ -40,7 +40,7 @@ void main() {
             LocalEventRef.affects(refType: 'product', refId: 'product_1'),
             LocalEventRef.affects(
               refType: 'product_variant',
-              refId: 'variant_1',
+              refId: '00000000-0000-4000-8000-000000000001',
             ),
           ],
         );
@@ -66,6 +66,40 @@ void main() {
         expect(refs, mode == AppMode.standalone ? isEmpty : hasLength(2));
       },
     );
+
+    test('${mode.name} aplica varias variantes y refs de nombre', () async {
+      final store = _store(mode, db, productoDao, eventDao);
+      await store.appendAndApply(
+        _advancedEvent(),
+        refs: const [
+          LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+          LocalEventRef.affects(
+            refType: 'product_variant',
+            refId: '00000000-0000-4000-8000-000000000001',
+          ),
+          LocalEventRef.requiresUnique(
+            refType: 'product_variant_name',
+            refId: 'product_1:Z3JhbmRl',
+          ),
+          LocalEventRef.affects(
+            refType: 'product_variant',
+            refId: '00000000-0000-4000-8000-000000000002',
+          ),
+        ],
+      );
+
+      final variants = await productoDao.obtenerVariantesPorProducto(
+        'product_1',
+      );
+      expect(variants, hasLength(2));
+      expect(variants.map((variant) => variant.name), ['Grande', null]);
+      expect(variants.map((variant) => variant.standardCostMinor), [200, 0]);
+      expect(variants.map((variant) => variant.sortOrder), [0, 1]);
+      expect(
+        await db.select(db.eventRefs).get(),
+        mode == AppMode.standalone ? isEmpty : hasLength(4),
+      );
+    });
   }
 
   test('el handler es idempotente para el mismo evento', () async {
@@ -92,7 +126,10 @@ void main() {
       ),
       refs: const [
         LocalEventRef.affects(refType: 'product', refId: 'product_1'),
-        LocalEventRef.affects(refType: 'product_variant', refId: 'variant_1'),
+        LocalEventRef.affects(
+          refType: 'product_variant',
+          refId: '00000000-0000-4000-8000-000000000001',
+        ),
         LocalEventRef.uses(refType: 'unit', refId: InventoryUnitIds.kilogram),
       ],
     );
@@ -181,9 +218,45 @@ SyncEvent _event({
     payload: ProductoCreadoPayload.simple(
       nombre: 'Café',
       categoriaId: null,
-      varianteId: 'variant_1',
+      varianteId: '00000000-0000-4000-8000-000000000001',
       precioVentaMenor: 4550,
       saleConfiguration: saleConfiguration,
+    ).toJson(),
+  );
+}
+
+SyncEvent _advancedEvent() {
+  return SyncEvent(
+    eventId: 'event_advanced',
+    aggregateType: ProductoCreadoPayload.aggregateType,
+    aggregateId: 'product_1',
+    eventType: ProductoCreadoPayload.eventType,
+    deviceId: 'test_device',
+    userId: 'test_user',
+    baseVersion: 1,
+    createdAtLocal: DateTime(2026),
+    payload: ProductoCreadoPayload.create(
+      nombre: 'Café',
+      categoriaId: null,
+      saleConfiguration: const UnitSaleConfiguration(),
+      variantes: [
+        ProductoCreadoVariante.create(
+          id: '00000000-0000-4000-8000-000000000001',
+          nombre: 'Grande',
+          precioVentaMenor: 1000,
+          costoEstandarMenor: 200,
+          esPredeterminada: true,
+          orden: 0,
+        ),
+        ProductoCreadoVariante.create(
+          id: '00000000-0000-4000-8000-000000000002',
+          nombre: null,
+          precioVentaMenor: 1200,
+          costoEstandarMenor: 0,
+          esPredeterminada: false,
+          orden: 1,
+        ),
+      ],
     ).toJson(),
   );
 }

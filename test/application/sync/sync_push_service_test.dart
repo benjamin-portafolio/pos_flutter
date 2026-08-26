@@ -266,7 +266,10 @@ void main() {
         product,
         refs: const [
           LocalEventRef.affects(refType: 'product', refId: 'product_1'),
-          LocalEventRef.affects(refType: 'product_variant', refId: 'variant_1'),
+          LocalEventRef.affects(
+            refType: 'product_variant',
+            refId: '00000000-0000-4000-8000-000000000001',
+          ),
           LocalEventRef(
             refType: 'category',
             refId: 'category_1',
@@ -601,7 +604,7 @@ SyncEvent _localProductoCreado() {
     payload: ProductoCreadoPayload.simple(
       nombre: 'Café',
       categoriaId: 'category_1',
-      varianteId: 'variant_1',
+      varianteId: '00000000-0000-4000-8000-000000000001',
       precioVentaMenor: 4550,
       dependenciaCategoria: const ProductoCreadoDependencia(
         refId: 'category_1',

@@ -21,11 +21,10 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
 
     final normalizedSearch = busqueda.trim().toLowerCase();
     if (normalizedSearch.isNotEmpty) {
+      final pattern = '%${_escapeLike(normalizedSearch)}%';
       query.where(
-        products.name.lower().like(
-          '%${_escapeLike(normalizedSearch)}%',
-          escapeChar: r'\',
-        ),
+        products.name.lower().like(pattern, escapeChar: r'\') |
+            productVariants.name.lower().like(pattern, escapeChar: r'\'),
       );
     }
 

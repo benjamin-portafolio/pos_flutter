@@ -378,10 +378,18 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     final service =
         widget.productoCommandService ?? getIt<ProductoCommandService>();
     return service.crearArticulo(
-      CrearArticuloCommand(
+      CrearArticuloCommand.conVariantes(
         nombre: result.nombre,
         categoriaId: result.categoriaId,
-        precioVenta: result.precioVenta,
+        variantes: result.variantes
+            .map(
+              (variant) => CrearArticuloVarianteCommand(
+                nombre: variant.nombre,
+                precioVenta: variant.precioVenta,
+                costoEstandar: variant.costoEstandar,
+              ),
+            )
+            .toList(growable: false),
         saleConfiguration: result.saleConfiguration,
       ),
     );

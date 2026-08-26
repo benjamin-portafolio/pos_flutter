@@ -52,7 +52,10 @@ class ProductoVarianteProjection extends SyncProjection {
   const ProductoVarianteProjection({
     required super.id,
     required this.productoId,
+    this.nombre,
+    this.nameKey,
     required this.precioVentaMenor,
+    this.costoEstandarMenor,
     required this.esPredeterminada,
     required this.orden,
     required super.active,
@@ -63,7 +66,10 @@ class ProductoVarianteProjection extends SyncProjection {
   });
 
   final String productoId;
+  final String? nombre;
+  final String? nameKey;
   final int precioVentaMenor;
+  final int? costoEstandarMenor;
   final bool esPredeterminada;
   final int orden;
 }

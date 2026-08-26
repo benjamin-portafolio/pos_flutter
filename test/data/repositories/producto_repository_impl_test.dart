@@ -247,6 +247,26 @@ void main() {
     await expectation;
   });
 
+  test('mapea nombres y costos reales de las variantes', () async {
+    await _insertProduct(db, id: 'named-product', name: 'Café');
+    await _insertVariant(
+      db,
+      id: 'named-variant',
+      productId: 'named-product',
+      name: 'Grande',
+      nameKey: 'grande',
+      price: 1000,
+      standardCost: 200,
+      isDefault: true,
+      sortOrder: 0,
+    );
+
+    final articles = await repository.watchArticulos().first;
+    final variant = articles.single.variantesActivas.single;
+    expect(variant.nombre, 'Grande');
+    expect(variant.costoEstandarMenor, 200);
+  });
+
   test(
     'una proyección activa sin predeterminada válida produce error',
     () async {
@@ -310,6 +330,9 @@ Future<void> _insertVariant(
   required String id,
   required String productId,
   required int price,
+  String? name,
+  String? nameKey,
+  int? standardCost,
   required bool isDefault,
   required int sortOrder,
   bool active = true,
@@ -320,7 +343,10 @@ Future<void> _insertVariant(
         ProductVariantsCompanion.insert(
           id: id,
           productId: productId,
+          name: Value(name),
+          nameKey: Value(nameKey),
           salePriceMinor: price,
+          standardCostMinor: Value(standardCost),
           isDefault: isDefault,
           sortOrder: sortOrder,
           active: Value(active),

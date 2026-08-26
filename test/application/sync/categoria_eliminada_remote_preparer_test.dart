@@ -341,7 +341,7 @@ SyncEvent _productCreated({int serverSequence = 2}) => SyncEvent(
   serverSequence: serverSequence,
   baseVersion: 1,
   createdAtLocal: DateTime.utc(2026, 1, 3),
-  payload: _productPayload('variant_1'),
+  payload: _productPayload('00000000-0000-4000-8000-000000000001'),
 );
 
 SyncEvent _destinationCategoryCreated() => SyncEvent(
@@ -468,7 +468,7 @@ SyncEvent _localProductCreated() => SyncEvent(
   userId: 'user',
   baseVersion: 1,
   createdAtLocal: DateTime.utc(2026, 1, 3),
-  payload: _productPayload('variant_local'),
+  payload: _productPayload('00000000-0000-4000-8000-000000000002'),
 );
 
 Map<String, Object?> _productPayload(String variantId) => {

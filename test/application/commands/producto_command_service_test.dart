@@ -53,12 +53,81 @@ void main() {
     expect(event.baseServerSequence, isNull);
     expect(payload.nombre, 'Café americano');
     expect(payload.categoriaId, isNull);
-    expect(payload.variante.precioVentaMenor, 4550);
-    expect(payload.variante.id, isNotEmpty);
+    expect(payload.variantes.single.precioVentaMenor, 4550);
+    expect(payload.variantes.single.id, isNotEmpty);
     expect(eventStore.refs.map((ref) => ref.refType), [
       'product',
       'product_variant',
     ]);
+  });
+
+  test('crea un evento con varias variantes y todas sus refs', () async {
+    await service.crearArticulo(
+      const CrearArticuloCommand.conVariantes(
+        nombre: 'Café',
+        variantes: [
+          CrearArticuloVarianteCommand(
+            nombre: '  Ｇｒａｎｄｅ ',
+            precioVenta: '10',
+            costoEstandar: '2',
+          ),
+          CrearArticuloVarianteCommand(
+            nombre: null,
+            precioVenta: '12',
+            costoEstandar: '0',
+          ),
+        ],
+      ),
+    );
+
+    final event = eventStore.event!;
+    final payload = ProductoCreadoPayload.fromJson(event.payload);
+    expect(payload.variantes, hasLength(2));
+    expect(payload.variantes.map((variant) => variant.nombre), [
+      'Grande',
+      null,
+    ]);
+    expect(payload.variantes.map((variant) => variant.costoEstandarMenor), [
+      200,
+      0,
+    ]);
+    expect(payload.variantes.map((variant) => variant.esPredeterminada), [
+      true,
+      false,
+    ]);
+    expect(payload.variantes.map((variant) => variant.orden), [0, 1]);
+    expect(eventStore.refs.map((ref) => ref.refType), [
+      'product',
+      'product_variant',
+      'product_variant_name',
+      'product_variant',
+    ]);
+    expect(eventStore.refs[2].refId, '${event.aggregateId}:Z3JhbmRl');
+    expect(eventStore.refs[2].relationship, 'requires_unique');
+  });
+
+  test('rechaza nombres duplicados antes de generar el evento', () async {
+    await expectLater(
+      service.crearArticulo(
+        const CrearArticuloCommand.conVariantes(
+          nombre: 'Café',
+          variantes: [
+            CrearArticuloVarianteCommand(
+              nombre: 'Grande',
+              precioVenta: '10',
+              costoEstandar: null,
+            ),
+            CrearArticuloVarianteCommand(
+              nombre: 'ＧＲＡＮＤＥ',
+              precioVenta: '12',
+              costoEstandar: null,
+            ),
+          ],
+        ),
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(eventStore.event, isNull);
   });
 
   test(

@@ -90,8 +90,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
               builder.variantes.map(
                 (variant) => VarianteListado(
                   varianteId: variant.id,
-                  nombre: null,
+                  nombre: variant.name,
                   precioVentaMenor: variant.salePriceMinor,
+                  costoEstandarMenor: variant.standardCostMinor,
                   predeterminada: variant.isDefault,
                   orden: variant.sortOrder,
                 ),

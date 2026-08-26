@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../domain/articulos/nombre_producto.dart';
+import '../../../../domain/articulos/nombre_variante.dart';
+import '../../../../domain/articulos/costo_estandar.dart';
 import '../../../../domain/articulos/precio_venta.dart';
 import '../../../../domain/articulos/sale_configuration.dart';
 import '../../../../domain/articulos/sale_mode.dart';
@@ -9,6 +10,9 @@ import '../../../../domain/categorias/categoria.dart';
 import '../../../../domain/inventario/dimension_unidad.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
 import 'models/articulo_form_result.dart';
+import 'widgets/advanced_variants_section.dart';
+import 'widgets/currency_input_formatter.dart';
+import 'widgets/variant_editor_bottom_sheet.dart';
 
 class ArticleFormScreen extends StatefulWidget {
   const ArticleFormScreen({
@@ -40,6 +44,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   String? _saveError;
   bool _saving = false;
   bool _canPop = false;
+  List<ArticuloFormVarianteResult>? _advancedVariants;
+  String? _variantListError;
 
   @override
   void dispose() {
@@ -70,10 +76,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
               padding: const EdgeInsets.only(right: 8),
               child: TextButton.icon(
                 key: const Key('save_article_button'),
-                onPressed:
-                    _saving || _creationMode == _ArticleCreationMode.advanced
-                    ? null
-                    : _submit,
+                onPressed: _saving ? null : _submit,
                 style: TextButton.styleFrom(
                   backgroundColor: colorScheme.primary,
                   foregroundColor: colorScheme.onPrimary,
@@ -190,7 +193,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        inputFormatters: const [_CurrencyInputFormatter()],
+                        inputFormatters: const [CurrencyInputFormatter()],
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) => _submit(),
                         decoration: InputDecoration(
@@ -203,16 +206,12 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                       ),
                     )
                   else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: FilledButton.icon(
-                          key: const Key('add_article_variant_button'),
-                          onPressed: null,
-                          icon: const Icon(Icons.add),
-                          label: const Text('AGREGAR VARIANTE'),
-                        ),
-                      ),
+                    AdvancedVariantsSection(
+                      variants: _advancedVariants ?? const [],
+                      enabled: !_saving,
+                      error: _variantListError,
+                      onEdit: _editVariant,
+                      onAdd: _addVariant,
                     ),
                   if (_saveError != null) ...[
                     const SizedBox(height: 16),
@@ -266,10 +265,112 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   void _selectCreationMode(_ArticleCreationMode mode) {
     if (mode == _creationMode) return;
     FocusScope.of(context).unfocus();
+    if (mode == _ArticleCreationMode.simple) {
+      final variants = _advancedVariants ?? const [];
+      final cannotRepresent =
+          variants.length > 1 ||
+          variants.any(
+            (variant) =>
+                NombreVariante.fromInput(variant.nombre).value != null ||
+                CostoEstandar.fromInput(variant.costoEstandar) != null,
+          );
+      if (cannotRepresent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El modo Sencillo no puede representar las variantes o costos '
+              'capturados.',
+            ),
+          ),
+        );
+        return;
+      }
+      if (variants.isNotEmpty) {
+        _priceController.text = variants.first.precioVenta;
+      }
+    }
     setState(() {
       _creationMode = mode;
       _saveError = null;
+      _variantListError = null;
+      if (mode == _ArticleCreationMode.advanced) {
+        final variants = _advancedVariants;
+        if (variants == null || variants.isEmpty) {
+          _advancedVariants = [
+            ArticuloFormVarianteResult(
+              nombre: null,
+              precioVenta: _priceController.text,
+              costoEstandar: null,
+            ),
+          ];
+        } else if (variants.length == 1 &&
+            variants.first.nombre == null &&
+            variants.first.costoEstandar == null) {
+          _advancedVariants = [
+            variants.first.copyWith(precioVenta: _priceController.text),
+          ];
+        }
+      }
     });
+  }
+
+  Future<void> _editVariant(int index) async {
+    if (_saving) return;
+    final variants = _advancedVariants;
+    if (variants == null || index < 0 || index >= variants.length) return;
+    final result = await showModalBottomSheet<VariantEditorResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => VariantEditorBottomSheet(
+        initialValue: variants[index],
+        canDelete: index > 0,
+        existingNameKeys: _variantNameKeys(excludingIndex: index),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      if (result.deleted) {
+        variants.removeAt(index);
+      } else {
+        variants[index] = result.value!;
+      }
+      _variantListError = null;
+      _saveError = null;
+    });
+  }
+
+  Future<void> _addVariant() async {
+    if (_saving) return;
+    final result = await showModalBottomSheet<VariantEditorResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => VariantEditorBottomSheet(
+        initialValue: null,
+        canDelete: false,
+        existingNameKeys: _variantNameKeys(),
+      ),
+    );
+    if (result?.value == null || !mounted) return;
+    setState(() {
+      (_advancedVariants ??= []).add(result!.value!);
+      _variantListError = null;
+      _saveError = null;
+    });
+  }
+
+  Set<String> _variantNameKeys({int? excludingIndex}) {
+    final keys = <String>{};
+    final variants = _advancedVariants ?? const [];
+    for (var index = 0; index < variants.length; index++) {
+      if (index == excludingIndex) continue;
+      final key = NombreVariante.fromInput(variants[index].nombre).nameKey;
+      if (key != null) keys.add(key);
+    }
+    return keys;
   }
 
   List<UnidadInventario> get _fractionalSaleUnits => widget.unidadesVenta
@@ -315,12 +416,25 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_saving || _creationMode == _ArticleCreationMode.advanced) return;
+    if (_saving) return;
     final validFields = _formKey.currentState!.validate();
     final validSaleUnit =
         _saleMode == SaleMode.unit || _selectedSaleUnit != null;
     if (!validSaleUnit) setState(() => _showSaleUnitError = true);
-    if (!validFields || !validSaleUnit) return;
+    final variants = _creationMode == _ArticleCreationMode.simple
+        ? [
+            ArticuloFormVarianteResult(
+              nombre: null,
+              precioVenta: _priceController.text,
+              costoEstandar: null,
+            ),
+          ]
+        : List<ArticuloFormVarianteResult>.of(_advancedVariants ?? const []);
+    final variantError = _validateVariants(variants);
+    if (variantError != null) {
+      setState(() => _variantListError = variantError);
+    }
+    if (!validFields || !validSaleUnit || variantError != null) return;
 
     final saleConfiguration = _saleMode == SaleMode.unit
         ? const UnitSaleConfiguration()
@@ -336,7 +450,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       await widget.onSave(
         ArticuloFormResult(
           nombre: _nameController.text,
-          precioVenta: _priceController.text,
+          variantes: List.unmodifiable(variants),
           categoriaId: _selectedCategoryId,
           saleConfiguration: saleConfiguration,
         ),
@@ -352,6 +466,25 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         _saveError = 'No se pudo guardar el artículo.';
       });
     }
+  }
+
+  String? _validateVariants(List<ArticuloFormVarianteResult> variants) {
+    if (variants.isEmpty) return 'Agrega al menos una variante.';
+    final nameKeys = <String>{};
+    for (final variant in variants) {
+      try {
+        final name = NombreVariante.fromInput(variant.nombre);
+        PrecioVenta.fromInput(variant.precioVenta);
+        CostoEstandar.fromInput(variant.costoEstandar);
+        final nameKey = name.nameKey;
+        if (nameKey != null && !nameKeys.add(nameKey)) {
+          return 'Los nombres de variantes no pueden repetirse.';
+        }
+      } on ArgumentError catch (error) {
+        return error.message?.toString() ?? 'Hay una variante inválida.';
+      }
+    }
+    return null;
   }
 
   Future<void> _requestClose() async {
@@ -392,7 +525,14 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       _priceController.text.isNotEmpty ||
       _selectedCategoryId != null ||
       _saleMode != SaleMode.unit ||
-      _creationMode != _ArticleCreationMode.simple;
+      _creationMode != _ArticleCreationMode.simple ||
+      (_advancedVariants?.any(
+            (variant) =>
+                variant.nombre != null ||
+                variant.precioVenta.isNotEmpty ||
+                variant.costoEstandar != null,
+          ) ??
+          false);
 }
 
 enum _ArticleCreationMode { simple, advanced }
@@ -640,17 +780,4 @@ class _SelectionOption<T> {
   final String title;
   final String description;
   final IconData icon;
-}
-
-class _CurrencyInputFormatter extends TextInputFormatter {
-  const _CurrencyInputFormatter();
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final accepted = RegExp(r'^\d*(?:[.,]\d{0,2})?$');
-    return accepted.hasMatch(newValue.text) ? newValue : oldValue;
-  }
 }

@@ -185,11 +185,13 @@ class PendingEventRevalidator {
       );
     }
     final payload = ProductoCreadoPayload.fromJson(event.payload);
-    final variant = await store.findVariantById(payload.variante.id);
-    if (variant != null && variant.createdEventId != event.eventId) {
-      return _PendingConflict(
-        'Ya existe una variante oficial con id ${payload.variante.id}.',
-      );
+    for (final payloadVariant in payload.variantes) {
+      final variant = await store.findVariantById(payloadVariant.id);
+      if (variant != null && variant.createdEventId != event.eventId) {
+        return _PendingConflict(
+          'Ya existe una variante oficial con id ${payloadVariant.id}.',
+        );
+      }
     }
     if (payload.categoriaId != null &&
         await _categoriaProjectionStore.findById(payload.categoriaId!) ==

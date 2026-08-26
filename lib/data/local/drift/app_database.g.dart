@@ -1963,6 +1963,26 @@ class $ProductVariantsTable extends ProductVariants
       'REFERENCES products (id) ON DELETE CASCADE',
     ),
   );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameKeyMeta = const VerificationMeta(
+    'nameKey',
+  );
+  @override
+  late final GeneratedColumn<String> nameKey = GeneratedColumn<String>(
+    'name_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _salePriceMinorMeta = const VerificationMeta(
     'salePriceMinor',
   );
@@ -1973,6 +1993,17 @@ class $ProductVariantsTable extends ProductVariants
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _standardCostMinorMeta = const VerificationMeta(
+    'standardCostMinor',
+  );
+  @override
+  late final GeneratedColumn<int> standardCostMinor = GeneratedColumn<int>(
+    'standard_cost_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _isDefaultMeta = const VerificationMeta(
     'isDefault',
@@ -2008,7 +2039,10 @@ class $ProductVariantsTable extends ProductVariants
     lastEventId,
     lastServerSequence,
     productId,
+    name,
+    nameKey,
     salePriceMinor,
+    standardCostMinor,
     isDefault,
     sortOrder,
   ];
@@ -2076,6 +2110,18 @@ class $ProductVariantsTable extends ProductVariants
     } else if (isInserting) {
       context.missing(_productIdMeta);
     }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('name_key')) {
+      context.handle(
+        _nameKeyMeta,
+        nameKey.isAcceptableOrUnknown(data['name_key']!, _nameKeyMeta),
+      );
+    }
     if (data.containsKey('sale_price_minor')) {
       context.handle(
         _salePriceMinorMeta,
@@ -2086,6 +2132,15 @@ class $ProductVariantsTable extends ProductVariants
       );
     } else if (isInserting) {
       context.missing(_salePriceMinorMeta);
+    }
+    if (data.containsKey('standard_cost_minor')) {
+      context.handle(
+        _standardCostMinorMeta,
+        standardCostMinor.isAcceptableOrUnknown(
+          data['standard_cost_minor']!,
+          _standardCostMinorMeta,
+        ),
+      );
     }
     if (data.containsKey('is_default')) {
       context.handle(
@@ -2111,6 +2166,7 @@ class $ProductVariantsTable extends ProductVariants
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
     {productId, sortOrder},
+    {productId, nameKey},
   ];
   @override
   ProductVariantRow map(Map<String, dynamic> data, {String? tablePrefix}) {
@@ -2144,10 +2200,22 @@ class $ProductVariantsTable extends ProductVariants
         DriftSqlType.string,
         data['${effectivePrefix}product_id'],
       )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
+      nameKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_key'],
+      ),
       salePriceMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sale_price_minor'],
       )!,
+      standardCostMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}standard_cost_minor'],
+      ),
       isDefault: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_default'],
@@ -2189,13 +2257,25 @@ class ProductVariantRow extends DataClass
   /// tecnicas de proyecciones; no representa un borrado de negocio.
   final String productId;
 
-  /// Precio de venta entero expresado en la unidad monetaria menor.
+  /// Nombre visible normalizado de la variante; null representa una variante
+  /// sin nombre capturado.
+  final String? name;
+
+  /// Clave NFKC en minúsculas derivada de [name] para unicidad por producto.
+  final String? nameKey;
+
+  /// Precio de venta entero expresado en la unidad monetaria menor. Siempre es
+  /// positivo y es el único importe obligatorio de la variante.
   final int salePriceMinor;
 
-  /// Indica que esta es la variante inicial elegida por omision.
+  /// Costo estándar opcional en unidad monetaria menor. Null significa costo
+  /// desconocido y cero significa costo conocido igual a cero.
+  final int? standardCostMinor;
+
+  /// Indica que esta es la variante elegida por omisión.
   final bool isDefault;
 
-  /// Posicion dentro del producto; el alta sencilla siempre comienza en cero.
+  /// Posición consecutiva dentro del producto, iniciando en cero.
   final int sortOrder;
   const ProductVariantRow({
     required this.id,
@@ -2205,7 +2285,10 @@ class ProductVariantRow extends DataClass
     this.lastEventId,
     this.lastServerSequence,
     required this.productId,
+    this.name,
+    this.nameKey,
     required this.salePriceMinor,
+    this.standardCostMinor,
     required this.isDefault,
     required this.sortOrder,
   });
@@ -2225,7 +2308,16 @@ class ProductVariantRow extends DataClass
       map['last_server_sequence'] = Variable<int>(lastServerSequence);
     }
     map['product_id'] = Variable<String>(productId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    if (!nullToAbsent || nameKey != null) {
+      map['name_key'] = Variable<String>(nameKey);
+    }
     map['sale_price_minor'] = Variable<int>(salePriceMinor);
+    if (!nullToAbsent || standardCostMinor != null) {
+      map['standard_cost_minor'] = Variable<int>(standardCostMinor);
+    }
     map['is_default'] = Variable<bool>(isDefault);
     map['sort_order'] = Variable<int>(sortOrder);
     return map;
@@ -2246,7 +2338,14 @@ class ProductVariantRow extends DataClass
           ? const Value.absent()
           : Value(lastServerSequence),
       productId: Value(productId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      nameKey: nameKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nameKey),
       salePriceMinor: Value(salePriceMinor),
+      standardCostMinor: standardCostMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(standardCostMinor),
       isDefault: Value(isDefault),
       sortOrder: Value(sortOrder),
     );
@@ -2265,7 +2364,10 @@ class ProductVariantRow extends DataClass
       lastEventId: serializer.fromJson<String?>(json['lastEventId']),
       lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
       productId: serializer.fromJson<String>(json['productId']),
+      name: serializer.fromJson<String?>(json['name']),
+      nameKey: serializer.fromJson<String?>(json['nameKey']),
       salePriceMinor: serializer.fromJson<int>(json['salePriceMinor']),
+      standardCostMinor: serializer.fromJson<int?>(json['standardCostMinor']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
@@ -2281,7 +2383,10 @@ class ProductVariantRow extends DataClass
       'lastEventId': serializer.toJson<String?>(lastEventId),
       'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
       'productId': serializer.toJson<String>(productId),
+      'name': serializer.toJson<String?>(name),
+      'nameKey': serializer.toJson<String?>(nameKey),
       'salePriceMinor': serializer.toJson<int>(salePriceMinor),
+      'standardCostMinor': serializer.toJson<int?>(standardCostMinor),
       'isDefault': serializer.toJson<bool>(isDefault),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
@@ -2295,7 +2400,10 @@ class ProductVariantRow extends DataClass
     Value<String?> lastEventId = const Value.absent(),
     Value<int?> lastServerSequence = const Value.absent(),
     String? productId,
+    Value<String?> name = const Value.absent(),
+    Value<String?> nameKey = const Value.absent(),
     int? salePriceMinor,
+    Value<int?> standardCostMinor = const Value.absent(),
     bool? isDefault,
     int? sortOrder,
   }) => ProductVariantRow(
@@ -2310,7 +2418,12 @@ class ProductVariantRow extends DataClass
         ? lastServerSequence.value
         : this.lastServerSequence,
     productId: productId ?? this.productId,
+    name: name.present ? name.value : this.name,
+    nameKey: nameKey.present ? nameKey.value : this.nameKey,
     salePriceMinor: salePriceMinor ?? this.salePriceMinor,
+    standardCostMinor: standardCostMinor.present
+        ? standardCostMinor.value
+        : this.standardCostMinor,
     isDefault: isDefault ?? this.isDefault,
     sortOrder: sortOrder ?? this.sortOrder,
   );
@@ -2329,9 +2442,14 @@ class ProductVariantRow extends DataClass
           ? data.lastServerSequence.value
           : this.lastServerSequence,
       productId: data.productId.present ? data.productId.value : this.productId,
+      name: data.name.present ? data.name.value : this.name,
+      nameKey: data.nameKey.present ? data.nameKey.value : this.nameKey,
       salePriceMinor: data.salePriceMinor.present
           ? data.salePriceMinor.value
           : this.salePriceMinor,
+      standardCostMinor: data.standardCostMinor.present
+          ? data.standardCostMinor.value
+          : this.standardCostMinor,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
@@ -2347,7 +2465,10 @@ class ProductVariantRow extends DataClass
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('productId: $productId, ')
+          ..write('name: $name, ')
+          ..write('nameKey: $nameKey, ')
           ..write('salePriceMinor: $salePriceMinor, ')
+          ..write('standardCostMinor: $standardCostMinor, ')
           ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -2363,7 +2484,10 @@ class ProductVariantRow extends DataClass
     lastEventId,
     lastServerSequence,
     productId,
+    name,
+    nameKey,
     salePriceMinor,
+    standardCostMinor,
     isDefault,
     sortOrder,
   );
@@ -2378,7 +2502,10 @@ class ProductVariantRow extends DataClass
           other.lastEventId == this.lastEventId &&
           other.lastServerSequence == this.lastServerSequence &&
           other.productId == this.productId &&
+          other.name == this.name &&
+          other.nameKey == this.nameKey &&
           other.salePriceMinor == this.salePriceMinor &&
+          other.standardCostMinor == this.standardCostMinor &&
           other.isDefault == this.isDefault &&
           other.sortOrder == this.sortOrder);
 }
@@ -2391,7 +2518,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
   final Value<String?> lastEventId;
   final Value<int?> lastServerSequence;
   final Value<String> productId;
+  final Value<String?> name;
+  final Value<String?> nameKey;
   final Value<int> salePriceMinor;
+  final Value<int?> standardCostMinor;
   final Value<bool> isDefault;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -2403,7 +2533,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
     this.productId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.nameKey = const Value.absent(),
     this.salePriceMinor = const Value.absent(),
+    this.standardCostMinor = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2416,7 +2549,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
     required String productId,
+    this.name = const Value.absent(),
+    this.nameKey = const Value.absent(),
     required int salePriceMinor,
+    this.standardCostMinor = const Value.absent(),
     required bool isDefault,
     required int sortOrder,
     this.rowid = const Value.absent(),
@@ -2433,7 +2569,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Expression<String>? lastEventId,
     Expression<int>? lastServerSequence,
     Expression<String>? productId,
+    Expression<String>? name,
+    Expression<String>? nameKey,
     Expression<int>? salePriceMinor,
+    Expression<int>? standardCostMinor,
     Expression<bool>? isDefault,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -2447,7 +2586,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       if (lastServerSequence != null)
         'last_server_sequence': lastServerSequence,
       if (productId != null) 'product_id': productId,
+      if (name != null) 'name': name,
+      if (nameKey != null) 'name_key': nameKey,
       if (salePriceMinor != null) 'sale_price_minor': salePriceMinor,
+      if (standardCostMinor != null) 'standard_cost_minor': standardCostMinor,
       if (isDefault != null) 'is_default': isDefault,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
@@ -2462,7 +2604,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Value<String?>? lastEventId,
     Value<int?>? lastServerSequence,
     Value<String>? productId,
+    Value<String?>? name,
+    Value<String?>? nameKey,
     Value<int>? salePriceMinor,
+    Value<int?>? standardCostMinor,
     Value<bool>? isDefault,
     Value<int>? sortOrder,
     Value<int>? rowid,
@@ -2475,7 +2620,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       lastEventId: lastEventId ?? this.lastEventId,
       lastServerSequence: lastServerSequence ?? this.lastServerSequence,
       productId: productId ?? this.productId,
+      name: name ?? this.name,
+      nameKey: nameKey ?? this.nameKey,
       salePriceMinor: salePriceMinor ?? this.salePriceMinor,
+      standardCostMinor: standardCostMinor ?? this.standardCostMinor,
       isDefault: isDefault ?? this.isDefault,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
@@ -2506,8 +2654,17 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     if (productId.present) {
       map['product_id'] = Variable<String>(productId.value);
     }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (nameKey.present) {
+      map['name_key'] = Variable<String>(nameKey.value);
+    }
     if (salePriceMinor.present) {
       map['sale_price_minor'] = Variable<int>(salePriceMinor.value);
+    }
+    if (standardCostMinor.present) {
+      map['standard_cost_minor'] = Variable<int>(standardCostMinor.value);
     }
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
@@ -2531,7 +2688,10 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('productId: $productId, ')
+          ..write('name: $name, ')
+          ..write('nameKey: $nameKey, ')
           ..write('salePriceMinor: $salePriceMinor, ')
+          ..write('standardCostMinor: $standardCostMinor, ')
           ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -8354,7 +8514,10 @@ typedef $$ProductVariantsTableCreateCompanionBuilder =
       Value<String?> lastEventId,
       Value<int?> lastServerSequence,
       required String productId,
+      Value<String?> name,
+      Value<String?> nameKey,
       required int salePriceMinor,
+      Value<int?> standardCostMinor,
       required bool isDefault,
       required int sortOrder,
       Value<int> rowid,
@@ -8368,7 +8531,10 @@ typedef $$ProductVariantsTableUpdateCompanionBuilder =
       Value<String?> lastEventId,
       Value<int?> lastServerSequence,
       Value<String> productId,
+      Value<String?> name,
+      Value<String?> nameKey,
       Value<int> salePriceMinor,
+      Value<int?> standardCostMinor,
       Value<bool> isDefault,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -8444,8 +8610,23 @@ class $$ProductVariantsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameKey => $composableBuilder(
+    column: $table.nameKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get standardCostMinor => $composableBuilder(
+    column: $table.standardCostMinor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8522,8 +8703,23 @@ class $$ProductVariantsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nameKey => $composableBuilder(
+    column: $table.nameKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get standardCostMinor => $composableBuilder(
+    column: $table.standardCostMinor,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8594,8 +8790,19 @@ class $$ProductVariantsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get nameKey =>
+      $composableBuilder(column: $table.nameKey, builder: (column) => column);
+
   GeneratedColumn<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get standardCostMinor => $composableBuilder(
+    column: $table.standardCostMinor,
     builder: (column) => column,
   );
 
@@ -8666,7 +8873,10 @@ class $$ProductVariantsTableTableManager
                 Value<String?> lastEventId = const Value.absent(),
                 Value<int?> lastServerSequence = const Value.absent(),
                 Value<String> productId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+                Value<String?> nameKey = const Value.absent(),
                 Value<int> salePriceMinor = const Value.absent(),
+                Value<int?> standardCostMinor = const Value.absent(),
                 Value<bool> isDefault = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -8678,7 +8888,10 @@ class $$ProductVariantsTableTableManager
                 lastEventId: lastEventId,
                 lastServerSequence: lastServerSequence,
                 productId: productId,
+                name: name,
+                nameKey: nameKey,
                 salePriceMinor: salePriceMinor,
+                standardCostMinor: standardCostMinor,
                 isDefault: isDefault,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -8692,7 +8905,10 @@ class $$ProductVariantsTableTableManager
                 Value<String?> lastEventId = const Value.absent(),
                 Value<int?> lastServerSequence = const Value.absent(),
                 required String productId,
+                Value<String?> name = const Value.absent(),
+                Value<String?> nameKey = const Value.absent(),
                 required int salePriceMinor,
+                Value<int?> standardCostMinor = const Value.absent(),
                 required bool isDefault,
                 required int sortOrder,
                 Value<int> rowid = const Value.absent(),
@@ -8704,7 +8920,10 @@ class $$ProductVariantsTableTableManager
                 lastEventId: lastEventId,
                 lastServerSequence: lastServerSequence,
                 productId: productId,
+                name: name,
+                nameKey: nameKey,
                 salePriceMinor: salePriceMinor,
+                standardCostMinor: standardCostMinor,
                 isDefault: isDefault,
                 sortOrder: sortOrder,
                 rowid: rowid,
