@@ -12,7 +12,7 @@ import '../../../../domain/inventario/unidad_inventario.dart';
 import 'models/articulo_form_result.dart';
 import 'widgets/advanced_variants_section.dart';
 import 'widgets/currency_input_formatter.dart';
-import 'widgets/variant_editor_bottom_sheet.dart';
+import 'widgets/variant_editor_screen.dart';
 
 class ArticleFormScreen extends StatefulWidget {
   const ArticleFormScreen({
@@ -318,15 +318,14 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (_saving) return;
     final variants = _advancedVariants;
     if (variants == null || index < 0 || index >= variants.length) return;
-    final result = await showModalBottomSheet<VariantEditorResult>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (context) => VariantEditorBottomSheet(
-        initialValue: variants[index],
-        canDelete: index > 0,
-        existingNameKeys: _variantNameKeys(excludingIndex: index),
+    final result = await Navigator.of(context).push<VariantEditorResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => VariantEditorScreen(
+          initialValue: variants[index],
+          canDelete: index > 0,
+          existingNameKeys: _variantNameKeys(excludingIndex: index),
+        ),
       ),
     );
     if (result == null || !mounted) return;
@@ -343,15 +342,21 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
 
   Future<void> _addVariant() async {
     if (_saving) return;
-    final result = await showModalBottomSheet<VariantEditorResult>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (context) => VariantEditorBottomSheet(
-        initialValue: null,
-        canDelete: false,
-        existingNameKeys: _variantNameKeys(),
+    final variants = _advancedVariants;
+    if (variants != null &&
+        variants.length == 1 &&
+        _isEmptyVariantDraft(variants.first)) {
+      await _editVariant(0);
+      return;
+    }
+    final result = await Navigator.of(context).push<VariantEditorResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => VariantEditorScreen(
+          initialValue: null,
+          canDelete: false,
+          existingNameKeys: _variantNameKeys(),
+        ),
       ),
     );
     if (result?.value == null || !mounted) return;
@@ -360,6 +365,12 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       _variantListError = null;
       _saveError = null;
     });
+  }
+
+  bool _isEmptyVariantDraft(ArticuloFormVarianteResult variant) {
+    return (variant.nombre?.trim().isEmpty ?? true) &&
+        variant.precioVenta.trim().isEmpty &&
+        (variant.costoEstandar?.trim().isEmpty ?? true);
   }
 
   Set<String> _variantNameKeys({int? excludingIndex}) {
