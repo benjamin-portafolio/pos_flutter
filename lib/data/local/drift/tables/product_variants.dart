@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'common_fields.dart';
+import 'inventory_items.dart';
 import 'products.dart';
 
 /// Proyección local de las presentaciones vendibles de un producto.
@@ -25,6 +26,15 @@ class ProductVariants extends Table with CommonFields {
   /// Costo estándar opcional en unidad monetaria menor. Null significa costo
   /// desconocido y cero significa costo conocido igual a cero.
   IntColumn get standardCostMinor => integer().nullable()();
+
+  /// Recurso físico cuyo saldo sigue esta variante. Null significa que la
+  /// variante no controla existencias. La unicidad mantiene el vínculo directo
+  /// uno a uno sin transferir al catálogo la propiedad del recurso.
+  TextColumn get inventoryItemId => text().nullable().unique().references(
+    InventoryItems,
+    #id,
+    onDelete: KeyAction.restrict,
+  )();
 
   /// Indica que esta es la variante elegida por omisión.
   BoolColumn get isDefault => boolean()();

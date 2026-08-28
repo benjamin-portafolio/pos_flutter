@@ -272,7 +272,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           variants.any(
             (variant) =>
                 NombreVariante.fromInput(variant.nombre).value != null ||
-                CostoEstandar.fromInput(variant.costoEstandar) != null,
+                CostoEstandar.fromInput(variant.costoEstandar) != null ||
+                variant.seguimientoExistencias,
           );
       if (cannotRepresent) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -318,11 +319,17 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (_saving) return;
     final variants = _advancedVariants;
     if (variants == null || index < 0 || index >= variants.length) return;
+    final inventoryUnit = _directInventoryUnit;
+    if (inventoryUnit == null) {
+      _showInventoryUnitRequired();
+      return;
+    }
     final result = await Navigator.of(context).push<VariantEditorResult>(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) => VariantEditorScreen(
           initialValue: variants[index],
+          inventoryUnit: inventoryUnit,
           canDelete: index > 0,
           existingNameKeys: _variantNameKeys(excludingIndex: index),
         ),
@@ -342,6 +349,11 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
 
   Future<void> _addVariant() async {
     if (_saving) return;
+    final inventoryUnit = _directInventoryUnit;
+    if (inventoryUnit == null) {
+      _showInventoryUnitRequired();
+      return;
+    }
     final variants = _advancedVariants;
     if (variants != null &&
         variants.length == 1 &&
@@ -354,6 +366,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         fullscreenDialog: true,
         builder: (context) => VariantEditorScreen(
           initialValue: null,
+          inventoryUnit: inventoryUnit,
           canDelete: false,
           existingNameKeys: _variantNameKeys(),
         ),
@@ -370,7 +383,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   bool _isEmptyVariantDraft(ArticuloFormVarianteResult variant) {
     return (variant.nombre?.trim().isEmpty ?? true) &&
         variant.precioVenta.trim().isEmpty &&
-        (variant.costoEstandar?.trim().isEmpty ?? true);
+        (variant.costoEstandar?.trim().isEmpty ?? true) &&
+        !variant.seguimientoExistencias &&
+        (variant.existenciaInicial?.trim().isEmpty ?? true);
   }
 
   Set<String> _variantNameKeys({int? excludingIndex}) {
@@ -401,6 +416,10 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       builder: (context) => _SaleModeBottomSheet(selected: _saleMode),
     );
     if (selected == null || selected == _saleMode || !mounted) return;
+    if (_hasTrackedVariants) {
+      _showTrackedVariantConfigurationWarning();
+      return;
+    }
     setState(() {
       _saleMode = selected;
       _showSaleUnitError = false;
@@ -420,6 +439,10 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       ),
     );
     if (selected == null || !mounted) return;
+    if (_hasTrackedVariants && selected.id != _selectedSaleUnit?.id) {
+      _showTrackedVariantConfigurationWarning();
+      return;
+    }
     setState(() {
       _selectedSaleUnit = selected;
       _showSaleUnitError = false;
@@ -487,6 +510,13 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         final name = NombreVariante.fromInput(variant.nombre);
         PrecioVenta.fromInput(variant.precioVenta);
         CostoEstandar.fromInput(variant.costoEstandar);
+        if (variant.seguimientoExistencias) {
+          final expectedUnit = _directInventoryUnit;
+          if (expectedUnit == null ||
+              variant.inventoryUnitId != expectedUnit.id) {
+            return 'La unidad del seguimiento no coincide con la forma de venta.';
+          }
+        }
         final nameKey = name.nameKey;
         if (nameKey != null && !nameKeys.add(nameKey)) {
           return 'Los nombres de variantes no pueden repetirse.';
@@ -541,9 +571,47 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             (variant) =>
                 variant.nombre != null ||
                 variant.precioVenta.isNotEmpty ||
-                variant.costoEstandar != null,
+                variant.costoEstandar != null ||
+                variant.seguimientoExistencias ||
+                variant.existenciaInicial != null,
           ) ??
           false);
+
+  bool get _hasTrackedVariants =>
+      _advancedVariants?.any((variant) => variant.seguimientoExistencias) ??
+      false;
+
+  UnidadInventario? get _directInventoryUnit {
+    if (_saleMode == SaleMode.measured) return _selectedSaleUnit;
+    for (final unit in widget.unidadesVenta) {
+      if (unit.activa &&
+          unit.dimension == DimensionUnidad.count &&
+          unit.factorAtomico == 1) {
+        return unit;
+      }
+    }
+    return null;
+  }
+
+  void _showInventoryUnitRequired() {
+    final message = _saleMode == SaleMode.measured
+        ? 'Selecciona primero la unidad de venta.'
+        : 'No existe una unidad activa de piezas para controlar existencias.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showTrackedVariantConfigurationWarning() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Desactiva el seguimiento de existencias de las variantes antes de '
+          'cambiar la forma o unidad de venta.',
+        ),
+      ),
+    );
+  }
 }
 
 enum _ArticleCreationMode { simple, advanced }

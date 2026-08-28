@@ -5,6 +5,7 @@ import 'package:pos_flutter/application/commands/producto_command_service.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/recurso_inventario_creado_payload.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
 import 'package:pos_flutter/application/sync/synced_event_history.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
@@ -105,6 +106,56 @@ void main() {
     expect(eventStore.refs[2].refId, '${event.aggregateId}:Z3JhbmRl');
     expect(eventStore.refs[2].relationship, 'requires_unique');
   });
+
+  test(
+    'crea recurso, movimiento inicial y artículo enlazado en orden causal',
+    () async {
+      unitRepository.units[_piece.id] = _piece;
+
+      await service.crearArticulo(
+        const CrearArticuloCommand.conVariantes(
+          nombre: 'Refresco',
+          variantes: [
+            CrearArticuloVarianteCommand(
+              nombre: null,
+              precioVenta: '25',
+              costoEstandar: null,
+              inventoryUnitId: '00000000-0000-4000-8000-000000000040',
+              initialStockQuantity: '15',
+            ),
+          ],
+        ),
+      );
+
+      expect(eventStore.events, hasLength(2));
+      final resourceEvent = eventStore.events.first;
+      final resourcePayload = RecursoInventarioCreadoPayload.fromJson(
+        resourceEvent.payload,
+      );
+      final productEvent = eventStore.events.last;
+      final productPayload = ProductoCreadoPayload.fromJson(
+        productEvent.payload,
+      );
+      expect(resourceEvent.eventType, 'recurso_inventario_creado');
+      expect(resourcePayload.defaultUnitId, _piece.id);
+      expect(resourcePayload.initialMovement?.quantityDeltaAtomic, 15);
+      expect(
+        productPayload.variantes.single.inventoryItemId,
+        resourceEvent.aggregateId,
+      );
+      expect(
+        productPayload.dependenciasInventario.single.dependsOnEventId,
+        resourceEvent.eventId,
+      );
+      expect(
+        eventStore.refBatches.last
+            .where((ref) => ref.refType == 'inventory_item')
+            .single
+            .relationship,
+        'uses',
+      );
+    },
+  );
 
   test('rechaza nombres duplicados antes de generar el evento', () async {
     await expectLater(
@@ -290,6 +341,17 @@ const _kilogram = UnidadInventario(
   activa: true,
 );
 
+const _piece = UnidadInventario(
+  id: '00000000-0000-4000-8000-000000000040',
+  code: 'piece',
+  nombre: 'Pieza',
+  simbolo: 'pz',
+  dimension: DimensionUnidad.count,
+  factorAtomico: 1,
+  maximosDecimales: 0,
+  activa: true,
+);
+
 SyncEvent _categoryCreatedEvent({String deliveryStatus = 'pending'}) {
   return SyncEvent(
     eventId: 'category_event_1',
@@ -307,6 +369,8 @@ SyncEvent _categoryCreatedEvent({String deliveryStatus = 'pending'}) {
 class _CapturingLocalEventStore implements LocalEventStore {
   SyncEvent? event;
   List<LocalEventRef> refs = const [];
+  final List<SyncEvent> events = [];
+  final List<List<LocalEventRef>> refBatches = [];
 
   @override
   Future<void> appendAndApply(
@@ -315,6 +379,8 @@ class _CapturingLocalEventStore implements LocalEventStore {
   }) async {
     this.event = event;
     this.refs = refs;
+    events.add(event);
+    refBatches.add(refs);
   }
 }
 

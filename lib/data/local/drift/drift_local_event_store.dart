@@ -8,7 +8,8 @@ import '../../../application/sync/local_event_store.dart';
 import '../../../application/sync/models/sync_event.dart';
 import 'app_database.dart';
 
-class DriftLocalEventStore implements LocalEventStore {
+class DriftLocalEventStore
+    implements LocalEventStore, LocalAtomicEventBatchStore {
   DriftLocalEventStore({
     required AppDatabase db,
     required EventDao eventDao,
@@ -37,24 +38,44 @@ class DriftLocalEventStore implements LocalEventStore {
     SyncEvent event, {
     required List<LocalEventRef> refs,
   }) async {
-    if (refs.isEmpty) {
+    await appendAndApplyBatchAtomically([
+      LocalEventAppend(event: event, refs: refs),
+    ]);
+  }
+
+  @override
+  Future<void> appendAndApplyBatchAtomically(
+    List<LocalEventAppend> entries,
+  ) async {
+    if (entries.isEmpty) {
       throw ArgumentError.value(
-        refs,
-        'refs',
-        'Debe incluir al menos una referencia al agregado principal.',
+        entries,
+        'entries',
+        'El lote no puede estar vacío.',
       );
     }
-
-    final localEvent = _localEventForCurrentMode(event);
-
-    await _db.transaction(() async {
-      await _eventDao.insertarEvento(_eventCompanionFrom(localEvent));
-      if (_appConfigController?.mode != AppMode.standalone) {
-        await _eventRefDao.insertarReferencias(
-          refs.map((ref) => _eventRefCompanionFrom(localEvent, ref)).toList(),
+    for (final entry in entries) {
+      if (entry.refs.isEmpty) {
+        throw ArgumentError.value(
+          entry.refs,
+          'refs',
+          'Debe incluir al menos una referencia al agregado principal.',
         );
       }
-      await _eventProcessor.apply(localEvent);
+    }
+    await _db.transaction(() async {
+      for (final entry in entries) {
+        final localEvent = _localEventForCurrentMode(entry.event);
+        await _eventDao.insertarEvento(_eventCompanionFrom(localEvent));
+        if (_appConfigController?.mode != AppMode.standalone) {
+          await _eventRefDao.insertarReferencias(
+            entry.refs
+                .map((ref) => _eventRefCompanionFrom(localEvent, ref))
+                .toList(),
+          );
+        }
+        await _eventProcessor.apply(localEvent);
+      }
     });
   }
 

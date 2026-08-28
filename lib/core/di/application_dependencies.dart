@@ -84,7 +84,10 @@ void registerApplicationDependencies(
     ),
   );
   getIt.registerLazySingleton<ProductoEventHandler>(
-    () => ProductoEventHandler(getIt<ProductoProjectionStore>()),
+    () => ProductoEventHandler(
+      getIt<ProductoProjectionStore>(),
+      inventoryProjectionStore: getIt<InventoryProjectionStore>(),
+    ),
   );
   getIt.registerLazySingleton<InventoryEventHandler>(
     () => InventoryEventHandler(getIt<InventoryProjectionStore>()),

@@ -8,11 +8,14 @@ import '../../domain/articulos/nombre_variante.dart';
 import '../../domain/articulos/precio_venta.dart';
 import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/inventario/dimension_unidad.dart';
+import '../../domain/inventario/inventory_quantity_codec.dart';
+import '../../domain/inventario/unidad_inventario.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
 import '../sync/payloads/categoria_creada_payload.dart';
 import '../sync/payloads/producto_creado_payload.dart';
+import '../sync/payloads/recurso_inventario_creado_payload.dart';
 import '../sync/projections/categoria_projection_store.dart';
 import '../sync/synced_event_history.dart';
 import 'crear_articulo_command.dart';
@@ -37,9 +40,13 @@ class ProductoCommandService {
   final SyncedEventHistory _syncedEventHistory;
   final UnidadInventarioRepository _unidadInventarioRepository;
   final Uuid _uuid = const Uuid();
+  static const _quantityCodec = InventoryQuantityCodec();
 
   Future<void> crearArticulo(CrearArticuloCommand command) async {
     final nombre = NombreProducto.fromInput(command.nombre);
+    final saleConfiguration = await _validateSaleConfiguration(
+      command.saleConfiguration,
+    );
     final capturedVariants = command.variantes.isEmpty
         ? [
             CrearArticuloVarianteCommand(
@@ -70,13 +77,14 @@ class ProductoCommandService {
           costoEstandarMenor: CostoEstandar.fromInput(
             captured.costoEstandar,
           )?.unidadMenor,
+          inventory: await _normalizeInventoryTracking(
+            captured,
+            saleConfiguration,
+          ),
         ),
       );
     }
     final categoriaId = _normalizeOptional(command.categoriaId);
-    final saleConfiguration = await _validateSaleConfiguration(
-      command.saleConfiguration,
-    );
     final dependency = categoriaId == null
         ? null
         : await _categoryDependency(categoriaId);
@@ -87,6 +95,26 @@ class ProductoCommandService {
       growable: false,
     );
     final eventId = _uuid.v4();
+    final inventoryBindings = <_InventoryBinding>[];
+    for (var index = 0; index < normalizedVariants.length; index++) {
+      final inventory = normalizedVariants[index].inventory;
+      if (inventory == null) continue;
+      inventoryBindings.add(
+        _InventoryBinding(
+          variantIndex: index,
+          inventoryItemId: _uuid.v4(),
+          creationEventId: _uuid.v4(),
+          movementId: inventory.initialQuantityAtomic == null
+              ? null
+              : _uuid.v4(),
+          unit: inventory.unit,
+          initialQuantityAtomic: inventory.initialQuantityAtomic,
+        ),
+      );
+    }
+    final inventoryByVariant = {
+      for (final binding in inventoryBindings) binding.variantIndex: binding,
+    };
     final payload = ProductoCreadoPayload.create(
       nombre: nombre.value,
       categoriaId: categoriaId,
@@ -98,11 +126,19 @@ class ProductoCommandService {
             nombre: normalizedVariants[index].nombre,
             precioVentaMenor: normalizedVariants[index].precioVentaMenor,
             costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
+            inventoryItemId: inventoryByVariant[index]?.inventoryItemId,
             esPredeterminada: index == 0,
             orden: index,
           ),
       ],
       dependenciaCategoria: dependency,
+      dependenciasInventario: [
+        for (final binding in inventoryBindings)
+          ProductoCreadoInventarioDependencia(
+            refId: binding.inventoryItemId,
+            dependsOnEventId: binding.creationEventId,
+          ),
+      ],
     );
     final event = SyncEvent(
       eventId: eventId,
@@ -116,34 +152,154 @@ class ProductoCommandService {
       payload: payload.toJson(),
     );
 
-    await _eventStore.appendAndApply(
-      event,
-      refs: [
-        LocalEventRef.affects(refType: 'product', refId: productId),
-        for (var index = 0; index < payload.variantes.length; index++) ...[
-          LocalEventRef.affects(
-            refType: 'product_variant',
-            refId: payload.variantes[index].id,
-          ),
-          if (payload.variantes[index].nameKey case final nameKey?)
-            LocalEventRef.requiresUnique(
-              refType: 'product_variant_name',
-              refId: _variantNameRefId(productId, nameKey),
+    final createdAt = event.createdAtLocal;
+    final entries = <LocalEventAppend>[
+      for (final binding in inventoryBindings)
+        _inventoryCreationAppend(
+          binding: binding,
+          productName: nombre.value,
+          variantName: normalizedVariants[binding.variantIndex].nombre,
+          createdAt: createdAt,
+        ),
+      LocalEventAppend(
+        event: event,
+        refs: [
+          LocalEventRef.affects(refType: 'product', refId: productId),
+          for (var index = 0; index < payload.variantes.length; index++) ...[
+            LocalEventRef.affects(
+              refType: 'product_variant',
+              refId: payload.variantes[index].id,
+            ),
+            if (payload.variantes[index].nameKey case final nameKey?)
+              LocalEventRef.requiresUnique(
+                refType: 'product_variant_name',
+                refId: _variantNameRefId(productId, nameKey),
+              ),
+            if (payload.variantes[index].inventoryItemId
+                case final inventoryItemId?)
+              LocalEventRef.uses(
+                refType: 'inventory_item',
+                refId: inventoryItemId,
+              ),
+          ],
+          if (categoriaId != null)
+            LocalEventRef.uses(refType: 'category', refId: categoriaId),
+          if (saleConfiguration is MeasuredSaleConfiguration)
+            LocalEventRef.uses(
+              refType: 'unit',
+              refId: saleConfiguration.saleUnitId,
             ),
         ],
-        if (categoriaId != null)
-          LocalEventRef(
-            refType: 'category',
-            refId: categoriaId,
-            relationship: 'uses',
-          ),
-        if (saleConfiguration is MeasuredSaleConfiguration)
-          LocalEventRef.uses(
-            refType: 'unit',
-            refId: saleConfiguration.saleUnitId,
+      ),
+    ];
+    await _eventStore.appendAndApplyAll(entries);
+  }
+
+  Future<_NormalizedInventory?> _normalizeInventoryTracking(
+    CrearArticuloVarianteCommand captured,
+    SaleConfiguration saleConfiguration,
+  ) async {
+    final unitId = _normalizeOptional(captured.inventoryUnitId);
+    final initialQuantity = _normalizeOptional(captured.initialStockQuantity);
+    if (unitId == null) {
+      if (initialQuantity != null) {
+        throw ArgumentError.value(
+          captured.initialStockQuantity,
+          'initialStockQuantity',
+          'La existencia inicial requiere seguimiento de inventario.',
+        );
+      }
+      return null;
+    }
+
+    final unit = await _unidadInventarioRepository.obtenerUnidadPorId(unitId);
+    if (unit == null || !unit.activa) {
+      throw StateError('La unidad del inventario no existe o está inactiva.');
+    }
+    switch (saleConfiguration) {
+      case UnitSaleConfiguration():
+        if (unit.dimension != DimensionUnidad.count ||
+            unit.factorAtomico != 1) {
+          throw StateError(
+            'Una variante vendida por unidad debe controlar existencias en piezas.',
+          );
+        }
+      case MeasuredSaleConfiguration():
+        final saleUnit = await _unidadInventarioRepository.obtenerUnidadPorId(
+          saleConfiguration.saleUnitId,
+        );
+        if (saleUnit == null || unit.dimension != saleUnit.dimension) {
+          throw StateError(
+            'La unidad de inventario debe tener la misma dimensión que la venta.',
+          );
+        }
+    }
+    return _NormalizedInventory(
+      unit: unit,
+      initialQuantityAtomic: initialQuantity == null
+          ? null
+          : switch (_quantityCodec.parseNonNegativeAtomic(
+              initialQuantity,
+              unit,
+            )) {
+              0 => null,
+              final quantity => quantity,
+            },
+    );
+  }
+
+  LocalEventAppend _inventoryCreationAppend({
+    required _InventoryBinding binding,
+    required String productName,
+    required String? variantName,
+    required DateTime createdAt,
+  }) {
+    final movement = binding.initialQuantityAtomic == null
+        ? null
+        : InitialInventoryMovementPayload.create(
+            movementId: binding.movementId!,
+            quantityDeltaAtomic: binding.initialQuantityAtomic!,
+            reason: 'Existencia inicial del artículo',
+          );
+    final payload = RecursoInventarioCreadoPayload.create(
+      inventoryItemId: binding.inventoryItemId,
+      name: _inventoryResourceName(productName, variantName),
+      defaultUnitId: binding.unit.id,
+      initialMovement: movement,
+    );
+    final event = SyncEvent(
+      eventId: binding.creationEventId,
+      aggregateType: RecursoInventarioCreadoPayload.aggregateType,
+      aggregateId: binding.inventoryItemId,
+      eventType: RecursoInventarioCreadoPayload.eventType,
+      deviceId: _commandContext.deviceId,
+      userId: _commandContext.userId,
+      baseVersion: 1,
+      createdAtLocal: createdAt,
+      payload: payload.toJson(),
+    );
+    return LocalEventAppend(
+      event: event,
+      refs: [
+        LocalEventRef.affects(
+          refType: 'inventory_item',
+          refId: binding.inventoryItemId,
+        ),
+        LocalEventRef.uses(refType: 'unit', refId: binding.unit.id),
+        if (binding.movementId case final movementId?)
+          LocalEventRef.affects(
+            refType: 'inventory_movement',
+            refId: movementId,
           ),
       ],
     );
+  }
+
+  String _inventoryResourceName(String productName, String? variantName) {
+    final candidate = variantName == null
+        ? productName
+        : '$productName · $variantName';
+    return String.fromCharCodes(candidate.runes.take(160));
   }
 
   Future<SaleConfiguration> _validateSaleConfiguration(
@@ -227,9 +383,39 @@ class _NormalizedVariant {
     required this.nombre,
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
+    required this.inventory,
   });
 
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+  final _NormalizedInventory? inventory;
+}
+
+class _NormalizedInventory {
+  const _NormalizedInventory({
+    required this.unit,
+    required this.initialQuantityAtomic,
+  });
+
+  final UnidadInventario unit;
+  final int? initialQuantityAtomic;
+}
+
+class _InventoryBinding {
+  const _InventoryBinding({
+    required this.variantIndex,
+    required this.inventoryItemId,
+    required this.creationEventId,
+    required this.movementId,
+    required this.unit,
+    required this.initialQuantityAtomic,
+  });
+
+  final int variantIndex;
+  final String inventoryItemId;
+  final String creationEventId;
+  final String? movementId;
+  final UnidadInventario unit;
+  final int? initialQuantityAtomic;
 }

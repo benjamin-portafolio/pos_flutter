@@ -37,8 +37,11 @@ void main() {
     await tester.tap(find.byKey(const Key('article_variant_card_0')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('variant_name_field')), findsOneWidget);
-    expect(find.text('Existencias disponibles'), findsWidgets);
-    expect(find.text('—'), findsWidgets);
+    expect(find.text('Seguimiento de existencias'), findsOneWidget);
+    expect(
+      find.byKey(const Key('variant_inventory_tracking_switch')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Agregar variante reutiliza el primer borrador vacío', (
@@ -73,6 +76,45 @@ void main() {
     expect(result?.variantes, hasLength(1));
     expect(result?.variantes.single.nombre, 'Grande');
     expect(result?.variantes.single.precioVenta, '10');
+  });
+
+  testWidgets('captura seguimiento directo y existencia inicial por variante', (
+    tester,
+  ) async {
+    ArticuloFormResult? result;
+    await _pumpForm(tester, onSave: (value) async => result = value);
+    await tester.enterText(
+      find.byKey(const Key('article_name_field')),
+      'Agua mineral',
+    );
+    await _chooseAdvanced(tester);
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '25',
+    );
+    await tester.tap(
+      find.byKey(const Key('variant_inventory_tracking_switch')),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const Key('variant_initial_stock_field')),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_initial_stock_field')),
+      '15',
+    );
+    await tester.tap(find.byKey(const Key('save_variant_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('15'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    expect(result?.variantes.single.inventoryUnitId, 'unit_piece');
+    expect(result?.variantes.single.existenciaInicial, '15');
   });
 
   testWidgets(

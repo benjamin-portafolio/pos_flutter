@@ -58,4 +58,13 @@ void main() {
     expect(() => codec.parsePositiveAtomic('+1', kg), throwsFormatException);
     expect(() => codec.parsePositiveAtomic('0', kg), throwsFormatException);
   });
+
+  test('acepta cero solo para capturas iniciales no negativas', () {
+    expect(codec.parseNonNegativeAtomic('0.000', kg), 0);
+    expect(codec.parseNonNegativeAtomic('0', piece), 0);
+    expect(
+      () => codec.parseNonNegativeAtomic('0.0000', kg),
+      throwsFormatException,
+    );
+  });
 }

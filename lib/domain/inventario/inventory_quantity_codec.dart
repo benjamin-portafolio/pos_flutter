@@ -6,6 +6,18 @@ class InventoryQuantityCodec {
   static final BigInt _maxSafeInteger = BigInt.from(9007199254740991);
 
   int parsePositiveAtomic(String input, UnidadInventario unit) {
+    final atomic = _parseAtomic(input, unit);
+    if (atomic == 0) {
+      throw const FormatException('La cantidad debe ser mayor que cero.');
+    }
+    return atomic;
+  }
+
+  int parseNonNegativeAtomic(String input, UnidadInventario unit) {
+    return _parseAtomic(input, unit);
+  }
+
+  int _parseAtomic(String input, UnidadInventario unit) {
     final normalized = input.trim().replaceAll(',', '.');
     if (normalized.isEmpty) {
       throw const FormatException('Ingresa una cantidad.');
@@ -31,9 +43,6 @@ class InventoryQuantityCodec {
       );
     }
     final atomic = scaled ~/ denominator;
-    if (atomic <= BigInt.zero) {
-      throw const FormatException('La cantidad debe ser mayor que cero.');
-    }
     if (atomic > _maxSafeInteger) {
       throw const FormatException('La cantidad excede el límite permitido.');
     }

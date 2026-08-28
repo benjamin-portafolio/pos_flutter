@@ -242,10 +242,15 @@ class SyncPushService {
             );
       case ProductoCreadoPayload.eventType:
         final payload = ProductoCreadoPayload.fromJson(event.payload);
-        final dependencyEventId =
-            payload.dependenciaCategoria?.dependsOnEventId;
-        return dependencyEventId != null &&
-            eventIds.contains(dependencyEventId);
+        return switch (payload.dependenciaCategoria?.dependsOnEventId) {
+              final dependencyEventId? => eventIds.contains(dependencyEventId),
+              null => false,
+            } ||
+            payload.dependenciasInventario.any(
+              (dependency) =>
+                  dependency.dependsOnEventId != null &&
+                  eventIds.contains(dependency.dependsOnEventId),
+            );
       default:
         return false;
     }

@@ -8,9 +8,14 @@ import '../../../../domain/repositories/recurso_inventario_repository.dart';
 import 'widgets/inventory_resource_card.dart';
 
 class InventoryResourcesTab extends StatefulWidget {
-  const InventoryResourcesTab({required this.repository, super.key});
+  const InventoryResourcesTab({
+    required this.repository,
+    this.onAdjust,
+    super.key,
+  });
 
   final RecursoInventarioRepository repository;
+  final ValueChanged<RecursoInventarioListado>? onAdjust;
 
   @override
   State<InventoryResourcesTab> createState() => _InventoryResourcesTabState();
@@ -121,8 +126,12 @@ class _InventoryResourcesTabState extends State<InventoryResourcesTab> {
               return ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 itemCount: resources.length,
-                itemBuilder: (_, index) =>
-                    InventoryResourceCard(resource: resources[index]),
+                itemBuilder: (_, index) => InventoryResourceCard(
+                  resource: resources[index],
+                  onAdjust: widget.onAdjust == null
+                      ? null
+                      : () => widget.onAdjust!(resources[index]),
+                ),
               );
             },
           ),

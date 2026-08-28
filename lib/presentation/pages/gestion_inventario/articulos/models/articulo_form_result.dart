@@ -23,11 +23,17 @@ class ArticuloFormVarianteResult {
     required this.nombre,
     required this.precioVenta,
     required this.costoEstandar,
+    this.inventoryUnitId,
+    this.existenciaInicial,
   });
 
   final String? nombre;
   final String precioVenta;
   final String? costoEstandar;
+  final String? inventoryUnitId;
+  final String? existenciaInicial;
+
+  bool get seguimientoExistencias => inventoryUnitId != null;
 
   ArticuloFormVarianteResult copyWith({
     String? nombre,
@@ -35,6 +41,10 @@ class ArticuloFormVarianteResult {
     String? precioVenta,
     String? costoEstandar,
     bool clearCostoEstandar = false,
+    String? inventoryUnitId,
+    bool clearInventoryUnitId = false,
+    String? existenciaInicial,
+    bool clearExistenciaInicial = false,
   }) {
     return ArticuloFormVarianteResult(
       nombre: clearNombre ? null : nombre ?? this.nombre,
@@ -42,6 +52,12 @@ class ArticuloFormVarianteResult {
       costoEstandar: clearCostoEstandar
           ? null
           : costoEstandar ?? this.costoEstandar,
+      inventoryUnitId: clearInventoryUnitId
+          ? null
+          : inventoryUnitId ?? this.inventoryUnitId,
+      existenciaInicial: clearExistenciaInicial
+          ? null
+          : existenciaInicial ?? this.existenciaInicial,
     );
   }
 }

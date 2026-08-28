@@ -9,6 +9,7 @@ import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
+import 'payloads/existencia_inventario_ajustada_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
 import 'projections/producto_projection_store.dart';
@@ -63,6 +64,9 @@ class SyncConflictProjectionCleaner {
       await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
     } else if (event.eventType == RecursoInventarioCreadoPayload.eventType) {
       await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
+    } else if (event.eventType ==
+        ExistenciaInventarioAjustadaPayload.eventType) {
+      await _inventoryProjectionStore?.deleteAdjustmentByEvent(event.eventId);
     }
   }
 }

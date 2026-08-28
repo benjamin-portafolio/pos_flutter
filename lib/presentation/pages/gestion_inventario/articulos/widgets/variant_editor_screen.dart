@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../../domain/articulos/costo_estandar.dart';
 import '../../../../../domain/articulos/nombre_variante.dart';
 import '../../../../../domain/articulos/precio_venta.dart';
+import '../../../../../domain/inventario/inventory_quantity_codec.dart';
+import '../../../../../domain/inventario/unidad_inventario.dart';
+import '../../recursos/widgets/inventory_quantity_input_formatter.dart';
 import '../models/articulo_form_result.dart';
 import 'currency_input_formatter.dart';
 
@@ -11,12 +14,14 @@ class VariantEditorScreen extends StatefulWidget {
     required this.initialValue,
     required this.canDelete,
     required this.existingNameKeys,
+    required this.inventoryUnit,
     super.key,
   });
 
   final ArticuloFormVarianteResult? initialValue;
   final bool canDelete;
   final Set<String> existingNameKeys;
+  final UnidadInventario inventoryUnit;
 
   @override
   State<VariantEditorScreen> createState() => _VariantEditorScreenState();
@@ -29,6 +34,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _priceController;
   late final TextEditingController _costController;
+  late final TextEditingController _initialStockController;
+  late bool _trackingInventory;
 
   @override
   void initState() {
@@ -37,6 +44,10 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _nameController = TextEditingController(text: initial?.nombre ?? '');
     _priceController = TextEditingController(text: initial?.precioVenta ?? '');
     _costController = TextEditingController(text: initial?.costoEstandar ?? '');
+    _initialStockController = TextEditingController(
+      text: initial?.existenciaInicial ?? '',
+    );
+    _trackingInventory = initial?.seguimientoExistencias ?? false;
     _priceController.addListener(_refreshCalculatedValues);
     _costController.addListener(_refreshCalculatedValues);
   }
@@ -48,6 +59,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _nameController.dispose();
     _priceController.dispose();
     _costController.dispose();
+    _initialStockController.dispose();
     super.dispose();
   }
 
@@ -176,11 +188,48 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const _EditorCard(
-                  child: _ReadOnlyValue(
-                    label: 'Existencias disponibles',
-                    value: '—',
-                    valueKey: Key('variant_available_stock_value'),
+                _EditorCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SwitchListTile(
+                        key: const Key('variant_inventory_tracking_switch'),
+                        contentPadding: EdgeInsets.zero,
+                        value: _trackingInventory,
+                        onChanged: (value) => setState(() {
+                          _trackingInventory = value;
+                          if (!value) _initialStockController.clear();
+                        }),
+                        title: const Text('Seguimiento de existencias'),
+                        subtitle: Text(
+                          'Cada variante usa un recurso directo en ${widget.inventoryUnit.simbolo}.',
+                        ),
+                        secondary: const Icon(Icons.inventory_2_outlined),
+                      ),
+                      if (_trackingInventory) ...[
+                        const Divider(),
+                        TextFormField(
+                          key: const Key('variant_initial_stock_field'),
+                          controller: _initialStockController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            InventoryQuantityInputFormatter(
+                              widget.inventoryUnit.maximosDecimales,
+                            ),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: 'Existencia inicial (opcional)',
+                            suffixText: widget.inventoryUnit.simbolo,
+                            helperText:
+                                'Se registrará como movimiento inicial; el saldo comienza en cero si queda vacío.',
+                            border: InputBorder.none,
+                          ),
+                          validator: _validateInitialStock,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
@@ -222,6 +271,21 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     }
   }
 
+  String? _validateInitialStock(String? value) {
+    if (!_trackingInventory || value == null || value.trim().isEmpty) {
+      return null;
+    }
+    try {
+      const InventoryQuantityCodec().parseNonNegativeAtomic(
+        value,
+        widget.inventoryUnit,
+      );
+      return null;
+    } on FormatException catch (error) {
+      return error.message;
+    }
+  }
+
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final name = NombreVariante.fromInput(_nameController.text);
@@ -233,6 +297,12 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
           costoEstandar: CostoEstandar.fromInput(_costController.text) == null
               ? null
               : _costController.text.trim().replaceAll(',', '.'),
+          inventoryUnitId: _trackingInventory ? widget.inventoryUnit.id : null,
+          existenciaInicial:
+              _trackingInventory &&
+                  _initialStockController.text.trim().isNotEmpty
+              ? _initialStockController.text.trim().replaceAll(',', '.')
+              : null,
         ),
       ),
     );
@@ -380,29 +450,6 @@ class _CompactReadOnlyValue extends StatelessWidget {
           child: Text(value, key: valueKey),
         ),
       ],
-    );
-  }
-}
-
-class _ReadOnlyValue extends StatelessWidget {
-  const _ReadOnlyValue({
-    required this.label,
-    required this.value,
-    required this.valueKey,
-  });
-
-  final String label;
-  final String value;
-  final Key valueKey;
-
-  @override
-  Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      child: Text(value, key: valueKey),
     );
   }
 }

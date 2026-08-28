@@ -10,6 +10,7 @@ import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
+import 'payloads/existencia_inventario_ajustada_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
 import 'projections/producto_projection_store.dart';
@@ -88,6 +89,8 @@ class PendingEventRevalidator {
             ),
             RecursoInventarioCreadoPayload.eventType =>
               await _inventoryItemCreadoConflict(event),
+            ExistenciaInventarioAjustadaPayload.eventType =>
+              await _inventoryAdjustmentConflict(event),
             _ => null,
           };
 
@@ -162,13 +165,23 @@ class PendingEventRevalidator {
     }
     if (event.eventType == ProductoCreadoPayload.eventType) {
       final payload = ProductoCreadoPayload.fromJson(event.payload);
-      final dependencyEventId = payload.dependenciaCategoria?.dependsOnEventId;
-      if (dependencyEventId != null &&
-          (conflictedEventIds.contains(dependencyEventId) ||
-              await _dependencyFailed(dependencyEventId))) {
-        return const _PendingConflict(
-          'El artículo depende de una categoría local en conflicto.',
-        );
+      final dependencyEventIds = <String>{
+        ...payload.dependenciasInventario
+            .map((dependency) => dependency.dependsOnEventId)
+            .whereType<String>(),
+      };
+      final categoryDependencyEventId =
+          payload.dependenciaCategoria?.dependsOnEventId;
+      if (categoryDependencyEventId != null) {
+        dependencyEventIds.add(categoryDependencyEventId);
+      }
+      for (final dependencyEventId in dependencyEventIds) {
+        if (conflictedEventIds.contains(dependencyEventId) ||
+            await _dependencyFailed(dependencyEventId)) {
+          return const _PendingConflict(
+            'El artículo depende de una categoría o recurso local en conflicto.',
+          );
+        }
       }
     }
     return null;
@@ -190,6 +203,22 @@ class PendingEventRevalidator {
       if (variant != null && variant.createdEventId != event.eventId) {
         return _PendingConflict(
           'Ya existe una variante oficial con id ${payloadVariant.id}.',
+        );
+      }
+      final inventoryItemId = payloadVariant.inventoryItemId;
+      if (inventoryItemId == null) continue;
+      final linked = await store.findVariantByInventoryItemId(inventoryItemId);
+      if (linked != null && linked.createdEventId != event.eventId) {
+        return _PendingConflict(
+          'El recurso $inventoryItemId ya está vinculado a otra variante.',
+        );
+      }
+      final item = await _inventoryProjectionStore?.findItemById(
+        inventoryItemId,
+      );
+      if (item == null || !item.active) {
+        return const _PendingConflict(
+          'Ya no existe un recurso activo para una variante del artículo.',
         );
       }
     }
@@ -228,6 +257,27 @@ class PendingEventRevalidator {
     if (unit == null || !unit.active) {
       return const _PendingConflict(
         'La unidad del recurso ya no existe o está inactiva.',
+      );
+    }
+    return null;
+  }
+
+  Future<_PendingConflict?> _inventoryAdjustmentConflict(
+    SyncEvent event,
+  ) async {
+    final store = _inventoryProjectionStore;
+    if (store == null) return null;
+    final payload = ExistenciaInventarioAjustadaPayload.fromJson(event.payload);
+    final item = await store.findItemById(payload.inventoryItemId);
+    if (item == null || !item.active) {
+      return const _PendingConflict(
+        'El recurso ajustado ya no existe o está inactivo.',
+      );
+    }
+    final movement = await store.findMovementById(payload.movementId);
+    if (movement != null && movement.eventId != event.eventId) {
+      return _PendingConflict(
+        'Ya existe un movimiento oficial con id ${payload.movementId}.',
       );
     }
     return null;
@@ -510,6 +560,8 @@ class PendingEventRevalidator {
         await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
       case RecursoInventarioCreadoPayload.eventType:
         await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
+      case ExistenciaInventarioAjustadaPayload.eventType:
+        await _inventoryProjectionStore?.deleteAdjustmentByEvent(event.eventId);
     }
   }
 

@@ -6,6 +6,10 @@ abstract interface class ProductoProjectionStore {
 
   Future<ProductoVarianteProjection?> findVariantById(String id);
 
+  Future<ProductoVarianteProjection?> findVariantByInventoryItemId(
+    String inventoryItemId,
+  );
+
   Future<List<ProductoVarianteProjection>> findVariantsByProductId(
     String productId,
   );
@@ -56,6 +60,7 @@ class ProductoVarianteProjection extends SyncProjection {
     this.nameKey,
     required this.precioVentaMenor,
     this.costoEstandarMenor,
+    this.inventoryItemId,
     required this.esPredeterminada,
     required this.orden,
     required super.active,
@@ -70,6 +75,7 @@ class ProductoVarianteProjection extends SyncProjection {
   final String? nameKey;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+  final String? inventoryItemId;
   final bool esPredeterminada;
   final int orden;
 }

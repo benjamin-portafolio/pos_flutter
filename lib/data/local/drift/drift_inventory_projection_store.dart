@@ -62,6 +62,20 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
   }
 
   @override
+  Future<InventoryBalanceProjection?> findBalanceByItemId(String id) async {
+    final row = await _inventoryDao.obtenerSaldoPorRecurso(id);
+    return row == null
+        ? null
+        : InventoryBalanceProjection(
+            inventoryItemId: row.inventoryItemId,
+            quantityOnHandAtomic: row.quantityOnHandAtomic,
+            quantityAvailableAtomic: row.quantityAvailableAtomic,
+            lastEventId: row.lastEventId,
+            lastServerSequence: row.lastServerSequence,
+          );
+  }
+
+  @override
   Future<void> insertCreation(InventoryCreationProjection creation) {
     final item = creation.item;
     final balance = creation.balance;
@@ -113,7 +127,53 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
   }
 
   @override
+  Future<void> applyAdjustment(InventoryAdjustmentProjection adjustment) {
+    final movement = adjustment.movement;
+    final balance = adjustment.balance;
+    return _inventoryDao.aplicarAjuste(
+      inventoryItemId: adjustment.inventoryItemId,
+      itemVersion: adjustment.itemVersion,
+      balance: local.InventoryBalancesCompanion(
+        quantityOnHandAtomic: drift.Value(balance.quantityOnHandAtomic),
+        quantityAvailableAtomic: drift.Value(balance.quantityAvailableAtomic),
+        lastEventId: drift.Value(balance.lastEventId),
+        lastServerSequence: drift.Value(balance.lastServerSequence),
+      ),
+      movement: local.InventoryMovementsCompanion.insert(
+        movementId: movement.id,
+        inventoryItemId: movement.inventoryItemId,
+        eventId: movement.eventId,
+        movementType: movement.movementType,
+        quantityDeltaAtomic: movement.quantityDeltaAtomic,
+        reason: movement.reason,
+        createdAtLocal: movement.createdAtLocal,
+        serverSequence: drift.Value(movement.serverSequence),
+      ),
+    );
+  }
+
+  @override
+  Future<void> advanceAdjustmentServerSequence({
+    required String inventoryItemId,
+    required String movementId,
+    required String eventId,
+    required int serverSequence,
+  }) {
+    return _inventoryDao.avanzarSecuenciaAjuste(
+      inventoryItemId: inventoryItemId,
+      movementId: movementId,
+      eventId: eventId,
+      serverSequence: serverSequence,
+    );
+  }
+
+  @override
   Future<void> deleteCreatedByEvent(String eventId) {
     return _inventoryDao.eliminarCreacionPorEvento(eventId);
+  }
+
+  @override
+  Future<void> deleteAdjustmentByEvent(String eventId) {
+    return _inventoryDao.eliminarAjustePorEvento(eventId);
   }
 }

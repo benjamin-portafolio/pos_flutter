@@ -74,6 +74,14 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     )..where((variant) => variant.id.equals(id))).getSingleOrNull();
   }
 
+  Future<ProductVariantRow?> obtenerVariantePorInventoryItemId(
+    String inventoryItemId,
+  ) {
+    return (select(productVariants)
+          ..where((variant) => variant.inventoryItemId.equals(inventoryItemId)))
+        .getSingleOrNull();
+  }
+
   Future<List<ProductVariantRow>> obtenerVariantesPorProducto(
     String productId,
   ) {

@@ -1877,6 +1877,563 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
   }
 }
 
+class $InventoryItemsTable extends InventoryItems
+    with TableInfo<$InventoryItemsTable, InventoryItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InventoryItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _defaultUnitIdMeta = const VerificationMeta(
+    'defaultUnitId',
+  );
+  @override
+  late final GeneratedColumn<String> defaultUnitId = GeneratedColumn<String>(
+    'default_unit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES units (unit_id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 160,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    defaultUnitId,
+    name,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'inventory_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InventoryItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('default_unit_id')) {
+      context.handle(
+        _defaultUnitIdMeta,
+        defaultUnitId.isAcceptableOrUnknown(
+          data['default_unit_id']!,
+          _defaultUnitIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_defaultUnitIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  InventoryItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InventoryItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      defaultUnitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_unit_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+    );
+  }
+
+  @override
+  $InventoryItemsTable createAlias(String alias) {
+    return $InventoryItemsTable(attachedDatabase, alias);
+  }
+}
+
+class InventoryItemRow extends DataClass
+    implements Insertable<InventoryItemRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Unidad elegida para capturar y mostrar existencias del recurso.
+  final String defaultUnitId;
+
+  /// Nombre descriptivo; no es único por regla de negocio.
+  final String name;
+  const InventoryItemRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.defaultUnitId,
+    required this.name,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['default_unit_id'] = Variable<String>(defaultUnitId);
+    map['name'] = Variable<String>(name);
+    return map;
+  }
+
+  InventoryItemsCompanion toCompanion(bool nullToAbsent) {
+    return InventoryItemsCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      defaultUnitId: Value(defaultUnitId),
+      name: Value(name),
+    );
+  }
+
+  factory InventoryItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InventoryItemRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      defaultUnitId: serializer.fromJson<String>(json['defaultUnitId']),
+      name: serializer.fromJson<String>(json['name']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'defaultUnitId': serializer.toJson<String>(defaultUnitId),
+      'name': serializer.toJson<String>(name),
+    };
+  }
+
+  InventoryItemRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? defaultUnitId,
+    String? name,
+  }) => InventoryItemRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    defaultUnitId: defaultUnitId ?? this.defaultUnitId,
+    name: name ?? this.name,
+  );
+  InventoryItemRow copyWithCompanion(InventoryItemsCompanion data) {
+    return InventoryItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      defaultUnitId: data.defaultUnitId.present
+          ? data.defaultUnitId.value
+          : this.defaultUnitId,
+      name: data.name.present ? data.name.value : this.name,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InventoryItemRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('defaultUnitId: $defaultUnitId, ')
+          ..write('name: $name')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    defaultUnitId,
+    name,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InventoryItemRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.defaultUnitId == this.defaultUnitId &&
+          other.name == this.name);
+}
+
+class InventoryItemsCompanion extends UpdateCompanion<InventoryItemRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> defaultUnitId;
+  final Value<String> name;
+  final Value<int> rowid;
+  const InventoryItemsCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.defaultUnitId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  InventoryItemsCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String defaultUnitId,
+    required String name,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       defaultUnitId = Value(defaultUnitId),
+       name = Value(name);
+  static Insertable<InventoryItemRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? defaultUnitId,
+    Expression<String>? name,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (defaultUnitId != null) 'default_unit_id': defaultUnitId,
+      if (name != null) 'name': name,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  InventoryItemsCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? defaultUnitId,
+    Value<String>? name,
+    Value<int>? rowid,
+  }) {
+    return InventoryItemsCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      defaultUnitId: defaultUnitId ?? this.defaultUnitId,
+      name: name ?? this.name,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (defaultUnitId.present) {
+      map['default_unit_id'] = Variable<String>(defaultUnitId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InventoryItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('defaultUnitId: $defaultUnitId, ')
+          ..write('name: $name, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ProductVariantsTable extends ProductVariants
     with TableInfo<$ProductVariantsTable, ProductVariantRow> {
   @override
@@ -2005,6 +2562,20 @@ class $ProductVariantsTable extends ProductVariants
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _inventoryItemIdMeta = const VerificationMeta(
+    'inventoryItemId',
+  );
+  @override
+  late final GeneratedColumn<String> inventoryItemId = GeneratedColumn<String>(
+    'inventory_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'UNIQUE REFERENCES inventory_items (id) ON DELETE RESTRICT',
+    ),
+  );
   static const VerificationMeta _isDefaultMeta = const VerificationMeta(
     'isDefault',
   );
@@ -2043,6 +2614,7 @@ class $ProductVariantsTable extends ProductVariants
     nameKey,
     salePriceMinor,
     standardCostMinor,
+    inventoryItemId,
     isDefault,
     sortOrder,
   ];
@@ -2142,6 +2714,15 @@ class $ProductVariantsTable extends ProductVariants
         ),
       );
     }
+    if (data.containsKey('inventory_item_id')) {
+      context.handle(
+        _inventoryItemIdMeta,
+        inventoryItemId.isAcceptableOrUnknown(
+          data['inventory_item_id']!,
+          _inventoryItemIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_default')) {
       context.handle(
         _isDefaultMeta,
@@ -2216,6 +2797,10 @@ class $ProductVariantsTable extends ProductVariants
         DriftSqlType.int,
         data['${effectivePrefix}standard_cost_minor'],
       ),
+      inventoryItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inventory_item_id'],
+      ),
       isDefault: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_default'],
@@ -2272,6 +2857,11 @@ class ProductVariantRow extends DataClass
   /// desconocido y cero significa costo conocido igual a cero.
   final int? standardCostMinor;
 
+  /// Recurso físico cuyo saldo sigue esta variante. Null significa que la
+  /// variante no controla existencias. La unicidad mantiene el vínculo directo
+  /// uno a uno sin transferir al catálogo la propiedad del recurso.
+  final String? inventoryItemId;
+
   /// Indica que esta es la variante elegida por omisión.
   final bool isDefault;
 
@@ -2289,6 +2879,7 @@ class ProductVariantRow extends DataClass
     this.nameKey,
     required this.salePriceMinor,
     this.standardCostMinor,
+    this.inventoryItemId,
     required this.isDefault,
     required this.sortOrder,
   });
@@ -2318,6 +2909,9 @@ class ProductVariantRow extends DataClass
     if (!nullToAbsent || standardCostMinor != null) {
       map['standard_cost_minor'] = Variable<int>(standardCostMinor);
     }
+    if (!nullToAbsent || inventoryItemId != null) {
+      map['inventory_item_id'] = Variable<String>(inventoryItemId);
+    }
     map['is_default'] = Variable<bool>(isDefault);
     map['sort_order'] = Variable<int>(sortOrder);
     return map;
@@ -2346,6 +2940,9 @@ class ProductVariantRow extends DataClass
       standardCostMinor: standardCostMinor == null && nullToAbsent
           ? const Value.absent()
           : Value(standardCostMinor),
+      inventoryItemId: inventoryItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inventoryItemId),
       isDefault: Value(isDefault),
       sortOrder: Value(sortOrder),
     );
@@ -2368,6 +2965,7 @@ class ProductVariantRow extends DataClass
       nameKey: serializer.fromJson<String?>(json['nameKey']),
       salePriceMinor: serializer.fromJson<int>(json['salePriceMinor']),
       standardCostMinor: serializer.fromJson<int?>(json['standardCostMinor']),
+      inventoryItemId: serializer.fromJson<String?>(json['inventoryItemId']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
@@ -2387,6 +2985,7 @@ class ProductVariantRow extends DataClass
       'nameKey': serializer.toJson<String?>(nameKey),
       'salePriceMinor': serializer.toJson<int>(salePriceMinor),
       'standardCostMinor': serializer.toJson<int?>(standardCostMinor),
+      'inventoryItemId': serializer.toJson<String?>(inventoryItemId),
       'isDefault': serializer.toJson<bool>(isDefault),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
@@ -2404,6 +3003,7 @@ class ProductVariantRow extends DataClass
     Value<String?> nameKey = const Value.absent(),
     int? salePriceMinor,
     Value<int?> standardCostMinor = const Value.absent(),
+    Value<String?> inventoryItemId = const Value.absent(),
     bool? isDefault,
     int? sortOrder,
   }) => ProductVariantRow(
@@ -2424,6 +3024,9 @@ class ProductVariantRow extends DataClass
     standardCostMinor: standardCostMinor.present
         ? standardCostMinor.value
         : this.standardCostMinor,
+    inventoryItemId: inventoryItemId.present
+        ? inventoryItemId.value
+        : this.inventoryItemId,
     isDefault: isDefault ?? this.isDefault,
     sortOrder: sortOrder ?? this.sortOrder,
   );
@@ -2450,6 +3053,9 @@ class ProductVariantRow extends DataClass
       standardCostMinor: data.standardCostMinor.present
           ? data.standardCostMinor.value
           : this.standardCostMinor,
+      inventoryItemId: data.inventoryItemId.present
+          ? data.inventoryItemId.value
+          : this.inventoryItemId,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
@@ -2469,6 +3075,7 @@ class ProductVariantRow extends DataClass
           ..write('nameKey: $nameKey, ')
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
+          ..write('inventoryItemId: $inventoryItemId, ')
           ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -2488,6 +3095,7 @@ class ProductVariantRow extends DataClass
     nameKey,
     salePriceMinor,
     standardCostMinor,
+    inventoryItemId,
     isDefault,
     sortOrder,
   );
@@ -2506,6 +3114,7 @@ class ProductVariantRow extends DataClass
           other.nameKey == this.nameKey &&
           other.salePriceMinor == this.salePriceMinor &&
           other.standardCostMinor == this.standardCostMinor &&
+          other.inventoryItemId == this.inventoryItemId &&
           other.isDefault == this.isDefault &&
           other.sortOrder == this.sortOrder);
 }
@@ -2522,6 +3131,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
   final Value<String?> nameKey;
   final Value<int> salePriceMinor;
   final Value<int?> standardCostMinor;
+  final Value<String?> inventoryItemId;
   final Value<bool> isDefault;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -2537,6 +3147,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.nameKey = const Value.absent(),
     this.salePriceMinor = const Value.absent(),
     this.standardCostMinor = const Value.absent(),
+    this.inventoryItemId = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2553,6 +3164,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.nameKey = const Value.absent(),
     required int salePriceMinor,
     this.standardCostMinor = const Value.absent(),
+    this.inventoryItemId = const Value.absent(),
     required bool isDefault,
     required int sortOrder,
     this.rowid = const Value.absent(),
@@ -2573,6 +3185,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Expression<String>? nameKey,
     Expression<int>? salePriceMinor,
     Expression<int>? standardCostMinor,
+    Expression<String>? inventoryItemId,
     Expression<bool>? isDefault,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -2590,6 +3203,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       if (nameKey != null) 'name_key': nameKey,
       if (salePriceMinor != null) 'sale_price_minor': salePriceMinor,
       if (standardCostMinor != null) 'standard_cost_minor': standardCostMinor,
+      if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
       if (isDefault != null) 'is_default': isDefault,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
@@ -2608,6 +3222,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Value<String?>? nameKey,
     Value<int>? salePriceMinor,
     Value<int?>? standardCostMinor,
+    Value<String?>? inventoryItemId,
     Value<bool>? isDefault,
     Value<int>? sortOrder,
     Value<int>? rowid,
@@ -2624,6 +3239,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       nameKey: nameKey ?? this.nameKey,
       salePriceMinor: salePriceMinor ?? this.salePriceMinor,
       standardCostMinor: standardCostMinor ?? this.standardCostMinor,
+      inventoryItemId: inventoryItemId ?? this.inventoryItemId,
       isDefault: isDefault ?? this.isDefault,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
@@ -2666,6 +3282,9 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     if (standardCostMinor.present) {
       map['standard_cost_minor'] = Variable<int>(standardCostMinor.value);
     }
+    if (inventoryItemId.present) {
+      map['inventory_item_id'] = Variable<String>(inventoryItemId.value);
+    }
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
     }
@@ -2692,6 +3311,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('nameKey: $nameKey, ')
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
+          ..write('inventoryItemId: $inventoryItemId, ')
           ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -5223,563 +5843,6 @@ class SyncCheckpointsCompanion extends UpdateCompanion<SyncCheckpoint> {
   }
 }
 
-class $InventoryItemsTable extends InventoryItems
-    with TableInfo<$InventoryItemsTable, InventoryItemRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $InventoryItemsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _activeMeta = const VerificationMeta('active');
-  @override
-  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
-    'active',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("active" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  static const VerificationMeta _versionMeta = const VerificationMeta(
-    'version',
-  );
-  @override
-  late final GeneratedColumn<int> version = GeneratedColumn<int>(
-    'version',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  );
-  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
-    'createdEventId',
-  );
-  @override
-  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
-    'created_event_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
-    'lastEventId',
-  );
-  @override
-  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
-    'last_event_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _lastServerSequenceMeta =
-      const VerificationMeta('lastServerSequence');
-  @override
-  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
-    'last_server_sequence',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _defaultUnitIdMeta = const VerificationMeta(
-    'defaultUnitId',
-  );
-  @override
-  late final GeneratedColumn<String> defaultUnitId = GeneratedColumn<String>(
-    'default_unit_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES units (unit_id) ON DELETE RESTRICT',
-    ),
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 160,
-    ),
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    active,
-    version,
-    createdEventId,
-    lastEventId,
-    lastServerSequence,
-    defaultUnitId,
-    name,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'inventory_items';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<InventoryItemRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('active')) {
-      context.handle(
-        _activeMeta,
-        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
-      );
-    }
-    if (data.containsKey('version')) {
-      context.handle(
-        _versionMeta,
-        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
-      );
-    }
-    if (data.containsKey('created_event_id')) {
-      context.handle(
-        _createdEventIdMeta,
-        createdEventId.isAcceptableOrUnknown(
-          data['created_event_id']!,
-          _createdEventIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_event_id')) {
-      context.handle(
-        _lastEventIdMeta,
-        lastEventId.isAcceptableOrUnknown(
-          data['last_event_id']!,
-          _lastEventIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_server_sequence')) {
-      context.handle(
-        _lastServerSequenceMeta,
-        lastServerSequence.isAcceptableOrUnknown(
-          data['last_server_sequence']!,
-          _lastServerSequenceMeta,
-        ),
-      );
-    }
-    if (data.containsKey('default_unit_id')) {
-      context.handle(
-        _defaultUnitIdMeta,
-        defaultUnitId.isAcceptableOrUnknown(
-          data['default_unit_id']!,
-          _defaultUnitIdMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_defaultUnitIdMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  InventoryItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return InventoryItemRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      active: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}active'],
-      )!,
-      version: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}version'],
-      )!,
-      createdEventId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}created_event_id'],
-      ),
-      lastEventId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}last_event_id'],
-      ),
-      lastServerSequence: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}last_server_sequence'],
-      ),
-      defaultUnitId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}default_unit_id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-    );
-  }
-
-  @override
-  $InventoryItemsTable createAlias(String alias) {
-    return $InventoryItemsTable(attachedDatabase, alias);
-  }
-}
-
-class InventoryItemRow extends DataClass
-    implements Insertable<InventoryItemRow> {
-  /// Unique global ID generated on the device as a UUID
-  final String id;
-
-  /// Logical deletion flag (active = true means not deleted)
-  final bool active;
-
-  /// Version for optimistic concurrency control and conflict resolution
-  final int version;
-
-  /// Reference to the event that created this record
-  final String? createdEventId;
-
-  /// Reference to the last event that modified this record
-  final String? lastEventId;
-
-  /// Sync cursor representing the official server sequence
-  final int? lastServerSequence;
-
-  /// Unidad elegida para capturar y mostrar existencias del recurso.
-  final String defaultUnitId;
-
-  /// Nombre descriptivo; no es único por regla de negocio.
-  final String name;
-  const InventoryItemRow({
-    required this.id,
-    required this.active,
-    required this.version,
-    this.createdEventId,
-    this.lastEventId,
-    this.lastServerSequence,
-    required this.defaultUnitId,
-    required this.name,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['active'] = Variable<bool>(active);
-    map['version'] = Variable<int>(version);
-    if (!nullToAbsent || createdEventId != null) {
-      map['created_event_id'] = Variable<String>(createdEventId);
-    }
-    if (!nullToAbsent || lastEventId != null) {
-      map['last_event_id'] = Variable<String>(lastEventId);
-    }
-    if (!nullToAbsent || lastServerSequence != null) {
-      map['last_server_sequence'] = Variable<int>(lastServerSequence);
-    }
-    map['default_unit_id'] = Variable<String>(defaultUnitId);
-    map['name'] = Variable<String>(name);
-    return map;
-  }
-
-  InventoryItemsCompanion toCompanion(bool nullToAbsent) {
-    return InventoryItemsCompanion(
-      id: Value(id),
-      active: Value(active),
-      version: Value(version),
-      createdEventId: createdEventId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(createdEventId),
-      lastEventId: lastEventId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastEventId),
-      lastServerSequence: lastServerSequence == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastServerSequence),
-      defaultUnitId: Value(defaultUnitId),
-      name: Value(name),
-    );
-  }
-
-  factory InventoryItemRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return InventoryItemRow(
-      id: serializer.fromJson<String>(json['id']),
-      active: serializer.fromJson<bool>(json['active']),
-      version: serializer.fromJson<int>(json['version']),
-      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
-      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
-      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
-      defaultUnitId: serializer.fromJson<String>(json['defaultUnitId']),
-      name: serializer.fromJson<String>(json['name']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'active': serializer.toJson<bool>(active),
-      'version': serializer.toJson<int>(version),
-      'createdEventId': serializer.toJson<String?>(createdEventId),
-      'lastEventId': serializer.toJson<String?>(lastEventId),
-      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
-      'defaultUnitId': serializer.toJson<String>(defaultUnitId),
-      'name': serializer.toJson<String>(name),
-    };
-  }
-
-  InventoryItemRow copyWith({
-    String? id,
-    bool? active,
-    int? version,
-    Value<String?> createdEventId = const Value.absent(),
-    Value<String?> lastEventId = const Value.absent(),
-    Value<int?> lastServerSequence = const Value.absent(),
-    String? defaultUnitId,
-    String? name,
-  }) => InventoryItemRow(
-    id: id ?? this.id,
-    active: active ?? this.active,
-    version: version ?? this.version,
-    createdEventId: createdEventId.present
-        ? createdEventId.value
-        : this.createdEventId,
-    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
-    lastServerSequence: lastServerSequence.present
-        ? lastServerSequence.value
-        : this.lastServerSequence,
-    defaultUnitId: defaultUnitId ?? this.defaultUnitId,
-    name: name ?? this.name,
-  );
-  InventoryItemRow copyWithCompanion(InventoryItemsCompanion data) {
-    return InventoryItemRow(
-      id: data.id.present ? data.id.value : this.id,
-      active: data.active.present ? data.active.value : this.active,
-      version: data.version.present ? data.version.value : this.version,
-      createdEventId: data.createdEventId.present
-          ? data.createdEventId.value
-          : this.createdEventId,
-      lastEventId: data.lastEventId.present
-          ? data.lastEventId.value
-          : this.lastEventId,
-      lastServerSequence: data.lastServerSequence.present
-          ? data.lastServerSequence.value
-          : this.lastServerSequence,
-      defaultUnitId: data.defaultUnitId.present
-          ? data.defaultUnitId.value
-          : this.defaultUnitId,
-      name: data.name.present ? data.name.value : this.name,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('InventoryItemRow(')
-          ..write('id: $id, ')
-          ..write('active: $active, ')
-          ..write('version: $version, ')
-          ..write('createdEventId: $createdEventId, ')
-          ..write('lastEventId: $lastEventId, ')
-          ..write('lastServerSequence: $lastServerSequence, ')
-          ..write('defaultUnitId: $defaultUnitId, ')
-          ..write('name: $name')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    active,
-    version,
-    createdEventId,
-    lastEventId,
-    lastServerSequence,
-    defaultUnitId,
-    name,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is InventoryItemRow &&
-          other.id == this.id &&
-          other.active == this.active &&
-          other.version == this.version &&
-          other.createdEventId == this.createdEventId &&
-          other.lastEventId == this.lastEventId &&
-          other.lastServerSequence == this.lastServerSequence &&
-          other.defaultUnitId == this.defaultUnitId &&
-          other.name == this.name);
-}
-
-class InventoryItemsCompanion extends UpdateCompanion<InventoryItemRow> {
-  final Value<String> id;
-  final Value<bool> active;
-  final Value<int> version;
-  final Value<String?> createdEventId;
-  final Value<String?> lastEventId;
-  final Value<int?> lastServerSequence;
-  final Value<String> defaultUnitId;
-  final Value<String> name;
-  final Value<int> rowid;
-  const InventoryItemsCompanion({
-    this.id = const Value.absent(),
-    this.active = const Value.absent(),
-    this.version = const Value.absent(),
-    this.createdEventId = const Value.absent(),
-    this.lastEventId = const Value.absent(),
-    this.lastServerSequence = const Value.absent(),
-    this.defaultUnitId = const Value.absent(),
-    this.name = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  InventoryItemsCompanion.insert({
-    required String id,
-    this.active = const Value.absent(),
-    this.version = const Value.absent(),
-    this.createdEventId = const Value.absent(),
-    this.lastEventId = const Value.absent(),
-    this.lastServerSequence = const Value.absent(),
-    required String defaultUnitId,
-    required String name,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       defaultUnitId = Value(defaultUnitId),
-       name = Value(name);
-  static Insertable<InventoryItemRow> custom({
-    Expression<String>? id,
-    Expression<bool>? active,
-    Expression<int>? version,
-    Expression<String>? createdEventId,
-    Expression<String>? lastEventId,
-    Expression<int>? lastServerSequence,
-    Expression<String>? defaultUnitId,
-    Expression<String>? name,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (active != null) 'active': active,
-      if (version != null) 'version': version,
-      if (createdEventId != null) 'created_event_id': createdEventId,
-      if (lastEventId != null) 'last_event_id': lastEventId,
-      if (lastServerSequence != null)
-        'last_server_sequence': lastServerSequence,
-      if (defaultUnitId != null) 'default_unit_id': defaultUnitId,
-      if (name != null) 'name': name,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  InventoryItemsCompanion copyWith({
-    Value<String>? id,
-    Value<bool>? active,
-    Value<int>? version,
-    Value<String?>? createdEventId,
-    Value<String?>? lastEventId,
-    Value<int?>? lastServerSequence,
-    Value<String>? defaultUnitId,
-    Value<String>? name,
-    Value<int>? rowid,
-  }) {
-    return InventoryItemsCompanion(
-      id: id ?? this.id,
-      active: active ?? this.active,
-      version: version ?? this.version,
-      createdEventId: createdEventId ?? this.createdEventId,
-      lastEventId: lastEventId ?? this.lastEventId,
-      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
-      defaultUnitId: defaultUnitId ?? this.defaultUnitId,
-      name: name ?? this.name,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (active.present) {
-      map['active'] = Variable<bool>(active.value);
-    }
-    if (version.present) {
-      map['version'] = Variable<int>(version.value);
-    }
-    if (createdEventId.present) {
-      map['created_event_id'] = Variable<String>(createdEventId.value);
-    }
-    if (lastEventId.present) {
-      map['last_event_id'] = Variable<String>(lastEventId.value);
-    }
-    if (lastServerSequence.present) {
-      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
-    }
-    if (defaultUnitId.present) {
-      map['default_unit_id'] = Variable<String>(defaultUnitId.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('InventoryItemsCompanion(')
-          ..write('id: $id, ')
-          ..write('active: $active, ')
-          ..write('version: $version, ')
-          ..write('createdEventId: $createdEventId, ')
-          ..write('lastEventId: $lastEventId, ')
-          ..write('lastServerSequence: $lastServerSequence, ')
-          ..write('defaultUnitId: $defaultUnitId, ')
-          ..write('name: $name, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $InventoryBalancesTable extends InventoryBalances
     with TableInfo<$InventoryBalancesTable, InventoryBalanceRow> {
   @override
@@ -6970,6 +7033,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $UnitsTable units = $UnitsTable(this);
   late final $ProductsTable products = $ProductsTable(this);
+  late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
   late final $ProductVariantsTable productVariants = $ProductVariantsTable(
     this,
   );
@@ -6979,7 +7043,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncCheckpointsTable syncCheckpoints = $SyncCheckpointsTable(
     this,
   );
-  late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
   late final $InventoryBalancesTable inventoryBalances =
       $InventoryBalancesTable(this);
   late final $InventoryMovementsTable inventoryMovements =
@@ -7006,12 +7069,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     categories,
     units,
     products,
+    inventoryItems,
     productVariants,
     espacios,
     events,
     eventRefs,
     syncCheckpoints,
-    inventoryItems,
     inventoryBalances,
     inventoryMovements,
     idxEspaciosIdentificacionUnique,
@@ -8505,6 +8568,703 @@ typedef $$ProductsTableProcessedTableManager =
         bool productVariantsRefs,
       })
     >;
+typedef $$InventoryItemsTableCreateCompanionBuilder =
+    InventoryItemsCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String defaultUnitId,
+      required String name,
+      Value<int> rowid,
+    });
+typedef $$InventoryItemsTableUpdateCompanionBuilder =
+    InventoryItemsCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> defaultUnitId,
+      Value<String> name,
+      Value<int> rowid,
+    });
+
+final class $$InventoryItemsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $InventoryItemsTable, InventoryItemRow> {
+  $$InventoryItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UnitsTable _defaultUnitIdTable(_$AppDatabase db) =>
+      db.units.createAlias('inventory_items__default_unit_id__units__unit_id');
+
+  $$UnitsTableProcessedTableManager get defaultUnitId {
+    final $_column = $_itemColumn<String>('default_unit_id')!;
+
+    final manager = $$UnitsTableTableManager(
+      $_db,
+      $_db.units,
+    ).filter((f) => f.unitId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_defaultUnitIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$ProductVariantsTable, List<ProductVariantRow>>
+  _productVariantsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.productVariants,
+    aliasName: 'inventory_items__id__product_variants__inventory_item_id',
+  );
+
+  $$ProductVariantsTableProcessedTableManager get productVariantsRefs {
+    final manager =
+        $$ProductVariantsTableTableManager($_db, $_db.productVariants).filter(
+          (f) => f.inventoryItemId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _productVariantsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$InventoryBalancesTable, List<InventoryBalanceRow>>
+  _inventoryBalancesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.inventoryBalances,
+        aliasName: 'inventory_items__id__inventory_balances__inventory_item_id',
+      );
+
+  $$InventoryBalancesTableProcessedTableManager get inventoryBalancesRefs {
+    final manager =
+        $$InventoryBalancesTableTableManager(
+          $_db,
+          $_db.inventoryBalances,
+        ).filter(
+          (f) => f.inventoryItemId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _inventoryBalancesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $InventoryMovementsTable,
+    List<InventoryMovementRow>
+  >
+  _inventoryMovementsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.inventoryMovements,
+        aliasName:
+            'inventory_items__id__inventory_movements__inventory_item_id',
+      );
+
+  $$InventoryMovementsTableProcessedTableManager get inventoryMovementsRefs {
+    final manager =
+        $$InventoryMovementsTableTableManager(
+          $_db,
+          $_db.inventoryMovements,
+        ).filter(
+          (f) => f.inventoryItemId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _inventoryMovementsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$InventoryItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $InventoryItemsTable> {
+  $$InventoryItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UnitsTableFilterComposer get defaultUnitId {
+    final $$UnitsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.defaultUnitId,
+      referencedTable: $db.units,
+      getReferencedColumn: (t) => t.unitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UnitsTableFilterComposer(
+            $db: $db,
+            $table: $db.units,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> productVariantsRefs(
+    Expression<bool> Function($$ProductVariantsTableFilterComposer f) f,
+  ) {
+    final $$ProductVariantsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.productVariants,
+      getReferencedColumn: (t) => t.inventoryItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductVariantsTableFilterComposer(
+            $db: $db,
+            $table: $db.productVariants,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> inventoryBalancesRefs(
+    Expression<bool> Function($$InventoryBalancesTableFilterComposer f) f,
+  ) {
+    final $$InventoryBalancesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.inventoryBalances,
+      getReferencedColumn: (t) => t.inventoryItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryBalancesTableFilterComposer(
+            $db: $db,
+            $table: $db.inventoryBalances,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> inventoryMovementsRefs(
+    Expression<bool> Function($$InventoryMovementsTableFilterComposer f) f,
+  ) {
+    final $$InventoryMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.inventoryMovements,
+      getReferencedColumn: (t) => t.inventoryItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.inventoryMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$InventoryItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $InventoryItemsTable> {
+  $$InventoryItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UnitsTableOrderingComposer get defaultUnitId {
+    final $$UnitsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.defaultUnitId,
+      referencedTable: $db.units,
+      getReferencedColumn: (t) => t.unitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UnitsTableOrderingComposer(
+            $db: $db,
+            $table: $db.units,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$InventoryItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InventoryItemsTable> {
+  $$InventoryItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  $$UnitsTableAnnotationComposer get defaultUnitId {
+    final $$UnitsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.defaultUnitId,
+      referencedTable: $db.units,
+      getReferencedColumn: (t) => t.unitId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UnitsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.units,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> productVariantsRefs<T extends Object>(
+    Expression<T> Function($$ProductVariantsTableAnnotationComposer a) f,
+  ) {
+    final $$ProductVariantsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.productVariants,
+      getReferencedColumn: (t) => t.inventoryItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductVariantsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.productVariants,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> inventoryBalancesRefs<T extends Object>(
+    Expression<T> Function($$InventoryBalancesTableAnnotationComposer a) f,
+  ) {
+    final $$InventoryBalancesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.inventoryBalances,
+          getReferencedColumn: (t) => t.inventoryItemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$InventoryBalancesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.inventoryBalances,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> inventoryMovementsRefs<T extends Object>(
+    Expression<T> Function($$InventoryMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$InventoryMovementsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.inventoryMovements,
+          getReferencedColumn: (t) => t.inventoryItemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$InventoryMovementsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.inventoryMovements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$InventoryItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $InventoryItemsTable,
+          InventoryItemRow,
+          $$InventoryItemsTableFilterComposer,
+          $$InventoryItemsTableOrderingComposer,
+          $$InventoryItemsTableAnnotationComposer,
+          $$InventoryItemsTableCreateCompanionBuilder,
+          $$InventoryItemsTableUpdateCompanionBuilder,
+          (InventoryItemRow, $$InventoryItemsTableReferences),
+          InventoryItemRow,
+          PrefetchHooks Function({
+            bool defaultUnitId,
+            bool productVariantsRefs,
+            bool inventoryBalancesRefs,
+            bool inventoryMovementsRefs,
+          })
+        > {
+  $$InventoryItemsTableTableManager(
+    _$AppDatabase db,
+    $InventoryItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InventoryItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$InventoryItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$InventoryItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> defaultUnitId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => InventoryItemsCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                defaultUnitId: defaultUnitId,
+                name: name,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String defaultUnitId,
+                required String name,
+                Value<int> rowid = const Value.absent(),
+              }) => InventoryItemsCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                defaultUnitId: defaultUnitId,
+                name: name,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$InventoryItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                defaultUnitId = false,
+                productVariantsRefs = false,
+                inventoryBalancesRefs = false,
+                inventoryMovementsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (productVariantsRefs) db.productVariants,
+                    if (inventoryBalancesRefs) db.inventoryBalances,
+                    if (inventoryMovementsRefs) db.inventoryMovements,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (defaultUnitId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.defaultUnitId,
+                                    referencedTable:
+                                        $$InventoryItemsTableReferences
+                                            ._defaultUnitIdTable(db),
+                                    referencedColumn:
+                                        $$InventoryItemsTableReferences
+                                            ._defaultUnitIdTable(db)
+                                            .unitId,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (productVariantsRefs)
+                        await $_getPrefetchedData<
+                          InventoryItemRow,
+                          $InventoryItemsTable,
+                          ProductVariantRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoryItemsTableReferences
+                              ._productVariantsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoryItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).productVariantsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.inventoryItemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (inventoryBalancesRefs)
+                        await $_getPrefetchedData<
+                          InventoryItemRow,
+                          $InventoryItemsTable,
+                          InventoryBalanceRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoryItemsTableReferences
+                              ._inventoryBalancesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoryItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).inventoryBalancesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.inventoryItemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (inventoryMovementsRefs)
+                        await $_getPrefetchedData<
+                          InventoryItemRow,
+                          $InventoryItemsTable,
+                          InventoryMovementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoryItemsTableReferences
+                              ._inventoryMovementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoryItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).inventoryMovementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.inventoryItemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$InventoryItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InventoryItemsTable,
+      InventoryItemRow,
+      $$InventoryItemsTableFilterComposer,
+      $$InventoryItemsTableOrderingComposer,
+      $$InventoryItemsTableAnnotationComposer,
+      $$InventoryItemsTableCreateCompanionBuilder,
+      $$InventoryItemsTableUpdateCompanionBuilder,
+      (InventoryItemRow, $$InventoryItemsTableReferences),
+      InventoryItemRow,
+      PrefetchHooks Function({
+        bool defaultUnitId,
+        bool productVariantsRefs,
+        bool inventoryBalancesRefs,
+        bool inventoryMovementsRefs,
+      })
+    >;
 typedef $$ProductVariantsTableCreateCompanionBuilder =
     ProductVariantsCompanion Function({
       required String id,
@@ -8518,6 +9278,7 @@ typedef $$ProductVariantsTableCreateCompanionBuilder =
       Value<String?> nameKey,
       required int salePriceMinor,
       Value<int?> standardCostMinor,
+      Value<String?> inventoryItemId,
       required bool isDefault,
       required int sortOrder,
       Value<int> rowid,
@@ -8535,6 +9296,7 @@ typedef $$ProductVariantsTableUpdateCompanionBuilder =
       Value<String?> nameKey,
       Value<int> salePriceMinor,
       Value<int?> standardCostMinor,
+      Value<String?> inventoryItemId,
       Value<bool> isDefault,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -8564,6 +9326,24 @@ final class $$ProductVariantsTableReferences
       $_db.products,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_productIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $InventoryItemsTable _inventoryItemIdTable(_$AppDatabase db) => db
+      .inventoryItems
+      .createAlias('product_variants__inventory_item_id__inventory_items__id');
+
+  $$InventoryItemsTableProcessedTableManager? get inventoryItemId {
+    final $_column = $_itemColumn<String>('inventory_item_id');
+    if ($_column == null) return null;
+    final manager = $$InventoryItemsTableTableManager(
+      $_db,
+      $_db.inventoryItems,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inventoryItemIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -8654,6 +9434,29 @@ class $$ProductVariantsTableFilterComposer
           }) => $$ProductsTableFilterComposer(
             $db: $db,
             $table: $db.products,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InventoryItemsTableFilterComposer get inventoryItemId {
+    final $$InventoryItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryItemId,
+      referencedTable: $db.inventoryItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.inventoryItems,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -8755,6 +9558,29 @@ class $$ProductVariantsTableOrderingComposer
     );
     return composer;
   }
+
+  $$InventoryItemsTableOrderingComposer get inventoryItemId {
+    final $$InventoryItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryItemId,
+      referencedTable: $db.inventoryItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventoryItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ProductVariantsTableAnnotationComposer
@@ -8834,6 +9660,29 @@ class $$ProductVariantsTableAnnotationComposer
     );
     return composer;
   }
+
+  $$InventoryItemsTableAnnotationComposer get inventoryItemId {
+    final $$InventoryItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryItemId,
+      referencedTable: $db.inventoryItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.inventoryItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ProductVariantsTableTableManager
@@ -8849,7 +9698,7 @@ class $$ProductVariantsTableTableManager
           $$ProductVariantsTableUpdateCompanionBuilder,
           (ProductVariantRow, $$ProductVariantsTableReferences),
           ProductVariantRow,
-          PrefetchHooks Function({bool productId})
+          PrefetchHooks Function({bool productId, bool inventoryItemId})
         > {
   $$ProductVariantsTableTableManager(
     _$AppDatabase db,
@@ -8877,6 +9726,7 @@ class $$ProductVariantsTableTableManager
                 Value<String?> nameKey = const Value.absent(),
                 Value<int> salePriceMinor = const Value.absent(),
                 Value<int?> standardCostMinor = const Value.absent(),
+                Value<String?> inventoryItemId = const Value.absent(),
                 Value<bool> isDefault = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -8892,6 +9742,7 @@ class $$ProductVariantsTableTableManager
                 nameKey: nameKey,
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
+                inventoryItemId: inventoryItemId,
                 isDefault: isDefault,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -8909,6 +9760,7 @@ class $$ProductVariantsTableTableManager
                 Value<String?> nameKey = const Value.absent(),
                 required int salePriceMinor,
                 Value<int?> standardCostMinor = const Value.absent(),
+                Value<String?> inventoryItemId = const Value.absent(),
                 required bool isDefault,
                 required int sortOrder,
                 Value<int> rowid = const Value.absent(),
@@ -8924,6 +9776,7 @@ class $$ProductVariantsTableTableManager
                 nameKey: nameKey,
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
+                inventoryItemId: inventoryItemId,
                 isDefault: isDefault,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -8936,49 +9789,65 @@ class $$ProductVariantsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({productId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (productId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.productId,
-                                referencedTable:
-                                    $$ProductVariantsTableReferences
-                                        ._productIdTable(db),
-                                referencedColumn:
-                                    $$ProductVariantsTableReferences
-                                        ._productIdTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({productId = false, inventoryItemId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (productId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.productId,
+                                    referencedTable:
+                                        $$ProductVariantsTableReferences
+                                            ._productIdTable(db),
+                                    referencedColumn:
+                                        $$ProductVariantsTableReferences
+                                            ._productIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (inventoryItemId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.inventoryItemId,
+                                    referencedTable:
+                                        $$ProductVariantsTableReferences
+                                            ._inventoryItemIdTable(db),
+                                    referencedColumn:
+                                        $$ProductVariantsTableReferences
+                                            ._inventoryItemIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -8995,7 +9864,7 @@ typedef $$ProductVariantsTableProcessedTableManager =
       $$ProductVariantsTableUpdateCompanionBuilder,
       (ProductVariantRow, $$ProductVariantsTableReferences),
       ProductVariantRow,
-      PrefetchHooks Function({bool productId})
+      PrefetchHooks Function({bool productId, bool inventoryItemId})
     >;
 typedef $$EspaciosTableCreateCompanionBuilder =
     EspaciosCompanion Function({
@@ -10155,608 +11024,6 @@ typedef $$SyncCheckpointsTableProcessedTableManager =
       SyncCheckpoint,
       PrefetchHooks Function()
     >;
-typedef $$InventoryItemsTableCreateCompanionBuilder =
-    InventoryItemsCompanion Function({
-      required String id,
-      Value<bool> active,
-      Value<int> version,
-      Value<String?> createdEventId,
-      Value<String?> lastEventId,
-      Value<int?> lastServerSequence,
-      required String defaultUnitId,
-      required String name,
-      Value<int> rowid,
-    });
-typedef $$InventoryItemsTableUpdateCompanionBuilder =
-    InventoryItemsCompanion Function({
-      Value<String> id,
-      Value<bool> active,
-      Value<int> version,
-      Value<String?> createdEventId,
-      Value<String?> lastEventId,
-      Value<int?> lastServerSequence,
-      Value<String> defaultUnitId,
-      Value<String> name,
-      Value<int> rowid,
-    });
-
-final class $$InventoryItemsTableReferences
-    extends
-        BaseReferences<_$AppDatabase, $InventoryItemsTable, InventoryItemRow> {
-  $$InventoryItemsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $UnitsTable _defaultUnitIdTable(_$AppDatabase db) =>
-      db.units.createAlias('inventory_items__default_unit_id__units__unit_id');
-
-  $$UnitsTableProcessedTableManager get defaultUnitId {
-    final $_column = $_itemColumn<String>('default_unit_id')!;
-
-    final manager = $$UnitsTableTableManager(
-      $_db,
-      $_db.units,
-    ).filter((f) => f.unitId.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_defaultUnitIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static MultiTypedResultKey<$InventoryBalancesTable, List<InventoryBalanceRow>>
-  _inventoryBalancesRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.inventoryBalances,
-        aliasName: 'inventory_items__id__inventory_balances__inventory_item_id',
-      );
-
-  $$InventoryBalancesTableProcessedTableManager get inventoryBalancesRefs {
-    final manager =
-        $$InventoryBalancesTableTableManager(
-          $_db,
-          $_db.inventoryBalances,
-        ).filter(
-          (f) => f.inventoryItemId.id.sqlEquals($_itemColumn<String>('id')!),
-        );
-
-    final cache = $_typedResult.readTableOrNull(
-      _inventoryBalancesRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
-    $InventoryMovementsTable,
-    List<InventoryMovementRow>
-  >
-  _inventoryMovementsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.inventoryMovements,
-        aliasName:
-            'inventory_items__id__inventory_movements__inventory_item_id',
-      );
-
-  $$InventoryMovementsTableProcessedTableManager get inventoryMovementsRefs {
-    final manager =
-        $$InventoryMovementsTableTableManager(
-          $_db,
-          $_db.inventoryMovements,
-        ).filter(
-          (f) => f.inventoryItemId.id.sqlEquals($_itemColumn<String>('id')!),
-        );
-
-    final cache = $_typedResult.readTableOrNull(
-      _inventoryMovementsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$InventoryItemsTableFilterComposer
-    extends Composer<_$AppDatabase, $InventoryItemsTable> {
-  $$InventoryItemsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get active => $composableBuilder(
-    column: $table.active,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get version => $composableBuilder(
-    column: $table.version,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get createdEventId => $composableBuilder(
-    column: $table.createdEventId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get lastEventId => $composableBuilder(
-    column: $table.lastEventId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get lastServerSequence => $composableBuilder(
-    column: $table.lastServerSequence,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$UnitsTableFilterComposer get defaultUnitId {
-    final $$UnitsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.defaultUnitId,
-      referencedTable: $db.units,
-      getReferencedColumn: (t) => t.unitId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$UnitsTableFilterComposer(
-            $db: $db,
-            $table: $db.units,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<bool> inventoryBalancesRefs(
-    Expression<bool> Function($$InventoryBalancesTableFilterComposer f) f,
-  ) {
-    final $$InventoryBalancesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.inventoryBalances,
-      getReferencedColumn: (t) => t.inventoryItemId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryBalancesTableFilterComposer(
-            $db: $db,
-            $table: $db.inventoryBalances,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> inventoryMovementsRefs(
-    Expression<bool> Function($$InventoryMovementsTableFilterComposer f) f,
-  ) {
-    final $$InventoryMovementsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.inventoryMovements,
-      getReferencedColumn: (t) => t.inventoryItemId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryMovementsTableFilterComposer(
-            $db: $db,
-            $table: $db.inventoryMovements,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-}
-
-class $$InventoryItemsTableOrderingComposer
-    extends Composer<_$AppDatabase, $InventoryItemsTable> {
-  $$InventoryItemsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get active => $composableBuilder(
-    column: $table.active,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get version => $composableBuilder(
-    column: $table.version,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get createdEventId => $composableBuilder(
-    column: $table.createdEventId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get lastEventId => $composableBuilder(
-    column: $table.lastEventId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
-    column: $table.lastServerSequence,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$UnitsTableOrderingComposer get defaultUnitId {
-    final $$UnitsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.defaultUnitId,
-      referencedTable: $db.units,
-      getReferencedColumn: (t) => t.unitId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$UnitsTableOrderingComposer(
-            $db: $db,
-            $table: $db.units,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$InventoryItemsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $InventoryItemsTable> {
-  $$InventoryItemsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<bool> get active =>
-      $composableBuilder(column: $table.active, builder: (column) => column);
-
-  GeneratedColumn<int> get version =>
-      $composableBuilder(column: $table.version, builder: (column) => column);
-
-  GeneratedColumn<String> get createdEventId => $composableBuilder(
-    column: $table.createdEventId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get lastEventId => $composableBuilder(
-    column: $table.lastEventId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
-    column: $table.lastServerSequence,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  $$UnitsTableAnnotationComposer get defaultUnitId {
-    final $$UnitsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.defaultUnitId,
-      referencedTable: $db.units,
-      getReferencedColumn: (t) => t.unitId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$UnitsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.units,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<T> inventoryBalancesRefs<T extends Object>(
-    Expression<T> Function($$InventoryBalancesTableAnnotationComposer a) f,
-  ) {
-    final $$InventoryBalancesTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.inventoryBalances,
-          getReferencedColumn: (t) => t.inventoryItemId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$InventoryBalancesTableAnnotationComposer(
-                $db: $db,
-                $table: $db.inventoryBalances,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<T> inventoryMovementsRefs<T extends Object>(
-    Expression<T> Function($$InventoryMovementsTableAnnotationComposer a) f,
-  ) {
-    final $$InventoryMovementsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.inventoryMovements,
-          getReferencedColumn: (t) => t.inventoryItemId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$InventoryMovementsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.inventoryMovements,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$InventoryItemsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $InventoryItemsTable,
-          InventoryItemRow,
-          $$InventoryItemsTableFilterComposer,
-          $$InventoryItemsTableOrderingComposer,
-          $$InventoryItemsTableAnnotationComposer,
-          $$InventoryItemsTableCreateCompanionBuilder,
-          $$InventoryItemsTableUpdateCompanionBuilder,
-          (InventoryItemRow, $$InventoryItemsTableReferences),
-          InventoryItemRow,
-          PrefetchHooks Function({
-            bool defaultUnitId,
-            bool inventoryBalancesRefs,
-            bool inventoryMovementsRefs,
-          })
-        > {
-  $$InventoryItemsTableTableManager(
-    _$AppDatabase db,
-    $InventoryItemsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$InventoryItemsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$InventoryItemsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$InventoryItemsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<bool> active = const Value.absent(),
-                Value<int> version = const Value.absent(),
-                Value<String?> createdEventId = const Value.absent(),
-                Value<String?> lastEventId = const Value.absent(),
-                Value<int?> lastServerSequence = const Value.absent(),
-                Value<String> defaultUnitId = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => InventoryItemsCompanion(
-                id: id,
-                active: active,
-                version: version,
-                createdEventId: createdEventId,
-                lastEventId: lastEventId,
-                lastServerSequence: lastServerSequence,
-                defaultUnitId: defaultUnitId,
-                name: name,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                Value<bool> active = const Value.absent(),
-                Value<int> version = const Value.absent(),
-                Value<String?> createdEventId = const Value.absent(),
-                Value<String?> lastEventId = const Value.absent(),
-                Value<int?> lastServerSequence = const Value.absent(),
-                required String defaultUnitId,
-                required String name,
-                Value<int> rowid = const Value.absent(),
-              }) => InventoryItemsCompanion.insert(
-                id: id,
-                active: active,
-                version: version,
-                createdEventId: createdEventId,
-                lastEventId: lastEventId,
-                lastServerSequence: lastServerSequence,
-                defaultUnitId: defaultUnitId,
-                name: name,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$InventoryItemsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback:
-              ({
-                defaultUnitId = false,
-                inventoryBalancesRefs = false,
-                inventoryMovementsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (inventoryBalancesRefs) db.inventoryBalances,
-                    if (inventoryMovementsRefs) db.inventoryMovements,
-                  ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (defaultUnitId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.defaultUnitId,
-                                    referencedTable:
-                                        $$InventoryItemsTableReferences
-                                            ._defaultUnitIdTable(db),
-                                    referencedColumn:
-                                        $$InventoryItemsTableReferences
-                                            ._defaultUnitIdTable(db)
-                                            .unitId,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (inventoryBalancesRefs)
-                        await $_getPrefetchedData<
-                          InventoryItemRow,
-                          $InventoryItemsTable,
-                          InventoryBalanceRow
-                        >(
-                          currentTable: table,
-                          referencedTable: $$InventoryItemsTableReferences
-                              ._inventoryBalancesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$InventoryItemsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).inventoryBalancesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.inventoryItemId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (inventoryMovementsRefs)
-                        await $_getPrefetchedData<
-                          InventoryItemRow,
-                          $InventoryItemsTable,
-                          InventoryMovementRow
-                        >(
-                          currentTable: table,
-                          referencedTable: $$InventoryItemsTableReferences
-                              ._inventoryMovementsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$InventoryItemsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).inventoryMovementsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.inventoryItemId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
-        ),
-      );
-}
-
-typedef $$InventoryItemsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $InventoryItemsTable,
-      InventoryItemRow,
-      $$InventoryItemsTableFilterComposer,
-      $$InventoryItemsTableOrderingComposer,
-      $$InventoryItemsTableAnnotationComposer,
-      $$InventoryItemsTableCreateCompanionBuilder,
-      $$InventoryItemsTableUpdateCompanionBuilder,
-      (InventoryItemRow, $$InventoryItemsTableReferences),
-      InventoryItemRow,
-      PrefetchHooks Function({
-        bool defaultUnitId,
-        bool inventoryBalancesRefs,
-        bool inventoryMovementsRefs,
-      })
-    >;
 typedef $$InventoryBalancesTableCreateCompanionBuilder =
     InventoryBalancesCompanion Function({
       required String inventoryItemId,
@@ -11671,6 +11938,8 @@ class $AppDatabaseManager {
       $$UnitsTableTableManager(_db, _db.units);
   $$ProductsTableTableManager get products =>
       $$ProductsTableTableManager(_db, _db.products);
+  $$InventoryItemsTableTableManager get inventoryItems =>
+      $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
   $$ProductVariantsTableTableManager get productVariants =>
       $$ProductVariantsTableTableManager(_db, _db.productVariants);
   $$EspaciosTableTableManager get espacios =>
@@ -11681,8 +11950,6 @@ class $AppDatabaseManager {
       $$EventRefsTableTableManager(_db, _db.eventRefs);
   $$SyncCheckpointsTableTableManager get syncCheckpoints =>
       $$SyncCheckpointsTableTableManager(_db, _db.syncCheckpoints);
-  $$InventoryItemsTableTableManager get inventoryItems =>
-      $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
   $$InventoryBalancesTableTableManager get inventoryBalances =>
       $$InventoryBalancesTableTableManager(_db, _db.inventoryBalances);
   $$InventoryMovementsTableTableManager get inventoryMovements =>
@@ -11705,6 +11972,7 @@ mixin _$ProductoDaoMixin on DatabaseAccessor<AppDatabase> {
   $CategoriesTable get categories => attachedDatabase.categories;
   $UnitsTable get units => attachedDatabase.units;
   $ProductsTable get products => attachedDatabase.products;
+  $InventoryItemsTable get inventoryItems => attachedDatabase.inventoryItems;
   $ProductVariantsTable get productVariants => attachedDatabase.productVariants;
   ProductoDaoManager get managers => ProductoDaoManager(this);
 }
@@ -11718,6 +11986,11 @@ class ProductoDaoManager {
       $$UnitsTableTableManager(_db.attachedDatabase, _db.units);
   $$ProductsTableTableManager get products =>
       $$ProductsTableTableManager(_db.attachedDatabase, _db.products);
+  $$InventoryItemsTableTableManager get inventoryItems =>
+      $$InventoryItemsTableTableManager(
+        _db.attachedDatabase,
+        _db.inventoryItems,
+      );
   $$ProductVariantsTableTableManager get productVariants =>
       $$ProductVariantsTableTableManager(
         _db.attachedDatabase,

@@ -1,4 +1,5 @@
 import '../models/sync_event.dart';
+import '../payloads/existencia_inventario_ajustada_payload.dart';
 import '../payloads/recurso_inventario_creado_payload.dart';
 import '../projections/inventory_projection_store.dart';
 
@@ -113,5 +114,94 @@ class InventoryEventHandler {
               ),
       ),
     );
+  }
+
+  Future<void> applyExistenciaInventarioAjustada(SyncEvent event) async {
+    if (event.aggregateType !=
+        ExistenciaInventarioAjustadaPayload.aggregateType) {
+      throw const FormatException(
+        'existencia_inventario_ajustada debe usar aggregate_type inventory_item.',
+      );
+    }
+    final payload = ExistenciaInventarioAjustadaPayload.fromJson(event.payload);
+    if (payload.inventoryItemId != event.aggregateId) {
+      throw const FormatException(
+        'inventory_item_id no coincide con aggregate_id.',
+      );
+    }
+    final item = await _projectionStore.findItemById(event.aggregateId);
+    if (item == null || !item.active) {
+      throw InventoryProjectionConflict(
+        'El recurso ${event.aggregateId} no existe o está inactivo.',
+      );
+    }
+    final existingMovement = await _projectionStore.findMovementById(
+      payload.movementId,
+    );
+    if (existingMovement != null) {
+      if (existingMovement.eventId != event.eventId) {
+        throw InventoryProjectionConflict(
+          'Ya existe un movimiento con id ${payload.movementId}.',
+        );
+      }
+      final serverSequence = event.serverSequence;
+      if (serverSequence != null) {
+        await _projectionStore.advanceAdjustmentServerSequence(
+          inventoryItemId: event.aggregateId,
+          movementId: payload.movementId,
+          eventId: event.eventId,
+          serverSequence: serverSequence,
+        );
+      }
+      return;
+    }
+    final balance = await _projectionStore.findBalanceByItemId(
+      event.aggregateId,
+    );
+    if (balance == null) {
+      throw InventoryProjectionConflict(
+        'El recurso ${event.aggregateId} no tiene balance.',
+      );
+    }
+    final onHand = _safeSum(
+      balance.quantityOnHandAtomic,
+      payload.quantityDeltaAtomic,
+    );
+    final available = _safeSum(
+      balance.quantityAvailableAtomic,
+      payload.quantityDeltaAtomic,
+    );
+    await _projectionStore.applyAdjustment(
+      InventoryAdjustmentProjection(
+        inventoryItemId: event.aggregateId,
+        itemVersion: item.version + 1,
+        balance: InventoryBalanceProjection(
+          inventoryItemId: event.aggregateId,
+          quantityOnHandAtomic: onHand,
+          quantityAvailableAtomic: available,
+          lastEventId: event.eventId,
+          lastServerSequence: event.serverSequence,
+        ),
+        movement: InventoryMovementProjection(
+          id: payload.movementId,
+          inventoryItemId: event.aggregateId,
+          eventId: event.eventId,
+          movementType: 'manual_adjustment',
+          quantityDeltaAtomic: payload.quantityDeltaAtomic,
+          reason: payload.reason,
+          createdAtLocal: event.createdAtLocal,
+          serverSequence: event.serverSequence,
+        ),
+      ),
+    );
+  }
+
+  int _safeSum(int current, int delta) {
+    final result = BigInt.from(current) + BigInt.from(delta);
+    final limit = BigInt.from(9007199254740991);
+    if (result.abs() > limit) {
+      throw const FormatException('El saldo excede el límite entero seguro.');
+    }
+    return result.toInt();
   }
 }

@@ -27,9 +27,13 @@ class CrearArticuloVarianteCommand {
     required this.nombre,
     required this.precioVenta,
     required this.costoEstandar,
+    this.inventoryUnitId,
+    this.initialStockQuantity,
   });
 
   final String? nombre;
   final String precioVenta;
   final String? costoEstandar;
+  final String? inventoryUnitId;
+  final String? initialStockQuantity;
 }

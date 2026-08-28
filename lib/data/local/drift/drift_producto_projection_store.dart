@@ -23,6 +23,16 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
   }
 
   @override
+  Future<ProductoVarianteProjection?> findVariantByInventoryItemId(
+    String inventoryItemId,
+  ) async {
+    final row = await _productoDao.obtenerVariantePorInventoryItemId(
+      inventoryItemId,
+    );
+    return row == null ? null : _variantFromRow(row);
+  }
+
+  @override
   Future<List<ProductoVarianteProjection>> findVariantsByProductId(
     String productId,
   ) async {
@@ -69,6 +79,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         nameKey: Value(projection.nameKey),
         salePriceMinor: projection.precioVentaMenor,
         standardCostMinor: Value(projection.costoEstandarMenor),
+        inventoryItemId: Value(projection.inventoryItemId),
         isDefault: projection.esPredeterminada,
         sortOrder: projection.orden,
         active: Value(projection.active),
@@ -154,6 +165,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       nameKey: row.nameKey,
       precioVentaMenor: row.salePriceMinor,
       costoEstandarMenor: row.standardCostMinor,
+      inventoryItemId: row.inventoryItemId,
       esPredeterminada: row.isDefault,
       orden: row.sortOrder,
       active: row.active,

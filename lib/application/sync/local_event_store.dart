@@ -7,6 +7,37 @@ abstract interface class LocalEventStore {
   });
 }
 
+/// Evento y referencias que deben guardarse y aplicarse como una sola unidad
+/// de trabajo junto con otros elementos del mismo lote.
+class LocalEventAppend {
+  const LocalEventAppend({required this.event, required this.refs});
+
+  final SyncEvent event;
+  final List<LocalEventRef> refs;
+}
+
+/// Capacidad opcional para aplicar varios agregados en una única transacción.
+abstract interface class LocalAtomicEventBatchStore {
+  Future<void> appendAndApplyBatchAtomically(List<LocalEventAppend> entries);
+}
+
+extension LocalEventStoreBatch on LocalEventStore {
+  /// Usa una transacción atómica cuando el adaptador la soporta. El fallback
+  /// conserva compatibilidad con dobles de prueba sencillos.
+  Future<void> appendAndApplyAll(List<LocalEventAppend> entries) async {
+    final store = this;
+    if (store is LocalAtomicEventBatchStore) {
+      await (store as LocalAtomicEventBatchStore).appendAndApplyBatchAtomically(
+        entries,
+      );
+      return;
+    }
+    for (final entry in entries) {
+      await appendAndApply(entry.event, refs: entry.refs);
+    }
+  }
+}
+
 class LocalEventRef {
   const LocalEventRef({
     required this.refType,

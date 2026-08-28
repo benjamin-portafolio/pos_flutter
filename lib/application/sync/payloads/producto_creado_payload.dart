@@ -12,6 +12,7 @@ class ProductoCreadoPayload {
     required this.saleConfiguration,
     required this.variantes,
     required this.dependenciaCategoria,
+    required this.dependenciasInventario,
   });
 
   static const aggregateType = 'product';
@@ -22,6 +23,7 @@ class ProductoCreadoPayload {
   final SaleConfiguration saleConfiguration;
   final List<ProductoCreadoVariante> variantes;
   final ProductoCreadoDependencia? dependenciaCategoria;
+  final List<ProductoCreadoInventarioDependencia> dependenciasInventario;
 
   factory ProductoCreadoPayload.create({
     required String nombre,
@@ -29,6 +31,7 @@ class ProductoCreadoPayload {
     required SaleConfiguration saleConfiguration,
     required List<ProductoCreadoVariante> variantes,
     ProductoCreadoDependencia? dependenciaCategoria,
+    List<ProductoCreadoInventarioDependencia> dependenciasInventario = const [],
   }) {
     final normalizedName = NombreProducto.fromInput(nombre).value;
     final normalizedCategoryId = _optionalNonEmptyString(
@@ -36,12 +39,18 @@ class ProductoCreadoPayload {
       'product.category_id',
     );
     _validateCategoryDependency(normalizedCategoryId, dependenciaCategoria);
+    final validatedVariants = _validateVariants(variantes);
+    final validatedInventoryDependencies = _validateInventoryDependencies(
+      validatedVariants,
+      dependenciasInventario,
+    );
     return ProductoCreadoPayload._(
       nombre: normalizedName,
       categoriaId: normalizedCategoryId,
       saleConfiguration: saleConfiguration,
-      variantes: _validateVariants(variantes),
+      variantes: validatedVariants,
       dependenciaCategoria: dependenciaCategoria,
+      dependenciasInventario: validatedInventoryDependencies,
     );
   }
 
@@ -68,6 +77,7 @@ class ProductoCreadoPayload {
         ),
       ],
       dependenciaCategoria: dependenciaCategoria,
+      dependenciasInventario: const [],
     );
   }
 
@@ -109,6 +119,7 @@ class ProductoCreadoPayload {
     ProductoCreadoDependencia? categoryDependency;
     var categoryDependencySeen = false;
     String? saleUnitDependencyId;
+    final inventoryDependencies = <ProductoCreadoInventarioDependencia>[];
     for (var index = 0; index < dependencies.length; index++) {
       final dependency = _requiredMap(
         dependencies[index],
@@ -144,9 +155,16 @@ class ProductoCreadoPayload {
             dependency['ref_id'],
             'dependencies[$index].ref_id',
           );
+        case 'inventory_item':
+          inventoryDependencies.add(
+            ProductoCreadoInventarioDependencia.fromJson(
+              dependency,
+              fieldName: 'dependencies[$index]',
+            ),
+          );
         default:
           throw const FormatException(
-            'producto_creado solo admite dependencias category y unit.',
+            'producto_creado solo admite dependencias category, unit e inventory_item.',
           );
       }
     }
@@ -171,12 +189,17 @@ class ProductoCreadoPayload {
         }
     }
 
+    final validatedVariants = _validateVariants(variantes);
     return ProductoCreadoPayload._(
       nombre: nombre,
       categoriaId: categoriaId,
       saleConfiguration: saleConfiguration,
-      variantes: _validateVariants(variantes),
+      variantes: validatedVariants,
       dependenciaCategoria: categoryDependency,
+      dependenciasInventario: _validateInventoryDependencies(
+        validatedVariants,
+        inventoryDependencies,
+      ),
     );
   }
 
@@ -191,6 +214,7 @@ class ProductoCreadoPayload {
       if (dependenciaCategoria != null) dependenciaCategoria!.toJson(),
       if (saleConfiguration case final MeasuredSaleConfiguration measured)
         {'ref_type': 'unit', 'ref_id': measured.saleUnitId},
+      ...dependenciasInventario.map((dependency) => dependency.toJson()),
     ],
   };
 }
@@ -202,6 +226,7 @@ class ProductoCreadoVariante {
     required this.nameKey,
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
+    required this.inventoryItemId,
     required this.esPredeterminada,
     required this.orden,
   });
@@ -211,6 +236,7 @@ class ProductoCreadoVariante {
     required String? nombre,
     required int precioVentaMenor,
     required int? costoEstandarMenor,
+    String? inventoryItemId,
     required bool esPredeterminada,
     required int orden,
   }) {
@@ -225,6 +251,7 @@ class ProductoCreadoVariante {
       costoEstandarMenor: costoEstandarMenor == null
           ? null
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
+      inventoryItemId: _optionalUuidV4(inventoryItemId, 'inventory_item_id'),
       esPredeterminada: esPredeterminada,
       orden: orden,
     );
@@ -235,6 +262,7 @@ class ProductoCreadoVariante {
   final String? nameKey;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+  final String? inventoryItemId;
   final bool esPredeterminada;
   final int orden;
 
@@ -268,6 +296,10 @@ class ProductoCreadoVariante {
           '$fieldName.sale_price_minor',
         ),
         costoEstandarMenor: parsedCost,
+        inventoryItemId: _optionalNonEmptyString(
+          json['inventory_item_id'],
+          '$fieldName.inventory_item_id',
+        ),
         esPredeterminada: isDefault,
         orden: _requiredInt(json['sort_order'], '$fieldName.sort_order'),
       );
@@ -285,6 +317,7 @@ class ProductoCreadoVariante {
     'barcode': null,
     'sale_price_minor': precioVentaMenor,
     'standard_cost_minor': costoEstandarMenor,
+    if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
     'is_default': esPredeterminada,
     'sort_order': orden,
   };
@@ -306,6 +339,49 @@ class ProductoCreadoDependencia {
   };
 }
 
+class ProductoCreadoInventarioDependencia {
+  const ProductoCreadoInventarioDependencia({
+    required this.refId,
+    this.dependsOnEventId,
+  });
+
+  final String refId;
+  final String? dependsOnEventId;
+
+  factory ProductoCreadoInventarioDependencia.fromJson(
+    Map<String, Object?> json, {
+    required String fieldName,
+  }) {
+    if (json.keys.any(
+      (key) =>
+          key != 'ref_type' && key != 'ref_id' && key != 'depends_on_event_id',
+    )) {
+      throw FormatException(
+        '$fieldName solo admite ref_type, ref_id y depends_on_event_id.',
+      );
+    }
+    return ProductoCreadoInventarioDependencia(
+      refId: _requiredUuidV4(
+        _requiredString(json['ref_id'], '$fieldName.ref_id'),
+        '$fieldName.ref_id',
+      ),
+      dependsOnEventId: _optionalUuidV4(
+        _optionalNonEmptyString(
+          json['depends_on_event_id'],
+          '$fieldName.depends_on_event_id',
+        ),
+        '$fieldName.depends_on_event_id',
+      ),
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'ref_type': 'inventory_item',
+    'ref_id': refId,
+    if (dependsOnEventId != null) 'depends_on_event_id': dependsOnEventId,
+  };
+}
+
 List<ProductoCreadoVariante> _validateVariants(
   List<ProductoCreadoVariante> variants,
 ) {
@@ -316,6 +392,7 @@ List<ProductoCreadoVariante> _validateVariants(
   }
   final ids = <String>{};
   final nameKeys = <String>{};
+  final inventoryItemIds = <String>{};
   var defaults = 0;
   for (var index = 0; index < variants.length; index++) {
     final variant = variants[index];
@@ -326,6 +403,12 @@ List<ProductoCreadoVariante> _validateVariants(
     if (nameKey != null && !nameKeys.add(nameKey)) {
       throw const FormatException(
         'Los nombres de variantes no pueden repetirse.',
+      );
+    }
+    final inventoryItemId = variant.inventoryItemId;
+    if (inventoryItemId != null && !inventoryItemIds.add(inventoryItemId)) {
+      throw const FormatException(
+        'Un recurso de inventario solo puede vincularse directamente con una variante.',
       );
     }
     if (variant.orden != index) {
@@ -346,6 +429,31 @@ List<ProductoCreadoVariante> _validateVariants(
     );
   }
   return List.unmodifiable(variants);
+}
+
+List<ProductoCreadoInventarioDependencia> _validateInventoryDependencies(
+  List<ProductoCreadoVariante> variants,
+  List<ProductoCreadoInventarioDependencia> dependencies,
+) {
+  final expectedIds = variants
+      .map((variant) => variant.inventoryItemId)
+      .whereType<String>()
+      .toSet();
+  final actualIds = <String>{};
+  for (final dependency in dependencies) {
+    if (!actualIds.add(dependency.refId)) {
+      throw const FormatException(
+        'producto_creado no admite dependencias inventory_item duplicadas.',
+      );
+    }
+  }
+  if (expectedIds.length != actualIds.length ||
+      !expectedIds.containsAll(actualIds)) {
+    throw const FormatException(
+      'Las dependencias inventory_item deben coincidir con las variantes que controlan existencias.',
+    );
+  }
+  return List.unmodifiable(dependencies);
 }
 
 void _validateCategoryDependency(
@@ -484,6 +592,11 @@ String _requiredUuidV4(String value, String fieldName) {
     throw FormatException('$fieldName debe ser un UUID v4.');
   }
   return normalized;
+}
+
+String? _optionalUuidV4(String? value, String fieldName) {
+  if (value == null) return null;
+  return _requiredUuidV4(value, fieldName);
 }
 
 String? _optionalNonEmptyString(Object? value, String fieldName) {

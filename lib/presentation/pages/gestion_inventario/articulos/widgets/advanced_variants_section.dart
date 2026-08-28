@@ -121,9 +121,11 @@ class _VariantDraftCard extends StatelessWidget {
                     label: 'Costo estándar (opcional)',
                     value: cost == null ? '—' : _formatMoney(cost),
                   ),
-                  const _VariantMetric(
-                    label: 'Existencias disponibles',
-                    value: '—',
+                  _VariantMetric(
+                    label: 'Existencia inicial',
+                    value: variant.seguimientoExistencias
+                        ? variant.existenciaInicial ?? '0'
+                        : 'Sin seguimiento',
                   ),
                 ],
               ),
