@@ -9,6 +9,8 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/movimiento_inventario_registrado_payload.dart';
+import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
@@ -88,6 +90,10 @@ class PendingEventRevalidator {
             ),
             RecursoInventarioCreadoPayload.eventType =>
               await _inventoryItemCreadoConflict(event),
+            RecursoInventarioActualizadoPayload.eventType =>
+              await _inventoryMutationConflict(event),
+            MovimientoInventarioRegistradoPayload.eventType =>
+              await _inventoryMutationConflict(event),
             _ => null,
           };
 
@@ -181,6 +187,28 @@ class PendingEventRevalidator {
         }
       }
     }
+    if (event.eventType == RecursoInventarioActualizadoPayload.eventType) {
+      final payload = RecursoInventarioActualizadoPayload.fromJson(
+        event.payload,
+      );
+      if (conflictedEventIds.contains(payload.baseEventId) ||
+          await _dependencyFailed(payload.baseEventId)) {
+        return const _PendingConflict(
+          'La actualización depende de otro evento local en conflicto.',
+        );
+      }
+    }
+    if (event.eventType == MovimientoInventarioRegistradoPayload.eventType) {
+      final payload = MovimientoInventarioRegistradoPayload.fromJson(
+        event.payload,
+      );
+      if (conflictedEventIds.contains(payload.baseEventId) ||
+          await _dependencyFailed(payload.baseEventId)) {
+        return const _PendingConflict(
+          'El movimiento depende de otro evento local en conflicto.',
+        );
+      }
+    }
     return null;
   }
 
@@ -257,6 +285,63 @@ class PendingEventRevalidator {
       );
     }
     return null;
+  }
+
+  Future<_PendingConflict?> _inventoryMutationConflict(SyncEvent event) async {
+    final store = _inventoryProjectionStore;
+    if (store == null) return null;
+    final item = await store.findItemById(event.aggregateId);
+    if (item == null || !item.active) {
+      return const _PendingConflict(
+        'Ya no existe el recurso de inventario que se intentó modificar.',
+      );
+    }
+
+    final String baseEventId;
+    if (event.eventType == RecursoInventarioActualizadoPayload.eventType) {
+      baseEventId = RecursoInventarioActualizadoPayload.fromJson(
+        event.payload,
+      ).baseEventId;
+    } else {
+      final payload = MovimientoInventarioRegistradoPayload.fromJson(
+        event.payload,
+      );
+      baseEventId = payload.baseEventId;
+      final movement = await store.findMovementById(
+        payload.movement.movementId,
+      );
+      if (movement != null && movement.eventId != event.eventId) {
+        return _PendingConflict(
+          'Ya existe un movimiento oficial con id ${payload.movement.movementId}.',
+        );
+      }
+    }
+
+    final resolvedBase = await _resolveBase(
+      baseEventId: baseEventId,
+      fallbackServerSequence: event.baseServerSequence,
+    );
+    if (resolvedBase.waitsForLocalDependency) return null;
+    final baseServerSequence = resolvedBase.serverSequence;
+    if (baseServerSequence == null) return null;
+
+    final officialEvents = await _syncedEventHistory.eventsForAggregateAfter(
+      aggregateType: RecursoInventarioCreadoPayload.aggregateType,
+      aggregateId: event.aggregateId,
+      serverSequence: baseServerSequence,
+    );
+    final changedOfficially = officialEvents.any(
+      (officialEvent) =>
+          officialEvent.eventId != event.eventId &&
+          (officialEvent.eventType ==
+                  RecursoInventarioActualizadoPayload.eventType ||
+              officialEvent.eventType ==
+                  MovimientoInventarioRegistradoPayload.eventType),
+    );
+    if (!changedOfficially) return null;
+    return const _PendingConflict(
+      'El recurso de inventario cambió oficialmente desde la base local.',
+    );
   }
 
   Future<bool> _dependencyFailed(String eventId) async {
@@ -536,6 +621,32 @@ class PendingEventRevalidator {
         await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
       case RecursoInventarioCreadoPayload.eventType:
         await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
+      case RecursoInventarioActualizadoPayload.eventType:
+        final payload = RecursoInventarioActualizadoPayload.fromJson(
+          event.payload,
+        );
+        await _inventoryProjectionStore?.restoreItemUpdate(
+          inventoryItemId: event.aggregateId,
+          eventId: event.eventId,
+          baseEventId: payload.baseEventId,
+          baseVersion: event.baseVersion!,
+          baseServerSequence: event.baseServerSequence,
+          previousName: payload.previousName,
+          nextName: payload.nextName,
+        );
+      case MovimientoInventarioRegistradoPayload.eventType:
+        final payload = MovimientoInventarioRegistradoPayload.fromJson(
+          event.payload,
+        );
+        await _inventoryProjectionStore?.restoreMovement(
+          inventoryItemId: event.aggregateId,
+          eventId: event.eventId,
+          baseEventId: payload.baseEventId,
+          baseVersion: event.baseVersion!,
+          baseServerSequence: event.baseServerSequence,
+          movementId: payload.movement.movementId,
+          quantityDeltaAtomic: payload.movement.quantityDeltaAtomic,
+        );
     }
   }
 

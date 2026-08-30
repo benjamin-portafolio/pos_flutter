@@ -21,7 +21,7 @@ class MovimientoInventario {
   final String movementType;
   final int quantityDeltaAtomic;
   final int? totalCostMinor;
-  final String reason;
+  final String? reason;
   final DateTime createdAtLocal;
   final int? serverSequence;
 }

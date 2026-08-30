@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../../domain/inventario/nombre_recurso_inventario.dart';
 import '../../../../domain/inventario/recurso_inventario_listado.dart';
+import '../../../../domain/inventario/tipo_movimiento_inventario.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
 import 'models/inventory_resource_form_result.dart';
 import 'widgets/inventory_quantity_input_formatter.dart';
 import 'widgets/inventory_unit_picker.dart';
 
-enum _StockDirection { add, remove }
+enum _AdjustmentDirection { add, remove }
 
 class InventoryResourceFormScreen extends StatefulWidget {
   const InventoryResourceFormScreen({
@@ -17,14 +18,14 @@ class InventoryResourceFormScreen extends StatefulWidget {
     super.key,
   }) : resource = null;
 
-  const InventoryResourceFormScreen.readOnly({
+  const InventoryResourceFormScreen.edit({
     required this.resource,
+    required this.onSave,
     super.key,
-  }) : units = const [],
-       onSave = null;
+  }) : units = const [];
 
   final List<UnidadInventario> units;
-  final Future<void> Function(InventoryResourceFormResult result)? onSave;
+  final Future<void> Function(InventoryResourceFormResult result) onSave;
   final RecursoInventarioListado? resource;
 
   @override
@@ -35,18 +36,36 @@ class InventoryResourceFormScreen extends StatefulWidget {
 class _InventoryResourceFormScreenState
     extends State<InventoryResourceFormScreen> {
   static const _codec = InventoryQuantityCodec();
+  static const _receiptReasons = <String>[
+    'Sin motivo',
+    'Compra',
+    'Devolución',
+    'Transferencia',
+    'Otro',
+  ];
+  static const _adjustmentReasons = <String>[
+    'Seleccionar motivo',
+    'Conteo físico',
+    'Error de captura',
+    'Daño o merma',
+    'Uso interno',
+    'Otro',
+  ];
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _quantityController = TextEditingController();
-  final _reasonController = TextEditingController(text: 'Existencia inicial');
+  final _reasonController = TextEditingController();
   UnidadInventario? _selectedUnit;
-  _StockDirection _direction = _StockDirection.add;
+  TipoMovimientoInventario _movementType =
+      TipoMovimientoInventario.stockReceipt;
+  _AdjustmentDirection _direction = _AdjustmentDirection.add;
+  String _reasonChoice = 'Sin motivo';
   bool _saving = false;
   bool _canPop = false;
   String? _saveError;
 
-  bool get _readOnly => widget.resource != null;
+  bool get _editing => widget.resource != null;
 
   @override
   void initState() {
@@ -69,7 +88,7 @@ class _InventoryResourceFormScreenState
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return PopScope<bool>(
-      canPop: _readOnly || _canPop,
+      canPop: _canPop,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _requestClose();
       },
@@ -77,36 +96,38 @@ class _InventoryResourceFormScreenState
         appBar: AppBar(
           leading: IconButton(
             onPressed: _saving ? null : _requestClose,
-            icon: Icon(_readOnly ? Icons.arrow_back : Icons.close),
-            tooltip: _readOnly ? 'Regresar' : 'Cancelar',
+            icon: const Icon(Icons.close),
+            tooltip: 'Cancelar',
           ),
-          title: Text(_readOnly ? 'RECURSO DE INVENTARIO' : 'AÑADIR RECURSO'),
-          actions: _readOnly
-              ? const []
-              : [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: TextButton.icon(
-                      key: const Key('save_inventory_resource_button'),
-                      onPressed: _saving ? null : _submit,
-                      style: TextButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                      ),
-                      icon: _saving
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: colorScheme.onPrimary,
-                              ),
-                            )
-                          : const Icon(Icons.check_circle_outline),
-                      label: const Text('GUARDAR'),
-                    ),
-                  ),
-                ],
+          title: Text(
+            _editing
+                ? 'Editar recurso de inventario'
+                : 'Nuevo recurso de inventario',
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton.icon(
+                key: const Key('save_inventory_resource_button'),
+                onPressed: _saving ? null : _submit,
+                style: TextButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                ),
+                icon: _saving
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.onPrimary,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: const Text('GUARDAR'),
+              ),
+            ),
+          ],
         ),
         backgroundColor: const Color(0xFFF2F3F5),
         body: SafeArea(
@@ -126,170 +147,104 @@ class _InventoryResourceFormScreenState
                     child: TextFormField(
                       key: const Key('inventory_resource_name_field'),
                       controller: _nameController,
-                      enabled: !_readOnly && !_saving,
+                      enabled: !_saving,
                       maxLength: 160,
                       textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: _readOnly ? 'Nombre' : 'Nombre *',
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre *',
                         hintText: 'Ej. Harina',
                         border: InputBorder.none,
                         counterText: '',
-                        prefixIcon: const Icon(Icons.inventory_2_outlined),
+                        prefixIcon: Icon(Icons.inventory_2_outlined),
                       ),
-                      validator: _readOnly ? null : _validateName,
+                      validator: _validateName,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _FormCard(
-                    child: FormField<UnidadInventario>(
-                      key: const Key('inventory_default_unit_field'),
-                      initialValue: _selectedUnit,
-                      validator: _readOnly
-                          ? null
-                          : (value) => value == null
-                                ? 'Selecciona una unidad predeterminada.'
-                                : null,
-                      builder: (field) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.straighten),
-                            title: Text(
-                              _readOnly
-                                  ? 'Unidad predeterminada'
-                                  : 'Unidad predeterminada *',
-                            ),
-                            subtitle: Text(
-                              _selectedUnit == null
-                                  ? 'Seleccionar unidad'
-                                  : '${_selectedUnit!.nombre} (${_selectedUnit!.simbolo})',
-                            ),
-                            trailing: _readOnly
-                                ? null
-                                : const Icon(Icons.expand_more),
-                            onTap: _readOnly || _saving
-                                ? null
-                                : () async {
-                                    final selected =
-                                        await InventoryUnitPicker.show(
-                                          context: context,
-                                          units: widget.units,
-                                          selected: _selectedUnit,
-                                        );
-                                    if (selected == null || !mounted) return;
-                                    setState(() {
-                                      _selectedUnit = selected;
-                                      _quantityController.clear();
-                                    });
-                                    field.didChange(selected);
-                                  },
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                            child: Text(
-                              _readOnly
-                                  ? 'Se usa para mostrar las existencias.'
-                                  : 'Se usará para capturar y mostrar las existencias.',
-                            ),
-                          ),
-                          if (field.hasError)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                              child: Text(
-                                field.errorText!,
-                                style: TextStyle(color: colorScheme.error),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                  _buildUnitField(colorScheme),
+                  const SizedBox(height: 24),
+                  Text(
+                    _editing ? 'Registrar movimiento' : 'Existencia inicial',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  if (_readOnly)
-                    ..._buildReadOnlyInventory(context)
-                  else ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      'Existencias iniciales',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                  if (_editing) ...[
+                    _buildMovementTypeSelector(),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_editing &&
+                      _movementType ==
+                          TipoMovimientoInventario.manualAdjustment) ...[
                     _buildDirectionSelector(),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _BalancePreviewCard(
-                            label: 'Existencias actuales',
-                            value: _withSymbol('0'),
-                          ),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _BalancePreviewCard(
+                          key: const Key('inventory_current_balance'),
+                          label: 'Existencia actual',
+                          value: _currentBalance,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _BalancePreviewCard(
-                            key: const Key('inventory_updated_balance'),
-                            label: 'Existencias actualizadas',
-                            value: _updatedBalance,
-                            valueColor: _directionColor,
-                          ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _BalancePreviewCard(
+                          key: const Key('inventory_updated_balance'),
+                          label: 'Existencia resultante',
+                          value: _updatedBalance,
+                          valueColor: _directionColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _FormCard(
+                    child: TextFormField(
+                      key: const Key('inventory_initial_quantity_field'),
+                      controller: _quantityController,
+                      enabled: !_saving && _selectedUnit != null,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: false,
+                      ),
+                      inputFormatters: [
+                        InventoryQuantityInputFormatter(
+                          _selectedUnit?.maximosDecimales ?? 0,
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    _FormCard(
-                      child: TextFormField(
-                        key: const Key('inventory_initial_quantity_field'),
-                        controller: _quantityController,
-                        enabled: !_saving && _selectedUnit != null,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: false,
-                        ),
-                        inputFormatters: [
-                          InventoryQuantityInputFormatter(
-                            _selectedUnit?.maximosDecimales ?? 0,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: _editing
+                            ? 'Cantidad del movimiento (opcional)'
+                            : 'Cantidad inicial (opcional)',
+                        hintText: _selectedUnit == null
+                            ? 'Elige una unidad'
+                            : '0',
+                        border: InputBorder.none,
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            _signedPrefix,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: _directionColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
-                        ],
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          labelText: 'Cantidad inicial (opcional)',
-                          hintText: _selectedUnit == null
-                              ? 'Elige una unidad'
-                              : '0',
-                          border: InputBorder.none,
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Text(
-                              _direction == _StockDirection.add ? '+' : '−',
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(
-                                    color: _directionColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ),
-                          suffixText: _selectedUnit?.simbolo,
                         ),
-                        validator: _validateQuantity,
+                        suffixText: _selectedUnit?.simbolo,
                       ),
+                      validator: _validateQuantity,
                     ),
-                    const SizedBox(height: 12),
-                    _FormCard(
-                      child: TextFormField(
-                        key: const Key('inventory_movement_reason_field'),
-                        controller: _reasonController,
-                        enabled: !_saving,
-                        maxLength: 500,
-                        decoration: const InputDecoration(
-                          labelText: 'Motivo del movimiento',
-                          border: InputBorder.none,
-                          counterText: '',
-                          prefixIcon: Icon(Icons.notes),
-                        ),
-                        validator: _validateReason,
-                      ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_editing)
+                    _buildReasonSelector()
+                  else
+                    _buildCustomReasonField(
+                      label: 'Motivo de existencia inicial (opcional)',
                     ),
-                  ],
                   if (_saveError != null) ...[
                     const SizedBox(height: 16),
                     Material(
@@ -314,87 +269,207 @@ class _InventoryResourceFormScreenState
     );
   }
 
+  Widget _buildUnitField(ColorScheme colorScheme) {
+    return _FormCard(
+      child: FormField<UnidadInventario>(
+        key: const Key('inventory_default_unit_field'),
+        initialValue: _selectedUnit,
+        validator: (value) =>
+            value == null ? 'Selecciona una unidad predeterminada.' : null,
+        builder: (field) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.straighten),
+              title: const Text('Unidad predeterminada *'),
+              subtitle: Text(
+                _selectedUnit == null
+                    ? 'Seleccionar unidad'
+                    : '${_selectedUnit!.nombre} (${_selectedUnit!.simbolo})',
+              ),
+              trailing: _editing
+                  ? const Icon(Icons.lock_outline)
+                  : const Icon(Icons.expand_more),
+              onTap: _editing || _saving
+                  ? null
+                  : () async {
+                      final selected = await InventoryUnitPicker.show(
+                        context: context,
+                        units: widget.units,
+                        selected: _selectedUnit,
+                      );
+                      if (selected == null || !mounted) return;
+                      setState(() {
+                        _selectedUnit = selected;
+                        _quantityController.clear();
+                      });
+                      field.didChange(selected);
+                    },
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                _editing
+                    ? 'La unidad no puede cambiarse porque el historial ya utiliza esta unidad.'
+                    : 'Se usará para capturar y mostrar las existencias.',
+              ),
+            ),
+            if (field.hasError)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  field.errorText!,
+                  style: TextStyle(color: colorScheme.error),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMovementTypeSelector() {
+    return SegmentedButton<TipoMovimientoInventario>(
+      key: const Key('inventory_movement_type'),
+      segments: const [
+        ButtonSegment(
+          value: TipoMovimientoInventario.stockReceipt,
+          label: Text('Agregar existencia'),
+          icon: Icon(Icons.add_box_outlined),
+        ),
+        ButtonSegment(
+          value: TipoMovimientoInventario.manualAdjustment,
+          label: Text('Corregir existencia'),
+          icon: Icon(Icons.tune),
+        ),
+      ],
+      selected: {_movementType},
+      onSelectionChanged: _saving
+          ? null
+          : (selection) => setState(() {
+              _movementType = selection.single;
+              _direction = _AdjustmentDirection.add;
+              _reasonChoice =
+                  _movementType == TipoMovimientoInventario.stockReceipt
+                  ? 'Sin motivo'
+                  : 'Seleccionar motivo';
+              _reasonController.clear();
+            }),
+    );
+  }
+
   Widget _buildDirectionSelector() {
-    return SegmentedButton<_StockDirection>(
+    return SegmentedButton<_AdjustmentDirection>(
       key: const Key('inventory_stock_direction'),
       segments: const [
         ButtonSegment(
-          value: _StockDirection.add,
-          label: Text('Añadir existencias (+)', textAlign: TextAlign.center),
+          value: _AdjustmentDirection.add,
+          label: Text('Aumentar (+)'),
           icon: Icon(Icons.add),
         ),
         ButtonSegment(
-          value: _StockDirection.remove,
-          label: Text('Eliminar stock (−)', textAlign: TextAlign.center),
+          value: _AdjustmentDirection.remove,
+          label: Text('Disminuir (−)'),
           icon: Icon(Icons.remove),
         ),
       ],
       selected: {_direction},
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (!states.contains(WidgetState.selected)) return null;
-          return _directionColor;
-        }),
-        foregroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return Colors.white;
-          return Theme.of(context).colorScheme.primary;
-        }),
-      ),
       onSelectionChanged: _saving
           ? null
           : (selection) => setState(() => _direction = selection.single),
     );
   }
 
-  List<Widget> _buildReadOnlyInventory(BuildContext context) {
-    final resource = widget.resource!;
-    final unit = resource.unidadPredeterminada;
-    final quantity = _codec.formatAtomic(resource.existenciaAtomica, unit);
-    return [
-      const SizedBox(height: 24),
-      Text('Existencias', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
-      _BalancePreviewCard(
-        key: const Key('inventory_current_balance'),
-        label: 'Existencias actuales',
-        value: '$quantity ${unit.simbolo}',
-        valueColor: Theme.of(context).colorScheme.primary,
-      ),
-      const SizedBox(height: 12),
-      _FormCard(
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(
-            resource.activo ? Icons.check_circle_outline : Icons.block,
+  Widget _buildReasonSelector() {
+    final reasons = _movementType == TipoMovimientoInventario.stockReceipt
+        ? _receiptReasons
+        : _adjustmentReasons;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _FormCard(
+          child: DropdownButtonFormField<String>(
+            key: const Key('inventory_movement_reason_choice'),
+            initialValue: _reasonChoice,
+            decoration: InputDecoration(
+              labelText: _movementType == TipoMovimientoInventario.stockReceipt
+                  ? 'Motivo (opcional)'
+                  : 'Motivo *',
+              border: InputBorder.none,
+              prefixIcon: const Icon(Icons.notes),
+            ),
+            items: reasons
+                .map(
+                  (reason) =>
+                      DropdownMenuItem(value: reason, child: Text(reason)),
+                )
+                .toList(growable: false),
+            onChanged: _saving
+                ? null
+                : (value) => setState(() {
+                    _reasonChoice = value!;
+                    _reasonController.clear();
+                  }),
+            validator: (_) => _validateReason(),
           ),
-          title: const Text('Estado'),
-          subtitle: Text(resource.activo ? 'Activo' : 'Inactivo'),
         ),
-      ),
-    ];
+        if (_reasonChoice == 'Otro') ...[
+          const SizedBox(height: 12),
+          _buildCustomReasonField(label: 'Especifica el motivo *'),
+        ],
+      ],
+    );
   }
 
-  Color get _directionColor => _direction == _StockDirection.add
-      ? const Color(0xFF2E7D32)
-      : const Color(0xFFC62828);
+  Widget _buildCustomReasonField({required String label}) {
+    return _FormCard(
+      child: TextFormField(
+        key: const Key('inventory_movement_reason_field'),
+        controller: _reasonController,
+        enabled: !_saving,
+        maxLength: 500,
+        decoration: InputDecoration(
+          labelText: label,
+          border: InputBorder.none,
+          counterText: '',
+          prefixIcon: const Icon(Icons.edit_note),
+        ),
+        validator: (_) =>
+            _editing ? _validateReason() : _validateOptionalReason(),
+      ),
+    );
+  }
+
+  String get _currentBalance {
+    final unit = _selectedUnit;
+    if (unit == null) return '—';
+    final current = widget.resource?.existenciaAtomica ?? 0;
+    return '${_codec.formatAtomic(current, unit)} ${unit.simbolo}';
+  }
 
   String get _updatedBalance {
     final unit = _selectedUnit;
     final raw = _quantityController.text.trim();
-    if (unit == null || raw.isEmpty) return '—';
+    if (unit == null || raw.isEmpty) return _currentBalance;
     try {
       final magnitude = _codec.parsePositiveAtomic(raw, unit);
-      final atomic = _direction == _StockDirection.add ? magnitude : -magnitude;
-      return _withSymbol(_codec.formatAtomic(atomic, unit));
+      final delta = _direction == _AdjustmentDirection.add
+          ? magnitude
+          : -magnitude;
+      final result = (widget.resource?.existenciaAtomica ?? 0) + delta;
+      return '${_codec.formatAtomic(result, unit)} ${unit.simbolo}';
     } on FormatException {
       return '—';
     }
   }
 
-  String _withSymbol(String value) {
-    final symbol = _selectedUnit?.simbolo;
-    return symbol == null ? value : '$value $symbol';
-  }
+  String get _signedPrefix =>
+      _direction == _AdjustmentDirection.add ? '+' : '−';
+
+  Color get _directionColor => _direction == _AdjustmentDirection.add
+      ? const Color(0xFF2E7D32)
+      : const Color(0xFFC62828);
 
   String? _validateName(String? value) {
     try {
@@ -418,11 +493,22 @@ class _InventoryResourceFormScreenState
     }
   }
 
-  String? _validateReason(String? value) {
+  String? _validateReason() {
     if (_quantityController.text.trim().isEmpty) return null;
-    final normalized = value?.trim() ?? '';
-    if (normalized.isEmpty) {
-      return 'El motivo es obligatorio cuando capturas una cantidad.';
+    if (_movementType == TipoMovimientoInventario.manualAdjustment &&
+        _reasonChoice == 'Seleccionar motivo') {
+      return 'Selecciona un motivo para la corrección manual.';
+    }
+    if (_reasonChoice == 'Otro' && _reasonController.text.trim().isEmpty) {
+      return 'Especifica el motivo.';
+    }
+    return _validateOptionalReason();
+  }
+
+  String? _validateOptionalReason() {
+    final reason = _reasonController.text.trim();
+    if (reason.runes.length > 500) {
+      return 'El motivo no puede exceder 500 caracteres.';
     }
     return null;
   }
@@ -436,21 +522,27 @@ class _InventoryResourceFormScreenState
         : _codec.parsePositiveAtomic(rawQuantity, unit);
     final delta = magnitude == null
         ? null
-        : _direction == _StockDirection.add
+        : _direction == _AdjustmentDirection.add
         ? magnitude
         : -magnitude;
+    final movementType = delta == null
+        ? null
+        : _editing
+        ? _movementType
+        : TipoMovimientoInventario.initialBalance;
 
     setState(() {
       _saving = true;
       _saveError = null;
     });
     try {
-      await widget.onSave!(
+      await widget.onSave(
         InventoryResourceFormResult(
           nombre: _nameController.text,
           unidad: unit,
           quantityDeltaAtomic: delta,
-          movementReason: delta == null ? null : _reasonController.text,
+          movementReason: delta == null ? null : _selectedReason,
+          movementType: movementType,
         ),
       );
       if (!mounted) return;
@@ -466,12 +558,21 @@ class _InventoryResourceFormScreenState
     }
   }
 
+  String? get _selectedReason {
+    if (!_editing) {
+      final value = _reasonController.text.trim();
+      return value.isEmpty ? null : value;
+    }
+    if (_reasonChoice == 'Sin motivo' ||
+        _reasonChoice == 'Seleccionar motivo') {
+      return null;
+    }
+    if (_reasonChoice == 'Otro') return _reasonController.text;
+    return _reasonChoice;
+  }
+
   Future<void> _requestClose() async {
     if (_saving) return;
-    if (_readOnly) {
-      Navigator.of(context).pop(false);
-      return;
-    }
     if (!_hasChanges) {
       setState(() => _canPop = true);
       await Future<void>.delayed(Duration.zero);
@@ -501,10 +602,21 @@ class _InventoryResourceFormScreenState
     if (mounted) Navigator.of(context).pop(false);
   }
 
-  bool get _hasChanges =>
-      _nameController.text.isNotEmpty ||
-      _selectedUnit != null ||
-      _quantityController.text.isNotEmpty;
+  bool get _hasChanges {
+    final resource = widget.resource;
+    if (resource == null) {
+      return _nameController.text.isNotEmpty ||
+          _selectedUnit != null ||
+          _quantityController.text.isNotEmpty ||
+          _reasonController.text.isNotEmpty;
+    }
+    return _nameController.text != resource.nombre ||
+        _quantityController.text.isNotEmpty ||
+        _reasonController.text.isNotEmpty ||
+        _movementType != TipoMovimientoInventario.stockReceipt ||
+        _direction != _AdjustmentDirection.add ||
+        _reasonChoice != 'Sin motivo';
+  }
 }
 
 class _FormCard extends StatelessWidget {

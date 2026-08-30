@@ -4,6 +4,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:pos_flutter/application/commands/crear_recurso_inventario_command.dart';
+import 'package:pos_flutter/application/commands/editar_recurso_inventario_command.dart';
+import 'package:pos_flutter/application/commands/inventory_command_service.dart';
+import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/categoria_eliminada_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/categoria_movida_conflict_projection_restorer.dart';
@@ -12,6 +16,8 @@ import 'package:pos_flutter/application/sync/handlers/categoria_event_handler.da
 import 'package:pos_flutter/application/sync/handlers/categoria_event_registry.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/espacio_event_registry.dart';
+import 'package:pos_flutter/application/sync/handlers/inventory_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/inventory_event_registry.dart';
 import 'package:pos_flutter/application/sync/handlers/producto_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/producto_event_registry.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
@@ -23,9 +29,12 @@ import 'package:pos_flutter/application/sync/sync_push_service.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_inventory_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
+import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
+import 'package:pos_flutter/domain/inventario/tipo_movimiento_inventario.dart';
 
 void main() {
   late AppDatabase db;
@@ -39,6 +48,7 @@ void main() {
   late DriftCategoriaProjectionStore categoriaProjectionStore;
   late DriftEspacioProjectionStore espacioProjectionStore;
   late DriftProductoProjectionStore productoProjectionStore;
+  late DriftInventoryProjectionStore inventoryProjectionStore;
   late DriftLocalEventStore localEventStore;
 
   setUp(() {
@@ -64,6 +74,10 @@ void main() {
     productoProjectionStore = DriftProductoProjectionStore(
       productoDao: productoDao,
     );
+    inventoryProjectionStore = DriftInventoryProjectionStore(
+      inventoryDao: InventoryDao(db),
+      unitDao: UnitDao(db),
+    );
     localEventStore = DriftLocalEventStore(
       db: db,
       eventDao: eventDao,
@@ -76,6 +90,9 @@ void main() {
           ),
           ...productoEventHandlers(
             ProductoEventHandler(productoProjectionStore),
+          ),
+          ...inventoryEventHandlers(
+            InventoryEventHandler(inventoryProjectionStore),
           ),
         },
       ),
@@ -248,6 +265,91 @@ void main() {
             .deliveryStatus,
         'delivered',
       );
+    },
+  );
+
+  test(
+    'envía creación, edición y movimiento de inventario en orden causal',
+    () async {
+      final commandService = InventoryCommandService(
+        eventStore: localEventStore,
+        commandContext: const LocalCommandContext(
+          deviceId: 'device_tablet_01',
+          userId: 'user_01',
+        ),
+        inventoryProjectionStore: inventoryProjectionStore,
+      );
+      await commandService.crearRecurso(
+        const CrearRecursoInventarioCommand(
+          nombre: 'Harina',
+          defaultUnitId: InventoryUnitIds.kilogram,
+        ),
+      );
+      final item = (await db.select(db.inventoryItems).get()).single;
+      await commandService.editarRecurso(
+        EditarRecursoInventarioCommand(
+          inventoryItemId: item.id,
+          nombre: 'Harina integral',
+          movementType: TipoMovimientoInventario.stockReceipt,
+          quantityDeltaAtomic: 100,
+        ),
+      );
+      final expectedEvents = await db.select(db.events).get();
+      expectedEvents.sort(
+        (left, right) => left.localSequence.compareTo(right.localSequence),
+      );
+
+      var requestCount = 0;
+      final service = SyncPushService(
+        syncPersistence: syncPersistence,
+        endpointConfig: SyncEndpointConfig(
+          initialBaseUrl: 'http://localhost:3000',
+        ),
+        conflictProjectionCleaner: SyncConflictProjectionCleaner(
+          espacioProjectionStore: espacioProjectionStore,
+          categoriaProjectionStore: categoriaProjectionStore,
+          inventoryProjectionStore: inventoryProjectionStore,
+          categoriaConflictProjectionRestorer:
+              CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+          categoriaMovidaConflictProjectionRestorer:
+              CategoriaMovidaConflictProjectionRestorer(
+                categoriaProjectionStore,
+              ),
+        ),
+        client: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, Object?>;
+          final sentEvents = (body['events'] as List).cast<Map>();
+          expect(sentEvents, hasLength(1));
+          expect(
+            sentEvents.single['event_id'],
+            expectedEvents[requestCount].eventId,
+          );
+          requestCount++;
+          return http.Response(
+            jsonEncode({
+              'results': [
+                {
+                  'event_id': sentEvents.single['event_id'],
+                  'status': 'accepted',
+                  'server_sequence': requestCount,
+                  'created_at_server': '2026-08-29T20:31:00.000Z',
+                },
+              ],
+            }),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      final first = await service.pushPendingEvents();
+      final second = await service.pushPendingEvents();
+      final third = await service.pushPendingEvents();
+
+      expect((first.synced, first.pending), (1, 2));
+      expect((second.synced, second.pending), (1, 1));
+      expect((third.synced, third.pending), (1, 0));
+      expect(requestCount, 3);
     },
   );
 

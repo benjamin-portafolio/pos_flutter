@@ -7,7 +7,7 @@ import 'package:pos_flutter/data/local/drift/app_database.dart';
 
 void main() {
   test(
-    'migra schema 4 a 6 y elimina campos de inventario del artículo',
+    'migra schema 4 a 7 y elimina campos de inventario del artículo',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v4-');
       addTearDown(() => directory.delete(recursive: true));
@@ -38,6 +38,9 @@ void main() {
             ),
           );
       await current.customStatement('PRAGMA foreign_keys = OFF');
+      await current.customStatement(
+        'ALTER TABLE inventory_balances DROP COLUMN version',
+      );
       await current.customStatement('''
       CREATE TABLE products_v4 AS
       SELECT id, active, version, created_event_id, last_event_id,
@@ -75,12 +78,12 @@ void main() {
       final versionRow = await migrated
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 6);
+      expect(versionRow.read<int>('user_version'), 7);
     },
   );
 
   test(
-    'migra schema 5 a 6 y permite varios movimientos del mismo evento',
+    'migra schema 5 a 7 y permite varios movimientos del mismo evento',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v5-');
       addTearDown(() => directory.delete(recursive: true));
@@ -99,6 +102,9 @@ void main() {
             ),
           );
       await current.customStatement('PRAGMA foreign_keys = OFF');
+      await current.customStatement(
+        'ALTER TABLE inventory_balances DROP COLUMN version',
+      );
       await current.customStatement(
         "ALTER TABLE products ADD COLUMN inventory_mode TEXT NOT NULL DEFAULT 'direct'",
       );
@@ -146,7 +152,7 @@ void main() {
               eventId: 'event-sale',
               movementType: 'sale_consumption',
               quantityDeltaAtomic: -1,
-              reason: 'Componente 1',
+              reason: const Value('Componente 1'),
               createdAtLocal: DateTime.utc(2026, 8, 21),
             ),
           );
@@ -159,7 +165,7 @@ void main() {
               eventId: 'event-sale',
               movementType: 'sale_consumption',
               quantityDeltaAtomic: -2,
-              reason: 'Componente 2',
+              reason: const Value('Componente 2'),
               createdAtLocal: DateTime.utc(2026, 8, 21),
             ),
           );
@@ -190,7 +196,129 @@ void main() {
       final versionRow = await migrated
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 6);
+      expect(versionRow.read<int>('user_version'), 7);
+    },
+  );
+
+  test(
+    'migra schema 6 a 7, conserva historial y permite reason null',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('pos-schema-v6-');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/migration.sqlite');
+
+      final current = AppDatabase.forTesting(NativeDatabase(file));
+      await current
+          .into(current.inventoryItems)
+          .insert(
+            InventoryItemsCompanion.insert(
+              id: 'inventory-item',
+              name: 'Insumo',
+              defaultUnitId: '10000000-0000-4000-8000-000000000001',
+              createdEventId: const Value('event-resource'),
+              lastEventId: const Value('event-resource'),
+            ),
+          );
+      await current.customStatement('PRAGMA foreign_keys = OFF');
+      await current.customStatement(
+        'ALTER TABLE inventory_balances DROP COLUMN version',
+      );
+      await current.customStatement('DROP TABLE inventory_movements');
+      await current.customStatement('''
+      CREATE TABLE inventory_movements (
+        movement_id TEXT NOT NULL PRIMARY KEY,
+        inventory_item_id TEXT NOT NULL,
+        sale_item_id TEXT,
+        event_id TEXT NOT NULL,
+        reversal_of_movement_id TEXT,
+        movement_type TEXT NOT NULL,
+        quantity_delta_atomic INTEGER NOT NULL
+          CHECK (quantity_delta_atomic <> 0),
+        total_cost_minor INTEGER,
+        reason TEXT NOT NULL,
+        created_at_local INTEGER NOT NULL,
+        server_sequence INTEGER
+      )
+    ''');
+      await current.customStatement('''
+      INSERT INTO inventory_movements (
+        movement_id, inventory_item_id, event_id, movement_type,
+        quantity_delta_atomic, total_cost_minor, reason, created_at_local
+      ) VALUES (
+        'legacy-movement', 'inventory-item', 'legacy-event',
+        'manual_adjustment', -2, NULL, 'Conteo histórico', 0
+      )
+    ''');
+      await current.customStatement('PRAGMA user_version = 6');
+      await current.close();
+
+      final migrated = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(migrated.close);
+      final legacy = await (migrated.select(
+        migrated.inventoryMovements,
+      )..where((row) => row.movementId.equals('legacy-movement'))).getSingle();
+      expect(legacy.reason, 'Conteo histórico');
+      expect(legacy.reversalOfMovementId, isA<Null>());
+      expect(legacy.totalCostMinor, isA<Null>());
+
+      await migrated
+          .into(migrated.inventoryMovements)
+          .insert(
+            InventoryMovementsCompanion.insert(
+              movementId: 'receipt-movement',
+              inventoryItemId: 'inventory-item',
+              eventId: 'receipt-event',
+              movementType: 'stock_receipt',
+              quantityDeltaAtomic: 5,
+              createdAtLocal: DateTime.utc(2026, 8, 29),
+            ),
+          );
+      final receipt = await (migrated.select(
+        migrated.inventoryMovements,
+      )..where((row) => row.movementId.equals('receipt-movement'))).getSingle();
+      expect(receipt.reason, isA<Null>());
+      expect(
+        () => migrated
+            .into(migrated.inventoryMovements)
+            .insert(
+              InventoryMovementsCompanion.insert(
+                movementId: 'untrimmed-receipt',
+                inventoryItemId: 'inventory-item',
+                eventId: 'untrimmed-event',
+                movementType: 'stock_receipt',
+                quantityDeltaAtomic: 1,
+                reason: const Value(' Compra '),
+                createdAtLocal: DateTime.utc(2026, 8, 29),
+              ),
+            ),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        () => migrated
+            .into(migrated.inventoryMovements)
+            .insert(
+              InventoryMovementsCompanion.insert(
+                movementId: 'invalid-manual',
+                inventoryItemId: 'inventory-item',
+                eventId: 'invalid-event',
+                movementType: 'manual_adjustment',
+                quantityDeltaAtomic: 1,
+                createdAtLocal: DateTime.utc(2026, 8, 29),
+              ),
+            ),
+        throwsA(isA<Exception>()),
+      );
+      final balanceColumns = await migrated
+          .customSelect('PRAGMA table_info(inventory_balances)')
+          .get();
+      expect(
+        balanceColumns.map((row) => row.read<String>('name')),
+        contains('version'),
+      );
+      final versionRow = await migrated
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(versionRow.read<int>('user_version'), 7);
     },
   );
 }

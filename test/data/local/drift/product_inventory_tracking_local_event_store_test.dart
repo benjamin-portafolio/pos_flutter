@@ -17,6 +17,7 @@ import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
+import 'package:pos_flutter/domain/inventario/tipo_movimiento_inventario.dart';
 
 void main() {
   late AppDatabase db;
@@ -113,8 +114,8 @@ List<LocalEventAppend> _entries({required String productInventoryItemId}) {
       defaultUnitId: InventoryUnitIds.piece,
       initialMovement: InitialInventoryMovementPayload.create(
         movementId: '30000000-0000-4000-8000-000000000001',
+        movementType: TipoMovimientoInventario.initialBalance,
         quantityDeltaAtomic: 15,
-        reason: 'Existencia inicial del artículo',
       ),
     ).toJson(),
   );

@@ -9,6 +9,7 @@ import '../../domain/articulos/precio_venta.dart';
 import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/inventario/dimension_unidad.dart';
 import '../../domain/inventario/inventory_quantity_codec.dart';
+import '../../domain/inventario/tipo_movimiento_inventario.dart';
 import '../../domain/inventario/unidad_inventario.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../sync/local_event_store.dart';
@@ -258,8 +259,8 @@ class ProductoCommandService {
         ? null
         : InitialInventoryMovementPayload.create(
             movementId: binding.movementId!,
+            movementType: TipoMovimientoInventario.initialBalance,
             quantityDeltaAtomic: binding.initialQuantityAtomic!,
-            reason: 'Existencia inicial del artículo',
           );
     final payload = RecursoInventarioCreadoPayload.create(
       inventoryItemId: binding.inventoryItemId,

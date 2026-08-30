@@ -25,7 +25,7 @@ class InventoryMovements extends Table {
     onDelete: KeyAction.restrict,
   )();
 
-  /// Clasificación estable del movimiento; el alta usa `manual_adjustment`.
+  /// Clasificación estable del movimiento.
   TextColumn get movementType => text().withLength(min: 1, max: 40)();
 
   /// Delta atómico entero, positivo o negativo, pero nunca cero.
@@ -36,8 +36,8 @@ class InventoryMovements extends Table {
   /// Costo total en unidad monetaria menor, cuando corresponda.
   IntColumn get totalCostMinor => integer().nullable()();
 
-  /// Explicación obligatoria del ajuste manual.
-  TextColumn get reason => text().withLength(min: 1, max: 500)();
+  /// Justificación normalizada; solo es obligatoria en correcciones manuales.
+  TextColumn get reason => text().nullable()();
 
   /// Fecha capturada por el dispositivo al crear el movimiento.
   DateTimeColumn get createdAtLocal => dateTime()();
@@ -47,4 +47,13 @@ class InventoryMovements extends Table {
 
   @override
   Set<Column> get primaryKey => {movementId};
+
+  @override
+  List<String> get customConstraints => const [
+    "CHECK (reason IS NULL OR (reason = trim(reason) AND length(reason) BETWEEN 1 AND 500))",
+    "CHECK (movement_type <> 'manual_adjustment' OR reason IS NOT NULL)",
+    "CHECK (movement_type NOT IN ('initial_balance', 'stock_receipt') OR quantity_delta_atomic > 0)",
+    "CHECK ((movement_type = 'reversal') = (reversal_of_movement_id IS NOT NULL))",
+    'CHECK (reversal_of_movement_id IS NULL OR reversal_of_movement_id <> movement_id)',
+  ];
 }

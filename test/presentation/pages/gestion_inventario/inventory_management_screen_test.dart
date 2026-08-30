@@ -95,7 +95,7 @@ void main() {
     expect(find.byTooltip('Agregar'), findsOneWidget);
   });
 
-  testWidgets('abre el recurso seleccionado en modo lectura', (tester) async {
+  testWidgets('abre el recurso seleccionado en modo edición', (tester) async {
     const resource = RecursoInventarioListado(
       id: 'inventory-1',
       nombre: 'Harina',
@@ -129,12 +129,12 @@ void main() {
     await tester.tap(find.byKey(const Key('inventory_resource_inventory-1')));
     await tester.pumpAndSettle();
 
-    expect(find.text('RECURSO DE INVENTARIO'), findsOneWidget);
+    expect(find.text('Editar recurso de inventario'), findsOneWidget);
     expect(find.text('Harina'), findsOneWidget);
-    expect(find.text('1.25 kg'), findsOneWidget);
+    expect(find.text('1.25 kg'), findsWidgets);
     expect(
       find.byKey(const Key('save_inventory_resource_button')),
-      findsNothing,
+      findsOneWidget,
     );
   });
 

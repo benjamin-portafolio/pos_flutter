@@ -9,6 +9,8 @@ import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/movimiento_inventario_registrado_payload.dart';
+import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
 import 'sync_endpoint_config.dart';
 import 'sync_persistence.dart';
@@ -251,6 +253,16 @@ class SyncPushService {
                   dependency.dependsOnEventId != null &&
                   eventIds.contains(dependency.dependsOnEventId),
             );
+      case RecursoInventarioActualizadoPayload.eventType:
+        final payload = RecursoInventarioActualizadoPayload.fromJson(
+          event.payload,
+        );
+        return eventIds.contains(payload.baseEventId);
+      case MovimientoInventarioRegistradoPayload.eventType:
+        final payload = MovimientoInventarioRegistradoPayload.fromJson(
+          event.payload,
+        );
+        return eventIds.contains(payload.baseEventId);
       default:
         return false;
     }

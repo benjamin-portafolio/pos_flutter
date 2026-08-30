@@ -8,6 +8,8 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/movimiento_inventario_registrado_payload.dart';
+import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
@@ -63,6 +65,34 @@ class SyncConflictProjectionCleaner {
       await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
     } else if (event.eventType == RecursoInventarioCreadoPayload.eventType) {
       await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
+    } else if (event.eventType ==
+        RecursoInventarioActualizadoPayload.eventType) {
+      final payload = RecursoInventarioActualizadoPayload.fromJson(
+        event.payload,
+      );
+      await _inventoryProjectionStore?.restoreItemUpdate(
+        inventoryItemId: event.aggregateId,
+        eventId: event.eventId,
+        baseEventId: payload.baseEventId,
+        baseVersion: event.baseVersion!,
+        baseServerSequence: event.baseServerSequence,
+        previousName: payload.previousName,
+        nextName: payload.nextName,
+      );
+    } else if (event.eventType ==
+        MovimientoInventarioRegistradoPayload.eventType) {
+      final payload = MovimientoInventarioRegistradoPayload.fromJson(
+        event.payload,
+      );
+      await _inventoryProjectionStore?.restoreMovement(
+        inventoryItemId: event.aggregateId,
+        eventId: event.eventId,
+        baseEventId: payload.baseEventId,
+        baseVersion: event.baseVersion!,
+        baseServerSequence: event.baseServerSequence,
+        movementId: payload.movement.movementId,
+        quantityDeltaAtomic: payload.movement.quantityDeltaAtomic,
+      );
     }
   }
 }

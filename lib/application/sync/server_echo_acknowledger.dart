@@ -5,6 +5,8 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
+import 'payloads/recurso_inventario_actualizado_payload.dart';
+import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/inventory_projection_store.dart';
 import 'projections/producto_projection_store.dart';
@@ -71,6 +73,22 @@ class ServerEchoAcknowledger {
           inventoryItemId: event.aggregateId,
           eventId: event.eventId,
           serverSequence: serverSequence,
+        );
+        return;
+      case RecursoInventarioActualizadoPayload.eventType:
+        await _inventoryProjectionStore?.advanceEventServerSequence(
+          inventoryItemId: event.aggregateId,
+          eventId: event.eventId,
+          serverSequence: serverSequence,
+          includesBalance: false,
+        );
+        return;
+      case MovimientoInventarioRegistradoPayload.eventType:
+        await _inventoryProjectionStore?.advanceEventServerSequence(
+          inventoryItemId: event.aggregateId,
+          eventId: event.eventId,
+          serverSequence: serverSequence,
+          includesBalance: true,
         );
         return;
     }

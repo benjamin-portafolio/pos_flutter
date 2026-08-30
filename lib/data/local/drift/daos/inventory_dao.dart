@@ -88,6 +88,12 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     )..where((movement) => movement.movementId.equals(id))).getSingleOrNull();
   }
 
+  Future<InventoryBalanceRow?> obtenerSaldoPorRecursoId(String id) {
+    return (select(inventoryBalances)
+          ..where((balance) => balance.inventoryItemId.equals(id)))
+        .getSingleOrNull();
+  }
+
   Future<void> insertarCreacion({
     required InventoryItemsCompanion item,
     required InventoryBalancesCompanion balance,
@@ -100,6 +106,100 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         await into(inventoryMovements).insert(movement);
       }
     });
+  }
+
+  Future<void> actualizarRecurso({
+    required InventoryItemsCompanion item,
+    required String inventoryItemId,
+    required String expectedBaseEventId,
+    required int expectedBaseVersion,
+  }) async {
+    final affected =
+        await (update(inventoryItems)..where(
+              (row) =>
+                  row.id.equals(inventoryItemId) &
+                  row.lastEventId.equals(expectedBaseEventId) &
+                  row.version.equals(expectedBaseVersion),
+            ))
+            .write(item);
+    if (affected != 1) {
+      throw StateError('El recurso cambió durante la actualización.');
+    }
+  }
+
+  Future<void> registrarMovimiento({
+    required InventoryItemsCompanion item,
+    required InventoryBalancesCompanion balance,
+    required InventoryMovementsCompanion movement,
+    required String inventoryItemId,
+    required String expectedBaseEventId,
+    required int expectedBaseVersion,
+  }) {
+    return db.transaction(() async {
+      final itemAffected =
+          await (update(inventoryItems)..where(
+                (row) =>
+                    row.id.equals(inventoryItemId) &
+                    row.lastEventId.equals(expectedBaseEventId) &
+                    row.version.equals(expectedBaseVersion),
+              ))
+              .write(item);
+      if (itemAffected != 1) {
+        throw StateError('El recurso cambió durante el movimiento.');
+      }
+      final balanceAffected =
+          await (update(inventoryBalances)
+                ..where((row) => row.inventoryItemId.equals(inventoryItemId)))
+              .write(balance);
+      if (balanceAffected != 1) {
+        throw StateError('No se encontró el saldo del recurso.');
+      }
+      await into(inventoryMovements).insert(movement);
+    });
+  }
+
+  Future<void> avanzarSecuenciaEvento({
+    required String inventoryItemId,
+    required String eventId,
+    required int serverSequence,
+    required bool includesBalance,
+  }) async {
+    await (update(inventoryItems)..where(
+          (item) =>
+              item.id.equals(inventoryItemId) &
+              item.lastEventId.equals(eventId) &
+              (item.lastServerSequence.isNull() |
+                  item.lastServerSequence.isSmallerThanValue(serverSequence)),
+        ))
+        .write(
+          InventoryItemsCompanion(lastServerSequence: Value(serverSequence)),
+        );
+    if (includesBalance) {
+      await (update(inventoryBalances)..where(
+            (balance) =>
+                balance.inventoryItemId.equals(inventoryItemId) &
+                balance.lastEventId.equals(eventId) &
+                (balance.lastServerSequence.isNull() |
+                    balance.lastServerSequence.isSmallerThanValue(
+                      serverSequence,
+                    )),
+          ))
+          .write(
+            InventoryBalancesCompanion(
+              lastServerSequence: Value(serverSequence),
+            ),
+          );
+      await (update(inventoryMovements)..where(
+            (movement) =>
+                movement.inventoryItemId.equals(inventoryItemId) &
+                movement.eventId.equals(eventId) &
+                (movement.serverSequence.isNull() |
+                    movement.serverSequence.isSmallerThanValue(serverSequence)),
+          ))
+          .write(
+            InventoryMovementsCompanion(serverSequence: Value(serverSequence)),
+          );
+    }
   }
 
   Future<void> avanzarSecuenciaCreacion({
@@ -139,6 +239,122 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         .write(
           InventoryMovementsCompanion(serverSequence: Value(serverSequence)),
         );
+  }
+
+  Future<void> restaurarActualizacionRecurso({
+    required String inventoryItemId,
+    required String eventId,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
+    required String previousName,
+    required String nextName,
+  }) {
+    return db.transaction(() async {
+      final affected =
+          await (update(inventoryItems)..where(
+                (item) =>
+                    item.id.equals(inventoryItemId) &
+                    item.lastEventId.equals(eventId) &
+                    item.version.equals(baseVersion + 1) &
+                    item.name.equals(nextName),
+              ))
+              .write(
+                InventoryItemsCompanion(
+                  name: Value(previousName),
+                  version: Value(baseVersion),
+                  lastEventId: Value(baseEventId),
+                  lastServerSequence: Value(baseServerSequence),
+                ),
+              );
+      if (affected != 1) return;
+
+      // Un movimiento dependiente restaurado en orden inverso deja
+      // temporalmente esta actualización como base del saldo. La edición de
+      // nombre nunca afectó cantidades, por lo que también se retira esa base.
+      await (update(inventoryBalances)..where(
+            (balance) =>
+                balance.inventoryItemId.equals(inventoryItemId) &
+                balance.lastEventId.equals(eventId),
+          ))
+          .write(
+            InventoryBalancesCompanion(
+              lastEventId: Value(baseEventId),
+              lastServerSequence: Value(baseServerSequence),
+            ),
+          );
+    });
+  }
+
+  Future<void> restaurarMovimiento({
+    required String inventoryItemId,
+    required String eventId,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
+    required String movementId,
+    required int quantityDeltaAtomic,
+  }) {
+    return db.transaction(() async {
+      final movement =
+          await (select(inventoryMovements)..where(
+                (row) =>
+                    row.movementId.equals(movementId) &
+                    row.inventoryItemId.equals(inventoryItemId) &
+                    row.eventId.equals(eventId),
+              ))
+              .getSingleOrNull();
+      if (movement == null) return;
+
+      final itemAffected =
+          await (update(inventoryItems)..where(
+                (item) =>
+                    item.id.equals(inventoryItemId) &
+                    item.lastEventId.equals(eventId) &
+                    item.version.equals(baseVersion + 1),
+              ))
+              .write(
+                InventoryItemsCompanion(
+                  version: Value(baseVersion),
+                  lastEventId: Value(baseEventId),
+                  lastServerSequence: Value(baseServerSequence),
+                ),
+              );
+      if (itemAffected != 1) return;
+
+      final balance =
+          await (select(inventoryBalances)..where(
+                (row) =>
+                    row.inventoryItemId.equals(inventoryItemId) &
+                    row.lastEventId.equals(eventId),
+              ))
+              .getSingleOrNull();
+      if (balance == null) {
+        throw StateError(
+          'No se encontró el saldo local que se debe restaurar.',
+        );
+      }
+      await (update(
+        inventoryBalances,
+      )..where((row) => row.inventoryItemId.equals(inventoryItemId))).write(
+        InventoryBalancesCompanion(
+          quantityOnHandAtomic: Value(
+            balance.quantityOnHandAtomic - quantityDeltaAtomic,
+          ),
+          quantityAvailableAtomic: Value(
+            balance.quantityAvailableAtomic - quantityDeltaAtomic,
+          ),
+          version: Value(balance.version - 1),
+          lastEventId: Value(baseEventId),
+          lastServerSequence: Value(baseServerSequence),
+        ),
+      );
+      await (delete(inventoryMovements)..where(
+            (row) =>
+                row.movementId.equals(movementId) & row.eventId.equals(eventId),
+          ))
+          .go();
+    });
   }
 
   Future<void> eliminarCreacionPorEvento(String eventId) {

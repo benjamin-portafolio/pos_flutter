@@ -16,6 +16,9 @@ class InventoryBalances extends Table {
   /// Existencia disponible; en este alcance coincide con la existencia física.
   IntColumn get quantityAvailableAtomic => integer()();
 
+  /// Versión optimista del saldo; avanza con cada movimiento aplicado.
+  IntColumn get version => integer().withDefault(const Constant(1))();
+
   /// Último evento que cambió o creó el saldo.
   TextColumn get lastEventId => text()();
 

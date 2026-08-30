@@ -62,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -87,6 +87,10 @@ class AppDatabase extends _$AppDatabase {
         await customStatement('DROP TABLE IF EXISTS recipe_components');
         await m.alterTable(TableMigration(products));
         await m.alterTable(TableMigration(productVariants));
+        await m.alterTable(TableMigration(inventoryMovements));
+      }
+      if (from >= 4 && from < 7) {
+        await m.addColumn(inventoryBalances, inventoryBalances.version);
         await m.alterTable(TableMigration(inventoryMovements));
       }
     },

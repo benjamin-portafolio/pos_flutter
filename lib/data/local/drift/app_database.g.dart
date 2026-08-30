@@ -5884,6 +5884,18 @@ class $InventoryBalancesTable extends InventoryBalances
         type: DriftSqlType.int,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
     'lastEventId',
   );
@@ -5910,6 +5922,7 @@ class $InventoryBalancesTable extends InventoryBalances
     inventoryItemId,
     quantityOnHandAtomic,
     quantityAvailableAtomic,
+    version,
     lastEventId,
     lastServerSequence,
   ];
@@ -5958,6 +5971,12 @@ class $InventoryBalancesTable extends InventoryBalances
     } else if (isInserting) {
       context.missing(_quantityAvailableAtomicMeta);
     }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
     if (data.containsKey('last_event_id')) {
       context.handle(
         _lastEventIdMeta,
@@ -5999,6 +6018,10 @@ class $InventoryBalancesTable extends InventoryBalances
         DriftSqlType.int,
         data['${effectivePrefix}quantity_available_atomic'],
       )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
       lastEventId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}last_event_id'],
@@ -6027,6 +6050,9 @@ class InventoryBalanceRow extends DataClass
   /// Existencia disponible; en este alcance coincide con la existencia física.
   final int quantityAvailableAtomic;
 
+  /// Versión optimista del saldo; avanza con cada movimiento aplicado.
+  final int version;
+
   /// Último evento que cambió o creó el saldo.
   final String lastEventId;
 
@@ -6036,6 +6062,7 @@ class InventoryBalanceRow extends DataClass
     required this.inventoryItemId,
     required this.quantityOnHandAtomic,
     required this.quantityAvailableAtomic,
+    required this.version,
     required this.lastEventId,
     this.lastServerSequence,
   });
@@ -6045,6 +6072,7 @@ class InventoryBalanceRow extends DataClass
     map['inventory_item_id'] = Variable<String>(inventoryItemId);
     map['quantity_on_hand_atomic'] = Variable<int>(quantityOnHandAtomic);
     map['quantity_available_atomic'] = Variable<int>(quantityAvailableAtomic);
+    map['version'] = Variable<int>(version);
     map['last_event_id'] = Variable<String>(lastEventId);
     if (!nullToAbsent || lastServerSequence != null) {
       map['last_server_sequence'] = Variable<int>(lastServerSequence);
@@ -6057,6 +6085,7 @@ class InventoryBalanceRow extends DataClass
       inventoryItemId: Value(inventoryItemId),
       quantityOnHandAtomic: Value(quantityOnHandAtomic),
       quantityAvailableAtomic: Value(quantityAvailableAtomic),
+      version: Value(version),
       lastEventId: Value(lastEventId),
       lastServerSequence: lastServerSequence == null && nullToAbsent
           ? const Value.absent()
@@ -6077,6 +6106,7 @@ class InventoryBalanceRow extends DataClass
       quantityAvailableAtomic: serializer.fromJson<int>(
         json['quantityAvailableAtomic'],
       ),
+      version: serializer.fromJson<int>(json['version']),
       lastEventId: serializer.fromJson<String>(json['lastEventId']),
       lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
     );
@@ -6090,6 +6120,7 @@ class InventoryBalanceRow extends DataClass
       'quantityAvailableAtomic': serializer.toJson<int>(
         quantityAvailableAtomic,
       ),
+      'version': serializer.toJson<int>(version),
       'lastEventId': serializer.toJson<String>(lastEventId),
       'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
     };
@@ -6099,6 +6130,7 @@ class InventoryBalanceRow extends DataClass
     String? inventoryItemId,
     int? quantityOnHandAtomic,
     int? quantityAvailableAtomic,
+    int? version,
     String? lastEventId,
     Value<int?> lastServerSequence = const Value.absent(),
   }) => InventoryBalanceRow(
@@ -6106,6 +6138,7 @@ class InventoryBalanceRow extends DataClass
     quantityOnHandAtomic: quantityOnHandAtomic ?? this.quantityOnHandAtomic,
     quantityAvailableAtomic:
         quantityAvailableAtomic ?? this.quantityAvailableAtomic,
+    version: version ?? this.version,
     lastEventId: lastEventId ?? this.lastEventId,
     lastServerSequence: lastServerSequence.present
         ? lastServerSequence.value
@@ -6122,6 +6155,7 @@ class InventoryBalanceRow extends DataClass
       quantityAvailableAtomic: data.quantityAvailableAtomic.present
           ? data.quantityAvailableAtomic.value
           : this.quantityAvailableAtomic,
+      version: data.version.present ? data.version.value : this.version,
       lastEventId: data.lastEventId.present
           ? data.lastEventId.value
           : this.lastEventId,
@@ -6137,6 +6171,7 @@ class InventoryBalanceRow extends DataClass
           ..write('inventoryItemId: $inventoryItemId, ')
           ..write('quantityOnHandAtomic: $quantityOnHandAtomic, ')
           ..write('quantityAvailableAtomic: $quantityAvailableAtomic, ')
+          ..write('version: $version, ')
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence')
           ..write(')'))
@@ -6148,6 +6183,7 @@ class InventoryBalanceRow extends DataClass
     inventoryItemId,
     quantityOnHandAtomic,
     quantityAvailableAtomic,
+    version,
     lastEventId,
     lastServerSequence,
   );
@@ -6158,6 +6194,7 @@ class InventoryBalanceRow extends DataClass
           other.inventoryItemId == this.inventoryItemId &&
           other.quantityOnHandAtomic == this.quantityOnHandAtomic &&
           other.quantityAvailableAtomic == this.quantityAvailableAtomic &&
+          other.version == this.version &&
           other.lastEventId == this.lastEventId &&
           other.lastServerSequence == this.lastServerSequence);
 }
@@ -6166,6 +6203,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
   final Value<String> inventoryItemId;
   final Value<int> quantityOnHandAtomic;
   final Value<int> quantityAvailableAtomic;
+  final Value<int> version;
   final Value<String> lastEventId;
   final Value<int?> lastServerSequence;
   final Value<int> rowid;
@@ -6173,6 +6211,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
     this.inventoryItemId = const Value.absent(),
     this.quantityOnHandAtomic = const Value.absent(),
     this.quantityAvailableAtomic = const Value.absent(),
+    this.version = const Value.absent(),
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6181,6 +6220,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
     required String inventoryItemId,
     required int quantityOnHandAtomic,
     required int quantityAvailableAtomic,
+    this.version = const Value.absent(),
     required String lastEventId,
     this.lastServerSequence = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6192,6 +6232,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
     Expression<String>? inventoryItemId,
     Expression<int>? quantityOnHandAtomic,
     Expression<int>? quantityAvailableAtomic,
+    Expression<int>? version,
     Expression<String>? lastEventId,
     Expression<int>? lastServerSequence,
     Expression<int>? rowid,
@@ -6202,6 +6243,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
         'quantity_on_hand_atomic': quantityOnHandAtomic,
       if (quantityAvailableAtomic != null)
         'quantity_available_atomic': quantityAvailableAtomic,
+      if (version != null) 'version': version,
       if (lastEventId != null) 'last_event_id': lastEventId,
       if (lastServerSequence != null)
         'last_server_sequence': lastServerSequence,
@@ -6213,6 +6255,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
     Value<String>? inventoryItemId,
     Value<int>? quantityOnHandAtomic,
     Value<int>? quantityAvailableAtomic,
+    Value<int>? version,
     Value<String>? lastEventId,
     Value<int?>? lastServerSequence,
     Value<int>? rowid,
@@ -6222,6 +6265,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
       quantityOnHandAtomic: quantityOnHandAtomic ?? this.quantityOnHandAtomic,
       quantityAvailableAtomic:
           quantityAvailableAtomic ?? this.quantityAvailableAtomic,
+      version: version ?? this.version,
       lastEventId: lastEventId ?? this.lastEventId,
       lastServerSequence: lastServerSequence ?? this.lastServerSequence,
       rowid: rowid ?? this.rowid,
@@ -6244,6 +6288,9 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
         quantityAvailableAtomic.value,
       );
     }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
     if (lastEventId.present) {
       map['last_event_id'] = Variable<String>(lastEventId.value);
     }
@@ -6262,6 +6309,7 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
           ..write('inventoryItemId: $inventoryItemId, ')
           ..write('quantityOnHandAtomic: $quantityOnHandAtomic, ')
           ..write('quantityAvailableAtomic: $quantityAvailableAtomic, ')
+          ..write('version: $version, ')
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('rowid: $rowid')
@@ -6379,13 +6427,9 @@ class $InventoryMovementsTable extends InventoryMovements
   late final GeneratedColumn<String> reason = GeneratedColumn<String>(
     'reason',
     aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 500,
-    ),
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _createdAtLocalMeta = const VerificationMeta(
     'createdAtLocal',
@@ -6517,8 +6561,6 @@ class $InventoryMovementsTable extends InventoryMovements
         _reasonMeta,
         reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
       );
-    } else if (isInserting) {
-      context.missing(_reasonMeta);
     }
     if (data.containsKey('created_at_local')) {
       context.handle(
@@ -6584,7 +6626,7 @@ class $InventoryMovementsTable extends InventoryMovements
       reason: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}reason'],
-      )!,
+      ),
       createdAtLocal: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at_local'],
@@ -6619,7 +6661,7 @@ class InventoryMovementRow extends DataClass
   /// Movimiento original cuando este registro sea una reversión.
   final String? reversalOfMovementId;
 
-  /// Clasificación estable del movimiento; el alta usa `manual_adjustment`.
+  /// Clasificación estable del movimiento.
   final String movementType;
 
   /// Delta atómico entero, positivo o negativo, pero nunca cero.
@@ -6628,8 +6670,8 @@ class InventoryMovementRow extends DataClass
   /// Costo total en unidad monetaria menor, cuando corresponda.
   final int? totalCostMinor;
 
-  /// Explicación obligatoria del ajuste manual.
-  final String reason;
+  /// Justificación normalizada; solo es obligatoria en correcciones manuales.
+  final String? reason;
 
   /// Fecha capturada por el dispositivo al crear el movimiento.
   final DateTime createdAtLocal;
@@ -6645,7 +6687,7 @@ class InventoryMovementRow extends DataClass
     required this.movementType,
     required this.quantityDeltaAtomic,
     this.totalCostMinor,
-    required this.reason,
+    this.reason,
     required this.createdAtLocal,
     this.serverSequence,
   });
@@ -6666,7 +6708,9 @@ class InventoryMovementRow extends DataClass
     if (!nullToAbsent || totalCostMinor != null) {
       map['total_cost_minor'] = Variable<int>(totalCostMinor);
     }
-    map['reason'] = Variable<String>(reason);
+    if (!nullToAbsent || reason != null) {
+      map['reason'] = Variable<String>(reason);
+    }
     map['created_at_local'] = Variable<DateTime>(createdAtLocal);
     if (!nullToAbsent || serverSequence != null) {
       map['server_sequence'] = Variable<int>(serverSequence);
@@ -6690,7 +6734,9 @@ class InventoryMovementRow extends DataClass
       totalCostMinor: totalCostMinor == null && nullToAbsent
           ? const Value.absent()
           : Value(totalCostMinor),
-      reason: Value(reason),
+      reason: reason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reason),
       createdAtLocal: Value(createdAtLocal),
       serverSequence: serverSequence == null && nullToAbsent
           ? const Value.absent()
@@ -6716,7 +6762,7 @@ class InventoryMovementRow extends DataClass
         json['quantityDeltaAtomic'],
       ),
       totalCostMinor: serializer.fromJson<int?>(json['totalCostMinor']),
-      reason: serializer.fromJson<String>(json['reason']),
+      reason: serializer.fromJson<String?>(json['reason']),
       createdAtLocal: serializer.fromJson<DateTime>(json['createdAtLocal']),
       serverSequence: serializer.fromJson<int?>(json['serverSequence']),
     );
@@ -6733,7 +6779,7 @@ class InventoryMovementRow extends DataClass
       'movementType': serializer.toJson<String>(movementType),
       'quantityDeltaAtomic': serializer.toJson<int>(quantityDeltaAtomic),
       'totalCostMinor': serializer.toJson<int?>(totalCostMinor),
-      'reason': serializer.toJson<String>(reason),
+      'reason': serializer.toJson<String?>(reason),
       'createdAtLocal': serializer.toJson<DateTime>(createdAtLocal),
       'serverSequence': serializer.toJson<int?>(serverSequence),
     };
@@ -6748,7 +6794,7 @@ class InventoryMovementRow extends DataClass
     String? movementType,
     int? quantityDeltaAtomic,
     Value<int?> totalCostMinor = const Value.absent(),
-    String? reason,
+    Value<String?> reason = const Value.absent(),
     DateTime? createdAtLocal,
     Value<int?> serverSequence = const Value.absent(),
   }) => InventoryMovementRow(
@@ -6764,7 +6810,7 @@ class InventoryMovementRow extends DataClass
     totalCostMinor: totalCostMinor.present
         ? totalCostMinor.value
         : this.totalCostMinor,
-    reason: reason ?? this.reason,
+    reason: reason.present ? reason.value : this.reason,
     createdAtLocal: createdAtLocal ?? this.createdAtLocal,
     serverSequence: serverSequence.present
         ? serverSequence.value
@@ -6863,7 +6909,7 @@ class InventoryMovementsCompanion
   final Value<String> movementType;
   final Value<int> quantityDeltaAtomic;
   final Value<int?> totalCostMinor;
-  final Value<String> reason;
+  final Value<String?> reason;
   final Value<DateTime> createdAtLocal;
   final Value<int?> serverSequence;
   final Value<int> rowid;
@@ -6890,7 +6936,7 @@ class InventoryMovementsCompanion
     required String movementType,
     required int quantityDeltaAtomic,
     this.totalCostMinor = const Value.absent(),
-    required String reason,
+    this.reason = const Value.absent(),
     required DateTime createdAtLocal,
     this.serverSequence = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6899,7 +6945,6 @@ class InventoryMovementsCompanion
        eventId = Value(eventId),
        movementType = Value(movementType),
        quantityDeltaAtomic = Value(quantityDeltaAtomic),
-       reason = Value(reason),
        createdAtLocal = Value(createdAtLocal);
   static Insertable<InventoryMovementRow> custom({
     Expression<String>? movementId,
@@ -6942,7 +6987,7 @@ class InventoryMovementsCompanion
     Value<String>? movementType,
     Value<int>? quantityDeltaAtomic,
     Value<int?>? totalCostMinor,
-    Value<String>? reason,
+    Value<String?>? reason,
     Value<DateTime>? createdAtLocal,
     Value<int?>? serverSequence,
     Value<int>? rowid,
@@ -11029,6 +11074,7 @@ typedef $$InventoryBalancesTableCreateCompanionBuilder =
       required String inventoryItemId,
       required int quantityOnHandAtomic,
       required int quantityAvailableAtomic,
+      Value<int> version,
       required String lastEventId,
       Value<int?> lastServerSequence,
       Value<int> rowid,
@@ -11038,6 +11084,7 @@ typedef $$InventoryBalancesTableUpdateCompanionBuilder =
       Value<String> inventoryItemId,
       Value<int> quantityOnHandAtomic,
       Value<int> quantityAvailableAtomic,
+      Value<int> version,
       Value<String> lastEventId,
       Value<int?> lastServerSequence,
       Value<int> rowid,
@@ -11095,6 +11142,11 @@ class $$InventoryBalancesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get lastEventId => $composableBuilder(
     column: $table.lastEventId,
     builder: (column) => ColumnFilters(column),
@@ -11145,6 +11197,11 @@ class $$InventoryBalancesTableOrderingComposer
 
   ColumnOrderings<int> get quantityAvailableAtomic => $composableBuilder(
     column: $table.quantityAvailableAtomic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -11200,6 +11257,9 @@ class $$InventoryBalancesTableAnnotationComposer
     column: $table.quantityAvailableAtomic,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
 
   GeneratedColumn<String> get lastEventId => $composableBuilder(
     column: $table.lastEventId,
@@ -11271,6 +11331,7 @@ class $$InventoryBalancesTableTableManager
                 Value<String> inventoryItemId = const Value.absent(),
                 Value<int> quantityOnHandAtomic = const Value.absent(),
                 Value<int> quantityAvailableAtomic = const Value.absent(),
+                Value<int> version = const Value.absent(),
                 Value<String> lastEventId = const Value.absent(),
                 Value<int?> lastServerSequence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -11278,6 +11339,7 @@ class $$InventoryBalancesTableTableManager
                 inventoryItemId: inventoryItemId,
                 quantityOnHandAtomic: quantityOnHandAtomic,
                 quantityAvailableAtomic: quantityAvailableAtomic,
+                version: version,
                 lastEventId: lastEventId,
                 lastServerSequence: lastServerSequence,
                 rowid: rowid,
@@ -11287,6 +11349,7 @@ class $$InventoryBalancesTableTableManager
                 required String inventoryItemId,
                 required int quantityOnHandAtomic,
                 required int quantityAvailableAtomic,
+                Value<int> version = const Value.absent(),
                 required String lastEventId,
                 Value<int?> lastServerSequence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -11294,6 +11357,7 @@ class $$InventoryBalancesTableTableManager
                 inventoryItemId: inventoryItemId,
                 quantityOnHandAtomic: quantityOnHandAtomic,
                 quantityAvailableAtomic: quantityAvailableAtomic,
+                version: version,
                 lastEventId: lastEventId,
                 lastServerSequence: lastServerSequence,
                 rowid: rowid,
@@ -11377,7 +11441,7 @@ typedef $$InventoryMovementsTableCreateCompanionBuilder =
       required String movementType,
       required int quantityDeltaAtomic,
       Value<int?> totalCostMinor,
-      required String reason,
+      Value<String?> reason,
       required DateTime createdAtLocal,
       Value<int?> serverSequence,
       Value<int> rowid,
@@ -11392,7 +11456,7 @@ typedef $$InventoryMovementsTableUpdateCompanionBuilder =
       Value<String> movementType,
       Value<int> quantityDeltaAtomic,
       Value<int?> totalCostMinor,
-      Value<String> reason,
+      Value<String?> reason,
       Value<DateTime> createdAtLocal,
       Value<int?> serverSequence,
       Value<int> rowid,
@@ -11797,7 +11861,7 @@ class $$InventoryMovementsTableTableManager
                 Value<String> movementType = const Value.absent(),
                 Value<int> quantityDeltaAtomic = const Value.absent(),
                 Value<int?> totalCostMinor = const Value.absent(),
-                Value<String> reason = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
                 Value<DateTime> createdAtLocal = const Value.absent(),
                 Value<int?> serverSequence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -11825,7 +11889,7 @@ class $$InventoryMovementsTableTableManager
                 required String movementType,
                 required int quantityDeltaAtomic,
                 Value<int?> totalCostMinor = const Value.absent(),
-                required String reason,
+                Value<String?> reason = const Value.absent(),
                 required DateTime createdAtLocal,
                 Value<int?> serverSequence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),

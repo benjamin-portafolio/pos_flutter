@@ -56,6 +56,8 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
             movementType: row.movementType,
             quantityDeltaAtomic: row.quantityDeltaAtomic,
             reason: row.reason,
+            reversalOfMovementId: row.reversalOfMovementId,
+            totalCostMinor: row.totalCostMinor,
             createdAtLocal: row.createdAtLocal,
             serverSequence: row.serverSequence,
           );
@@ -81,6 +83,7 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
         inventoryItemId: balance.inventoryItemId,
         quantityOnHandAtomic: balance.quantityOnHandAtomic,
         quantityAvailableAtomic: balance.quantityAvailableAtomic,
+        version: drift.Value(balance.version),
         lastEventId: balance.lastEventId,
         lastServerSequence: drift.Value(balance.lastServerSequence),
       ),
@@ -92,10 +95,100 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
               eventId: movement.eventId,
               movementType: movement.movementType,
               quantityDeltaAtomic: movement.quantityDeltaAtomic,
-              reason: movement.reason,
+              reversalOfMovementId: drift.Value(movement.reversalOfMovementId),
+              totalCostMinor: drift.Value(movement.totalCostMinor),
+              reason: drift.Value(movement.reason),
               createdAtLocal: movement.createdAtLocal,
               serverSequence: drift.Value(movement.serverSequence),
             ),
+    );
+  }
+
+  @override
+  Future<InventoryBalanceProjection?> findBalanceByItemId(String id) async {
+    final row = await _inventoryDao.obtenerSaldoPorRecursoId(id);
+    return row == null
+        ? null
+        : InventoryBalanceProjection(
+            inventoryItemId: row.inventoryItemId,
+            quantityOnHandAtomic: row.quantityOnHandAtomic,
+            quantityAvailableAtomic: row.quantityAvailableAtomic,
+            version: row.version,
+            lastEventId: row.lastEventId,
+            lastServerSequence: row.lastServerSequence,
+          );
+  }
+
+  @override
+  Future<void> applyItemUpdate({
+    required InventoryItemProjection item,
+    required String expectedBaseEventId,
+    required int expectedBaseVersion,
+  }) {
+    return _inventoryDao.actualizarRecurso(
+      item: local.InventoryItemsCompanion(
+        name: drift.Value(item.name),
+        version: drift.Value(item.version),
+        lastEventId: drift.Value(item.lastEventId),
+        lastServerSequence: drift.Value(item.lastServerSequence),
+      ),
+      inventoryItemId: item.id,
+      expectedBaseEventId: expectedBaseEventId,
+      expectedBaseVersion: expectedBaseVersion,
+    );
+  }
+
+  @override
+  Future<void> applyMovement({
+    required InventoryItemProjection item,
+    required InventoryBalanceProjection balance,
+    required InventoryMovementProjection movement,
+    required String expectedBaseEventId,
+    required int expectedBaseVersion,
+  }) {
+    return _inventoryDao.registrarMovimiento(
+      item: local.InventoryItemsCompanion(
+        version: drift.Value(item.version),
+        lastEventId: drift.Value(item.lastEventId),
+        lastServerSequence: drift.Value(item.lastServerSequence),
+      ),
+      balance: local.InventoryBalancesCompanion(
+        quantityOnHandAtomic: drift.Value(balance.quantityOnHandAtomic),
+        quantityAvailableAtomic: drift.Value(balance.quantityAvailableAtomic),
+        version: drift.Value(balance.version),
+        lastEventId: drift.Value(balance.lastEventId),
+        lastServerSequence: drift.Value(balance.lastServerSequence),
+      ),
+      movement: local.InventoryMovementsCompanion.insert(
+        movementId: movement.id,
+        inventoryItemId: movement.inventoryItemId,
+        eventId: movement.eventId,
+        reversalOfMovementId: drift.Value(movement.reversalOfMovementId),
+        movementType: movement.movementType,
+        quantityDeltaAtomic: movement.quantityDeltaAtomic,
+        totalCostMinor: drift.Value(movement.totalCostMinor),
+        reason: drift.Value(movement.reason),
+        createdAtLocal: movement.createdAtLocal,
+        serverSequence: drift.Value(movement.serverSequence),
+      ),
+      inventoryItemId: item.id,
+      expectedBaseEventId: expectedBaseEventId,
+      expectedBaseVersion: expectedBaseVersion,
+    );
+  }
+
+  @override
+  Future<void> advanceEventServerSequence({
+    required String inventoryItemId,
+    required String eventId,
+    required int serverSequence,
+    required bool includesBalance,
+  }) {
+    return _inventoryDao.avanzarSecuenciaEvento(
+      inventoryItemId: inventoryItemId,
+      eventId: eventId,
+      serverSequence: serverSequence,
+      includesBalance: includesBalance,
     );
   }
 
@@ -109,6 +202,48 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
       inventoryItemId: inventoryItemId,
       eventId: eventId,
       serverSequence: serverSequence,
+    );
+  }
+
+  @override
+  Future<void> restoreItemUpdate({
+    required String inventoryItemId,
+    required String eventId,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
+    required String previousName,
+    required String nextName,
+  }) {
+    return _inventoryDao.restaurarActualizacionRecurso(
+      inventoryItemId: inventoryItemId,
+      eventId: eventId,
+      baseEventId: baseEventId,
+      baseVersion: baseVersion,
+      baseServerSequence: baseServerSequence,
+      previousName: previousName,
+      nextName: nextName,
+    );
+  }
+
+  @override
+  Future<void> restoreMovement({
+    required String inventoryItemId,
+    required String eventId,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
+    required String movementId,
+    required int quantityDeltaAtomic,
+  }) {
+    return _inventoryDao.restaurarMovimiento(
+      inventoryItemId: inventoryItemId,
+      eventId: eventId,
+      baseEventId: baseEventId,
+      baseVersion: baseVersion,
+      baseServerSequence: baseServerSequence,
+      movementId: movementId,
+      quantityDeltaAtomic: quantityDeltaAtomic,
     );
   }
 

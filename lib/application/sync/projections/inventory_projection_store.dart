@@ -9,10 +9,53 @@ abstract interface class InventoryProjectionStore {
 
   Future<void> insertCreation(InventoryCreationProjection creation);
 
+  Future<void> applyItemUpdate({
+    required InventoryItemProjection item,
+    required String expectedBaseEventId,
+    required int expectedBaseVersion,
+  });
+
+  Future<void> applyMovement({
+    required InventoryItemProjection item,
+    required InventoryBalanceProjection balance,
+    required InventoryMovementProjection movement,
+    required String expectedBaseEventId,
+    required int expectedBaseVersion,
+  });
+
+  Future<InventoryBalanceProjection?> findBalanceByItemId(String id);
+
+  Future<void> advanceEventServerSequence({
+    required String inventoryItemId,
+    required String eventId,
+    required int serverSequence,
+    required bool includesBalance,
+  });
+
   Future<void> advanceCreationServerSequence({
     required String inventoryItemId,
     required String eventId,
     required int serverSequence,
+  });
+
+  Future<void> restoreItemUpdate({
+    required String inventoryItemId,
+    required String eventId,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
+    required String previousName,
+    required String nextName,
+  });
+
+  Future<void> restoreMovement({
+    required String inventoryItemId,
+    required String eventId,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
+    required String movementId,
+    required int quantityDeltaAtomic,
   });
 
   Future<void> deleteCreatedByEvent(String eventId);
@@ -55,6 +98,7 @@ class InventoryBalanceProjection {
     required this.inventoryItemId,
     required this.quantityOnHandAtomic,
     required this.quantityAvailableAtomic,
+    required this.version,
     required this.lastEventId,
     required this.lastServerSequence,
   });
@@ -62,6 +106,7 @@ class InventoryBalanceProjection {
   final String inventoryItemId;
   final int quantityOnHandAtomic;
   final int quantityAvailableAtomic;
+  final int version;
   final String lastEventId;
   final int? lastServerSequence;
 }
@@ -74,6 +119,8 @@ class InventoryMovementProjection {
     required this.movementType,
     required this.quantityDeltaAtomic,
     required this.reason,
+    required this.reversalOfMovementId,
+    required this.totalCostMinor,
     required this.createdAtLocal,
     required this.serverSequence,
   });
@@ -83,7 +130,9 @@ class InventoryMovementProjection {
   final String eventId;
   final String movementType;
   final int quantityDeltaAtomic;
-  final String reason;
+  final String? reason;
+  final String? reversalOfMovementId;
+  final int? totalCostMinor;
   final DateTime createdAtLocal;
   final int? serverSequence;
 }

@@ -6,6 +6,7 @@ import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_articulo_command.dart';
 import '../../../application/commands/crear_categoria_command.dart';
 import '../../../application/commands/crear_recurso_inventario_command.dart';
+import '../../../application/commands/editar_recurso_inventario_command.dart';
 import '../../../application/commands/editar_categoria_command.dart';
 import '../../../application/commands/eliminar_categoria_command.dart';
 import '../../../application/commands/mover_categoria_command.dart';
@@ -340,14 +341,38 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     );
   }
 
-  void _openInventoryResourceDetails(
+  Future<void> _openInventoryResourceDetails(
     BuildContext context,
     RecursoInventarioListado resource,
-  ) {
-    Navigator.of(context).push<void>(
+  ) async {
+    final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            InventoryResourceFormScreen.readOnly(resource: resource),
+        builder: (_) => InventoryResourceFormScreen.edit(
+          resource: resource,
+          onSave: (result) => _editInventoryResource(resource, result),
+        ),
+      ),
+    );
+    if (saved == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recurso de inventario actualizado.')),
+      );
+    }
+  }
+
+  Future<void> _editInventoryResource(
+    RecursoInventarioListado resource,
+    InventoryResourceFormResult result,
+  ) {
+    final service =
+        widget.inventoryCommandService ?? getIt<InventoryCommandService>();
+    return service.editarRecurso(
+      EditarRecursoInventarioCommand(
+        inventoryItemId: resource.id,
+        nombre: result.nombre,
+        movementType: result.movementType,
+        quantityDeltaAtomic: result.quantityDeltaAtomic,
+        movementReason: result.movementReason,
       ),
     );
   }
