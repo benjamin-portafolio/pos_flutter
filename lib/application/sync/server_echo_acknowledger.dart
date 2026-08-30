@@ -5,7 +5,6 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
-import 'payloads/existencia_inventario_ajustada_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/inventory_projection_store.dart';
 import 'projections/producto_projection_store.dart';
@@ -70,17 +69,6 @@ class ServerEchoAcknowledger {
       case RecursoInventarioCreadoPayload.eventType:
         await _inventoryProjectionStore?.advanceCreationServerSequence(
           inventoryItemId: event.aggregateId,
-          eventId: event.eventId,
-          serverSequence: serverSequence,
-        );
-        return;
-      case ExistenciaInventarioAjustadaPayload.eventType:
-        final payload = ExistenciaInventarioAjustadaPayload.fromJson(
-          event.payload,
-        );
-        await _inventoryProjectionStore?.advanceAdjustmentServerSequence(
-          inventoryItemId: event.aggregateId,
-          movementId: payload.movementId,
           eventId: event.eventId,
           serverSequence: serverSequence,
         );

@@ -4,16 +4,12 @@ import '../../../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../../../domain/inventario/recurso_inventario_listado.dart';
 
 class InventoryResourceCard extends StatelessWidget {
-  const InventoryResourceCard({
-    required this.resource,
-    this.onAdjust,
-    super.key,
-  });
+  const InventoryResourceCard({required this.resource, this.onOpen, super.key});
 
   static const _codec = InventoryQuantityCodec();
 
   final RecursoInventarioListado resource;
-  final VoidCallback? onAdjust;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +19,7 @@ class InventoryResourceCard extends StatelessWidget {
       key: Key('inventory_resource_${resource.id}'),
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        onTap: resource.activo ? onAdjust : null,
+        onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -42,6 +38,16 @@ class InventoryResourceCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (!resource.activo) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Inactivo',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
               Text(
                 '$quantity ${unit.simbolo}',

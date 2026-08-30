@@ -14,8 +14,13 @@ import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
+import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
+import 'package:pos_flutter/domain/inventario/inventory_resource_filter.dart';
+import 'package:pos_flutter/domain/inventario/recurso_inventario_listado.dart';
+import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
+import 'package:pos_flutter/domain/repositories/recurso_inventario_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/inventory_categories_tab.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/widgets/inventory_category_card.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
@@ -88,6 +93,49 @@ void main() {
     expect(find.text('Bebidas'), findsOneWidget);
     expect(find.text('Cerveza'), findsNothing);
     expect(find.byTooltip('Agregar'), findsOneWidget);
+  });
+
+  testWidgets('abre el recurso seleccionado en modo lectura', (tester) async {
+    const resource = RecursoInventarioListado(
+      id: 'inventory-1',
+      nombre: 'Harina',
+      activo: true,
+      existenciaAtomica: 1250,
+      unidadPredeterminada: UnidadInventario(
+        id: 'kg',
+        code: 'kg',
+        nombre: 'Kilogramo',
+        simbolo: 'kg',
+        dimension: DimensionUnidad.mass,
+        factorAtomico: 1000,
+        maximosDecimales: 3,
+        activa: true,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          recursoInventarioRepository: const _FakeInventoryResourceRepository([
+            resource,
+          ]),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('RECURSOS'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inventory_resource_inventory-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RECURSO DE INVENTARIO'), findsOneWidget);
+    expect(find.text('Harina'), findsOneWidget);
+    expect(find.text('1.25 kg'), findsOneWidget);
+    expect(
+      find.byKey(const Key('save_inventory_resource_button')),
+      findsNothing,
+    );
   });
 
   testWidgets('changes tabs by tapping and swiping', (tester) async {
@@ -785,6 +833,18 @@ class _FakeProductoRepository implements ProductoRepository {
           .toList(growable: false),
     );
   }
+}
+
+class _FakeInventoryResourceRepository implements RecursoInventarioRepository {
+  const _FakeInventoryResourceRepository(this.resources);
+
+  final List<RecursoInventarioListado> resources;
+
+  @override
+  Stream<List<RecursoInventarioListado>> watchRecursos({
+    String busqueda = '',
+    InventoryResourceFilter filtro = InventoryResourceFilter.all,
+  }) => Stream.value(resources);
 }
 
 class _ProductQuery {

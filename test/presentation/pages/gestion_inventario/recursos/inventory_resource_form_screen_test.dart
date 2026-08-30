@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
+import 'package:pos_flutter/domain/inventario/recurso_inventario_listado.dart';
 import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/recursos/inventory_resource_form_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/recursos/models/inventory_resource_form_result.dart';
@@ -139,5 +140,49 @@ void main() {
 
     expect(saved?.quantityDeltaAtomic, isNull);
     expect(saved?.movementReason, isNull);
+  });
+
+  testWidgets('muestra un recurso existente en modo estrictamente lectura', (
+    tester,
+  ) async {
+    const resource = RecursoInventarioListado(
+      id: 'flour',
+      nombre: 'Harina',
+      activo: false,
+      existenciaAtomica: -250,
+      unidadPredeterminada: kg,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: InventoryResourceFormScreen.readOnly(resource: resource),
+      ),
+    );
+
+    expect(find.text('RECURSO DE INVENTARIO'), findsOneWidget);
+    expect(find.text('Harina'), findsOneWidget);
+    expect(find.text('Kilogramo (kg)'), findsOneWidget);
+    expect(find.text('−0.25 kg'), findsOneWidget);
+    expect(find.text('Inactivo'), findsOneWidget);
+    expect(
+      find.byKey(const Key('save_inventory_resource_button')),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('inventory_stock_direction')), findsNothing);
+    expect(
+      find.byKey(const Key('inventory_initial_quantity_field')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('inventory_movement_reason_field')),
+      findsNothing,
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const Key('inventory_resource_name_field')),
+          )
+          .enabled,
+      isFalse,
+    );
   });
 }

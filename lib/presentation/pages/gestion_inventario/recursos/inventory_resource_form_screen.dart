@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../../domain/inventario/nombre_recurso_inventario.dart';
+import '../../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
 import 'models/inventory_resource_form_result.dart';
 import 'widgets/inventory_quantity_input_formatter.dart';
@@ -14,10 +15,17 @@ class InventoryResourceFormScreen extends StatefulWidget {
     required this.units,
     required this.onSave,
     super.key,
-  });
+  }) : resource = null;
+
+  const InventoryResourceFormScreen.readOnly({
+    required this.resource,
+    super.key,
+  }) : units = const [],
+       onSave = null;
 
   final List<UnidadInventario> units;
-  final Future<void> Function(InventoryResourceFormResult result) onSave;
+  final Future<void> Function(InventoryResourceFormResult result)? onSave;
+  final RecursoInventarioListado? resource;
 
   @override
   State<InventoryResourceFormScreen> createState() =>
@@ -38,6 +46,17 @@ class _InventoryResourceFormScreenState
   bool _canPop = false;
   String? _saveError;
 
+  bool get _readOnly => widget.resource != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final resource = widget.resource;
+    if (resource == null) return;
+    _nameController.text = resource.nombre;
+    _selectedUnit = resource.unidadPredeterminada;
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -50,7 +69,7 @@ class _InventoryResourceFormScreenState
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return PopScope<bool>(
-      canPop: _canPop,
+      canPop: _readOnly || _canPop,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _requestClose();
       },
@@ -58,34 +77,36 @@ class _InventoryResourceFormScreenState
         appBar: AppBar(
           leading: IconButton(
             onPressed: _saving ? null : _requestClose,
-            icon: const Icon(Icons.close),
-            tooltip: 'Cancelar',
+            icon: Icon(_readOnly ? Icons.arrow_back : Icons.close),
+            tooltip: _readOnly ? 'Regresar' : 'Cancelar',
           ),
-          title: const Text('AÑADIR RECURSO'),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton.icon(
-                key: const Key('save_inventory_resource_button'),
-                onPressed: _saving ? null : _submit,
-                style: TextButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
-                ),
-                icon: _saving
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colorScheme.onPrimary,
-                        ),
-                      )
-                    : const Icon(Icons.check_circle_outline),
-                label: const Text('GUARDAR'),
-              ),
-            ),
-          ],
+          title: Text(_readOnly ? 'RECURSO DE INVENTARIO' : 'AÑADIR RECURSO'),
+          actions: _readOnly
+              ? const []
+              : [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: TextButton.icon(
+                      key: const Key('save_inventory_resource_button'),
+                      onPressed: _saving ? null : _submit,
+                      style: TextButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                      ),
+                      icon: _saving
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colorScheme.onPrimary,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle_outline),
+                      label: const Text('GUARDAR'),
+                    ),
+                  ),
+                ],
         ),
         backgroundColor: const Color(0xFFF2F3F5),
         body: SafeArea(
@@ -105,17 +126,17 @@ class _InventoryResourceFormScreenState
                     child: TextFormField(
                       key: const Key('inventory_resource_name_field'),
                       controller: _nameController,
-                      enabled: !_saving,
+                      enabled: !_readOnly && !_saving,
                       maxLength: 160,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre *',
+                      decoration: InputDecoration(
+                        labelText: _readOnly ? 'Nombre' : 'Nombre *',
                         hintText: 'Ej. Harina',
                         border: InputBorder.none,
                         counterText: '',
-                        prefixIcon: Icon(Icons.inventory_2_outlined),
+                        prefixIcon: const Icon(Icons.inventory_2_outlined),
                       ),
-                      validator: _validateName,
+                      validator: _readOnly ? null : _validateName,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -123,23 +144,31 @@ class _InventoryResourceFormScreenState
                     child: FormField<UnidadInventario>(
                       key: const Key('inventory_default_unit_field'),
                       initialValue: _selectedUnit,
-                      validator: (value) => value == null
-                          ? 'Selecciona una unidad predeterminada.'
-                          : null,
+                      validator: _readOnly
+                          ? null
+                          : (value) => value == null
+                                ? 'Selecciona una unidad predeterminada.'
+                                : null,
                       builder: (field) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.straighten),
-                            title: const Text('Unidad predeterminada *'),
+                            title: Text(
+                              _readOnly
+                                  ? 'Unidad predeterminada'
+                                  : 'Unidad predeterminada *',
+                            ),
                             subtitle: Text(
                               _selectedUnit == null
                                   ? 'Seleccionar unidad'
                                   : '${_selectedUnit!.nombre} (${_selectedUnit!.simbolo})',
                             ),
-                            trailing: const Icon(Icons.expand_more),
-                            onTap: _saving
+                            trailing: _readOnly
+                                ? null
+                                : const Icon(Icons.expand_more),
+                            onTap: _readOnly || _saving
                                 ? null
                                 : () async {
                                     final selected =
@@ -156,10 +185,12 @@ class _InventoryResourceFormScreenState
                                     field.didChange(selected);
                                   },
                           ),
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                             child: Text(
-                              'Se usará para capturar y mostrar las existencias.',
+                              _readOnly
+                                  ? 'Se usa para mostrar las existencias.'
+                                  : 'Se usará para capturar y mostrar las existencias.',
                             ),
                           ),
                           if (field.hasError)
@@ -174,87 +205,91 @@ class _InventoryResourceFormScreenState
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Existencias iniciales',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDirectionSelector(),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _BalancePreviewCard(
-                          label: 'Existencias actuales',
-                          value: _withSymbol('0'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _BalancePreviewCard(
-                          key: const Key('inventory_updated_balance'),
-                          label: 'Existencias actualizadas',
-                          value: _updatedBalance,
-                          valueColor: _directionColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _FormCard(
-                    child: TextFormField(
-                      key: const Key('inventory_initial_quantity_field'),
-                      controller: _quantityController,
-                      enabled: !_saving && _selectedUnit != null,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: false,
-                      ),
-                      inputFormatters: [
-                        InventoryQuantityInputFormatter(
-                          _selectedUnit?.maximosDecimales ?? 0,
-                        ),
-                      ],
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        labelText: 'Cantidad inicial (opcional)',
-                        hintText: _selectedUnit == null
-                            ? 'Elige una unidad'
-                            : '0',
-                        border: InputBorder.none,
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                            _direction == _StockDirection.add ? '+' : '−',
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(
-                                  color: _directionColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                  if (_readOnly)
+                    ..._buildReadOnlyInventory(context)
+                  else ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'Existencias iniciales',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildDirectionSelector(),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BalancePreviewCard(
+                            label: 'Existencias actuales',
+                            value: _withSymbol('0'),
                           ),
                         ),
-                        suffixText: _selectedUnit?.simbolo,
-                      ),
-                      validator: _validateQuantity,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _BalancePreviewCard(
+                            key: const Key('inventory_updated_balance'),
+                            label: 'Existencias actualizadas',
+                            value: _updatedBalance,
+                            valueColor: _directionColor,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FormCard(
-                    child: TextFormField(
-                      key: const Key('inventory_movement_reason_field'),
-                      controller: _reasonController,
-                      enabled: !_saving,
-                      maxLength: 500,
-                      decoration: const InputDecoration(
-                        labelText: 'Motivo del movimiento',
-                        border: InputBorder.none,
-                        counterText: '',
-                        prefixIcon: Icon(Icons.notes),
+                    const SizedBox(height: 12),
+                    _FormCard(
+                      child: TextFormField(
+                        key: const Key('inventory_initial_quantity_field'),
+                        controller: _quantityController,
+                        enabled: !_saving && _selectedUnit != null,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: false,
+                        ),
+                        inputFormatters: [
+                          InventoryQuantityInputFormatter(
+                            _selectedUnit?.maximosDecimales ?? 0,
+                          ),
+                        ],
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          labelText: 'Cantidad inicial (opcional)',
+                          hintText: _selectedUnit == null
+                              ? 'Elige una unidad'
+                              : '0',
+                          border: InputBorder.none,
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              _direction == _StockDirection.add ? '+' : '−',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    color: _directionColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ),
+                          suffixText: _selectedUnit?.simbolo,
+                        ),
+                        validator: _validateQuantity,
                       ),
-                      validator: _validateReason,
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    _FormCard(
+                      child: TextFormField(
+                        key: const Key('inventory_movement_reason_field'),
+                        controller: _reasonController,
+                        enabled: !_saving,
+                        maxLength: 500,
+                        decoration: const InputDecoration(
+                          labelText: 'Motivo del movimiento',
+                          border: InputBorder.none,
+                          counterText: '',
+                          prefixIcon: Icon(Icons.notes),
+                        ),
+                        validator: _validateReason,
+                      ),
+                    ),
+                  ],
                   if (_saveError != null) ...[
                     const SizedBox(height: 16),
                     Material(
@@ -309,6 +344,34 @@ class _InventoryResourceFormScreenState
           ? null
           : (selection) => setState(() => _direction = selection.single),
     );
+  }
+
+  List<Widget> _buildReadOnlyInventory(BuildContext context) {
+    final resource = widget.resource!;
+    final unit = resource.unidadPredeterminada;
+    final quantity = _codec.formatAtomic(resource.existenciaAtomica, unit);
+    return [
+      const SizedBox(height: 24),
+      Text('Existencias', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 8),
+      _BalancePreviewCard(
+        key: const Key('inventory_current_balance'),
+        label: 'Existencias actuales',
+        value: '$quantity ${unit.simbolo}',
+        valueColor: Theme.of(context).colorScheme.primary,
+      ),
+      const SizedBox(height: 12),
+      _FormCard(
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            resource.activo ? Icons.check_circle_outline : Icons.block,
+          ),
+          title: const Text('Estado'),
+          subtitle: Text(resource.activo ? 'Activo' : 'Inactivo'),
+        ),
+      ),
+    ];
   }
 
   Color get _directionColor => _direction == _StockDirection.add
@@ -382,7 +445,7 @@ class _InventoryResourceFormScreenState
       _saveError = null;
     });
     try {
-      await widget.onSave(
+      await widget.onSave!(
         InventoryResourceFormResult(
           nombre: _nameController.text,
           unidad: unit,
@@ -405,6 +468,10 @@ class _InventoryResourceFormScreenState
 
   Future<void> _requestClose() async {
     if (_saving) return;
+    if (_readOnly) {
+      Navigator.of(context).pop(false);
+      return;
+    }
     if (!_hasChanges) {
       setState(() => _canPop = true);
       await Future<void>.delayed(Duration.zero);

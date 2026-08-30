@@ -7,11 +7,7 @@ abstract interface class InventoryProjectionStore {
 
   Future<InventoryMovementProjection?> findMovementById(String id);
 
-  Future<InventoryBalanceProjection?> findBalanceByItemId(String id);
-
   Future<void> insertCreation(InventoryCreationProjection creation);
-
-  Future<void> applyAdjustment(InventoryAdjustmentProjection adjustment);
 
   Future<void> advanceCreationServerSequence({
     required String inventoryItemId,
@@ -19,16 +15,7 @@ abstract interface class InventoryProjectionStore {
     required int serverSequence,
   });
 
-  Future<void> advanceAdjustmentServerSequence({
-    required String inventoryItemId,
-    required String movementId,
-    required String eventId,
-    required int serverSequence,
-  });
-
   Future<void> deleteCreatedByEvent(String eventId);
-
-  Future<void> deleteAdjustmentByEvent(String eventId);
 }
 
 class InventoryUnitProjection {
@@ -111,20 +98,6 @@ class InventoryCreationProjection {
   final InventoryItemProjection item;
   final InventoryBalanceProjection balance;
   final InventoryMovementProjection? movement;
-}
-
-class InventoryAdjustmentProjection {
-  const InventoryAdjustmentProjection({
-    required this.inventoryItemId,
-    required this.itemVersion,
-    required this.balance,
-    required this.movement,
-  });
-
-  final String inventoryItemId;
-  final int itemVersion;
-  final InventoryBalanceProjection balance;
-  final InventoryMovementProjection movement;
 }
 
 class InventoryProjectionConflict implements Exception {

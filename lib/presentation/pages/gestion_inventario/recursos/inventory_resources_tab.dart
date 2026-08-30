@@ -10,12 +10,12 @@ import 'widgets/inventory_resource_card.dart';
 class InventoryResourcesTab extends StatefulWidget {
   const InventoryResourcesTab({
     required this.repository,
-    this.onAdjust,
+    this.onOpen,
     super.key,
   });
 
   final RecursoInventarioRepository repository;
-  final ValueChanged<RecursoInventarioListado>? onAdjust;
+  final ValueChanged<RecursoInventarioListado>? onOpen;
 
   @override
   State<InventoryResourcesTab> createState() => _InventoryResourcesTabState();
@@ -134,9 +134,9 @@ class _InventoryResourcesTabState extends State<InventoryResourcesTab> {
                 itemCount: resources.length,
                 itemBuilder: (_, index) => InventoryResourceCard(
                   resource: resources[index],
-                  onAdjust: widget.onAdjust == null
+                  onOpen: widget.onOpen == null
                       ? null
-                      : () => widget.onAdjust!(resources[index]),
+                      : () => widget.onOpen!(resources[index]),
                 ),
               );
             },

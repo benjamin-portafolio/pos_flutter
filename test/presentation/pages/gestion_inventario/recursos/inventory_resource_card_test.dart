@@ -35,4 +35,39 @@ void main() {
     expect(find.text('−0.25 kg'), findsOneWidget);
     expect(find.text('Inactivo'), findsOneWidget);
   });
+
+  testWidgets('permite abrir un recurso inactivo para consulta', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InventoryResourceCard(
+            resource: const RecursoInventarioListado(
+              id: 'flour',
+              nombre: 'Harina',
+              activo: false,
+              existenciaAtomica: -250,
+              unidadPredeterminada: UnidadInventario(
+                id: 'kg',
+                code: 'kg',
+                nombre: 'Kilogramo',
+                simbolo: 'kg',
+                dimension: DimensionUnidad.mass,
+                factorAtomico: 1000,
+                maximosDecimales: 3,
+                activa: true,
+              ),
+            ),
+            onOpen: () => opened = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(InventoryResourceCard));
+
+    expect(opened, isTrue);
+  });
 }

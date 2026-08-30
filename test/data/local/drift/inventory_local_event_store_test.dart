@@ -1,7 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/crear_recurso_inventario_command.dart';
-import 'package:pos_flutter/application/commands/ajustar_existencia_inventario_command.dart';
 import 'package:pos_flutter/application/commands/inventory_command_service.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
@@ -103,46 +102,6 @@ void main() {
       0,
     );
     expect(await db.select(db.inventoryMovements).get(), isEmpty);
-  });
-
-  test('cada ajuste inserta movimiento y actualiza el balance atómicamente', () async {
-    final service = InventoryCommandService(
-      eventStore: _eventStore(db, projectionStore, AppMode.standalone),
-      commandContext: const LocalCommandContext(
-        deviceId: 'device-test',
-        userId: 'user-test',
-      ),
-      inventoryProjectionStore: projectionStore,
-    );
-    await service.crearRecurso(
-      const CrearRecursoInventarioCommand(
-        nombre: 'Botellas',
-        defaultUnitId: InventoryUnitIds.piece,
-        quantityDeltaAtomic: 15,
-        movementReason: 'Existencia inicial',
-      ),
-    );
-    final itemId = (await db.select(db.inventoryItems).get()).single.id;
-
-    await service.ajustarExistencia(
-      AjustarExistenciaInventarioCommand(
-        inventoryItemId: itemId,
-        quantityDeltaAtomic: -3,
-        reason: 'Merma por rotura',
-      ),
-    );
-
-    expect(
-      (await db.select(db.inventoryBalances).get())
-          .single
-          .quantityOnHandAtomic,
-      12,
-    );
-    final movements = await db.select(db.inventoryMovements).get();
-    expect(movements, hasLength(2));
-    expect(movements.last.quantityDeltaAtomic, -3);
-    expect(movements.last.reason, 'Merma por rotura');
-    expect(await db.select(db.events).get(), hasLength(2));
   });
 
   test('reaplicar y recibir eco no duplica ni vuelve a sumar', () async {

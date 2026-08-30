@@ -6,7 +6,6 @@ import '../../../application/commands/categoria_command_service.dart';
 import '../../../application/commands/crear_articulo_command.dart';
 import '../../../application/commands/crear_categoria_command.dart';
 import '../../../application/commands/crear_recurso_inventario_command.dart';
-import '../../../application/commands/ajustar_existencia_inventario_command.dart';
 import '../../../application/commands/editar_categoria_command.dart';
 import '../../../application/commands/eliminar_categoria_command.dart';
 import '../../../application/commands/mover_categoria_command.dart';
@@ -34,8 +33,6 @@ import 'categorias/widgets/delete_category_dialog.dart';
 import 'categorias/widgets/delete_category_options_dialog.dart';
 import 'categorias/widgets/delete_category_products_confirmation_dialog.dart';
 import 'recursos/inventory_resource_form_screen.dart';
-import 'recursos/inventory_adjustment_dialog.dart';
-import 'recursos/models/inventory_adjustment_form_result.dart';
 import 'recursos/inventory_resources_tab.dart';
 import 'recursos/models/inventory_resource_form_result.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
@@ -174,8 +171,8 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           if (widget.recursoInventarioRepository case final repository?)
             InventoryResourcesTab(
               repository: repository,
-              onAdjust: (resource) =>
-                  _adjustInventoryResource(context, resource),
+              onOpen: (resource) =>
+                  _openInventoryResourceDetails(context, resource),
             )
           else
             const Center(
@@ -343,35 +340,16 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     );
   }
 
-  Future<void> _adjustInventoryResource(
+  void _openInventoryResourceDetails(
     BuildContext context,
     RecursoInventarioListado resource,
-  ) async {
-    final result = await showDialog<InventoryAdjustmentFormResult>(
-      context: context,
-      builder: (_) => InventoryAdjustmentDialog(resource: resource),
+  ) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) =>
+            InventoryResourceFormScreen.readOnly(resource: resource),
+      ),
     );
-    if (result == null || !context.mounted) return;
-    try {
-      final service =
-          widget.inventoryCommandService ?? getIt<InventoryCommandService>();
-      await service.ajustarExistencia(
-        AjustarExistenciaInventarioCommand(
-          inventoryItemId: resource.id,
-          quantityDeltaAtomic: result.quantityDeltaAtomic,
-          reason: result.reason,
-        ),
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Existencia actualizada.')));
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo actualizar la existencia.')),
-      );
-    }
   }
 
   Future<void> _openArticleForm(BuildContext context) async {

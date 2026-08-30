@@ -88,12 +88,6 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     )..where((movement) => movement.movementId.equals(id))).getSingleOrNull();
   }
 
-  Future<InventoryBalanceRow?> obtenerSaldoPorRecurso(String id) {
-    return (select(inventoryBalances)
-          ..where((balance) => balance.inventoryItemId.equals(id)))
-        .getSingleOrNull();
-  }
-
   Future<void> insertarCreacion({
     required InventoryItemsCompanion item,
     required InventoryBalancesCompanion balance,
@@ -145,103 +139,6 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         .write(
           InventoryMovementsCompanion(serverSequence: Value(serverSequence)),
         );
-  }
-
-  Future<void> aplicarAjuste({
-    required String inventoryItemId,
-    required int itemVersion,
-    required InventoryBalancesCompanion balance,
-    required InventoryMovementsCompanion movement,
-  }) {
-    return db.transaction(() async {
-      await into(inventoryMovements).insert(movement);
-      await (update(inventoryBalances)
-            ..where((row) => row.inventoryItemId.equals(inventoryItemId)))
-          .write(balance);
-      await (update(
-        inventoryItems,
-      )..where((item) => item.id.equals(inventoryItemId))).write(
-        InventoryItemsCompanion(
-          version: Value(itemVersion),
-          lastEventId: Value(movement.eventId.value),
-          lastServerSequence: movement.serverSequence,
-        ),
-      );
-    });
-  }
-
-  Future<void> avanzarSecuenciaAjuste({
-    required String inventoryItemId,
-    required String movementId,
-    required String eventId,
-    required int serverSequence,
-  }) async {
-    await (update(inventoryMovements)..where(
-          (movement) =>
-              movement.movementId.equals(movementId) &
-              movement.eventId.equals(eventId),
-        ))
-        .write(
-          InventoryMovementsCompanion(serverSequence: Value(serverSequence)),
-        );
-    await (update(inventoryBalances)..where(
-          (balance) =>
-              balance.inventoryItemId.equals(inventoryItemId) &
-              balance.lastEventId.equals(eventId),
-        ))
-        .write(
-          InventoryBalancesCompanion(lastServerSequence: Value(serverSequence)),
-        );
-    await (update(inventoryItems)..where(
-          (item) =>
-              item.id.equals(inventoryItemId) &
-              (item.lastServerSequence.isNull() |
-                  item.lastServerSequence.isSmallerThanValue(serverSequence)),
-        ))
-        .write(
-          InventoryItemsCompanion(lastServerSequence: Value(serverSequence)),
-        );
-  }
-
-  Future<void> eliminarAjustePorEvento(String eventId) {
-    return db.transaction(() async {
-      final movement = await (select(
-        inventoryMovements,
-      )..where((row) => row.eventId.equals(eventId))).getSingleOrNull();
-      if (movement == null) return;
-      final balance = await obtenerSaldoPorRecurso(movement.inventoryItemId);
-      final item = await obtenerRecursoPorId(movement.inventoryItemId);
-      if (balance != null) {
-        final restoredOnHand =
-            balance.quantityOnHandAtomic - movement.quantityDeltaAtomic;
-        final restoredAvailable =
-            balance.quantityAvailableAtomic - movement.quantityDeltaAtomic;
-        await (update(inventoryBalances)..where(
-              (row) => row.inventoryItemId.equals(movement.inventoryItemId),
-            ))
-            .write(
-              InventoryBalancesCompanion(
-                quantityOnHandAtomic: Value(restoredOnHand),
-                quantityAvailableAtomic: Value(restoredAvailable),
-                lastEventId: Value(item?.createdEventId ?? eventId),
-                lastServerSequence: Value(item?.lastServerSequence),
-              ),
-            );
-      }
-      await (delete(
-        inventoryMovements,
-      )..where((row) => row.eventId.equals(eventId))).go();
-      if (item != null && item.lastEventId == eventId) {
-        await (update(
-          inventoryItems,
-        )..where((row) => row.id.equals(item.id))).write(
-          InventoryItemsCompanion(
-            version: Value(item.version > 1 ? item.version - 1 : 1),
-            lastEventId: Value(item.createdEventId),
-          ),
-        );
-      }
-    });
   }
 
   Future<void> eliminarCreacionPorEvento(String eventId) {

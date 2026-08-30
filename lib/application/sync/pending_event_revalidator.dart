@@ -10,7 +10,6 @@ import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
-import 'payloads/existencia_inventario_ajustada_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
 import 'projections/producto_projection_store.dart';
@@ -89,8 +88,6 @@ class PendingEventRevalidator {
             ),
             RecursoInventarioCreadoPayload.eventType =>
               await _inventoryItemCreadoConflict(event),
-            ExistenciaInventarioAjustadaPayload.eventType =>
-              await _inventoryAdjustmentConflict(event),
             _ => null,
           };
 
@@ -257,27 +254,6 @@ class PendingEventRevalidator {
     if (unit == null || !unit.active) {
       return const _PendingConflict(
         'La unidad del recurso ya no existe o está inactiva.',
-      );
-    }
-    return null;
-  }
-
-  Future<_PendingConflict?> _inventoryAdjustmentConflict(
-    SyncEvent event,
-  ) async {
-    final store = _inventoryProjectionStore;
-    if (store == null) return null;
-    final payload = ExistenciaInventarioAjustadaPayload.fromJson(event.payload);
-    final item = await store.findItemById(payload.inventoryItemId);
-    if (item == null || !item.active) {
-      return const _PendingConflict(
-        'El recurso ajustado ya no existe o está inactivo.',
-      );
-    }
-    final movement = await store.findMovementById(payload.movementId);
-    if (movement != null && movement.eventId != event.eventId) {
-      return _PendingConflict(
-        'Ya existe un movimiento oficial con id ${payload.movementId}.',
       );
     }
     return null;
@@ -560,8 +536,6 @@ class PendingEventRevalidator {
         await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
       case RecursoInventarioCreadoPayload.eventType:
         await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
-      case ExistenciaInventarioAjustadaPayload.eventType:
-        await _inventoryProjectionStore?.deleteAdjustmentByEvent(event.eventId);
     }
   }
 

@@ -5,10 +5,8 @@ import '../../domain/inventario/nombre_recurso_inventario.dart';
 import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
 import '../sync/payloads/recurso_inventario_creado_payload.dart';
-import '../sync/payloads/existencia_inventario_ajustada_payload.dart';
 import '../sync/projections/inventory_projection_store.dart';
 import 'crear_recurso_inventario_command.dart';
-import 'ajustar_existencia_inventario_command.dart';
 import 'local_command_context.dart';
 
 class InventoryCommandService {
@@ -96,54 +94,6 @@ class InventoryCommandService {
             refType: 'inventory_movement',
             refId: movement.movementId,
           ),
-      ],
-    );
-  }
-
-  Future<void> ajustarExistencia(
-    AjustarExistenciaInventarioCommand command,
-  ) async {
-    final inventoryItemId = command.inventoryItemId.trim();
-    final item = await _inventoryProjectionStore.findItemById(inventoryItemId);
-    if (item == null || !item.active) {
-      throw StateError('El recurso no existe o está inactivo.');
-    }
-    if (command.quantityDeltaAtomic == 0) {
-      throw ArgumentError.value(
-        command.quantityDeltaAtomic,
-        'quantityDeltaAtomic',
-        'No se crean movimientos de cantidad cero.',
-      );
-    }
-    final eventId = _uuid.v4();
-    final payload = ExistenciaInventarioAjustadaPayload.create(
-      inventoryItemId: inventoryItemId,
-      movementId: _uuid.v4(),
-      quantityDeltaAtomic: command.quantityDeltaAtomic,
-      reason: command.reason,
-    );
-    final event = SyncEvent(
-      eventId: eventId,
-      aggregateType: ExistenciaInventarioAjustadaPayload.aggregateType,
-      aggregateId: inventoryItemId,
-      eventType: ExistenciaInventarioAjustadaPayload.eventType,
-      deviceId: _commandContext.deviceId,
-      userId: _commandContext.userId,
-      baseVersion: item.version,
-      createdAtLocal: DateTime.now(),
-      payload: payload.toJson(),
-    );
-    await _eventStore.appendAndApply(
-      event,
-      refs: [
-        LocalEventRef.affects(
-          refType: 'inventory_item',
-          refId: inventoryItemId,
-        ),
-        LocalEventRef.affects(
-          refType: 'inventory_movement',
-          refId: payload.movementId,
-        ),
       ],
     );
   }

@@ -1,6 +1,5 @@
 import '../event_handler.dart';
 import '../payloads/recurso_inventario_creado_payload.dart';
-import '../payloads/existencia_inventario_ajustada_payload.dart';
 import 'inventory_event_handler.dart';
 
 Map<String, EventHandler> inventoryEventHandlers(
@@ -8,6 +7,4 @@ Map<String, EventHandler> inventoryEventHandlers(
 ) => {
   RecursoInventarioCreadoPayload.eventType:
       handler.applyRecursoInventarioCreado,
-  ExistenciaInventarioAjustadaPayload.eventType:
-      handler.applyExistenciaInventarioAjustada,
 };
