@@ -20,10 +20,29 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
       variables.add(Variable<String>('%${_escapeLike(normalizedSearch)}%'));
     }
 
-    if (filtro == 'inactive') {
-      predicates.add('ii.active = 0');
-    } else {
-      predicates.add('ii.active = 1');
+    predicates.add('ii.active = 1');
+
+    switch (filtro) {
+      case 'products':
+        predicates.add('''
+          EXISTS (
+            SELECT 1
+            FROM product_variants pv
+            WHERE pv.inventory_item_id = ii.id
+          )
+        ''');
+      case 'independent':
+        predicates.add('''
+          NOT EXISTS (
+            SELECT 1
+            FROM product_variants pv
+            WHERE pv.inventory_item_id = ii.id
+          )
+        ''');
+      case 'with_stock':
+        predicates.add('COALESCE(ib.quantity_on_hand_atomic, 0) > 0');
+      case 'without_stock':
+        predicates.add('COALESCE(ib.quantity_on_hand_atomic, 0) <= 0');
     }
 
     final where = predicates.isEmpty ? '' : 'WHERE ${predicates.join(' AND ')}';
@@ -49,7 +68,7 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         ORDER BY LOWER(ii.name), ii.id
       ''',
       variables: variables,
-      readsFrom: {inventoryItems, inventoryBalances, units},
+      readsFrom: {inventoryItems, inventoryBalances, units, db.productVariants},
     );
     return query.watch().map(
       (rows) =>

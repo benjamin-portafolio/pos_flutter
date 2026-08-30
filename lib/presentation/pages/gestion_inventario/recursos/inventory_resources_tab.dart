@@ -88,9 +88,15 @@ class _InventoryResourcesTabState extends State<InventoryResourcesTab> {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: ChoiceChip(
                       key: Key('inventory_filter_${filter.name}'),
-                      label: Text(filter.label),
+                      label: Text(
+                        filter.available
+                            ? filter.label
+                            : '${filter.label} · Próximamente',
+                      ),
                       selected: _filter == filter,
-                      onSelected: (_) => setState(() => _filter = filter),
+                      onSelected: filter.available
+                          ? (_) => setState(() => _filter = filter)
+                          : null,
                     ),
                   ),
                 )

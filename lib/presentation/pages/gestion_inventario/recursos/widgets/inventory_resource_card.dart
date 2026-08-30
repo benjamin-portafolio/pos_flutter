@@ -40,7 +40,6 @@ class InventoryResourceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _StatusChip(active: resource.activo),
                 ],
               ),
               const SizedBox(height: 6),
@@ -55,23 +54,6 @@ class InventoryResourceCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.active});
-
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(active ? 'Activo' : 'Inactivo'),
-      visualDensity: VisualDensity.compact,
-      backgroundColor: active
-          ? const Color(0xFFE8F5E9)
-          : Theme.of(context).colorScheme.surfaceContainerHighest,
     );
   }
 }
