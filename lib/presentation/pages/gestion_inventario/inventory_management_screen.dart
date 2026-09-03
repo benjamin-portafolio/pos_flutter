@@ -399,6 +399,8 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           builder: (_) => ArticleFormScreen(
             categorias: categorias,
             unidadesVenta: unidades,
+            inventoryResourceRepository: widget.recursoInventarioRepository,
+            onCreateInventoryResource: _createInventoryResource,
             onSave: _createArticle,
           ),
         ),
@@ -431,6 +433,14 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                 costoEstandar: variant.costoEstandar,
                 inventoryUnitId: variant.inventoryUnitId,
                 initialStockQuantity: variant.existenciaInicial,
+                recipeComponents: variant.recipeComponents
+                    .map(
+                      (component) => CrearArticuloRecipeComponentCommand(
+                        inventoryItemId: component.resource.id,
+                        quantity: component.quantity,
+                      ),
+                    )
+                    .toList(growable: false),
               ),
             )
             .toList(growable: false),

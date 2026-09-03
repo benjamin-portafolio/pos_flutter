@@ -111,6 +111,7 @@ void main() {
       await current.customStatement(
         "ALTER TABLE product_variants ADD COLUMN inventory_behavior TEXT NOT NULL DEFAULT 'none'",
       );
+      await current.customStatement('DROP TABLE recipe_components');
       await current.customStatement('''
         CREATE TABLE recipe_components (
           variant_id TEXT NOT NULL,

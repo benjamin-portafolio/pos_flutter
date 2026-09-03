@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../../domain/articulos/sale_configuration.dart';
+import 'recipe_component_form_result.dart';
 
 @immutable
 class ArticuloFormResult {
@@ -25,6 +26,7 @@ class ArticuloFormVarianteResult {
     required this.costoEstandar,
     this.inventoryUnitId,
     this.existenciaInicial,
+    this.recipeComponents = const [],
   });
 
   final String? nombre;
@@ -32,8 +34,10 @@ class ArticuloFormVarianteResult {
   final String? costoEstandar;
   final String? inventoryUnitId;
   final String? existenciaInicial;
+  final List<RecipeComponentFormResult> recipeComponents;
 
   bool get seguimientoExistencias => inventoryUnitId != null;
+  bool get usaReceta => recipeComponents.isNotEmpty;
 
   ArticuloFormVarianteResult copyWith({
     String? nombre,
@@ -45,6 +49,8 @@ class ArticuloFormVarianteResult {
     bool clearInventoryUnitId = false,
     String? existenciaInicial,
     bool clearExistenciaInicial = false,
+    List<RecipeComponentFormResult>? recipeComponents,
+    bool clearRecipeComponents = false,
   }) {
     return ArticuloFormVarianteResult(
       nombre: clearNombre ? null : nombre ?? this.nombre,
@@ -58,6 +64,9 @@ class ArticuloFormVarianteResult {
       existenciaInicial: clearExistenciaInicial
           ? null
           : existenciaInicial ?? this.existenciaInicial,
+      recipeComponents: clearRecipeComponents
+          ? const []
+          : recipeComponents ?? this.recipeComponents,
     );
   }
 }

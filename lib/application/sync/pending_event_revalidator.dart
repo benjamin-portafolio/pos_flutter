@@ -230,6 +230,16 @@ class PendingEventRevalidator {
           'Ya existe una variante oficial con id ${payloadVariant.id}.',
         );
       }
+      for (final component in payloadVariant.componentesReceta) {
+        final item = await _inventoryProjectionStore?.findItemById(
+          component.inventoryItemId,
+        );
+        if (item == null || !item.active) {
+          return const _PendingConflict(
+            'Ya no existe un recurso activo para un componente de receta.',
+          );
+        }
+      }
       final inventoryItemId = payloadVariant.inventoryItemId;
       if (inventoryItemId == null) continue;
       final linked = await store.findVariantByInventoryItemId(inventoryItemId);

@@ -207,6 +207,60 @@ void main() {
       },
     ]);
   });
+
+  test('serializa receta canónica y rechaza configuraciones ambiguas', () {
+    final component = ProductoCreadoComponenteReceta.create(
+      inventoryItemId: _item1,
+      quantityAtomic: 250,
+    );
+    final payload = ProductoCreadoPayload.create(
+      nombre: 'Pan',
+      categoriaId: null,
+      saleConfiguration: const UnitSaleConfiguration(),
+      variantes: [
+        ProductoCreadoVariante.create(
+          id: _variant1,
+          nombre: null,
+          precioVentaMenor: 3500,
+          costoEstandarMenor: null,
+          componentesReceta: [component],
+          esPredeterminada: true,
+          orden: 0,
+        ),
+      ],
+      dependenciasInventario: const [
+        ProductoCreadoInventarioDependencia(refId: _item1),
+      ],
+    );
+
+    final variant = (payload.toJson()['variants']! as List).single as Map;
+    expect(variant['inventory_configuration'], {
+      'enabled': true,
+      'components': [
+        {'inventory_item_id': _item1, 'quantity_atomic': 250},
+      ],
+    });
+    expect(
+      ProductoCreadoPayload.fromJson(
+        payload.toJson(),
+      ).variantes.single.componentesReceta.single.quantityAtomic,
+      250,
+    );
+
+    expect(
+      () => ProductoCreadoVariante.create(
+        id: _variant1,
+        nombre: null,
+        precioVentaMenor: 3500,
+        costoEstandarMenor: null,
+        inventoryItemId: _item1,
+        componentesReceta: [component],
+        esPredeterminada: true,
+        orden: 0,
+      ),
+      throwsFormatException,
+    );
+  });
 }
 
 Map<String, Object?> _advancedJson() {
@@ -251,3 +305,4 @@ Map<String, Object?> _copyJson(Map<String, Object?> source) {
 
 const _variant1 = '00000000-0000-4000-8000-000000000001';
 const _variant2 = '00000000-0000-4000-8000-000000000002';
+const _item1 = '20000000-0000-4000-8000-000000000001';

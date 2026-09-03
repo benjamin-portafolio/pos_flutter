@@ -29,6 +29,7 @@ class CrearArticuloVarianteCommand {
     required this.costoEstandar,
     this.inventoryUnitId,
     this.initialStockQuantity,
+    this.recipeComponents = const [],
   });
 
   final String? nombre;
@@ -36,4 +37,15 @@ class CrearArticuloVarianteCommand {
   final String? costoEstandar;
   final String? inventoryUnitId;
   final String? initialStockQuantity;
+  final List<CrearArticuloRecipeComponentCommand> recipeComponents;
+}
+
+class CrearArticuloRecipeComponentCommand {
+  const CrearArticuloRecipeComponentCommand({
+    required this.inventoryItemId,
+    required this.quantity,
+  });
+
+  final String inventoryItemId;
+  final String quantity;
 }

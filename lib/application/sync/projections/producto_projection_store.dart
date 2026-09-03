@@ -20,6 +20,10 @@ abstract interface class ProductoProjectionStore {
 
   Future<void> insertVariant(ProductoVarianteProjection projection);
 
+  Future<void> insertRecipeComponent(
+    ProductoRecetaComponenteProjection projection,
+  );
+
   Future<void> updateProduct(ProductoProjection projection);
 
   Future<void> advanceLastServerSequence(String productId, int serverSequence);
@@ -78,4 +82,16 @@ class ProductoVarianteProjection extends SyncProjection {
   final String? inventoryItemId;
   final bool esPredeterminada;
   final int orden;
+}
+
+class ProductoRecetaComponenteProjection {
+  const ProductoRecetaComponenteProjection({
+    required this.varianteId,
+    required this.inventoryItemId,
+    required this.quantityAtomic,
+  });
+
+  final String varianteId;
+  final String inventoryItemId;
+  final int quantityAtomic;
 }

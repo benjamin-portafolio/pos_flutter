@@ -1,6 +1,6 @@
 part of '../app_database.dart';
 
-@DriftAccessor(tables: [Products, ProductVariants])
+@DriftAccessor(tables: [Products, ProductVariants, RecipeComponents])
 class ProductoDao extends DatabaseAccessor<AppDatabase>
     with _$ProductoDaoMixin {
   ProductoDao(super.db);
@@ -107,6 +107,21 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> insertarVariante(ProductVariantsCompanion entity) {
     return into(productVariants).insert(entity);
+  }
+
+  Future<int> insertarComponenteReceta(RecipeComponentsCompanion entity) {
+    return into(recipeComponents).insert(entity);
+  }
+
+  Future<List<RecipeComponentRow>> obtenerComponentesRecetaPorVariante(
+    String variantId,
+  ) {
+    return (select(recipeComponents)
+          ..where((component) => component.variantId.equals(variantId))
+          ..orderBy([
+            (component) => OrderingTerm(expression: component.inventoryItemId),
+          ]))
+        .get();
   }
 
   Future<void> actualizarProducto(

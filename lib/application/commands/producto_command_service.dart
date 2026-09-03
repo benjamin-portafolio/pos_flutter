@@ -18,6 +18,7 @@ import '../sync/payloads/categoria_creada_payload.dart';
 import '../sync/payloads/producto_creado_payload.dart';
 import '../sync/payloads/recurso_inventario_creado_payload.dart';
 import '../sync/projections/categoria_projection_store.dart';
+import '../sync/projections/inventory_projection_store.dart';
 import '../sync/synced_event_history.dart';
 import 'crear_articulo_command.dart';
 import 'local_command_context.dart';
@@ -29,17 +30,20 @@ class ProductoCommandService {
     required CategoriaProjectionStore categoriaProjectionStore,
     required SyncedEventHistory syncedEventHistory,
     required UnidadInventarioRepository unidadInventarioRepository,
+    InventoryProjectionStore? inventoryProjectionStore,
   }) : _eventStore = eventStore,
        _commandContext = commandContext,
        _categoriaProjectionStore = categoriaProjectionStore,
        _syncedEventHistory = syncedEventHistory,
-       _unidadInventarioRepository = unidadInventarioRepository;
+       _unidadInventarioRepository = unidadInventarioRepository,
+       _inventoryProjectionStore = inventoryProjectionStore;
 
   final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final SyncedEventHistory _syncedEventHistory;
   final UnidadInventarioRepository _unidadInventarioRepository;
+  final InventoryProjectionStore? _inventoryProjectionStore;
   final Uuid _uuid = const Uuid();
   static const _quantityCodec = InventoryQuantityCodec();
 
@@ -69,6 +73,16 @@ class ProductoCommandService {
           'Los nombres de variantes no pueden repetirse.',
         );
       }
+      final directInventory = await _normalizeInventoryTracking(
+        captured,
+        saleConfiguration,
+      );
+      final recipeComponents = await _normalizeRecipeComponents(captured);
+      if (directInventory != null && recipeComponents.isNotEmpty) {
+        throw const FormatException(
+          'Una variante no puede usar seguimiento directo y receta simultáneamente.',
+        );
+      }
       normalizedVariants.add(
         _NormalizedVariant(
           nombre: name.value,
@@ -78,10 +92,8 @@ class ProductoCommandService {
           costoEstandarMenor: CostoEstandar.fromInput(
             captured.costoEstandar,
           )?.unidadMenor,
-          inventory: await _normalizeInventoryTracking(
-            captured,
-            saleConfiguration,
-          ),
+          inventory: directInventory,
+          recipeComponents: recipeComponents,
         ),
       );
     }
@@ -116,6 +128,19 @@ class ProductoCommandService {
     final inventoryByVariant = {
       for (final binding in inventoryBindings) binding.variantIndex: binding,
     };
+    final inventoryDependencies = <String, ProductoCreadoInventarioDependencia>{
+      for (final binding in inventoryBindings)
+        binding.inventoryItemId: ProductoCreadoInventarioDependencia(
+          refId: binding.inventoryItemId,
+          dependsOnEventId: binding.creationEventId,
+        ),
+      for (final variant in normalizedVariants)
+        for (final component in variant.recipeComponents)
+          component.inventoryItemId: ProductoCreadoInventarioDependencia(
+            refId: component.inventoryItemId,
+            dependsOnEventId: component.dependsOnEventId,
+          ),
+    };
     final payload = ProductoCreadoPayload.create(
       nombre: nombre.value,
       categoriaId: categoriaId,
@@ -128,18 +153,22 @@ class ProductoCommandService {
             precioVentaMenor: normalizedVariants[index].precioVentaMenor,
             costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
             inventoryItemId: inventoryByVariant[index]?.inventoryItemId,
+            componentesReceta: [
+              for (final component
+                  in normalizedVariants[index].recipeComponents)
+                ProductoCreadoComponenteReceta.create(
+                  inventoryItemId: component.inventoryItemId,
+                  quantityAtomic: component.quantityAtomic,
+                ),
+            ],
             esPredeterminada: index == 0,
             orden: index,
           ),
       ],
       dependenciaCategoria: dependency,
-      dependenciasInventario: [
-        for (final binding in inventoryBindings)
-          ProductoCreadoInventarioDependencia(
-            refId: binding.inventoryItemId,
-            dependsOnEventId: binding.creationEventId,
-          ),
-      ],
+      dependenciasInventario: inventoryDependencies.values.toList(
+        growable: false,
+      ),
     );
     final event = SyncEvent(
       eventId: eventId,
@@ -152,6 +181,14 @@ class ProductoCommandService {
       createdAtLocal: DateTime.now(),
       payload: payload.toJson(),
     );
+    final referencedInventoryItemIds = <String>{
+      for (final variant in payload.variantes) ...[
+        if (variant.inventoryItemId != null) variant.inventoryItemId!,
+        ...variant.componentesReceta.map(
+          (component) => component.inventoryItemId,
+        ),
+      ],
+    }.toList()..sort();
 
     final createdAt = event.createdAtLocal;
     final entries = <LocalEventAppend>[
@@ -176,13 +213,12 @@ class ProductoCommandService {
                 refType: 'product_variant_name',
                 refId: _variantNameRefId(productId, nameKey),
               ),
-            if (payload.variantes[index].inventoryItemId
-                case final inventoryItemId?)
-              LocalEventRef.uses(
-                refType: 'inventory_item',
-                refId: inventoryItemId,
-              ),
           ],
+          for (final inventoryItemId in referencedInventoryItemIds)
+            LocalEventRef.uses(
+              refType: 'inventory_item',
+              refId: inventoryItemId,
+            ),
           if (categoriaId != null)
             LocalEventRef.uses(refType: 'category', refId: categoriaId),
           if (saleConfiguration is MeasuredSaleConfiguration)
@@ -247,6 +283,82 @@ class ProductoCommandService {
               final quantity => quantity,
             },
     );
+  }
+
+  Future<List<_NormalizedRecipeComponent>> _normalizeRecipeComponents(
+    CrearArticuloVarianteCommand captured,
+  ) async {
+    if (captured.recipeComponents.isEmpty) return const [];
+    final inventoryStore = _inventoryProjectionStore;
+    if (inventoryStore == null) {
+      throw StateError(
+        'No se configuró la proyección de inventario para crear recetas.',
+      );
+    }
+    final ids = <String>{};
+    final normalized = <_NormalizedRecipeComponent>[];
+    for (final component in captured.recipeComponents) {
+      final inventoryItemId = _normalizeOptional(component.inventoryItemId);
+      if (inventoryItemId == null || !ids.add(inventoryItemId)) {
+        throw const FormatException(
+          'Los recursos de una receta deben existir y no pueden repetirse.',
+        );
+      }
+      final item = await inventoryStore.findItemById(inventoryItemId);
+      if (item == null || !item.active) {
+        throw StateError(
+          'El recurso de inventario $inventoryItemId no existe o está inactivo.',
+        );
+      }
+      final unit = await _unidadInventarioRepository.obtenerUnidadPorId(
+        item.defaultUnitId,
+      );
+      if (unit == null || !unit.activa) {
+        throw StateError(
+          'La unidad del recurso $inventoryItemId no existe o está inactiva.',
+        );
+      }
+      normalized.add(
+        _NormalizedRecipeComponent(
+          inventoryItemId: inventoryItemId,
+          quantityAtomic: _quantityCodec.parsePositiveAtomic(
+            component.quantity,
+            unit,
+          ),
+          dependsOnEventId: await _inventoryDependency(item),
+        ),
+      );
+    }
+    normalized.sort(
+      (left, right) => left.inventoryItemId.compareTo(right.inventoryItemId),
+    );
+    return List.unmodifiable(normalized);
+  }
+
+  Future<String?> _inventoryDependency(InventoryItemProjection item) async {
+    if (item.lastServerSequence != null) return null;
+    final createdEventId = item.createdEventId;
+    if (createdEventId == null) {
+      throw StateError('El recurso ${item.id} no tiene evento de creación.');
+    }
+    final createdEvent = await _syncedEventHistory.eventById(createdEventId);
+    if (createdEvent == null ||
+        createdEvent.eventType != RecursoInventarioCreadoPayload.eventType ||
+        createdEvent.aggregateId != item.id) {
+      throw StateError(
+        'No se encontró el evento de creación del recurso ${item.id}.',
+      );
+    }
+    return switch (createdEvent.deliveryStatus) {
+      'pending' => createdEvent.eventId,
+      'delivered' || 'not_required' => null,
+      'conflict' || 'rejected' => throw StateError(
+        'La creación del recurso ${item.id} no fue aceptada.',
+      ),
+      final status => throw StateError(
+        'Estado de creación de recurso no soportado: $status',
+      ),
+    };
   }
 
   LocalEventAppend _inventoryCreationAppend({
@@ -385,12 +497,26 @@ class _NormalizedVariant {
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
     required this.inventory,
+    required this.recipeComponents,
   });
 
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
   final _NormalizedInventory? inventory;
+  final List<_NormalizedRecipeComponent> recipeComponents;
+}
+
+class _NormalizedRecipeComponent {
+  const _NormalizedRecipeComponent({
+    required this.inventoryItemId,
+    required this.quantityAtomic,
+    required this.dependsOnEventId,
+  });
+
+  final String inventoryItemId;
+  final int quantityAtomic;
+  final String? dependsOnEventId;
 }
 
 class _NormalizedInventory {

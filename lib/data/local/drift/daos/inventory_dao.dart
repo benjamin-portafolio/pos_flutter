@@ -1,7 +1,13 @@
 part of '../app_database.dart';
 
 @DriftAccessor(
-  tables: [Units, InventoryItems, InventoryBalances, InventoryMovements],
+  tables: [
+    Units,
+    InventoryItems,
+    InventoryBalances,
+    InventoryMovements,
+    RecipeComponents,
+  ],
 )
 class InventoryDao extends DatabaseAccessor<AppDatabase>
     with _$InventoryDaoMixin {
@@ -39,6 +45,14 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
             WHERE pv.inventory_item_id = ii.id
           )
         ''');
+      case 'ingredients':
+        predicates.add('''
+          EXISTS (
+            SELECT 1
+            FROM recipe_components rc
+            WHERE rc.inventory_item_id = ii.id
+          )
+        ''');
       case 'with_stock':
         predicates.add('COALESCE(ib.quantity_on_hand_atomic, 0) > 0');
       case 'without_stock':
@@ -68,7 +82,13 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         ORDER BY LOWER(ii.name), ii.id
       ''',
       variables: variables,
-      readsFrom: {inventoryItems, inventoryBalances, units, db.productVariants},
+      readsFrom: {
+        inventoryItems,
+        inventoryBalances,
+        units,
+        db.productVariants,
+        recipeComponents,
+      },
     );
     return query.watch().map(
       (rows) =>

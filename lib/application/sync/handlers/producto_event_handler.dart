@@ -61,6 +61,29 @@ class ProductoEventHandler {
     }
 
     for (final variant in payload.variantes) {
+      for (final component in variant.componentesReceta) {
+        final inventoryStore = _inventoryProjectionStore;
+        if (inventoryStore == null) {
+          throw StateError(
+            'No se configuró la proyección de inventario para la receta.',
+          );
+        }
+        final item = await inventoryStore.findItemById(
+          component.inventoryItemId,
+        );
+        if (item == null || !item.active) {
+          throw StateError(
+            'No existe el recurso de inventario activo '
+            '${component.inventoryItemId}.',
+          );
+        }
+        final unit = await inventoryStore.findUnitById(item.defaultUnitId);
+        if (unit == null || !unit.active) {
+          throw StateError(
+            'La unidad del componente de receta no existe o está inactiva.',
+          );
+        }
+      }
       final inventoryItemId = variant.inventoryItemId;
       if (inventoryItemId == null) continue;
       final linkedVariant = await _productoProjectionStore
@@ -145,6 +168,15 @@ class ProductoEventHandler {
           lastServerSequence: event.serverSequence,
         ),
       );
+      for (final component in variant.componentesReceta) {
+        await _productoProjectionStore.insertRecipeComponent(
+          ProductoRecetaComponenteProjection(
+            varianteId: variant.id,
+            inventoryItemId: component.inventoryItemId,
+            quantityAtomic: component.quantityAtomic,
+          ),
+        );
+      }
     }
   }
 

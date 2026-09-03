@@ -2,12 +2,11 @@ enum InventoryResourceFilter {
   all('Todos'),
   products('Productos'),
   independent('Independientes'),
-  ingredients('Ingredientes', available: false),
+  ingredients('Ingredientes'),
   withStock('Con existencia'),
   withoutStock('Sin existencia');
 
-  const InventoryResourceFilter(this.label, {this.available = true});
+  const InventoryResourceFilter(this.label);
 
   final String label;
-  final bool available;
 }

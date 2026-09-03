@@ -6,9 +6,7 @@ import 'package:pos_flutter/domain/repositories/recurso_inventario_repository.da
 import 'package:pos_flutter/presentation/pages/gestion_inventario/recursos/inventory_resources_tab.dart';
 
 void main() {
-  testWidgets('muestra los filtros disponibles y deshabilita ingredientes', (
-    tester,
-  ) async {
+  testWidgets('muestra y permite aplicar todos los filtros', (tester) async {
     final repository = _FakeInventoryResourceRepository();
 
     await tester.pumpWidget(
@@ -21,7 +19,7 @@ void main() {
     expect(find.text('Todos'), findsOneWidget);
     expect(find.text('Productos'), findsOneWidget);
     expect(find.text('Independientes'), findsOneWidget);
-    expect(find.text('Ingredientes · Próximamente'), findsOneWidget);
+    expect(find.text('Ingredientes'), findsOneWidget);
     expect(find.text('Con existencia'), findsOneWidget);
     expect(find.text('Sin existencia'), findsOneWidget);
     expect(find.text('Inactivos'), findsNothing);
@@ -29,7 +27,14 @@ void main() {
     final ingredientsChip = tester.widget<ChoiceChip>(
       find.byKey(const Key('inventory_filter_ingredients')),
     );
-    expect(ingredientsChip.onSelected, isNull);
+    expect(ingredientsChip.onSelected, isNotNull);
+
+    await tester.tap(find.text('Ingredientes'));
+    await tester.pumpAndSettle();
+    expect(
+      repository.requestedFilters.last,
+      InventoryResourceFilter.ingredients,
+    );
 
     await tester.tap(find.text('Productos'));
     await tester.pumpAndSettle();

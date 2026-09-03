@@ -274,6 +274,7 @@ void registerApplicationDependencies(
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),
       unidadInventarioRepository: getIt<UnidadInventarioRepository>(),
+      inventoryProjectionStore: getIt<InventoryProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<InventoryCommandService>(

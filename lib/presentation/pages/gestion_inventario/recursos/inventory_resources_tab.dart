@@ -7,15 +7,22 @@ import '../../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../../domain/repositories/recurso_inventario_repository.dart';
 import 'widgets/inventory_resource_card.dart';
 
+typedef InventoryResourceItemBuilder =
+    Widget Function(BuildContext context, RecursoInventarioListado resource);
+
 class InventoryResourcesTab extends StatefulWidget {
   const InventoryResourcesTab({
     required this.repository,
     this.onOpen,
+    this.title = 'Recursos de inventario',
+    this.itemBuilder,
     super.key,
   });
 
   final RecursoInventarioRepository repository;
   final ValueChanged<RecursoInventarioListado>? onOpen;
+  final String title;
+  final InventoryResourceItemBuilder? itemBuilder;
 
   @override
   State<InventoryResourcesTab> createState() => _InventoryResourcesTabState();
@@ -44,7 +51,7 @@ class _InventoryResourcesTabState extends State<InventoryResourcesTab> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
           child: Text(
-            'Recursos de inventario',
+            widget.title,
             key: const Key('inventory_resources_title'),
             style: Theme.of(context).textTheme.titleLarge,
           ),
@@ -88,15 +95,9 @@ class _InventoryResourcesTabState extends State<InventoryResourcesTab> {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: ChoiceChip(
                       key: Key('inventory_filter_${filter.name}'),
-                      label: Text(
-                        filter.available
-                            ? filter.label
-                            : '${filter.label} · Próximamente',
-                      ),
+                      label: Text(filter.label),
                       selected: _filter == filter,
-                      onSelected: filter.available
-                          ? (_) => setState(() => _filter = filter)
-                          : null,
+                      onSelected: (_) => setState(() => _filter = filter),
                     ),
                   ),
                 )
@@ -132,12 +133,16 @@ class _InventoryResourcesTabState extends State<InventoryResourcesTab> {
               return ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                 itemCount: resources.length,
-                itemBuilder: (_, index) => InventoryResourceCard(
-                  resource: resources[index],
-                  onOpen: widget.onOpen == null
-                      ? null
-                      : () => widget.onOpen!(resources[index]),
-                ),
+                itemBuilder: (context, index) {
+                  final resource = resources[index];
+                  return widget.itemBuilder?.call(context, resource) ??
+                      InventoryResourceCard(
+                        resource: resource,
+                        onOpen: widget.onOpen == null
+                            ? null
+                            : () => widget.onOpen!(resource),
+                      );
+                },
               );
             },
           ),

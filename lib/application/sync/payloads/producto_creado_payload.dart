@@ -227,6 +227,7 @@ class ProductoCreadoVariante {
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
     required this.inventoryItemId,
+    required this.componentesReceta,
     required this.esPredeterminada,
     required this.orden,
   });
@@ -237,10 +238,21 @@ class ProductoCreadoVariante {
     required int precioVentaMenor,
     required int? costoEstandarMenor,
     String? inventoryItemId,
+    List<ProductoCreadoComponenteReceta> componentesReceta = const [],
     required bool esPredeterminada,
     required int orden,
   }) {
     final normalizedName = NombreVariante.fromInput(nombre);
+    final validatedComponents = _validateRecipeComponents(componentesReceta);
+    final normalizedInventoryItemId = _optionalUuidV4(
+      inventoryItemId,
+      'inventory_item_id',
+    );
+    if (normalizedInventoryItemId != null && validatedComponents.isNotEmpty) {
+      throw const FormatException(
+        'Una variante no puede usar vínculo directo y receta simultáneamente.',
+      );
+    }
     return ProductoCreadoVariante._(
       id: _requiredUuidV4(id, 'variant_id'),
       nombre: normalizedName.value,
@@ -251,7 +263,8 @@ class ProductoCreadoVariante {
       costoEstandarMenor: costoEstandarMenor == null
           ? null
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
-      inventoryItemId: _optionalUuidV4(inventoryItemId, 'inventory_item_id'),
+      inventoryItemId: normalizedInventoryItemId,
+      componentesReceta: validatedComponents,
       esPredeterminada: esPredeterminada,
       orden: orden,
     );
@@ -263,6 +276,7 @@ class ProductoCreadoVariante {
   final int precioVentaMenor;
   final int? costoEstandarMenor;
   final String? inventoryItemId;
+  final List<ProductoCreadoComponenteReceta> componentesReceta;
   final bool esPredeterminada;
   final int orden;
 
@@ -287,6 +301,10 @@ class ProductoCreadoVariante {
     if (isDefault is! bool) {
       throw FormatException('$fieldName.is_default debe ser booleano.');
     }
+    final recipeComponents = _parseRecipeComponents(
+      json['inventory_configuration'],
+      fieldName: '$fieldName.inventory_configuration',
+    );
     try {
       return ProductoCreadoVariante.create(
         id: _requiredString(json['variant_id'], '$fieldName.variant_id'),
@@ -300,6 +318,7 @@ class ProductoCreadoVariante {
           json['inventory_item_id'],
           '$fieldName.inventory_item_id',
         ),
+        componentesReceta: recipeComponents,
         esPredeterminada: isDefault,
         orden: _requiredInt(json['sort_order'], '$fieldName.sort_order'),
       );
@@ -318,8 +337,71 @@ class ProductoCreadoVariante {
     'sale_price_minor': precioVentaMenor,
     'standard_cost_minor': costoEstandarMenor,
     if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
+    if (componentesReceta.isNotEmpty)
+      'inventory_configuration': {
+        'enabled': true,
+        'components': componentesReceta
+            .map((component) => component.toJson())
+            .toList(growable: false),
+      },
     'is_default': esPredeterminada,
     'sort_order': orden,
+  };
+}
+
+class ProductoCreadoComponenteReceta {
+  const ProductoCreadoComponenteReceta._({
+    required this.inventoryItemId,
+    required this.quantityAtomic,
+  });
+
+  factory ProductoCreadoComponenteReceta.create({
+    required String inventoryItemId,
+    required int quantityAtomic,
+  }) {
+    if (quantityAtomic <= 0 || quantityAtomic > 9007199254740991) {
+      throw const FormatException(
+        'quantity_atomic debe ser positivo y estar dentro del rango seguro.',
+      );
+    }
+    return ProductoCreadoComponenteReceta._(
+      inventoryItemId: _requiredUuidV4(
+        inventoryItemId,
+        'recipe_component.inventory_item_id',
+      ),
+      quantityAtomic: quantityAtomic,
+    );
+  }
+
+  factory ProductoCreadoComponenteReceta.fromJson(
+    Map<String, Object?> json, {
+    required String fieldName,
+  }) {
+    if (json.keys.any(
+      (key) => key != 'inventory_item_id' && key != 'quantity_atomic',
+    )) {
+      throw FormatException(
+        '$fieldName solo admite inventory_item_id y quantity_atomic.',
+      );
+    }
+    return ProductoCreadoComponenteReceta.create(
+      inventoryItemId: _requiredString(
+        json['inventory_item_id'],
+        '$fieldName.inventory_item_id',
+      ),
+      quantityAtomic: _requiredInt(
+        json['quantity_atomic'],
+        '$fieldName.quantity_atomic',
+      ),
+    );
+  }
+
+  final String inventoryItemId;
+  final int quantityAtomic;
+
+  Map<String, Object?> toJson() => {
+    'inventory_item_id': inventoryItemId,
+    'quantity_atomic': quantityAtomic,
   };
 }
 
@@ -382,6 +464,57 @@ class ProductoCreadoInventarioDependencia {
   };
 }
 
+List<ProductoCreadoComponenteReceta> _parseRecipeComponents(
+  Object? value, {
+  required String fieldName,
+}) {
+  if (value == null) return const [];
+  final configuration = _requiredMap(value, fieldName);
+  final enabled = configuration['enabled'];
+  if (enabled is! bool) {
+    throw FormatException('$fieldName.enabled debe ser booleano.');
+  }
+  final rawComponents = configuration['components'];
+  if (!enabled) {
+    if (rawComponents != null) {
+      throw FormatException(
+        '$fieldName deshabilitada no puede declarar componentes.',
+      );
+    }
+    return const [];
+  }
+  if (rawComponents is! List || rawComponents.isEmpty) {
+    throw FormatException(
+      '$fieldName habilitada como receta requiere componentes.',
+    );
+  }
+  return _validateRecipeComponents([
+    for (var index = 0; index < rawComponents.length; index++)
+      ProductoCreadoComponenteReceta.fromJson(
+        _requiredMap(rawComponents[index], '$fieldName.components[$index]'),
+        fieldName: '$fieldName.components[$index]',
+      ),
+  ]);
+}
+
+List<ProductoCreadoComponenteReceta> _validateRecipeComponents(
+  List<ProductoCreadoComponenteReceta> components,
+) {
+  final ids = <String>{};
+  for (final component in components) {
+    if (!ids.add(component.inventoryItemId)) {
+      throw const FormatException(
+        'Un recurso de inventario no puede repetirse en la misma receta.',
+      );
+    }
+  }
+  final sorted = List<ProductoCreadoComponenteReceta>.of(components)
+    ..sort(
+      (left, right) => left.inventoryItemId.compareTo(right.inventoryItemId),
+    );
+  return List.unmodifiable(sorted);
+}
+
 List<ProductoCreadoVariante> _validateVariants(
   List<ProductoCreadoVariante> variants,
 ) {
@@ -436,8 +569,14 @@ List<ProductoCreadoInventarioDependencia> _validateInventoryDependencies(
   List<ProductoCreadoInventarioDependencia> dependencies,
 ) {
   final expectedIds = variants
-      .map((variant) => variant.inventoryItemId)
-      .whereType<String>()
+      .expand(
+        (variant) => [
+          if (variant.inventoryItemId != null) variant.inventoryItemId!,
+          ...variant.componentesReceta.map(
+            (component) => component.inventoryItemId,
+          ),
+        ],
+      )
       .toSet();
   final actualIds = <String>{};
   for (final dependency in dependencies) {
@@ -450,7 +589,7 @@ List<ProductoCreadoInventarioDependencia> _validateInventoryDependencies(
   if (expectedIds.length != actualIds.length ||
       !expectedIds.containsAll(actualIds)) {
     throw const FormatException(
-      'Las dependencias inventory_item deben coincidir con las variantes que controlan existencias.',
+      'Las dependencias inventory_item deben coincidir con los vínculos directos y componentes de receta.',
     );
   }
   return List.unmodifiable(dependencies);

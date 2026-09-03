@@ -7,6 +7,7 @@ import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
 import 'package:pos_flutter/application/sync/payloads/recurso_inventario_creado_payload.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
+import 'package:pos_flutter/application/sync/projections/inventory_projection_store.dart';
 import 'package:pos_flutter/application/sync/synced_event_history.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
@@ -19,6 +20,7 @@ void main() {
   late _FakeCategoriaProjectionStore categoryStore;
   late _FakeSyncedEventHistory eventHistory;
   late _FakeUnidadInventarioRepository unitRepository;
+  late _FakeInventoryProjectionStore inventoryStore;
   late ProductoCommandService service;
 
   setUp(() {
@@ -26,6 +28,7 @@ void main() {
     categoryStore = _FakeCategoriaProjectionStore();
     eventHistory = _FakeSyncedEventHistory();
     unitRepository = _FakeUnidadInventarioRepository();
+    inventoryStore = _FakeInventoryProjectionStore();
     service = ProductoCommandService(
       eventStore: eventStore,
       commandContext: const LocalCommandContext(
@@ -35,6 +38,7 @@ void main() {
       categoriaProjectionStore: categoryStore,
       syncedEventHistory: eventHistory,
       unidadInventarioRepository: unitRepository,
+      inventoryProjectionStore: inventoryStore,
     );
   });
 
@@ -328,6 +332,55 @@ void main() {
     );
     expect(eventStore.event, isNull);
   });
+
+  test('normaliza y referencia los componentes de una receta', () async {
+    const flourId = '20000000-0000-4000-8000-000000000010';
+    unitRepository.units[_kilogram.id] = _kilogram;
+    inventoryStore.items[flourId] = const InventoryItemProjection(
+      id: flourId,
+      defaultUnitId: 'unit_kg',
+      name: 'Harina',
+      active: true,
+      version: 1,
+      createdEventId: '30000000-0000-4000-8000-000000000010',
+      lastEventId: '30000000-0000-4000-8000-000000000010',
+      lastServerSequence: 12,
+    );
+
+    await service.crearArticulo(
+      const CrearArticuloCommand.conVariantes(
+        nombre: 'Pan',
+        variantes: [
+          CrearArticuloVarianteCommand(
+            nombre: null,
+            precioVenta: '35',
+            costoEstandar: null,
+            recipeComponents: [
+              CrearArticuloRecipeComponentCommand(
+                inventoryItemId: flourId,
+                quantity: '0.25',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final payload = ProductoCreadoPayload.fromJson(eventStore.event!.payload);
+    final component = payload.variantes.single.componentesReceta.single;
+    expect(component.inventoryItemId, flourId);
+    expect(component.quantityAtomic, 250);
+    expect(payload.variantes.single.inventoryItemId, isNull);
+    expect(payload.dependenciasInventario.single.refId, flourId);
+    expect(payload.dependenciasInventario.single.dependsOnEventId, isNull);
+    expect(
+      eventStore.refs
+          .where((ref) => ref.refType == 'inventory_item')
+          .single
+          .refId,
+      flourId,
+    );
+  });
 }
 
 const _kilogram = UnidadInventario(
@@ -447,4 +500,14 @@ class _FakeUnidadInventarioRepository implements UnidadInventarioRepository {
   @override
   Future<UnidadInventario?> obtenerUnidadPorId(String unidadId) async =>
       units[unidadId];
+}
+
+class _FakeInventoryProjectionStore implements InventoryProjectionStore {
+  final Map<String, InventoryItemProjection> items = {};
+
+  @override
+  Future<InventoryItemProjection?> findItemById(String id) async => items[id];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

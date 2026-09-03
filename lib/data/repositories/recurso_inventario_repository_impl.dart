@@ -23,8 +23,7 @@ class RecursoInventarioRepositoryImpl implements RecursoInventarioRepository {
             InventoryResourceFilter.all => 'all',
             InventoryResourceFilter.products => 'products',
             InventoryResourceFilter.independent => 'independent',
-            // Placeholder visible pero deshabilitado hasta implementar recetas.
-            InventoryResourceFilter.ingredients => 'all',
+            InventoryResourceFilter.ingredients => 'ingredients',
             InventoryResourceFilter.withStock => 'with_stock',
             InventoryResourceFilter.withoutStock => 'without_stock',
           },

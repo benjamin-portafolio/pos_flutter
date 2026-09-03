@@ -92,6 +92,19 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
   }
 
   @override
+  Future<void> insertRecipeComponent(
+    ProductoRecetaComponenteProjection projection,
+  ) async {
+    await _productoDao.insertarComponenteReceta(
+      drift.RecipeComponentsCompanion.insert(
+        variantId: projection.varianteId,
+        inventoryItemId: projection.inventoryItemId,
+        quantityAtomic: projection.quantityAtomic,
+      ),
+    );
+  }
+
+  @override
   Future<void> updateProduct(ProductoProjection projection) async {
     await _productoDao.actualizarProducto(
       projection.id,

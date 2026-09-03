@@ -92,6 +92,23 @@ void main() {
     expect(await db.select(db.products).get(), isEmpty);
     expect(await db.select(db.productVariants).get(), isEmpty);
   });
+
+  test('persiste los componentes de receta junto con el artículo', () async {
+    await eventStore.appendAndApplyBatchAtomically(_recipeEntries());
+
+    final variants = await db.select(db.productVariants).get();
+    final components = await db.select(db.recipeComponents).get();
+    expect(variants.single.inventoryItemId, isNull);
+    expect(components, hasLength(1));
+    expect(components.single.variantId, variants.single.id);
+    expect(components.single.inventoryItemId, _inventoryItemId);
+    expect(components.single.quantityAtomic, 2);
+    final ingredients = await InventoryDao(
+      db,
+    ).watchRecursos(filtro: 'ingredients').first;
+    expect(ingredients.map((resource) => resource.id), [_inventoryItemId]);
+    expect(await db.select(db.eventRefs).get(), isEmpty);
+  });
 }
 
 const _inventoryItemId = '20000000-0000-4000-8000-000000000001';
@@ -172,6 +189,62 @@ List<LocalEventAppend> _entries({required String productInventoryItemId}) {
           refType: 'inventory_item',
           refId: productInventoryItemId,
         ),
+      ],
+    ),
+  ];
+}
+
+List<LocalEventAppend> _recipeEntries() {
+  final entries = _entries(productInventoryItemId: _inventoryItemId);
+  final resourceEvent = entries.first.event;
+  final directProductEvent = entries.last.event;
+  final recipeProductEvent = SyncEvent(
+    eventId: directProductEvent.eventId,
+    aggregateType: directProductEvent.aggregateType,
+    aggregateId: directProductEvent.aggregateId,
+    eventType: directProductEvent.eventType,
+    deviceId: directProductEvent.deviceId,
+    userId: directProductEvent.userId,
+    baseVersion: directProductEvent.baseVersion,
+    createdAtLocal: directProductEvent.createdAtLocal,
+    payload: ProductoCreadoPayload.create(
+      nombre: 'Agua preparada',
+      categoriaId: null,
+      saleConfiguration: const UnitSaleConfiguration(),
+      variantes: [
+        ProductoCreadoVariante.create(
+          id: '10000000-0000-4000-8000-000000000002',
+          nombre: null,
+          precioVentaMenor: 2500,
+          costoEstandarMenor: null,
+          componentesReceta: [
+            ProductoCreadoComponenteReceta.create(
+              inventoryItemId: _inventoryItemId,
+              quantityAtomic: 2,
+            ),
+          ],
+          esPredeterminada: true,
+          orden: 0,
+        ),
+      ],
+      dependenciasInventario: [
+        ProductoCreadoInventarioDependencia(
+          refId: _inventoryItemId,
+          dependsOnEventId: resourceEvent.eventId,
+        ),
+      ],
+    ).toJson(),
+  );
+  return [
+    entries.first,
+    LocalEventAppend(
+      event: recipeProductEvent,
+      refs: const [
+        LocalEventRef.affects(
+          refType: 'product',
+          refId: '10000000-0000-4000-8000-000000000001',
+        ),
+        LocalEventRef.uses(refType: 'inventory_item', refId: _inventoryItemId),
       ],
     ),
   ];

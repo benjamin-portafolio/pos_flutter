@@ -5,9 +5,13 @@ import '../../../../../domain/articulos/nombre_variante.dart';
 import '../../../../../domain/articulos/precio_venta.dart';
 import '../../../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../../../domain/inventario/unidad_inventario.dart';
+import '../../../../../domain/repositories/recurso_inventario_repository.dart';
+import '../../recursos/models/inventory_resource_form_result.dart';
 import '../../recursos/widgets/inventory_quantity_input_formatter.dart';
 import '../models/articulo_form_result.dart';
+import '../models/recipe_component_form_result.dart';
 import 'currency_input_formatter.dart';
+import 'recipe_editor_screen.dart';
 
 class VariantEditorScreen extends StatefulWidget {
   const VariantEditorScreen({
@@ -15,6 +19,9 @@ class VariantEditorScreen extends StatefulWidget {
     required this.canDelete,
     required this.existingNameKeys,
     required this.inventoryUnit,
+    this.inventoryUnits = const [],
+    this.inventoryResourceRepository,
+    this.onCreateInventoryResource,
     super.key,
   });
 
@@ -22,6 +29,10 @@ class VariantEditorScreen extends StatefulWidget {
   final bool canDelete;
   final Set<String> existingNameKeys;
   final UnidadInventario inventoryUnit;
+  final List<UnidadInventario> inventoryUnits;
+  final RecursoInventarioRepository? inventoryResourceRepository;
+  final Future<void> Function(InventoryResourceFormResult result)?
+  onCreateInventoryResource;
 
   @override
   State<VariantEditorScreen> createState() => _VariantEditorScreenState();
@@ -36,6 +47,9 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late final TextEditingController _costController;
   late final TextEditingController _initialStockController;
   late bool _trackingInventory;
+  late bool _recipeEnabled;
+  late List<RecipeComponentFormResult> _recipeComponents;
+  String? _recipeError;
 
   @override
   void initState() {
@@ -48,6 +62,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       text: initial?.existenciaInicial ?? '',
     );
     _trackingInventory = initial?.seguimientoExistencias ?? false;
+    _recipeComponents = List.of(initial?.recipeComponents ?? const []);
+    _recipeEnabled = _recipeComponents.isNotEmpty;
     _priceController.addListener(_refreshCalculatedValues);
     _costController.addListener(_refreshCalculatedValues);
   }
@@ -199,6 +215,10 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                         onChanged: (value) => setState(() {
                           _trackingInventory = value;
                           if (!value) _initialStockController.clear();
+                          if (value) {
+                            _recipeEnabled = false;
+                            _recipeError = null;
+                          }
                         }),
                         title: const Text('Seguimiento de existencias'),
                         subtitle: Text(
@@ -227,6 +247,72 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                             border: InputBorder.none,
                           ),
                           validator: _validateInitialStock,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _EditorCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      CheckboxListTile(
+                        key: const Key('variant_recipe_checkbox'),
+                        contentPadding: EdgeInsets.zero,
+                        value: _recipeEnabled,
+                        onChanged:
+                            widget.inventoryResourceRepository == null ||
+                                widget.onCreateInventoryResource == null
+                            ? null
+                            : (value) => setState(() {
+                                _recipeEnabled = value ?? false;
+                                _recipeError = null;
+                                if (_recipeEnabled) {
+                                  _trackingInventory = false;
+                                  _initialStockController.clear();
+                                }
+                              }),
+                        title: const Text('Receta'),
+                        subtitle: const Text(
+                          'Define los recursos de inventario consumidos por esta variante.',
+                        ),
+                        secondary: const Icon(Icons.restaurant_menu_outlined),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        key: const Key('manage_variant_recipe_button'),
+                        onPressed: _recipeEnabled ? _openRecipeEditor : null,
+                        icon: const Icon(Icons.tune),
+                        label: const Text('ADMINISTRAR LA RECETA'),
+                      ),
+                      if (_recipeError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _recipeError!,
+                          key: const Key('variant_recipe_error'),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.error),
+                        ),
+                      ],
+                      if (_recipeEnabled && _recipeComponents.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final component in _recipeComponents)
+                              Chip(
+                                key: Key(
+                                  'variant_recipe_component_${component.resource.id}',
+                                ),
+                                label: Text(
+                                  '${component.quantity} '
+                                  '${component.resource.unidadPredeterminada.simbolo} '
+                                  '${component.resource.nombre}',
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -288,6 +374,12 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
 
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_recipeEnabled && _recipeComponents.isEmpty) {
+      setState(() {
+        _recipeError = 'Agrega al menos un componente con cantidad positiva.';
+      });
+      return;
+    }
     final name = NombreVariante.fromInput(_nameController.text);
     Navigator.of(context).pop(
       VariantEditorResult.saved(
@@ -303,9 +395,35 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                   _initialStockController.text.trim().isNotEmpty
               ? _initialStockController.text.trim().replaceAll(',', '.')
               : null,
+          recipeComponents: _recipeEnabled
+              ? List.unmodifiable(_recipeComponents)
+              : const [],
         ),
       ),
     );
+  }
+
+  Future<void> _openRecipeEditor() async {
+    final repository = widget.inventoryResourceRepository;
+    final onCreate = widget.onCreateInventoryResource;
+    if (repository == null || onCreate == null) return;
+    final result = await Navigator.of(context)
+        .push<List<RecipeComponentFormResult>>(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => RecipeEditorScreen(
+              repository: repository,
+              units: widget.inventoryUnits,
+              initialValue: _recipeComponents,
+              onCreateInventoryResource: onCreate,
+            ),
+          ),
+        );
+    if (result == null || !mounted) return;
+    setState(() {
+      _recipeComponents = List.of(result);
+      _recipeError = null;
+    });
   }
 
   void _refreshCalculatedValues() => setState(() {});

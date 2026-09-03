@@ -12,6 +12,7 @@ import 'package:pos_flutter/data/local/drift/tables/inventory_items.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_movements.dart';
 import 'package:pos_flutter/data/local/drift/tables/product_variants.dart';
 import 'package:pos_flutter/data/local/drift/tables/products.dart';
+import 'package:pos_flutter/data/local/drift/tables/recipe_components.dart';
 import 'package:pos_flutter/data/local/drift/tables/sync_checkpoints.dart';
 import 'package:pos_flutter/data/local/drift/tables/units.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
@@ -36,6 +37,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     Categories,
     Products,
     ProductVariants,
+    RecipeComponents,
     Espacios,
     Events,
     EventRefs,

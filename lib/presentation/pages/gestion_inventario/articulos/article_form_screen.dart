@@ -9,6 +9,8 @@ import '../../../../domain/articulos/sale_mode.dart';
 import '../../../../domain/categorias/categoria.dart';
 import '../../../../domain/inventario/dimension_unidad.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
+import '../../../../domain/repositories/recurso_inventario_repository.dart';
+import '../recursos/models/inventory_resource_form_result.dart';
 import 'models/articulo_form_result.dart';
 import 'widgets/advanced_variants_section.dart';
 import 'widgets/currency_input_formatter.dart';
@@ -19,12 +21,17 @@ class ArticleFormScreen extends StatefulWidget {
     required this.categorias,
     required this.unidadesVenta,
     required this.onSave,
+    this.inventoryResourceRepository,
+    this.onCreateInventoryResource,
     super.key,
   });
 
   final List<Categoria> categorias;
   final List<UnidadInventario> unidadesVenta;
   final Future<void> Function(ArticuloFormResult result) onSave;
+  final RecursoInventarioRepository? inventoryResourceRepository;
+  final Future<void> Function(InventoryResourceFormResult result)?
+  onCreateInventoryResource;
 
   @override
   State<ArticleFormScreen> createState() => _ArticleFormScreenState();
@@ -330,6 +337,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         builder: (context) => VariantEditorScreen(
           initialValue: variants[index],
           inventoryUnit: inventoryUnit,
+          inventoryUnits: widget.unidadesVenta,
+          inventoryResourceRepository: widget.inventoryResourceRepository,
+          onCreateInventoryResource: widget.onCreateInventoryResource,
           canDelete: index > 0,
           existingNameKeys: _variantNameKeys(excludingIndex: index),
         ),
@@ -367,6 +377,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         builder: (context) => VariantEditorScreen(
           initialValue: null,
           inventoryUnit: inventoryUnit,
+          inventoryUnits: widget.unidadesVenta,
+          inventoryResourceRepository: widget.inventoryResourceRepository,
+          onCreateInventoryResource: widget.onCreateInventoryResource,
           canDelete: false,
           existingNameKeys: _variantNameKeys(),
         ),
@@ -385,6 +398,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         variant.precioVenta.trim().isEmpty &&
         (variant.costoEstandar?.trim().isEmpty ?? true) &&
         !variant.seguimientoExistencias &&
+        !variant.usaReceta &&
         (variant.existenciaInicial?.trim().isEmpty ?? true);
   }
 
@@ -517,6 +531,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             return 'La unidad del seguimiento no coincide con la forma de venta.';
           }
         }
+        if (variant.seguimientoExistencias && variant.usaReceta) {
+          return 'Una variante no puede usar seguimiento directo y receta simultáneamente.';
+        }
         final nameKey = name.nameKey;
         if (nameKey != null && !nameKeys.add(nameKey)) {
           return 'Los nombres de variantes no pueden repetirse.';
@@ -573,12 +590,15 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                 variant.precioVenta.isNotEmpty ||
                 variant.costoEstandar != null ||
                 variant.seguimientoExistencias ||
+                variant.usaReceta ||
                 variant.existenciaInicial != null,
           ) ??
           false);
 
   bool get _hasTrackedVariants =>
-      _advancedVariants?.any((variant) => variant.seguimientoExistencias) ??
+      _advancedVariants?.any(
+        (variant) => variant.seguimientoExistencias || variant.usaReceta,
+      ) ??
       false;
 
   UnidadInventario? get _directInventoryUnit {
@@ -606,7 +626,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Desactiva el seguimiento de existencias de las variantes antes de '
+          'Retira la configuración de inventario de las variantes antes de '
           'cambiar la forma o unidad de venta.',
         ),
       ),
