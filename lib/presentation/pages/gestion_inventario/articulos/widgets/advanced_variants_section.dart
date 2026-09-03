@@ -10,6 +10,8 @@ class AdvancedVariantsSection extends StatelessWidget {
     required this.enabled,
     required this.error,
     required this.onEdit,
+    required this.onMoveUp,
+    required this.onMoveDown,
     required this.onAdd,
     super.key,
   });
@@ -18,6 +20,8 @@ class AdvancedVariantsSection extends StatelessWidget {
   final bool enabled;
   final String? error;
   final ValueChanged<int> onEdit;
+  final ValueChanged<int> onMoveUp;
+  final ValueChanged<int> onMoveDown;
   final VoidCallback onAdd;
 
   @override
@@ -32,6 +36,10 @@ class AdvancedVariantsSection extends StatelessWidget {
             variant: variants[index],
             enabled: enabled,
             onTap: () => onEdit(index),
+            onMoveUp: enabled && index > 0 ? () => onMoveUp(index) : null,
+            onMoveDown: enabled && index < variants.length - 1
+                ? () => onMoveDown(index)
+                : null,
           ),
           const SizedBox(height: 10),
         ],
@@ -61,12 +69,16 @@ class _VariantDraftCard extends StatelessWidget {
     required this.variant,
     required this.enabled,
     required this.onTap,
+    required this.onMoveUp,
+    required this.onMoveDown,
     super.key,
   });
 
   final ArticuloFormVarianteResult variant;
   final bool enabled;
   final VoidCallback onTap;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +140,36 @@ class _VariantDraftCard extends StatelessWidget {
                         : 'Sin seguimiento',
                   ),
                 ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: const Key('move_article_variant_down_button'),
+                      onPressed: onMoveDown,
+                      color: colorScheme.primary,
+                      disabledColor: colorScheme.primary.withValues(
+                        alpha: 0.35,
+                      ),
+                      tooltip: 'Bajar variante',
+                      icon: const Icon(Icons.arrow_drop_down, size: 32),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      key: const Key('move_article_variant_up_button'),
+                      onPressed: onMoveUp,
+                      color: colorScheme.primary,
+                      disabledColor: colorScheme.primary.withValues(
+                        alpha: 0.35,
+                      ),
+                      tooltip: 'Subir variante',
+                      icon: const Icon(Icons.arrow_drop_up, size: 32),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

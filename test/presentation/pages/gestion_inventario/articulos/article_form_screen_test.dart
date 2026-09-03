@@ -324,6 +324,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('article_variant_card_1')), findsOneWidget);
 
+    await tester.ensureVisible(find.byKey(const Key('article_variant_card_1')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('article_variant_card_1')));
     await tester.pumpAndSettle();
     expect(
@@ -336,6 +338,65 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('article_variant_card_1')), findsNothing);
     expect(find.byKey(const Key('article_variant_card_0')), findsOneWidget);
+  });
+
+  testWidgets('reordena variantes y guarda la nueva posición', (tester) async {
+    ArticuloFormResult? result;
+    await _pumpForm(tester, onSave: (value) async => result = value);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
+    await _chooseAdvanced(tester);
+    await _editVariant(tester, 0, name: 'Chica', price: '10');
+
+    await tester.tap(find.byKey(const Key('add_article_variant_button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('variant_name_field')),
+      'Grande',
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '20',
+    );
+    await tester.tap(find.byKey(const Key('save_variant_button')));
+    await tester.pumpAndSettle();
+
+    final firstCard = find.byKey(const Key('article_variant_card_0'));
+    final secondCard = find.byKey(const Key('article_variant_card_1'));
+    final firstUp = find.descendant(
+      of: firstCard,
+      matching: find.byKey(const Key('move_article_variant_up_button')),
+    );
+    final firstDown = find.descendant(
+      of: firstCard,
+      matching: find.byKey(const Key('move_article_variant_down_button')),
+    );
+    final secondDown = find.descendant(
+      of: secondCard,
+      matching: find.byKey(const Key('move_article_variant_down_button')),
+    );
+
+    expect(tester.widget<IconButton>(firstUp).onPressed, isNull);
+    expect(tester.widget<IconButton>(secondDown).onPressed, isNull);
+
+    await tester.tap(firstDown);
+    await tester.pump();
+
+    expect(
+      find.descendant(of: firstCard, matching: find.text('Grande')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: secondCard, matching: find.text('Chica')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    expect(result?.variantes.map((variant) => variant.nombre), [
+      'Grande',
+      'Chica',
+    ]);
   });
 
   testWidgets('rechaza nombres duplicados tras normalización', (tester) async {

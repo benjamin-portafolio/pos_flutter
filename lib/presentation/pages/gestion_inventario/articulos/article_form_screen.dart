@@ -218,6 +218,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                       enabled: !_saving,
                       error: _variantListError,
                       onEdit: _editVariant,
+                      onMoveUp: (index) => _moveVariant(index, index - 1),
+                      onMoveDown: (index) => _moveVariant(index, index + 1),
                       onAdd: _addVariant,
                     ),
                   if (_saveError != null) ...[
@@ -388,6 +390,25 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (result?.value == null || !mounted) return;
     setState(() {
       (_advancedVariants ??= []).add(result!.value!);
+      _variantListError = null;
+      _saveError = null;
+    });
+  }
+
+  void _moveVariant(int fromIndex, int toIndex) {
+    if (_saving) return;
+    final variants = _advancedVariants;
+    if (variants == null ||
+        fromIndex < 0 ||
+        fromIndex >= variants.length ||
+        toIndex < 0 ||
+        toIndex >= variants.length ||
+        fromIndex == toIndex) {
+      return;
+    }
+    setState(() {
+      final moved = variants.removeAt(fromIndex);
+      variants.insert(toIndex, moved);
       _variantListError = null;
       _saveError = null;
     });
