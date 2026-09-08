@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../domain/articulos/nombre_producto.dart';
@@ -20,7 +21,8 @@ class ArticleFormScreen extends StatefulWidget {
   const ArticleFormScreen({
     required this.categorias,
     required this.unidadesVenta,
-    required this.onSave,
+    this.onSave,
+    this.initialValue,
     this.inventoryResourceRepository,
     this.onCreateInventoryResource,
     super.key,
@@ -28,7 +30,10 @@ class ArticleFormScreen extends StatefulWidget {
 
   final List<Categoria> categorias;
   final List<UnidadInventario> unidadesVenta;
-  final Future<void> Function(ArticuloFormResult result) onSave;
+  final Future<void> Function(ArticuloFormResult result)? onSave;
+  final ArticuloFormResult? initialValue;
+  bool get editing => initialValue != null;
+  bool get preview => editing && onSave == null;
   final RecursoInventarioRepository? inventoryResourceRepository;
   final Future<void> Function(InventoryResourceFormResult result)?
   onCreateInventoryResource;
@@ -55,6 +60,22 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   String? _variantListError;
 
   @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialValue;
+    if (initial == null) return;
+    _nameController.text = initial.nombre;
+    _selectedCategoryId = initial.categoriaId;
+    _saleMode = initial.saleConfiguration.mode;
+    _selectedSaleUnit = widget.unidadesVenta
+        .where((unit) => unit.id == initial.saleConfiguration.saleUnitId)
+        .firstOrNull;
+    _advancedVariants = List.of(initial.variantes);
+    _priceController.text = initial.variantes.first.precioVenta;
+    _creationMode = _ArticleCreationMode.advanced;
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
@@ -77,13 +98,19 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             icon: const Icon(Icons.close),
             tooltip: 'Cancelar',
           ),
-          title: const Text('AÑADIR ARTÍCULO'),
+          title: Text(
+            widget.preview
+                ? 'VER ARTÍCULO'
+                : widget.editing
+                ? 'EDITAR ARTÍCULO'
+                : 'AÑADIR ARTÍCULO',
+          ),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: TextButton.icon(
                 key: const Key('save_article_button'),
-                onPressed: _saving ? null : _submit,
+                onPressed: _saving || widget.preview ? null : _submit,
                 style: TextButton.styleFrom(
                   backgroundColor: colorScheme.primary,
                   foregroundColor: colorScheme.onPrimary,
@@ -112,11 +139,15 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (widget.preview) ...[
+                    const Text('Artículo en modo de consulta.'),
+                    const SizedBox(height: 12),
+                  ],
                   _FormCard(
                     child: TextFormField(
                       key: const Key('article_name_field'),
                       controller: _nameController,
-                      enabled: !_saving,
+                      enabled: !_saving && !widget.preview,
                       textInputAction: TextInputAction.next,
                       maxLength: 160,
                       decoration: const InputDecoration(
@@ -151,7 +182,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                           ),
                         ),
                       ],
-                      onChanged: _saving
+                      onChanged: _saving || widget.preview
                           ? null
                           : (value) {
                               setState(
@@ -165,38 +196,40 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                   _SaleModeCard(
                     saleMode: _saleMode,
                     selectedUnit: _selectedSaleUnit,
-                    enabled: !_saving,
+                    enabled: !_saving && !widget.editing,
                     showUnitError: _showSaleUnitError,
                     onSelectMode: _selectSaleMode,
                     onSelectUnit: _selectSaleUnit,
                   ),
                   const SizedBox(height: 12),
-                  SegmentedButton<_ArticleCreationMode>(
-                    key: const Key('article_creation_mode_selector'),
-                    segments: const [
-                      ButtonSegment(
-                        value: _ArticleCreationMode.simple,
-                        label: Text('Sencillo'),
-                      ),
-                      ButtonSegment(
-                        value: _ArticleCreationMode.advanced,
-                        label: Text('Avanzado'),
-                      ),
-                    ],
-                    selected: {_creationMode},
-                    showSelectedIcon: false,
-                    expandedInsets: EdgeInsets.zero,
-                    onSelectionChanged: _saving
-                        ? null
-                        : (selection) => _selectCreationMode(selection.single),
-                  ),
+                  if (!widget.editing)
+                    SegmentedButton<_ArticleCreationMode>(
+                      key: const Key('article_creation_mode_selector'),
+                      segments: const [
+                        ButtonSegment(
+                          value: _ArticleCreationMode.simple,
+                          label: Text('Sencillo'),
+                        ),
+                        ButtonSegment(
+                          value: _ArticleCreationMode.advanced,
+                          label: Text('Avanzado'),
+                        ),
+                      ],
+                      selected: {_creationMode},
+                      showSelectedIcon: false,
+                      expandedInsets: EdgeInsets.zero,
+                      onSelectionChanged: _saving || widget.editing
+                          ? null
+                          : (selection) =>
+                                _selectCreationMode(selection.single),
+                    ),
                   const SizedBox(height: 12),
                   if (_creationMode == _ArticleCreationMode.simple)
                     _FormCard(
                       child: TextFormField(
                         key: const Key('article_price_field'),
                         controller: _priceController,
-                        enabled: !_saving,
+                        enabled: !_saving && !widget.preview,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
@@ -215,6 +248,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                   else
                     AdvancedVariantsSection(
                       variants: _advancedVariants ?? const [],
+                      preview: widget.preview,
+                      allowAdd: !widget.preview,
                       enabled: !_saving,
                       error: _variantListError,
                       onEdit: _editVariant,
@@ -338,11 +373,14 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         fullscreenDialog: true,
         builder: (context) => VariantEditorScreen(
           initialValue: variants[index],
+          preview: widget.preview,
+          editing: widget.editing && variants[index].id != null,
           inventoryUnit: inventoryUnit,
           inventoryUnits: widget.unidadesVenta,
           inventoryResourceRepository: widget.inventoryResourceRepository,
           onCreateInventoryResource: widget.onCreateInventoryResource,
-          canDelete: index > 0,
+          canDelete:
+              index > 0 && (!widget.editing || variants[index].id == null),
           existingNameKeys: _variantNameKeys(excludingIndex: index),
         ),
       ),
@@ -485,7 +523,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_saving) return;
+    if (_saving || widget.preview || widget.onSave == null) return;
     final validFields = _formKey.currentState!.validate();
     final validSaleUnit =
         _saleMode == SaleMode.unit || _selectedSaleUnit != null;
@@ -516,7 +554,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       _saveError = null;
     });
     try {
-      await widget.onSave(
+      await widget.onSave!(
         ArticuloFormResult(
           nombre: _nameController.text,
           variantes: List.unmodifiable(variants),
@@ -568,7 +606,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
 
   Future<void> _requestClose() async {
     if (_saving) return;
-    if (!_hasChanges) {
+    if (widget.preview || !_hasChanges) {
       setState(() => _canPop = true);
       await Future<void>.delayed(Duration.zero);
       if (mounted) Navigator.of(context).pop(false);
@@ -599,22 +637,29 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (mounted) Navigator.of(context).pop(false);
   }
 
-  bool get _hasChanges =>
-      _nameController.text.isNotEmpty ||
-      _priceController.text.isNotEmpty ||
-      _selectedCategoryId != null ||
-      _saleMode != SaleMode.unit ||
-      _creationMode != _ArticleCreationMode.simple ||
-      (_advancedVariants?.any(
-            (variant) =>
-                variant.nombre != null ||
-                variant.precioVenta.isNotEmpty ||
-                variant.costoEstandar != null ||
-                variant.seguimientoExistencias ||
-                variant.usaReceta ||
-                variant.existenciaInicial != null,
-          ) ??
-          false);
+  bool get _hasChanges {
+    final initial = widget.initialValue;
+    if (initial != null) {
+      return _nameController.text != initial.nombre ||
+          _selectedCategoryId != initial.categoriaId ||
+          !listEquals(_advancedVariants, initial.variantes);
+    }
+    return _nameController.text.isNotEmpty ||
+        _priceController.text.isNotEmpty ||
+        _selectedCategoryId != null ||
+        _saleMode != SaleMode.unit ||
+        _creationMode != _ArticleCreationMode.simple ||
+        (_advancedVariants?.any(
+              (variant) =>
+                  variant.nombre != null ||
+                  variant.precioVenta.isNotEmpty ||
+                  variant.costoEstandar != null ||
+                  variant.seguimientoExistencias ||
+                  variant.usaReceta ||
+                  variant.existenciaInicial != null,
+            ) ??
+            false);
+  }
 
   bool get _hasTrackedVariants =>
       _advancedVariants?.any(

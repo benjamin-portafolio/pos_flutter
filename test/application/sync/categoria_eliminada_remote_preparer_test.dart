@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
@@ -92,6 +94,100 @@ void main() {
   });
 
   tearDown(() => db.close());
+
+  test(
+    'producto remoto revierte cadena local completa y el eco conserva cambios posteriores',
+    () async {
+      await remoteApplier.applySyncedEvents([
+        _categoryCreated(),
+        _productCreated(),
+      ]);
+      final projection = DriftProductoProjectionStore(productoDao: productoDao);
+      final before = await projection.snapshot('product_1');
+      ProductoCreadoPayload state(String name) => ProductoCreadoPayload.create(
+        nombre: name,
+        categoriaId: before.categoriaId,
+        saleConfiguration: before.saleConfiguration,
+        variantes: before.variantes,
+      );
+      final original = (await projection.findProductById('product_1'))!;
+      SyncEvent update(
+        String id,
+        String base,
+        int version,
+        ProductoCreadoPayload from,
+        ProductoCreadoPayload to, {
+        int? sequence,
+      }) => SyncEvent(
+        eventId: id,
+        aggregateType: 'product',
+        aggregateId: 'product_1',
+        eventType: ProductoActualizadoPayload.eventType,
+        deviceId: 'device',
+        userId: 'user',
+        baseVersion: version,
+        serverSequence: sequence,
+        createdAtLocal: DateTime(2026),
+        payload: ProductoActualizadoPayload(
+          baseEventId: base,
+          before: from,
+          after: to,
+        ).toJson(),
+      );
+      const refs = [
+        LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+      ];
+      final first = update(
+        'first',
+        original.lastEventId!,
+        1,
+        before,
+        state('Uno'),
+      );
+      final second = update(
+        'second',
+        first.eventId,
+        2,
+        state('Uno'),
+        state('Dos'),
+      );
+      await localStore.appendAndApply(first, refs: refs);
+      await localStore.appendAndApply(second, refs: refs);
+      await remoteApplier.applySyncedEvents([
+        first.copyWith(serverSequence: 3, deliveryStatus: 'delivered'),
+      ]);
+      expect((await projection.findProductById('product_1'))!.nombre, 'Dos');
+      expect((await projection.findProductById('product_1'))!.version, 3);
+      final third = update(
+        'third',
+        second.eventId,
+        3,
+        state('Dos'),
+        state('Tres'),
+      );
+      await localStore.appendAndApply(third, refs: refs);
+      await remoteApplier.applySyncedEvents([
+        update(
+          'official',
+          first.eventId,
+          2,
+          state('Uno'),
+          state('Oficial'),
+          sequence: 4,
+        ).copyWith(deliveryStatus: 'delivered'),
+      ]);
+      final product = (await projection.findProductById('product_1'))!;
+      expect(product.nombre, 'Oficial');
+      expect(product.version, 3);
+      final rows = await db.select(db.events).get();
+      expect(
+        rows
+            .where((e) => ['second', 'third'].contains(e.eventId))
+            .every((e) => e.deliveryStatus == 'conflict'),
+        isTrue,
+      );
+    },
+  );
 
   test(
     'producto oficial restaura eliminación local y la pone en conflicto',

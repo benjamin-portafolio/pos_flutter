@@ -7,6 +7,8 @@ import '../models/articulo_form_result.dart';
 class AdvancedVariantsSection extends StatelessWidget {
   const AdvancedVariantsSection({
     required this.variants,
+    this.preview = false,
+    this.allowAdd = true,
     required this.enabled,
     required this.error,
     required this.onEdit,
@@ -17,6 +19,8 @@ class AdvancedVariantsSection extends StatelessWidget {
   });
 
   final List<ArticuloFormVarianteResult> variants;
+  final bool preview;
+  final bool allowAdd;
   final bool enabled;
   final String? error;
   final ValueChanged<int> onEdit;
@@ -34,10 +38,13 @@ class AdvancedVariantsSection extends StatelessWidget {
           _VariantDraftCard(
             key: Key('article_variant_card_$index'),
             variant: variants[index],
+            preview: preview,
             enabled: enabled,
             onTap: () => onEdit(index),
-            onMoveUp: enabled && index > 0 ? () => onMoveUp(index) : null,
-            onMoveDown: enabled && index < variants.length - 1
+            onMoveUp: enabled && !preview && index > 0
+                ? () => onMoveUp(index)
+                : null,
+            onMoveDown: enabled && !preview && index < variants.length - 1
                 ? () => onMoveDown(index)
                 : null,
           ),
@@ -45,7 +52,7 @@ class AdvancedVariantsSection extends StatelessWidget {
         ],
         OutlinedButton.icon(
           key: const Key('add_article_variant_button'),
-          onPressed: enabled ? onAdd : null,
+          onPressed: enabled && !preview && allowAdd ? onAdd : null,
           icon: const Icon(Icons.add),
           label: const Text('Agregar variante'),
         ),
@@ -67,6 +74,7 @@ class AdvancedVariantsSection extends StatelessWidget {
 class _VariantDraftCard extends StatelessWidget {
   const _VariantDraftCard({
     required this.variant,
+    required this.preview,
     required this.enabled,
     required this.onTap,
     required this.onMoveUp,
@@ -75,6 +83,7 @@ class _VariantDraftCard extends StatelessWidget {
   });
 
   final ArticuloFormVarianteResult variant;
+  final bool preview;
   final bool enabled;
   final VoidCallback onTap;
   final VoidCallback? onMoveUp;
@@ -134,9 +143,13 @@ class _VariantDraftCard extends StatelessWidget {
                     value: cost == null ? '—' : _formatMoney(cost),
                   ),
                   _VariantMetric(
-                    label: 'Existencia inicial',
+                    label: preview
+                        ? 'Seguimiento de existencias'
+                        : 'Existencia inicial',
                     value: variant.seguimientoExistencias
-                        ? variant.existenciaInicial ?? '0'
+                        ? (preview
+                              ? 'Activado'
+                              : variant.existenciaInicial ?? '0')
                         : 'Sin seguimiento',
                   ),
                 ],

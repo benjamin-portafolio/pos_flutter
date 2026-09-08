@@ -1,3 +1,5 @@
+import '../../../domain/articulos/articulo_listado.dart';
+import 'articulos/models/articulo_preview_form.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -159,6 +161,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             busqueda: _appliedSearch,
             onClearSearch: _clearSearch,
             onAddArticle: () => _openArticleForm(context),
+            onOpenArticle: (article) => _openArticlePreview(context, article),
           ),
           InventoryCategoriesTab(
             categoriaRepository: widget.categoriaRepository,
@@ -377,6 +380,89 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     );
   }
 
+  bool _openingArticlePreview = false;
+
+  Future<void> _openArticlePreview(
+    BuildContext context,
+    ArticuloListado article,
+  ) async {
+    if (_openingArticlePreview) return;
+    _openingArticlePreview = true;
+    try {
+      final detail = await widget.productoRepository.obtenerDetalle(
+        article.productoId,
+      );
+      if (detail == null || detail.variantes.isEmpty) {
+        throw StateError('El artículo ya no está disponible.');
+      }
+      final unitRepository =
+          widget.unidadInventarioRepository ??
+          getIt<UnidadInventarioRepository>();
+      final categories = await widget.categoriaRepository.obtenerCategorias();
+      final units = List<UnidadInventario>.of(
+        await unitRepository.obtenerUnidadesActivas(),
+      );
+      final saleUnitId = detail.saleConfiguration.saleUnitId;
+      if (saleUnitId != null && !units.any((unit) => unit.id == saleUnitId)) {
+        final unit = await unitRepository.obtenerUnidadPorId(saleUnitId);
+        if (unit == null) throw StateError('Unidad de venta no disponible.');
+        units.add(unit);
+      }
+      final resourceRepository = widget.recursoInventarioRepository;
+      final needsResources = detail.variantes.any(
+        (variant) =>
+            variant.inventoryItemId != null ||
+            variant.componentesReceta.isNotEmpty,
+      );
+      final resources = needsResources
+          ? await (resourceRepository ?? getIt<RecursoInventarioRepository>())
+                .watchRecursos()
+                .first
+          : const <RecursoInventarioListado>[];
+      final initial = ArticuloPreviewForm.fromDetalle(detail, resources);
+      if (!context.mounted) return;
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ArticleFormScreen(
+            categorias: categories,
+            unidadesVenta: units,
+            initialValue: initial,
+            inventoryResourceRepository:
+                resourceRepository ??
+                (getIt.isRegistered<RecursoInventarioRepository>()
+                    ? getIt<RecursoInventarioRepository>()
+                    : null),
+            onCreateInventoryResource: _createInventoryResource,
+            onSave: detail.lastEventId == null
+                ? null
+                : (result) {
+                    final service =
+                        widget.productoCommandService ??
+                        getIt<ProductoCommandService>();
+                    return service.actualizarArticulo(
+                      productId: article.productoId,
+                      baseEventId: detail.lastEventId!,
+                      variantIds: result.variantes.map((v) => v.id).toList(),
+                      command: _articleCommand(result),
+                    );
+                  },
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo cargar el detalle del artículo. Intenta de nuevo.',
+          ),
+        ),
+      );
+    } finally {
+      _openingArticlePreview = false;
+    }
+  }
+
   Future<void> _openArticleForm(BuildContext context) async {
     try {
       final unitRepository =
@@ -421,7 +507,10 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
   Future<void> _createArticle(ArticuloFormResult result) {
     final service =
         widget.productoCommandService ?? getIt<ProductoCommandService>();
-    return service.crearArticulo(
+    return service.crearArticulo(_articleCommand(result));
+  }
+
+  CrearArticuloCommand _articleCommand(ArticuloFormResult result) =>
       CrearArticuloCommand.conVariantes(
         nombre: result.nombre,
         categoriaId: result.categoriaId,
@@ -445,9 +534,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             )
             .toList(growable: false),
         saleConfiguration: result.saleConfiguration,
-      ),
-    );
-  }
+      );
 
   Future<void> _openCategoryForm(
     BuildContext context, {

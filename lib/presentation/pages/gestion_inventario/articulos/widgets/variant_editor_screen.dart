@@ -16,6 +16,8 @@ import 'recipe_editor_screen.dart';
 class VariantEditorScreen extends StatefulWidget {
   const VariantEditorScreen({
     required this.initialValue,
+    this.preview = false,
+    this.editing = false,
     required this.canDelete,
     required this.existingNameKeys,
     required this.inventoryUnit,
@@ -26,6 +28,8 @@ class VariantEditorScreen extends StatefulWidget {
   });
 
   final ArticuloFormVarianteResult? initialValue;
+  final bool preview;
+  final bool editing;
   final bool canDelete;
   final Set<String> existingNameKeys;
   final UnidadInventario inventoryUnit;
@@ -99,7 +103,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
             Expanded(
               child: FilledButton(
                 key: const Key('delete_variant_button'),
-                onPressed: widget.canDelete
+                onPressed: widget.canDelete && !widget.preview
                     ? () => Navigator.of(
                         context,
                       ).pop(const VariantEditorResult.deleted())
@@ -122,7 +126,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
             Expanded(
               child: FilledButton(
                 key: const Key('save_variant_button'),
-                onPressed: _save,
+                onPressed: widget.preview ? null : _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: _saveColor,
                   foregroundColor: Colors.white,
@@ -151,6 +155,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                   child: TextFormField(
                     key: const Key('variant_name_field'),
                     controller: _nameController,
+                    readOnly: widget.preview,
                     maxLength: 160,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
@@ -174,6 +179,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                           fieldKey: const Key('variant_sale_price_field'),
                           label: 'Precio de venta *',
                           controller: _priceController,
+                          readOnly: widget.preview,
                           textInputAction: TextInputAction.next,
                           validator: _validatePrice,
                         ),
@@ -185,6 +191,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                           fieldKey: const Key('variant_standard_cost_field'),
                           label: 'Costo estándar',
                           controller: _costController,
+                          readOnly: widget.preview,
                           signed: true,
                           textInputAction: TextInputAction.done,
                           validator: _validateCost,
@@ -212,21 +219,26 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                         key: const Key('variant_inventory_tracking_switch'),
                         contentPadding: EdgeInsets.zero,
                         value: _trackingInventory,
-                        onChanged: (value) => setState(() {
-                          _trackingInventory = value;
-                          if (!value) _initialStockController.clear();
-                          if (value) {
-                            _recipeEnabled = false;
-                            _recipeError = null;
-                          }
-                        }),
+                        onChanged: widget.preview
+                            ? null
+                            : (value) => setState(() {
+                                _trackingInventory = value;
+                                if (!value) _initialStockController.clear();
+                                if (value) {
+                                  _recipeEnabled = false;
+                                  _recipeError = null;
+                                }
+                              }),
                         title: const Text('Seguimiento de existencias'),
                         subtitle: Text(
                           'Cada variante usa un recurso directo en ${widget.inventoryUnit.simbolo}.',
                         ),
                         secondary: const Icon(Icons.inventory_2_outlined),
                       ),
-                      if (_trackingInventory) ...[
+                      if (_trackingInventory &&
+                          !widget.preview &&
+                          !(widget.editing &&
+                              widget.initialValue!.seguimientoExistencias)) ...[
                         const Divider(),
                         TextFormField(
                           key: const Key('variant_initial_stock_field'),
@@ -262,7 +274,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                         contentPadding: EdgeInsets.zero,
                         value: _recipeEnabled,
                         onChanged:
-                            widget.inventoryResourceRepository == null ||
+                            widget.preview ||
+                                widget.inventoryResourceRepository == null ||
                                 widget.onCreateInventoryResource == null
                             ? null
                             : (value) => setState(() {
@@ -282,7 +295,9 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                       const SizedBox(height: 8),
                       FilledButton.icon(
                         key: const Key('manage_variant_recipe_button'),
-                        onPressed: _recipeEnabled ? _openRecipeEditor : null,
+                        onPressed: _recipeEnabled && !widget.preview
+                            ? _openRecipeEditor
+                            : null,
                         icon: const Icon(Icons.tune),
                         label: const Text('ADMINISTRAR LA RECETA'),
                       ),
@@ -373,6 +388,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   }
 
   void _save() {
+    if (widget.preview) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_recipeEnabled && _recipeComponents.isEmpty) {
       setState(() {
@@ -384,6 +400,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     Navigator.of(context).pop(
       VariantEditorResult.saved(
         ArticuloFormVarianteResult(
+          id: widget.initialValue?.id,
           nombre: name.value,
           precioVenta: _priceController.text.trim().replaceAll(',', '.'),
           costoEstandar: CostoEstandar.fromInput(_costController.text) == null
@@ -488,6 +505,7 @@ class _CompactMoneyField extends StatelessWidget {
     required this.textInputAction,
     required this.validator,
     this.signed = false,
+    this.readOnly = false,
     this.onFieldSubmitted,
   });
 
@@ -498,6 +516,7 @@ class _CompactMoneyField extends StatelessWidget {
   final TextInputAction textInputAction;
   final FormFieldValidator<String> validator;
   final bool signed;
+  final bool readOnly;
   final ValueChanged<String>? onFieldSubmitted;
 
   @override
@@ -512,6 +531,7 @@ class _CompactMoneyField extends StatelessWidget {
         TextFormField(
           key: fieldKey,
           controller: controller,
+          readOnly: readOnly,
           keyboardType: TextInputType.numberWithOptions(
             decimal: true,
             signed: signed,

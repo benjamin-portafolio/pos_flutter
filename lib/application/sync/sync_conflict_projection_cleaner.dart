@@ -8,6 +8,7 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
@@ -61,6 +62,14 @@ class SyncConflictProjectionCleaner {
       await _categoriaMovidaConflictProjectionRestorer.restore(event);
     } else if (event.eventType == CategoriaEliminadaPayload.eventType) {
       await _categoriaEliminadaConflictProjectionRestorer?.restore(event);
+    } else if (event.eventType == ProductoActualizadoPayload.eventType) {
+      final payload = ProductoActualizadoPayload.fromJson(event.payload);
+      await _productoProjectionStore?.applyUpdate(
+        event,
+        payload.before,
+        restore: true,
+        baseEventId: payload.baseEventId,
+      );
     } else if (event.eventType == ProductoCreadoPayload.eventType) {
       await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
     } else if (event.eventType == RecursoInventarioCreadoPayload.eventType) {

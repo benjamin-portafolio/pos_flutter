@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
@@ -242,6 +243,9 @@ Future<void> _openAndSelectCategory(
 }
 
 class _FakeProductoRepository implements ProductoRepository {
+  @override
+  Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
+
   _FakeProductoRepository(this.articles);
 
   final List<ArticuloListado> articles;
@@ -285,6 +289,9 @@ class _FakeProductoRepository implements ProductoRepository {
 }
 
 class _SequencedProductoRepository implements ProductoRepository {
+  @override
+  Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
+
   _SequencedProductoRepository(this.streams);
 
   final List<Stream<List<ArticuloListado>>> streams;

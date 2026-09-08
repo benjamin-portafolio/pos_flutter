@@ -1,3 +1,8 @@
+import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
+import 'package:pos_flutter/domain/articulos/variante_detalle.dart';
+import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
+import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/widgets/inventory_article_card.dart';
+import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -54,6 +59,129 @@ void main() {
       ],
     ),
   ]);
+
+  testWidgets('abre el producto y sus variantes sin permitir guardar', (
+    tester,
+  ) async {
+    final repository = _FakeProductoRepository(
+      productoRepository.articulos,
+      detail: const ArticuloDetalle(
+        nombre: 'Café',
+        categoriaId: 'category-1',
+        saleConfiguration: UnitSaleConfiguration(),
+        variantes: [
+          VarianteDetalle(
+            nombre: 'Chico',
+            precioVentaMenor: 4550,
+            costoEstandarMenor: 0,
+            inventoryItemId: null,
+            componentesReceta: {},
+          ),
+          VarianteDetalle(
+            nombre: 'Grande',
+            precioVentaMenor: 6075,
+            costoEstandarMenor: 2200,
+            inventoryItemId: null,
+            componentesReceta: {},
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: repository,
+          unidadInventarioRepository: _PreviewUnitRepository(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(InventoryArticleCard));
+    await tester.pumpAndSettle();
+    expect(repository.requestedId, 'product-1');
+    expect(find.text('VER ARTÍCULO'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('article_name_field')))
+          .controller!
+          .text,
+      'Café',
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('save_article_button')))
+          .onPressed,
+      isNull,
+    );
+    await tester.ensureVisible(find.byKey(const Key('article_variant_card_1')));
+    await tester.tap(find.byKey(const Key('article_variant_card_1')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('variant_name_field')))
+          .controller!
+          .text,
+      'Grande',
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const Key('variant_sale_price_field')),
+          )
+          .controller!
+          .text,
+      '60.75',
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const Key('variant_standard_cost_field')),
+          )
+          .controller!
+          .text,
+      '22.00',
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('save_variant_button')))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('delete_variant_button')))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.byKey(const Key('close_variant_editor_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(InventoryArticleCard), findsOneWidget);
+    expect(find.text('Descartar cambios'), findsNothing);
+  });
+
+  testWidgets('un artículo no disponible muestra error y no abre formulario', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(InventoryArticleCard));
+    await tester.pumpAndSettle();
+    expect(find.text('VER ARTÍCULO'), findsNothing);
+    expect(
+      find.text('No se pudo cargar el detalle del artículo. Intenta de nuevo.'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('shows the three inventory tabs without modifiers', (
     tester,
@@ -783,7 +911,16 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
-  _FakeProductoRepository(this.articulos, {this.countError});
+  @override
+  Future<ArticuloDetalle?> obtenerDetalle(String productoId) async {
+    requestedId = productoId;
+    return detail;
+  }
+
+  final ArticuloDetalle? detail;
+  String? requestedId;
+
+  _FakeProductoRepository(this.articulos, {this.countError, this.detail});
 
   final List<ArticuloListado> articulos;
   final Object? countError;
@@ -890,10 +1027,37 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
 }
 
 class _FakeProductoCommandService implements ProductoCommandService {
+  @override
+  Future<void> actualizarArticulo({
+    required String productId,
+    required String baseEventId,
+    required CrearArticuloCommand command,
+    required List<String?> variantIds,
+  }) async {
+    this.command = command;
+  }
+
   CrearArticuloCommand? command;
 
   @override
   Future<void> crearArticulo(CrearArticuloCommand command) async {
     this.command = command;
   }
+}
+
+class _PreviewUnitRepository implements UnidadInventarioRepository {
+  static const unit = UnidadInventario(
+    id: 'unit',
+    code: 'unit',
+    nombre: 'Unidad',
+    simbolo: 'u',
+    dimension: DimensionUnidad.count,
+    factorAtomico: 1,
+    maximosDecimales: 0,
+    activa: true,
+  );
+  @override
+  Future<List<UnidadInventario>> obtenerUnidadesActivas() async => [unit];
+  @override
+  Future<UnidadInventario?> obtenerUnidadPorId(String unidadId) async => unit;
 }

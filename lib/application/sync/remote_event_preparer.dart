@@ -3,6 +3,7 @@ import 'models/sync_event.dart';
 import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/producto_actualizado_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
 import 'sync_persistence.dart';
 
@@ -28,6 +29,33 @@ class RemoteEventPreparer {
       pending.map((event) => event.eventId).toList(growable: false),
     );
 
+    final officialProducts = <String>{
+      if (officialEvent.aggregateType == 'product') officialEvent.aggregateId,
+      if (officialEvent.eventType == CategoriaEliminadaPayload.eventType)
+        ...CategoriaEliminadaPayload.fromJson(
+          officialEvent.payload,
+        ).productosVinculados.map((p) => p.productoId),
+    };
+    for (final local in pending.reversed) {
+      if (local.eventType != ProductoActualizadoPayload.eventType ||
+          local.eventId == officialEvent.eventId) {
+        continue;
+      }
+      final payload = ProductoActualizadoPayload.fromJson(local.payload);
+      final categoryRemoved =
+          officialEvent.eventType == CategoriaEliminadaPayload.eventType &&
+          payload.after.categoriaId == officialEvent.aggregateId;
+      if (!officialProducts.contains(local.aggregateId) && !categoryRemoved) {
+        continue;
+      }
+      await _conflictProjectionCleaner.hideConflictProjection(local);
+      await _syncPersistence.updateEventSyncStatus(
+        local.eventId,
+        'conflict',
+        rejectionReason:
+            'El artículo o sus dependencias cambiaron oficialmente.',
+      );
+    }
     final preparedConflictIds = <String>{};
     final officialRefKeys = _officialRefKeys(officialEvent);
     for (final local in pending) {
@@ -113,6 +141,9 @@ class RemoteEventPreparer {
       case CategoriaMovidaPayload.eventType:
         final payload = CategoriaMovidaPayload.fromJson(event.payload);
         return {event.aggregateId, payload.categoriaDesplazadaId};
+      case ProductoActualizadoPayload.eventType:
+        final payload = ProductoActualizadoPayload.fromJson(event.payload);
+        return {?payload.before.categoriaId, ?payload.after.categoriaId};
       case ProductoCreadoPayload.eventType:
         final payload = ProductoCreadoPayload.fromJson(event.payload);
         final categoryId = payload.categoriaId;

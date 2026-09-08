@@ -190,6 +190,49 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     )..where((product) => product.createdEventId.equals(eventId))).go();
   }
 
+  Future<void> prepararActualizacionVariantes(String productId) async {
+    final variants = await obtenerVariantesPorProducto(productId);
+    final maxOrder = variants.fold<int>(
+      0,
+      (value, row) => row.sortOrder > value ? row.sortOrder : value,
+    );
+    for (var index = 0; index < variants.length; index++) {
+      await (update(
+        productVariants,
+      )..where((v) => v.id.equals(variants[index].id))).write(
+        ProductVariantsCompanion(
+          name: const Value(null),
+          nameKey: const Value(null),
+          inventoryItemId: const Value(null),
+          sortOrder: Value(maxOrder + index + 1),
+        ),
+      );
+      await (delete(
+        recipeComponents,
+      )..where((c) => c.variantId.equals(variants[index].id))).go();
+    }
+  }
+
+  Future<void> eliminarVariantesAgregadas(
+    String productId,
+    String eventId,
+  ) async {
+    await (delete(productVariants)..where(
+          (v) =>
+              v.productId.equals(productId) & v.createdEventId.equals(eventId),
+        ))
+        .go();
+  }
+
+  Future<void> actualizarVariante(
+    String id,
+    ProductVariantsCompanion values,
+  ) async {
+    await (update(
+      productVariants,
+    )..where((v) => v.id.equals(id))).write(values);
+  }
+
   String _escapeLike(String value) {
     return value
         .replaceAll(r'\', r'\\')

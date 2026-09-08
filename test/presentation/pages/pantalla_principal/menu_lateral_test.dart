@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/backup/backup_service.dart';
@@ -203,6 +204,9 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
+  @override
+  Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
+
   @override
   Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
     String categoriaId,

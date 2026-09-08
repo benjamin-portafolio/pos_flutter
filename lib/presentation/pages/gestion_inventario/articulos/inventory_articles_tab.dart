@@ -14,6 +14,7 @@ class InventoryArticlesTab extends StatefulWidget {
     required this.busqueda,
     required this.onClearSearch,
     required this.onAddArticle,
+    this.onOpenArticle,
     super.key,
   });
 
@@ -22,6 +23,7 @@ class InventoryArticlesTab extends StatefulWidget {
   final String busqueda;
   final VoidCallback onClearSearch;
   final VoidCallback onAddArticle;
+  final ValueChanged<ArticuloListado>? onOpenArticle;
 
   @override
   State<InventoryArticlesTab> createState() => _InventoryArticlesTabState();
@@ -98,6 +100,9 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
                       return InventoryArticleCard(
                         key: ValueKey(article.productoId),
                         articulo: article,
+                        onTap: widget.onOpenArticle == null
+                            ? null
+                            : () => widget.onOpenArticle!(article),
                       );
                     },
                   );

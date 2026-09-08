@@ -344,3 +344,28 @@ Siempre:
 dart analyze
 flutter test
 ```
+
+## Actualización de productos y variantes
+
+`producto_actualizado` actualiza el producto y todas sus variantes existentes
+atómicamente. El contrato tipado transporta `base_event_id`, `before` y `after`;
+ambos estados reutilizan la validación del contrato de producto creado. El
+sobre conserva `base_version` y la secuencia oficial conocida. Se mantienen
+los identificadores, el evento de creación y la configuración de venta
+(modo, unidad y cantidad de referencia del precio). Permite agregar variantes nuevas conservando las existentes. Las variantes nuevas reciben UUID al guardar y se retiran de la proyección si se revierte el evento.
+
+El formulario conserva el evento base que leyó al abrirse. El comando y el
+handler rechazan bases obsoletas. NestJS verifica la base y la forma de venta
+contra PostgreSQL, incluso si el cliente altera ambos estados del payload.
+Las variantes pueden intercambiar nombres y posiciones dentro de la transacción
+sin perder su identidad ni violar temporalmente los índices únicos.
+
+El push espera las bases y recursos locales pendientes. Un cambio oficial
+concurrente revierte las ediciones locales dependientes en orden inverso antes
+de aplicarse; un eco solo avanza metadatos. Standalone conserva
+`delivery_status = not_required` y no persiste `event_refs`.
+
+Cambiar recetas o desactivar seguimiento no modifica saldos ni borra recursos
+o movimientos anteriores. Activar seguimiento sin un vínculo existente crea
+un recurso mediante el flujo habitual, en el mismo lote local. Los saldos de
+un recurso ya vinculado se corrigen mediante movimientos de inventario.

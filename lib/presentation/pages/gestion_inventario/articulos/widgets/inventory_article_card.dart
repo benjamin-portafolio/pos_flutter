@@ -6,9 +6,10 @@ import '../../../../../domain/categorias/color_categoria.dart';
 import '../../categorias/category_color_palette.dart';
 
 class InventoryArticleCard extends StatelessWidget {
-  const InventoryArticleCard({required this.articulo, super.key});
+  const InventoryArticleCard({required this.articulo, this.onTap, super.key});
 
   final ArticuloListado articulo;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,91 +30,97 @@ class InventoryArticleCard extends StatelessWidget {
         color: colorScheme.surface,
         surfaceTintColor: colorScheme.surface,
         margin: const EdgeInsets.symmetric(vertical: 6),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Semantics(
-                label: articulo.categoriaNombre == null
-                    ? 'Artículo sin categoría'
-                    : 'Categoría ${articulo.categoriaNombre}',
-                child: ExcludeSemantics(
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: categoryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.inventory_2_outlined,
-                      color:
-                          ThemeData.estimateBrightnessForColor(categoryColor) ==
-                              Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  label: articulo.categoriaNombre == null
+                      ? 'Artículo sin categoría'
+                      : 'Categoría ${articulo.categoriaNombre}',
+                  child: ExcludeSemantics(
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: categoryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.inventory_2_outlined,
+                        color:
+                            ThemeData.estimateBrightnessForColor(
+                                  categoryColor,
+                                ) ==
+                                Brightness.dark
+                            ? Colors.white
+                            : Colors.black87,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ExcludeSemantics(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        articulo.nombre,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      if (articulo.categoriaNombre
-                          case final categoryName?) ...[
-                        const SizedBox(height: 2),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          categoryName,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          articulo.nombre,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
-                      ],
-                      const SizedBox(height: 6),
-                      Text(
-                        _formatPrice(articulo.precioPredeterminadoMenor),
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.w600,
+                        if (articulo.categoriaNombre
+                            case final categoryName?) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            categoryName,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(
+                          _formatPrice(articulo.precioPredeterminadoMenor),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
-                      ),
-                      if (namedVariants.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: namedVariants
-                              .map(
-                                (variant) => Chip(
-                                  key: ValueKey(
-                                    'article_variant_${variant.varianteId}',
+                        if (namedVariants.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: namedVariants
+                                .map(
+                                  (variant) => Chip(
+                                    key: ValueKey(
+                                      'article_variant_${variant.varianteId}',
+                                    ),
+                                    label: Text(
+                                      '${variant.nombre} · '
+                                      '${_formatPrice(variant.precioVentaMenor)}',
+                                    ),
+                                    visualDensity: VisualDensity.compact,
                                   ),
-                                  label: Text(
-                                    '${variant.nombre} · '
-                                    '${_formatPrice(variant.precioVentaMenor)}',
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              )
-                              .toList(growable: false),
-                        ),
+                                )
+                                .toList(growable: false),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

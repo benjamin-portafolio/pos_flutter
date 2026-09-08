@@ -21,6 +21,7 @@ class ArticuloFormResult {
 @immutable
 class ArticuloFormVarianteResult {
   const ArticuloFormVarianteResult({
+    this.id,
     required this.nombre,
     required this.precioVenta,
     required this.costoEstandar,
@@ -29,6 +30,7 @@ class ArticuloFormVarianteResult {
     this.recipeComponents = const [],
   });
 
+  final String? id;
   final String? nombre;
   final String precioVenta;
   final String? costoEstandar;
@@ -53,6 +55,7 @@ class ArticuloFormVarianteResult {
     bool clearRecipeComponents = false,
   }) {
     return ArticuloFormVarianteResult(
+      id: id,
       nombre: clearNombre ? null : nombre ?? this.nombre,
       precioVenta: precioVenta ?? this.precioVenta,
       costoEstandar: clearCostoEstandar

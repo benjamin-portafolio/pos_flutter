@@ -7,6 +7,86 @@ import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/arti
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/models/articulo_form_result.dart';
 
 void main() {
+  testWidgets('edita datos y conserva identidad y forma de venta', (
+    tester,
+  ) async {
+    ArticuloFormResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleFormScreen(
+          categorias: const [],
+          unidadesVenta: _units,
+          initialValue: const ArticuloFormResult(
+            nombre: 'Café',
+            categoriaId: null,
+            saleConfiguration: UnitSaleConfiguration(),
+            variantes: [
+              ArticuloFormVarianteResult(
+                id: 'variant-id',
+                nombre: 'Grande',
+                precioVenta: '10.00',
+                costoEstandar: '2.00',
+              ),
+            ],
+          ),
+          onSave: (value) async => result = value,
+        ),
+      ),
+    );
+    expect(find.text('EDITAR ARTÍCULO'), findsOneWidget);
+    expect(find.text('Avanzado'), findsNothing);
+    expect(find.text('Sencillo'), findsNothing);
+    expect(
+      tester
+          .widget<ListTile>(find.byKey(const Key('sale_mode_selector')))
+          .onTap,
+      isNull,
+    );
+    await tester.enterText(
+      find.byKey(const Key('article_name_field')),
+      'Café nuevo',
+    );
+    await tester.ensureVisible(find.byKey(const Key('article_variant_card_0')));
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('delete_variant_button')))
+          .onPressed,
+      isNull,
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_name_field')),
+      'Mediano',
+    );
+    await tester.tap(find.text('GUARDAR').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('add_article_variant_button')),
+    );
+    await tester.tap(find.byKey(const Key('add_article_variant_button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('variant_name_field')),
+      'Nuevo',
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '15',
+    );
+    await tester.tap(find.text('AGREGAR').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+    expect(result!.nombre, 'Café nuevo');
+    expect(result!.variantes, hasLength(2));
+    expect(result!.variantes.last.nombre, 'Nuevo');
+    expect(result!.variantes.last.id, isNull);
+    expect(result!.variantes.first.nombre, 'Mediano');
+    expect(result!.variantes.first.id, 'variant-id');
+    expect(result!.saleConfiguration, const UnitSaleConfiguration());
+  });
+
   testWidgets('inicia con venta por unidad', (tester) async {
     await _pumpForm(tester);
 

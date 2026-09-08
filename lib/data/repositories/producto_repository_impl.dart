@@ -1,4 +1,7 @@
 import '../../domain/articulos/articulo_listado.dart';
+import '../../domain/articulos/articulo_detalle.dart';
+import '../../domain/articulos/variante_detalle.dart';
+import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/articulos/articulo_vinculado_categoria.dart';
 import '../../domain/articulos/variante_listado.dart';
 import '../../domain/categorias/color_categoria.dart';
@@ -10,6 +13,45 @@ class ProductoRepositoryImpl implements ProductoRepository {
     : _productoDao = productoDao;
 
   final drift.ProductoDao _productoDao;
+
+  @override
+  Future<ArticuloDetalle?> obtenerDetalle(String productoId) async {
+    final product = await _productoDao.obtenerProductoPorId(productoId);
+    if (product == null || !product.active) return null;
+    final rows = await _productoDao.obtenerVariantesPorProducto(productoId);
+    final variants = <VarianteDetalle>[];
+    for (final row in rows.where((row) => row.active)) {
+      final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
+        row.id,
+      );
+      variants.add(
+        VarianteDetalle(
+          id: row.id,
+          nombre: row.name,
+          precioVentaMenor: row.salePriceMinor,
+          costoEstandarMenor: row.standardCostMinor,
+          inventoryItemId: row.inventoryItemId,
+          componentesReceta: Map.unmodifiable({
+            for (final component in recipe)
+              component.inventoryItemId: component.quantityAtomic,
+          }),
+        ),
+      );
+    }
+    return ArticuloDetalle(
+      lastEventId: product.lastEventId,
+      nombre: product.name,
+      categoriaId: product.categoryId,
+      saleConfiguration: product.saleMode == 'unit'
+          ? const UnitSaleConfiguration()
+          : MeasuredSaleConfiguration(
+              saleUnitId: product.saleUnitId!,
+              priceReferenceQuantityAtomic:
+                  product.priceReferenceQuantityAtomic!,
+            ),
+      variantes: List.unmodifiable(variants),
+    );
+  }
 
   @override
   Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(

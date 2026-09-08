@@ -1,3 +1,9 @@
+import 'package:pos_flutter/application/commands/producto_command_service.dart';
+import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
+import 'package:pos_flutter/application/commands/local_command_context.dart';
+import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
+import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
@@ -57,6 +63,102 @@ void main() {
   });
 
   tearDown(() => db.close());
+
+  test('edita seguimiento y receta sin reescribir existencias', () async {
+    await eventStore.appendAndApplyBatchAtomically(
+      _entries(productInventoryItemId: _inventoryItemId),
+    );
+    final projection = DriftProductoProjectionStore(
+      productoDao: ProductoDao(db),
+    );
+    final service = ProductoCommandService(
+      eventStore: eventStore,
+      commandContext: const LocalCommandContext(
+        deviceId: 'device',
+        userId: 'user',
+      ),
+      categoriaProjectionStore: DriftCategoriaProjectionStore(
+        categoriaDao: CategoriaDao(db),
+      ),
+      productoProjectionStore: projection,
+      inventoryProjectionStore: DriftInventoryProjectionStore(
+        inventoryDao: InventoryDao(db),
+        unitDao: UnitDao(db),
+      ),
+      syncedEventHistory: DriftSyncPersistence(
+        db: db,
+        eventDao: EventDao(db),
+        eventRefDao: EventRefDao(db),
+        syncCheckpointDao: SyncCheckpointDao(db),
+      ),
+      unidadInventarioRepository: UnidadInventarioRepositoryImpl(
+        unitDao: UnitDao(db),
+      ),
+    );
+    final id = (await db.select(db.products).get()).single.id;
+    final variantId = (await db.select(db.productVariants).get()).single.id;
+    Future<void> save({
+      String? unit,
+      List<CrearArticuloRecipeComponentCommand> recipe = const [],
+    }) async {
+      final product = (await projection.findProductById(id))!;
+      await service.actualizarArticulo(
+        productId: id,
+        baseEventId: product.lastEventId!,
+        variantIds: [variantId],
+        command: CrearArticuloCommand.conVariantes(
+          nombre: 'Agua editada',
+          variantes: [
+            CrearArticuloVarianteCommand(
+              nombre: 'Grande',
+              precioVenta: '30',
+              costoEstandar: null,
+              inventoryUnitId: unit,
+              recipeComponents: recipe,
+            ),
+          ],
+        ),
+      );
+    }
+
+    await save(unit: InventoryUnitIds.piece);
+    expect(
+      (await projection.snapshot(id)).variantes.single.inventoryItemId,
+      _inventoryItemId,
+    );
+    expect(await db.select(db.inventoryItems).get(), hasLength(1));
+    await save(
+      recipe: const [
+        CrearArticuloRecipeComponentCommand(
+          inventoryItemId: _inventoryItemId,
+          quantity: '3',
+        ),
+      ],
+    );
+    expect(
+      (await projection.snapshot(id)).variantes.single.inventoryItemId,
+      isNull,
+    );
+    expect(
+      (await db.select(db.recipeComponents).get()).single.quantityAtomic,
+      3,
+    );
+    expect(
+      (await db.select(db.inventoryBalances).get()).single.quantityOnHandAtomic,
+      15,
+    );
+    await save();
+    expect(await db.select(db.recipeComponents).get(), isEmpty);
+    expect(await db.select(db.inventoryMovements).get(), hasLength(1));
+    await save(unit: InventoryUnitIds.piece);
+    expect(
+      (await projection.snapshot(id)).variantes.single.inventoryItemId,
+      isNotNull,
+    );
+    expect(await db.select(db.inventoryItems).get(), hasLength(2));
+    expect(await db.select(db.inventoryMovements).get(), hasLength(1));
+    expect(await db.select(db.eventRefs).get(), isEmpty);
+  });
 
   test('crea recurso, saldo, movimiento y vínculo en un solo lote', () async {
     await eventStore.appendAndApplyBatchAtomically(

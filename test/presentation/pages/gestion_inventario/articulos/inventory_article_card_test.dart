@@ -20,7 +20,7 @@ void main() {
     expect(find.text(r'$45.50'), findsOneWidget);
     expect(find.text('Sin categoría'), findsNothing);
     expect(find.byType(Chip), findsNothing);
-    expect(find.byType(InkWell), findsNothing);
+    expect(tester.widget<InkWell>(find.byType(InkWell)).onTap, isNull);
     expect(
       find.bySemanticsLabel(r'Café americano, sin categoría, $45.50'),
       findsOneWidget,
@@ -56,18 +56,23 @@ void main() {
     expect(find.text('Variante sencilla'), findsNothing);
   });
 
-  testWidgets('no usa imágenes ni ofrece una edición inexistente', (
+  testWidgets('abre el detalle al tocar la tarjeta sin usar imágenes', (
     tester,
   ) async {
+    var opened = 0;
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: InventoryArticleCard(articulo: _withoutCategory)),
+      MaterialApp(
+        home: Scaffold(
+          body: InventoryArticleCard(
+            articulo: _withoutCategory,
+            onTap: () => opened++,
+          ),
+        ),
       ),
     );
-
     expect(find.byType(Image), findsNothing);
-    expect(find.byType(GestureDetector), findsNothing);
-    expect(find.text('Editar'), findsNothing);
+    await tester.tap(find.text('Café americano'));
+    expect(opened, 1);
   });
 
   testWidgets('admite texto ampliado sin desbordar la tarjeta', (tester) async {

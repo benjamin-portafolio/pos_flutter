@@ -9,6 +9,7 @@ import 'payloads/categoria_actualizada_payload.dart';
 import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
@@ -242,6 +243,10 @@ class SyncPushService {
             payload.categoriasDesplazadas.any(
               (category) => eventIds.contains(category.baseEventId),
             );
+      case ProductoActualizadoPayload.eventType:
+        return ProductoActualizadoPayload.fromJson(
+          event.payload,
+        ).dependencyEventIds.any(eventIds.contains);
       case ProductoCreadoPayload.eventType:
         final payload = ProductoCreadoPayload.fromJson(event.payload);
         return switch (payload.dependenciaCategoria?.dependsOnEventId) {

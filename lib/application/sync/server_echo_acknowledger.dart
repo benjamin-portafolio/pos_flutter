@@ -4,6 +4,7 @@ import 'payloads/categoria_creada_payload.dart';
 import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
@@ -62,6 +63,7 @@ class ServerEchoAcknowledger {
           );
         }
         return;
+      case ProductoActualizadoPayload.eventType:
       case ProductoCreadoPayload.eventType:
         await _productoProjectionStore?.advanceLastServerSequence(
           event.aggregateId,

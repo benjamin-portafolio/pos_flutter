@@ -3,12 +3,151 @@ import 'package:drift/drift.dart';
 import '../../../application/sync/projections/producto_projection_store.dart';
 import '../../../domain/articulos/sale_configuration.dart';
 import 'app_database.dart' as drift;
+import '../../../application/sync/payloads/producto_creado_payload.dart';
+import '../../../application/sync/models/sync_event.dart';
 
 class DriftProductoProjectionStore implements ProductoProjectionStore {
   DriftProductoProjectionStore({required drift.ProductoDao productoDao})
     : _productoDao = productoDao;
 
   final drift.ProductoDao _productoDao;
+
+  @override
+  Future<ProductoCreadoPayload> snapshot(String productId) async {
+    final product = await findProductById(productId);
+    if (product == null || !product.active) {
+      throw StateError('El artículo no existe.');
+    }
+    final variants = await findVariantsByProductId(productId);
+    final values = <ProductoCreadoVariante>[];
+    for (final variant in variants) {
+      final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
+        variant.id,
+      );
+      values.add(
+        ProductoCreadoVariante.create(
+          id: variant.id,
+          nombre: variant.nombre,
+          precioVentaMenor: variant.precioVentaMenor,
+          costoEstandarMenor: variant.costoEstandarMenor,
+          inventoryItemId: variant.inventoryItemId,
+          esPredeterminada: variant.esPredeterminada,
+          orden: variant.orden,
+          componentesReceta: recipe
+              .map(
+                (c) => ProductoCreadoComponenteReceta.create(
+                  inventoryItemId: c.inventoryItemId,
+                  quantityAtomic: c.quantityAtomic,
+                ),
+              )
+              .toList(),
+        ),
+      );
+    }
+    return ProductoCreadoPayload.create(
+      nombre: product.nombre,
+      categoriaId: product.categoriaId,
+      saleConfiguration: product.saleConfiguration,
+      variantes: values,
+      dependenciasInventario: {
+        for (final v in values) ...[
+          if (v.inventoryItemId != null) v.inventoryItemId!,
+          ...v.componentesReceta.map((c) => c.inventoryItemId),
+        ],
+      }.map((id) => ProductoCreadoInventarioDependencia(refId: id)).toList(),
+    );
+  }
+
+  @override
+  Future<void> applyUpdate(
+    SyncEvent event,
+    ProductoCreadoPayload state, {
+    bool restore = false,
+    String? baseEventId,
+  }) async {
+    final product = await findProductById(event.aggregateId);
+    if (product == null) {
+      if (restore) return;
+      throw StateError('El artículo no existe.');
+    }
+    if (restore && product.lastEventId != event.eventId) return;
+    if (product.saleConfiguration != state.saleConfiguration) {
+      throw StateError('No se puede cambiar la forma de venta.');
+    }
+    final version = restore ? event.baseVersion! : event.baseVersion! + 1;
+    final lastEventId = restore ? baseEventId! : event.eventId;
+    final sequence = restore
+        ? product.lastServerSequence
+        : event.serverSequence ?? product.lastServerSequence;
+    await updateProduct(
+      ProductoProjection(
+        id: product.id,
+        nombre: state.nombre,
+        categoriaId: state.categoriaId,
+        saleConfiguration: product.saleConfiguration,
+        active: product.active,
+        version: version,
+        createdEventId: product.createdEventId,
+        lastEventId: lastEventId,
+        lastServerSequence: sequence,
+      ),
+    );
+    if (restore) {
+      await _productoDao.eliminarVariantesAgregadas(product.id, event.eventId);
+    }
+    await _productoDao.prepararActualizacionVariantes(product.id);
+    for (final v in state.variantes) {
+      final existing = await findVariantById(v.id);
+      if (existing == null) {
+        await insertVariant(
+          ProductoVarianteProjection(
+            id: v.id,
+            productoId: product.id,
+            nombre: v.nombre,
+            nameKey: v.nameKey,
+            precioVentaMenor: v.precioVentaMenor,
+            costoEstandarMenor: v.costoEstandarMenor,
+            inventoryItemId: v.inventoryItemId,
+            esPredeterminada: v.esPredeterminada,
+            orden: v.orden,
+            active: true,
+            version: version,
+            createdEventId: event.eventId,
+            lastEventId: lastEventId,
+            lastServerSequence: sequence,
+          ),
+        );
+      } else {
+        if (existing.productoId != product.id) {
+          throw StateError('La variante pertenece a otro artículo.');
+        }
+        await _productoDao.actualizarVariante(
+          v.id,
+          drift.ProductVariantsCompanion(
+            name: Value(v.nombre),
+            nameKey: Value(v.nameKey),
+            salePriceMinor: Value(v.precioVentaMenor),
+            standardCostMinor: Value(v.costoEstandarMenor),
+            inventoryItemId: Value(v.inventoryItemId),
+            isDefault: Value(v.esPredeterminada),
+            sortOrder: Value(v.orden),
+            version: Value(version),
+            lastEventId: Value(lastEventId),
+            lastServerSequence: Value(sequence),
+          ),
+        );
+      }
+      for (final c in v.componentesReceta) {
+        await insertRecipeComponent(
+          ProductoRecetaComponenteProjection(
+            varianteId: v.id,
+            inventoryItemId: c.inventoryItemId,
+            quantityAtomic: c.quantityAtomic,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Future<ProductoProjection?> findProductById(String id) async {

@@ -1,3 +1,4 @@
+import '../payloads/producto_actualizado_payload.dart';
 import '../models/sync_event.dart';
 import '../payloads/producto_creado_payload.dart';
 import '../projections/inventory_projection_store.dart';
@@ -60,6 +61,91 @@ class ProductoEventHandler {
       await _productoProjectionStore.deleteProductById(productId);
     }
 
+    await _validateInventory(payload);
+
+    final version = event.baseVersion ?? 1;
+    await _productoProjectionStore.insertProduct(
+      ProductoProjection(
+        id: event.aggregateId,
+        nombre: payload.nombre,
+        categoriaId: payload.categoriaId,
+        saleConfiguration: payload.saleConfiguration,
+        active: true,
+        version: version,
+        createdEventId: event.eventId,
+        lastEventId: event.eventId,
+        lastServerSequence: event.serverSequence,
+      ),
+    );
+    for (final variant in payload.variantes) {
+      await _productoProjectionStore.insertVariant(
+        ProductoVarianteProjection(
+          id: variant.id,
+          productoId: event.aggregateId,
+          nombre: variant.nombre,
+          nameKey: variant.nameKey,
+          precioVentaMenor: variant.precioVentaMenor,
+          costoEstandarMenor: variant.costoEstandarMenor,
+          inventoryItemId: variant.inventoryItemId,
+          esPredeterminada: variant.esPredeterminada,
+          orden: variant.orden,
+          active: true,
+          version: version,
+          createdEventId: event.eventId,
+          lastEventId: event.eventId,
+          lastServerSequence: event.serverSequence,
+        ),
+      );
+      for (final component in variant.componentesReceta) {
+        await _productoProjectionStore.insertRecipeComponent(
+          ProductoRecetaComponenteProjection(
+            varianteId: variant.id,
+            inventoryItemId: component.inventoryItemId,
+            quantityAtomic: component.quantityAtomic,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> applyProductoActualizado(SyncEvent event) async {
+    final payload = ProductoActualizadoPayload.fromJson(event.payload);
+    final product = await _productoProjectionStore.findProductById(
+      event.aggregateId,
+    );
+    if (product == null || !product.active) {
+      throw StateError('El artículo no existe.');
+    }
+    if (product.lastEventId == event.eventId) {
+      if (event.serverSequence != null) {
+        await _productoProjectionStore.advanceLastServerSequence(
+          product.id,
+          event.serverSequence!,
+        );
+      }
+      return;
+    }
+    if (product.lastEventId != payload.baseEventId ||
+        product.version != event.baseVersion) {
+      throw StateError('El artículo cambió desde que se abrió la edición.');
+    }
+    final current = await _productoProjectionStore.snapshot(product.id);
+    if (!ProductoActualizadoPayload.sameState(current, payload.before)) {
+      throw StateError('La base del artículo no coincide.');
+    }
+    for (final variant in payload.after.variantes) {
+      final existingVariant = await _productoProjectionStore.findVariantById(
+        variant.id,
+      );
+      if (existingVariant != null && existingVariant.productoId != product.id) {
+        throw StateError('La variante pertenece a otro artículo.');
+      }
+    }
+    await _validateInventory(payload.after);
+    await _productoProjectionStore.applyUpdate(event, payload.after);
+  }
+
+  Future<void> _validateInventory(ProductoCreadoPayload payload) async {
     for (final variant in payload.variantes) {
       for (final component in variant.componentesReceta) {
         final inventoryStore = _inventoryProjectionStore;
@@ -132,50 +218,6 @@ class ProductoEventHandler {
               'La unidad de inventario no coincide con la dimensión de venta.',
             );
           }
-      }
-    }
-
-    final version = event.baseVersion ?? 1;
-    await _productoProjectionStore.insertProduct(
-      ProductoProjection(
-        id: event.aggregateId,
-        nombre: payload.nombre,
-        categoriaId: payload.categoriaId,
-        saleConfiguration: payload.saleConfiguration,
-        active: true,
-        version: version,
-        createdEventId: event.eventId,
-        lastEventId: event.eventId,
-        lastServerSequence: event.serverSequence,
-      ),
-    );
-    for (final variant in payload.variantes) {
-      await _productoProjectionStore.insertVariant(
-        ProductoVarianteProjection(
-          id: variant.id,
-          productoId: event.aggregateId,
-          nombre: variant.nombre,
-          nameKey: variant.nameKey,
-          precioVentaMenor: variant.precioVentaMenor,
-          costoEstandarMenor: variant.costoEstandarMenor,
-          inventoryItemId: variant.inventoryItemId,
-          esPredeterminada: variant.esPredeterminada,
-          orden: variant.orden,
-          active: true,
-          version: version,
-          createdEventId: event.eventId,
-          lastEventId: event.eventId,
-          lastServerSequence: event.serverSequence,
-        ),
-      );
-      for (final component in variant.componentesReceta) {
-        await _productoProjectionStore.insertRecipeComponent(
-          ProductoRecetaComponenteProjection(
-            varianteId: variant.id,
-            inventoryItemId: component.inventoryItemId,
-            quantityAtomic: component.quantityAtomic,
-          ),
-        );
       }
     }
   }

@@ -9,6 +9,7 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
@@ -85,6 +86,8 @@ class PendingEventRevalidator {
             ),
             CategoriaEliminadaPayload.eventType =>
               await _categoriaEliminadaConflict(event),
+            ProductoActualizadoPayload.eventType =>
+              await _productoActualizadoConflict(event),
             ProductoCreadoPayload.eventType => await _productoCreadoConflict(
               event,
             ),
@@ -166,6 +169,17 @@ class PendingEventRevalidator {
         }
       }
     }
+    if (event.eventType == ProductoActualizadoPayload.eventType) {
+      for (final id in ProductoActualizadoPayload.fromJson(
+        event.payload,
+      ).dependencyEventIds) {
+        if (conflictedEventIds.contains(id) || await _dependencyFailed(id)) {
+          return const _PendingConflict(
+            'La actualización depende de un evento en conflicto.',
+          );
+        }
+      }
+    }
     if (event.eventType == ProductoCreadoPayload.eventType) {
       final payload = ProductoCreadoPayload.fromJson(event.payload);
       final dependencyEventIds = <String>{
@@ -208,6 +222,51 @@ class PendingEventRevalidator {
           'El movimiento depende de otro evento local en conflicto.',
         );
       }
+    }
+    return null;
+  }
+
+  Future<_PendingConflict?> _productoActualizadoConflict(
+    SyncEvent event,
+  ) async {
+    final payload = ProductoActualizadoPayload.fromJson(event.payload);
+    final product = await _productoProjectionStore?.findProductById(
+      event.aggregateId,
+    );
+    if (product == null || !product.active) {
+      return const _PendingConflict('El artículo ya no existe.');
+    }
+    if (payload.after.categoriaId != null &&
+        await _categoriaProjectionStore.findById(payload.after.categoriaId!) ==
+            null) {
+      return const _PendingConflict('La categoría ya no existe.');
+    }
+    for (final dependency in payload.after.dependenciasInventario) {
+      final item = await _inventoryProjectionStore?.findItemById(
+        dependency.refId,
+      );
+      if (item == null || !item.active) {
+        return const _PendingConflict(
+          'El recurso de inventario ya no está activo.',
+        );
+      }
+    }
+    final base = await _resolveBase(
+      baseEventId: payload.baseEventId,
+      fallbackServerSequence: event.baseServerSequence,
+    );
+    if (base.waitsForLocalDependency || base.serverSequence == null) {
+      return null;
+    }
+    final official = await _syncedEventHistory.eventsForAggregateAfter(
+      aggregateType: ProductoActualizadoPayload.aggregateType,
+      aggregateId: event.aggregateId,
+      serverSequence: base.serverSequence!,
+    );
+    if (official.any((e) => e.eventId != event.eventId)) {
+      return const _PendingConflict(
+        'El artículo cambió oficialmente desde la base local.',
+      );
     }
     return null;
   }
@@ -627,6 +686,14 @@ class PendingEventRevalidator {
         );
       case CategoriaEliminadaPayload.eventType:
         await _categoriaEliminadaConflictProjectionRestorer?.restore(event);
+      case ProductoActualizadoPayload.eventType:
+        final payload = ProductoActualizadoPayload.fromJson(event.payload);
+        await _productoProjectionStore?.applyUpdate(
+          event,
+          payload.before,
+          restore: true,
+          baseEventId: payload.baseEventId,
+        );
       case ProductoCreadoPayload.eventType:
         await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
       case RecursoInventarioCreadoPayload.eventType:

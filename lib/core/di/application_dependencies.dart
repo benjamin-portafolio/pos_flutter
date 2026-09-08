@@ -269,6 +269,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ProductoCommandService>(
     () => ProductoCommandService(
+      productoProjectionStore: getIt<ProductoProjectionStore>(),
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),

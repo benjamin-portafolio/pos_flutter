@@ -1,7 +1,10 @@
 import '../articulos/articulo_listado.dart';
+import '../articulos/articulo_detalle.dart';
 import '../articulos/articulo_vinculado_categoria.dart';
 
 abstract interface class ProductoRepository {
+  Future<ArticuloDetalle?> obtenerDetalle(String productoId);
+
   Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
     String categoriaId,
   );

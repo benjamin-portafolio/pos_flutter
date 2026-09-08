@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -17,6 +17,54 @@ void main() {
   tearDown(() async {
     await db.close();
   });
+
+  test(
+    'detalle carga todas las variantes activas del producto seleccionado',
+    () async {
+      await _insertProduct(db, id: 'selected', name: 'Café');
+      await _insertProduct(db, id: 'other', name: 'Otro');
+      await _insertVariant(
+        db,
+        id: 'large',
+        productId: 'selected',
+        price: 6075,
+        standardCost: 2200,
+        isDefault: false,
+        sortOrder: 1,
+      );
+      await _insertVariant(
+        db,
+        id: 'small',
+        productId: 'selected',
+        price: 4550,
+        standardCost: 0,
+        isDefault: true,
+        sortOrder: 0,
+      );
+      await _insertVariant(
+        db,
+        id: 'hidden',
+        productId: 'selected',
+        price: 1000,
+        isDefault: false,
+        sortOrder: 2,
+        active: false,
+      );
+      await _insertVariant(
+        db,
+        id: 'other-v',
+        productId: 'other',
+        price: 1000,
+        isDefault: true,
+        sortOrder: 0,
+      );
+      final detail = await repository.obtenerDetalle('selected');
+      expect(detail!.nombre, 'Café');
+      expect(detail.variantes.map((v) => v.precioVentaMenor), [4550, 6075]);
+      expect(detail.variantes.map((v) => v.costoEstandarMenor), [0, 2200]);
+      expect(await repository.obtenerDetalle('missing'), isNull);
+    },
+  );
 
   test(
     'agrupa un solo join, filtra activos y ordena productos y variantes',

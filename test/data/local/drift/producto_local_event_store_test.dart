@@ -1,3 +1,10 @@
+import 'package:pos_flutter/application/commands/producto_command_service.dart';
+import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
+import 'package:pos_flutter/application/commands/local_command_context.dart';
+import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
+import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
@@ -101,6 +108,229 @@ void main() {
       );
     });
   }
+
+  for (final mode in [AppMode.standalone, AppMode.serverSync]) {
+    test(
+      '${mode.name}: actualiza, intercambia variantes, revierte y conserva identidad',
+      () async {
+        final store = _store(mode, db, productoDao, eventDao);
+        final projection = DriftProductoProjectionStore(
+          productoDao: productoDao,
+        );
+        final creation = _advancedEvent();
+        const refs = [
+          LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+        ];
+        await store.appendAndApply(creation, refs: refs);
+        final before = await projection.snapshot('product_1');
+        var after = ProductoCreadoPayload.create(
+          nombre: 'Café editado',
+          categoriaId: null,
+          saleConfiguration: before.saleConfiguration,
+          variantes: [
+            for (var i = 0; i < 2; i++)
+              ProductoCreadoVariante.create(
+                id: before.variantes[1 - i].id,
+                nombre: i == 0 ? 'Grande' : 'Chico',
+                precioVentaMenor: 999,
+                costoEstandarMenor: null,
+                esPredeterminada: i == 0,
+                orden: i,
+              ),
+          ],
+        );
+        after = ProductoCreadoPayload.create(
+          nombre: after.nombre,
+          categoriaId: after.categoriaId,
+          saleConfiguration: after.saleConfiguration,
+          variantes: [
+            ...after.variantes,
+            ProductoCreadoVariante.create(
+              id: '00000000-0000-4000-8000-000000000099',
+              nombre: 'Nueva',
+              costoEstandarMenor: null,
+              precioVentaMenor: 500,
+              esPredeterminada: false,
+              orden: 2,
+            ),
+          ],
+        );
+        final update = SyncEvent(
+          eventId: 'update_1',
+          aggregateType: 'product',
+          aggregateId: 'product_1',
+          eventType: ProductoActualizadoPayload.eventType,
+          deviceId: 'device',
+          userId: 'user',
+          baseVersion: 1,
+          createdAtLocal: DateTime(2026),
+          payload: ProductoActualizadoPayload(
+            baseEventId: creation.eventId,
+            before: before,
+            after: after,
+          ).toJson(),
+        );
+        await store.appendAndApply(update, refs: refs);
+        await ProductoEventHandler(projection).applyProductoActualizado(update);
+        final product = (await projection.findProductById('product_1'))!;
+        expect(product.nombre, 'Café editado');
+        expect(product.version, 2);
+        expect(product.createdEventId, creation.eventId);
+        expect(
+          (await projection.findVariantsByProductId(product.id)).first.id,
+          before.variantes.last.id,
+        );
+        expect(
+          (await db.select(db.events).get()).last.deliveryStatus,
+          mode == AppMode.standalone ? 'not_required' : 'pending',
+        );
+        expect(
+          await db.select(db.eventRefs).get(),
+          mode == AppMode.standalone ? isEmpty : hasLength(2),
+        );
+        await db.transaction(
+          () => projection.applyUpdate(
+            update,
+            before,
+            restore: true,
+            baseEventId: creation.eventId,
+          ),
+        );
+        expect(
+          (await projection.snapshot(product.id)).toJson(),
+          before.toJson(),
+        );
+        expect((await projection.findProductById(product.id))!.version, 1);
+      },
+    );
+  }
+
+  test(
+    'rechaza base obsoleta sin persistir evento ni modificar producto',
+    () async {
+      final store = _store(AppMode.standalone, db, productoDao, eventDao);
+      const refs = [
+        LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+      ];
+      await store.appendAndApply(_event(), refs: refs);
+      final projection = DriftProductoProjectionStore(productoDao: productoDao);
+      final before = await projection.snapshot('product_1');
+      final update = SyncEvent(
+        eventId: 'stale',
+        aggregateType: 'product',
+        aggregateId: 'product_1',
+        eventType: ProductoActualizadoPayload.eventType,
+        deviceId: 'device',
+        userId: 'user',
+        baseVersion: 1,
+        createdAtLocal: DateTime(2026),
+        payload: ProductoActualizadoPayload(
+          baseEventId: 'wrong_base',
+          before: before,
+          after: before,
+        ).toJson(),
+      );
+      await expectLater(
+        store.appendAndApply(update, refs: refs),
+        throwsStateError,
+      );
+      expect(await db.select(db.events).get(), hasLength(1));
+      expect(
+        (await projection.snapshot('product_1')).toJson(),
+        before.toJson(),
+      );
+      final changedSale = ProductoCreadoPayload.create(
+        nombre: before.nombre,
+        categoriaId: null,
+        saleConfiguration: MeasuredSaleConfiguration(
+          saleUnitId: InventoryUnitIds.kilogram,
+          priceReferenceQuantityAtomic: 1000,
+        ),
+        variantes: before.variantes,
+      );
+      expect(
+        () => ProductoActualizadoPayload(
+          baseEventId: 'event_1',
+          before: before,
+          after: changedSale,
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
+    'el command service normaliza edición, preserva IDs y rechaza formulario obsoleto',
+    () async {
+      final store = _store(AppMode.standalone, db, productoDao, eventDao);
+      final projection = DriftProductoProjectionStore(productoDao: productoDao);
+      final service = ProductoCommandService(
+        eventStore: store,
+        commandContext: const LocalCommandContext(
+          deviceId: 'device',
+          userId: 'user',
+        ),
+        categoriaProjectionStore: DriftCategoriaProjectionStore(
+          categoriaDao: CategoriaDao(db),
+        ),
+        productoProjectionStore: projection,
+        syncedEventHistory: DriftSyncPersistence(
+          db: db,
+          eventDao: eventDao,
+          eventRefDao: EventRefDao(db),
+          syncCheckpointDao: SyncCheckpointDao(db),
+        ),
+        unidadInventarioRepository: UnidadInventarioRepositoryImpl(
+          unitDao: UnitDao(db),
+        ),
+      );
+      await service.crearArticulo(
+        const CrearArticuloCommand(nombre: 'Café', precioVenta: '10'),
+      );
+      final product = (await db.select(db.products).get()).single;
+      final variant = (await db.select(db.productVariants).get()).single;
+      const command = CrearArticuloCommand.conVariantes(
+        nombre: '  Nuevo  ',
+        variantes: [
+          CrearArticuloVarianteCommand(
+            nombre: '  Grande ',
+            precioVenta: '20.50',
+            costoEstandar: '0',
+          ),
+          CrearArticuloVarianteCommand(
+            nombre: 'Nueva',
+            precioVenta: '5',
+            costoEstandar: null,
+          ),
+        ],
+      );
+      await service.actualizarArticulo(
+        productId: product.id,
+        baseEventId: product.lastEventId!,
+        command: command,
+        variantIds: [variant.id, null],
+      );
+      final state = await projection.snapshot(product.id);
+      expect(state.nombre, 'Nuevo');
+      expect(state.variantes, hasLength(2));
+      expect(state.variantes.last.id, isNot(variant.id));
+      expect(state.variantes.first.id, variant.id);
+      expect(state.variantes.first.nombre, 'Grande');
+      expect(state.variantes.first.precioVentaMenor, 2050);
+      expect(state.variantes.first.costoEstandarMenor, 0);
+      await expectLater(
+        service.actualizarArticulo(
+          productId: product.id,
+          baseEventId: product.lastEventId!,
+          command: command,
+          variantIds: [variant.id, null],
+        ),
+        throwsStateError,
+      );
+      expect(await db.select(db.events).get(), hasLength(2));
+      expect(await db.select(db.eventRefs).get(), isEmpty);
+    },
+  );
 
   test('el handler es idempotente para el mismo evento', () async {
     final projectionStore = DriftProductoProjectionStore(

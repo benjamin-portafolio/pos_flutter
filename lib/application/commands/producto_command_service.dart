@@ -21,6 +21,8 @@ import '../sync/projections/categoria_projection_store.dart';
 import '../sync/projections/inventory_projection_store.dart';
 import '../sync/synced_event_history.dart';
 import 'crear_articulo_command.dart';
+import '../sync/payloads/producto_actualizado_payload.dart';
+import '../sync/projections/producto_projection_store.dart';
 import 'local_command_context.dart';
 
 class ProductoCommandService {
@@ -31,13 +33,16 @@ class ProductoCommandService {
     required SyncedEventHistory syncedEventHistory,
     required UnidadInventarioRepository unidadInventarioRepository,
     InventoryProjectionStore? inventoryProjectionStore,
-  }) : _eventStore = eventStore,
+    ProductoProjectionStore? productoProjectionStore,
+  }) : _productoProjectionStore = productoProjectionStore,
+       _eventStore = eventStore,
        _commandContext = commandContext,
        _categoriaProjectionStore = categoriaProjectionStore,
        _syncedEventHistory = syncedEventHistory,
        _unidadInventarioRepository = unidadInventarioRepository,
        _inventoryProjectionStore = inventoryProjectionStore;
 
+  final ProductoProjectionStore? _productoProjectionStore;
   final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final CategoriaProjectionStore _categoriaProjectionStore;
@@ -47,7 +52,47 @@ class ProductoCommandService {
   final Uuid _uuid = const Uuid();
   static const _quantityCodec = InventoryQuantityCodec();
 
-  Future<void> crearArticulo(CrearArticuloCommand command) async {
+  Future<ProductoProjection> _obtenerBaseEdicion(String id) async {
+    final product = await _productoProjectionStore?.findProductById(id);
+    if (product == null || !product.active) {
+      throw StateError('El artículo no existe.');
+    }
+    return product;
+  }
+
+  Future<void> actualizarArticulo({
+    required String productId,
+    required String baseEventId,
+    required CrearArticuloCommand command,
+    required List<String?> variantIds,
+  }) async {
+    final product = await _obtenerBaseEdicion(productId);
+    if (product.lastEventId != baseEventId) {
+      throw StateError('El artículo cambió. Vuelve a abrirlo.');
+    }
+    await _saveArticulo(
+      command,
+      existing: product,
+      existingVariantIds: variantIds,
+    );
+  }
+
+  Future<void> crearArticulo(CrearArticuloCommand command) =>
+      _saveArticulo(command);
+
+  Future<void> _saveArticulo(
+    CrearArticuloCommand command, {
+    ProductoProjection? existing,
+    List<String?>? existingVariantIds,
+  }) async {
+    final before = existing == null
+        ? null
+        : await _productoProjectionStore!.snapshot(existing.id);
+    if (existing != null &&
+        existing.saleConfiguration != command.saleConfiguration) {
+      throw const FormatException('No se puede cambiar la forma de venta.');
+    }
+
     final nombre = NombreProducto.fromInput(command.nombre);
     final saleConfiguration = await _validateSaleConfiguration(
       command.saleConfiguration,
@@ -101,17 +146,38 @@ class ProductoCommandService {
     final dependency = categoriaId == null
         ? null
         : await _categoryDependency(categoriaId);
-    final productId = _uuid.v4();
-    final variantIds = List.generate(
-      normalizedVariants.length,
-      (_) => _uuid.v4(),
-      growable: false,
-    );
+    final productId = existing?.id ?? _uuid.v4();
+    final variantIds =
+        existingVariantIds?.map((id) => id ?? _uuid.v4()).toList() ??
+        List.generate(
+          normalizedVariants.length,
+          (_) => _uuid.v4(),
+          growable: false,
+        );
+    if (variantIds.length != normalizedVariants.length ||
+        (before != null &&
+            (variantIds.toSet().length != variantIds.length ||
+                !before.variantes.every((v) => variantIds.contains(v.id))))) {
+      throw const FormatException(
+        'Deben conservarse las variantes existentes.',
+      );
+    }
     final eventId = _uuid.v4();
     final inventoryBindings = <_InventoryBinding>[];
     for (var index = 0; index < normalizedVariants.length; index++) {
       final inventory = normalizedVariants[index].inventory;
       if (inventory == null) continue;
+      final previous = before?.variantes
+          .where((v) => v.id == variantIds[index])
+          .firstOrNull;
+      if (previous?.inventoryItemId != null) {
+        if (inventory.initialQuantityAtomic != null) {
+          throw const FormatException(
+            'La existencia se modifica mediante movimientos de inventario.',
+          );
+        }
+        continue;
+      }
       inventoryBindings.add(
         _InventoryBinding(
           variantIndex: index,
@@ -141,6 +207,29 @@ class ProductoCommandService {
             dependsOnEventId: component.dependsOnEventId,
           ),
     };
+    if (before != null) {
+      for (var index = 0; index < normalizedVariants.length; index++) {
+        if (normalizedVariants[index].inventory == null) continue;
+        final id = before.variantes
+            .where((v) => v.id == variantIds[index])
+            .firstOrNull
+            ?.inventoryItemId;
+        if (id == null) continue;
+        final item = await _inventoryProjectionStore!.findItemById(id);
+        if (item == null) {
+          throw StateError('El recurso de inventario no existe.');
+        }
+        final creation = item.createdEventId == null
+            ? null
+            : await _syncedEventHistory.eventById(item.createdEventId!);
+        inventoryDependencies[id] = ProductoCreadoInventarioDependencia(
+          refId: id,
+          dependsOnEventId: creation?.deliveryStatus == 'pending'
+              ? creation!.eventId
+              : null,
+        );
+      }
+    }
     final payload = ProductoCreadoPayload.create(
       nombre: nombre.value,
       categoriaId: categoriaId,
@@ -152,7 +241,14 @@ class ProductoCommandService {
             nombre: normalizedVariants[index].nombre,
             precioVentaMenor: normalizedVariants[index].precioVentaMenor,
             costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
-            inventoryItemId: inventoryByVariant[index]?.inventoryItemId,
+            inventoryItemId:
+                inventoryByVariant[index]?.inventoryItemId ??
+                (normalizedVariants[index].inventory == null
+                    ? null
+                    : before?.variantes
+                          .where((v) => v.id == variantIds[index])
+                          .firstOrNull
+                          ?.inventoryItemId),
             componentesReceta: [
               for (final component
                   in normalizedVariants[index].recipeComponents)
@@ -174,12 +270,21 @@ class ProductoCommandService {
       eventId: eventId,
       aggregateType: ProductoCreadoPayload.aggregateType,
       aggregateId: productId,
-      eventType: ProductoCreadoPayload.eventType,
+      eventType: existing == null
+          ? ProductoCreadoPayload.eventType
+          : ProductoActualizadoPayload.eventType,
       deviceId: _commandContext.deviceId,
       userId: _commandContext.userId,
-      baseVersion: 1,
+      baseVersion: existing?.version ?? 1,
+      baseServerSequence: existing?.lastServerSequence,
       createdAtLocal: DateTime.now(),
-      payload: payload.toJson(),
+      payload: before == null
+          ? payload.toJson()
+          : ProductoActualizadoPayload(
+              baseEventId: existing!.lastEventId!,
+              before: before,
+              after: payload,
+            ).toJson(),
     );
     final referencedInventoryItemIds = <String>{
       for (final variant in payload.variantes) ...[
@@ -208,6 +313,11 @@ class ProductoCommandService {
               refType: 'product_variant',
               refId: payload.variantes[index].id,
             ),
+            if (existing != null)
+              LocalEventRef.affects(
+                refType: 'recipe',
+                refId: payload.variantes[index].id,
+              ),
             if (payload.variantes[index].nameKey case final nameKey?)
               LocalEventRef.requiresUnique(
                 refType: 'product_variant_name',

@@ -1,7 +1,17 @@
 import '../../../domain/articulos/sale_configuration.dart';
 import 'sync_projection.dart';
+import '../payloads/producto_creado_payload.dart';
+import '../models/sync_event.dart';
 
 abstract interface class ProductoProjectionStore {
+  Future<ProductoCreadoPayload> snapshot(String productId);
+  Future<void> applyUpdate(
+    SyncEvent event,
+    ProductoCreadoPayload state, {
+    bool restore = false,
+    String? baseEventId,
+  });
+
   Future<ProductoProjection?> findProductById(String id);
 
   Future<ProductoVarianteProjection?> findVariantById(String id);
