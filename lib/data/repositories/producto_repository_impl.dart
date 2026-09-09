@@ -105,17 +105,12 @@ class ProductoRepositoryImpl implements ProductoRepository {
             return left.id.compareTo(right.id);
           });
 
-          final defaultVariants = builder.variantes
-              .where((variant) => variant.isDefault)
-              .toList(growable: false);
-          if (defaultVariants.length != 1) {
+          if (builder.variantes.isEmpty) {
             throw StateError(
-              'El producto ${builder.producto.id} no tiene exactamente una '
-              'variante activa predeterminada.',
+              'El producto ${builder.producto.id} no tiene variantes activas.',
             );
           }
 
-          final defaultVariant = defaultVariants.single;
           final category = builder.categoria;
           return ArticuloListado(
             productoId: builder.producto.id,
@@ -126,8 +121,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
             categoriaColor: category == null
                 ? null
                 : ColorCategoria.fromKey(category.colorKey),
-            variantePredeterminadaId: defaultVariant.id,
-            precioPredeterminadoMenor: defaultVariant.salePriceMinor,
             variantesActivas: List.unmodifiable(
               builder.variantes.map(
                 (variant) => VarianteListado(
@@ -135,7 +128,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
                   nombre: variant.name,
                   precioVentaMenor: variant.salePriceMinor,
                   costoEstandarMenor: variant.standardCostMinor,
-                  predeterminada: variant.isDefault,
                   orden: variant.sortOrder,
                 ),
               ),

@@ -78,7 +78,6 @@ class ProductoActualizadoPayload {
           v.precioVentaMenor != other.precioVentaMenor ||
           v.costoEstandarMenor != other.costoEstandarMenor ||
           v.inventoryItemId != other.inventoryItemId ||
-          v.esPredeterminada != other.esPredeterminada ||
           v.orden != other.orden ||
           v.componentesReceta.length != other.componentesReceta.length) {
         return false;

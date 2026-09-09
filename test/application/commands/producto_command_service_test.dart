@@ -96,10 +96,7 @@ void main() {
       200,
       0,
     ]);
-    expect(payload.variantes.map((variant) => variant.esPredeterminada), [
-      true,
-      false,
-    ]);
+
     expect(payload.variantes.map((variant) => variant.orden), [0, 1]);
     expect(eventStore.refs.map((ref) => ref.refType), [
       'product',

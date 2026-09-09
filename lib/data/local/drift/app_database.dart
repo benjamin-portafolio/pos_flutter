@@ -168,17 +168,24 @@ LazyDatabase _openConnection() {
 }
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
-/// ni cambiar schemaVersion. Las bases actuales se conservan entre arranques.
+/// ni cambiar schemaVersion. La columna legada is_default identifica bases
+/// anteriores; las bases actuales se conservan entre arranques.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
   final connection = sqlite.sqlite3.open(file.path);
   final bool current;
   try {
-    current = connection
-        .select(
-          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'product_update_undo'",
-        )
-        .isNotEmpty;
+    final variantColumns = connection.select(
+      'PRAGMA table_info(product_variants)',
+    );
+    current =
+        connection
+            .select(
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'product_update_undo'",
+            )
+            .isNotEmpty &&
+        variantColumns.isNotEmpty &&
+        !variantColumns.any((column) => column['name'] == 'is_default');
   } finally {
     connection.close();
   }

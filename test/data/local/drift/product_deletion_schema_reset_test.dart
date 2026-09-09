@@ -56,6 +56,56 @@ void main() {
     },
   );
 
+  for (final restored in [false, true]) {
+    test('esquema con is_default: respaldo restaurado=$restored', () async {
+      final initial = AppDatabase();
+      await initial.customStatement(
+        'ALTER TABLE product_variants ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0',
+      );
+      await initial.customStatement('CREATE TABLE retained_marker (id TEXT)');
+      await initial.close();
+      if (restored) await markAppDatabaseAsRestored();
+
+      final reopened = AppDatabase();
+      if (restored) {
+        await expectLater(
+          reopened.select(reopened.products).get(),
+          throwsStateError,
+        );
+        await expectLater(reopened.close(), throwsStateError);
+        final preserved = sqlite.sqlite3.open((await appDatabaseFile()).path);
+        try {
+          expect(
+            preserved
+                .select('PRAGMA table_info(product_variants)')
+                .map((column) => column['name']),
+            contains('is_default'),
+          );
+        } finally {
+          preserved.close();
+        }
+      } else {
+        final columns = await reopened
+            .customSelect('PRAGMA table_info(product_variants)')
+            .get();
+        expect(
+          columns.map((column) => column.read<String>('name')),
+          isNot(contains('is_default')),
+        );
+        expect(
+          await reopened
+              .customSelect(
+                "SELECT name FROM sqlite_master WHERE name = 'retained_marker'",
+              )
+              .get(),
+          isEmpty,
+        );
+        expect(reopened.schemaVersion, 7);
+        await reopened.close();
+      }
+    });
+  }
+
   test('no destruye un respaldo restaurado con esquema anterior', () async {
     final file = await appDatabaseFile();
     final old = sqlite.sqlite3.open(file.path);

@@ -97,7 +97,6 @@ void main() {
                 nombre: first.nombre,
                 precioVentaMenor: first.precioVentaMenor,
                 costoEstandarMenor: first.costoEstandarMenor,
-                esPredeterminada: true,
                 orden: 0,
                 inventoryItemId: dependency == 'inventory' ? itemId : null,
                 componentesReceta: dependency == 'recipe'
@@ -152,7 +151,6 @@ void main() {
           }
           final active = await projection.snapshot('product_1');
           expect(active.variantes.single.id, before.variantes.last.id);
-          expect(active.variantes.single.esPredeterminada, isTrue);
           // Restore pending deletion with exact creation IDs, names and recipes.
           if (mode == AppMode.serverSync) {
             await db.transaction(
@@ -185,7 +183,6 @@ void main() {
                 nombre: first.nombre,
                 precioVentaMenor: 2000,
                 costoEstandarMenor: null,
-                esPredeterminada: true,
                 orden: 0,
               ),
             ],
@@ -293,7 +290,6 @@ void main() {
         expect(product?.priceReferenceQuantityAtomic, isNull);
         expect(variants, hasLength(1));
         expect(variants.single.salePriceMinor, 4550);
-        expect(variants.single.isDefault, isTrue);
         expect(
           storedEvent.deliveryStatus,
           mode == AppMode.standalone ? 'not_required' : 'pending',
@@ -362,7 +358,6 @@ void main() {
                 nombre: i == 0 ? 'Grande' : 'Chico',
                 precioVentaMenor: 999,
                 costoEstandarMenor: null,
-                esPredeterminada: i == 0,
                 orden: i,
               ),
           ],
@@ -378,7 +373,6 @@ void main() {
               nombre: 'Nueva',
               costoEstandarMenor: null,
               precioVentaMenor: 500,
-              esPredeterminada: false,
               orden: 2,
             ),
           ],
@@ -740,7 +734,6 @@ SyncEvent _advancedEvent() {
           nombre: 'Grande',
           precioVentaMenor: 1000,
           costoEstandarMenor: 200,
-          esPredeterminada: true,
           orden: 0,
         ),
         ProductoCreadoVariante.create(
@@ -748,7 +741,6 @@ SyncEvent _advancedEvent() {
           nombre: null,
           precioVentaMenor: 1200,
           costoEstandarMenor: 0,
-          esPredeterminada: false,
           orden: 1,
         ),
       ],

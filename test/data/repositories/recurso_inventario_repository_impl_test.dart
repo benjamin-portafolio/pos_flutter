@@ -154,7 +154,6 @@ Future<void> _linkResourceToProductVariant(
           productId: 'product-flour',
           salePriceMinor: 100,
           inventoryItemId: Value(inventoryItemId),
-          isDefault: true,
           sortOrder: 0,
           createdEventId: const Value('event-seed'),
           lastEventId: const Value('event-seed'),

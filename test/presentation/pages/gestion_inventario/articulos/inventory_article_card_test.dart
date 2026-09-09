@@ -54,6 +54,48 @@ void main() {
     expect((chips[0].label as Text).data, r'Chica · $20.00');
     expect((chips[1].label as Text).data, r'Grande · $30.00');
     expect(find.text('Variante sencilla'), findsNothing);
+    expect(find.text(r'$15.00 – $30.00'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(r'Refresco, sin categoría, $15.00 – $30.00'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('variantes con el mismo precio muestran un solo importe', (
+    tester,
+  ) async {
+    const article = ArticuloListado(
+      productoId: 'same-price',
+      nombre: 'Café',
+      activo: true,
+      categoriaId: null,
+      categoriaNombre: null,
+      categoriaColor: null,
+      variantesActivas: [
+        VarianteListado(
+          varianteId: 'v1',
+          nombre: 'A',
+          precioVentaMenor: 2000,
+          orden: 0,
+        ),
+        VarianteListado(
+          varianteId: 'v2',
+          nombre: 'B',
+          precioVentaMenor: 2000,
+          orden: 1,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: InventoryArticleCard(articulo: article)),
+      ),
+    );
+    expect(find.text(r'$20.00'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(r'Café, sin categoría, $20.00'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('abre el detalle al tocar la tarjeta sin usar imágenes', (
@@ -109,14 +151,11 @@ const _withoutCategory = ArticuloListado(
   categoriaId: null,
   categoriaNombre: null,
   categoriaColor: null,
-  variantePredeterminadaId: 'variant-coffee',
-  precioPredeterminadoMenor: 4550,
   variantesActivas: [
     VarianteListado(
       varianteId: 'variant-coffee',
       nombre: null,
       precioVentaMenor: 4550,
-      predeterminada: true,
       orden: 0,
     ),
   ],
@@ -129,14 +168,11 @@ const _withCategory = ArticuloListado(
   categoriaId: 'category-drinks',
   categoriaNombre: 'Bebidas',
   categoriaColor: ColorCategoria.green,
-  variantePredeterminadaId: 'variant-tea',
-  precioPredeterminadoMenor: 3200,
   variantesActivas: [
     VarianteListado(
       varianteId: 'variant-tea',
       nombre: null,
       precioVentaMenor: 3200,
-      predeterminada: true,
       orden: 0,
     ),
   ],
@@ -149,28 +185,23 @@ const _withNamedVariants = ArticuloListado(
   categoriaId: null,
   categoriaNombre: null,
   categoriaColor: null,
-  variantePredeterminadaId: 'variant-large',
-  precioPredeterminadoMenor: 3000,
   variantesActivas: [
     VarianteListado(
       varianteId: 'variant-large',
       nombre: 'Grande',
       precioVentaMenor: 3000,
-      predeterminada: true,
       orden: 1,
     ),
     VarianteListado(
       varianteId: 'variant-simple',
       nombre: null,
       precioVentaMenor: 1500,
-      predeterminada: false,
       orden: 2,
     ),
     VarianteListado(
       varianteId: 'variant-small',
       nombre: 'Chica',
       precioVentaMenor: 2000,
-      predeterminada: false,
       orden: 0,
     ),
   ],

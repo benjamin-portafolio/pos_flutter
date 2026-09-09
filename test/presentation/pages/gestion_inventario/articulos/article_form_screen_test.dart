@@ -88,7 +88,7 @@ void main() {
   });
 
   testWidgets(
-    'edición oculta la predeterminada antes de guardar y advierte al borrar la última',
+    'edición oculta la primera variante antes de guardar y advierte al borrar la última',
     (tester) async {
       ArticuloFormResult? saved;
       await tester.pumpWidget(

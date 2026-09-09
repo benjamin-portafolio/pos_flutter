@@ -2576,20 +2576,6 @@ class $ProductVariantsTable extends ProductVariants
       'UNIQUE REFERENCES inventory_items (id) ON DELETE RESTRICT',
     ),
   );
-  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
-    'isDefault',
-  );
-  @override
-  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
-    'is_default',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_default" IN (0, 1))',
-    ),
-  );
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',
   );
@@ -2615,7 +2601,6 @@ class $ProductVariantsTable extends ProductVariants
     salePriceMinor,
     standardCostMinor,
     inventoryItemId,
-    isDefault,
     sortOrder,
   ];
   @override
@@ -2723,14 +2708,6 @@ class $ProductVariantsTable extends ProductVariants
         ),
       );
     }
-    if (data.containsKey('is_default')) {
-      context.handle(
-        _isDefaultMeta,
-        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_isDefaultMeta);
-    }
     if (data.containsKey('sort_order')) {
       context.handle(
         _sortOrderMeta,
@@ -2796,10 +2773,6 @@ class $ProductVariantsTable extends ProductVariants
         DriftSqlType.string,
         data['${effectivePrefix}inventory_item_id'],
       ),
-      isDefault: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_default'],
-      )!,
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
@@ -2857,9 +2830,6 @@ class ProductVariantRow extends DataClass
   /// uno a uno sin transferir al catálogo la propiedad del recurso.
   final String? inventoryItemId;
 
-  /// Indica que esta es la variante elegida por omisión.
-  final bool isDefault;
-
   /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   final int sortOrder;
   const ProductVariantRow({
@@ -2875,7 +2845,6 @@ class ProductVariantRow extends DataClass
     required this.salePriceMinor,
     this.standardCostMinor,
     this.inventoryItemId,
-    required this.isDefault,
     required this.sortOrder,
   });
   @override
@@ -2907,7 +2876,6 @@ class ProductVariantRow extends DataClass
     if (!nullToAbsent || inventoryItemId != null) {
       map['inventory_item_id'] = Variable<String>(inventoryItemId);
     }
-    map['is_default'] = Variable<bool>(isDefault);
     map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
@@ -2938,7 +2906,6 @@ class ProductVariantRow extends DataClass
       inventoryItemId: inventoryItemId == null && nullToAbsent
           ? const Value.absent()
           : Value(inventoryItemId),
-      isDefault: Value(isDefault),
       sortOrder: Value(sortOrder),
     );
   }
@@ -2961,7 +2928,6 @@ class ProductVariantRow extends DataClass
       salePriceMinor: serializer.fromJson<int>(json['salePriceMinor']),
       standardCostMinor: serializer.fromJson<int?>(json['standardCostMinor']),
       inventoryItemId: serializer.fromJson<String?>(json['inventoryItemId']),
-      isDefault: serializer.fromJson<bool>(json['isDefault']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
@@ -2981,7 +2947,6 @@ class ProductVariantRow extends DataClass
       'salePriceMinor': serializer.toJson<int>(salePriceMinor),
       'standardCostMinor': serializer.toJson<int?>(standardCostMinor),
       'inventoryItemId': serializer.toJson<String?>(inventoryItemId),
-      'isDefault': serializer.toJson<bool>(isDefault),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
@@ -2999,7 +2964,6 @@ class ProductVariantRow extends DataClass
     int? salePriceMinor,
     Value<int?> standardCostMinor = const Value.absent(),
     Value<String?> inventoryItemId = const Value.absent(),
-    bool? isDefault,
     int? sortOrder,
   }) => ProductVariantRow(
     id: id ?? this.id,
@@ -3022,7 +2986,6 @@ class ProductVariantRow extends DataClass
     inventoryItemId: inventoryItemId.present
         ? inventoryItemId.value
         : this.inventoryItemId,
-    isDefault: isDefault ?? this.isDefault,
     sortOrder: sortOrder ?? this.sortOrder,
   );
   ProductVariantRow copyWithCompanion(ProductVariantsCompanion data) {
@@ -3051,7 +3014,6 @@ class ProductVariantRow extends DataClass
       inventoryItemId: data.inventoryItemId.present
           ? data.inventoryItemId.value
           : this.inventoryItemId,
-      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
@@ -3071,7 +3033,6 @@ class ProductVariantRow extends DataClass
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
-          ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
@@ -3091,7 +3052,6 @@ class ProductVariantRow extends DataClass
     salePriceMinor,
     standardCostMinor,
     inventoryItemId,
-    isDefault,
     sortOrder,
   );
   @override
@@ -3110,7 +3070,6 @@ class ProductVariantRow extends DataClass
           other.salePriceMinor == this.salePriceMinor &&
           other.standardCostMinor == this.standardCostMinor &&
           other.inventoryItemId == this.inventoryItemId &&
-          other.isDefault == this.isDefault &&
           other.sortOrder == this.sortOrder);
 }
 
@@ -3127,7 +3086,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
   final Value<int> salePriceMinor;
   final Value<int?> standardCostMinor;
   final Value<String?> inventoryItemId;
-  final Value<bool> isDefault;
   final Value<int> sortOrder;
   final Value<int> rowid;
   const ProductVariantsCompanion({
@@ -3143,7 +3101,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.salePriceMinor = const Value.absent(),
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
-    this.isDefault = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3160,13 +3117,11 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     required int salePriceMinor,
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
-    required bool isDefault,
     required int sortOrder,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        productId = Value(productId),
        salePriceMinor = Value(salePriceMinor),
-       isDefault = Value(isDefault),
        sortOrder = Value(sortOrder);
   static Insertable<ProductVariantRow> custom({
     Expression<String>? id,
@@ -3181,7 +3136,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Expression<int>? salePriceMinor,
     Expression<int>? standardCostMinor,
     Expression<String>? inventoryItemId,
-    Expression<bool>? isDefault,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
   }) {
@@ -3199,7 +3153,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       if (salePriceMinor != null) 'sale_price_minor': salePriceMinor,
       if (standardCostMinor != null) 'standard_cost_minor': standardCostMinor,
       if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
-      if (isDefault != null) 'is_default': isDefault,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3218,7 +3171,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Value<int>? salePriceMinor,
     Value<int?>? standardCostMinor,
     Value<String?>? inventoryItemId,
-    Value<bool>? isDefault,
     Value<int>? sortOrder,
     Value<int>? rowid,
   }) {
@@ -3235,7 +3187,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       salePriceMinor: salePriceMinor ?? this.salePriceMinor,
       standardCostMinor: standardCostMinor ?? this.standardCostMinor,
       inventoryItemId: inventoryItemId ?? this.inventoryItemId,
-      isDefault: isDefault ?? this.isDefault,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
     );
@@ -3280,9 +3231,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     if (inventoryItemId.present) {
       map['inventory_item_id'] = Variable<String>(inventoryItemId.value);
     }
-    if (isDefault.present) {
-      map['is_default'] = Variable<bool>(isDefault.value);
-    }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
@@ -3307,7 +3255,6 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
-          ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -10022,7 +9969,6 @@ typedef $$ProductVariantsTableCreateCompanionBuilder =
       required int salePriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
-      required bool isDefault,
       required int sortOrder,
       Value<int> rowid,
     });
@@ -10040,7 +9986,6 @@ typedef $$ProductVariantsTableUpdateCompanionBuilder =
       Value<int> salePriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
-      Value<bool> isDefault,
       Value<int> sortOrder,
       Value<int> rowid,
     });
@@ -10170,11 +10115,6 @@ class $$ProductVariantsTableFilterComposer
 
   ColumnFilters<int> get standardCostMinor => $composableBuilder(
     column: $table.standardCostMinor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isDefault => $composableBuilder(
-    column: $table.isDefault,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10314,11 +10254,6 @@ class $$ProductVariantsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isDefault => $composableBuilder(
-    column: $table.isDefault,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
@@ -10419,9 +10354,6 @@ class $$ProductVariantsTableAnnotationComposer
     column: $table.standardCostMinor,
     builder: (column) => column,
   );
-
-  GeneratedColumn<bool> get isDefault =>
-      $composableBuilder(column: $table.isDefault, builder: (column) => column);
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
@@ -10544,7 +10476,6 @@ class $$ProductVariantsTableTableManager
                 Value<int> salePriceMinor = const Value.absent(),
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
-                Value<bool> isDefault = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductVariantsCompanion(
@@ -10560,7 +10491,6 @@ class $$ProductVariantsTableTableManager
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
-                isDefault: isDefault,
                 sortOrder: sortOrder,
                 rowid: rowid,
               ),
@@ -10578,7 +10508,6 @@ class $$ProductVariantsTableTableManager
                 required int salePriceMinor,
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
-                required bool isDefault,
                 required int sortOrder,
                 Value<int> rowid = const Value.absent(),
               }) => ProductVariantsCompanion.insert(
@@ -10594,7 +10523,6 @@ class $$ProductVariantsTableTableManager
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
-                isDefault: isDefault,
                 sortOrder: sortOrder,
                 rowid: rowid,
               ),

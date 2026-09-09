@@ -293,7 +293,6 @@ class ProductoCommandService {
                   quantityAtomic: component.quantityAtomic,
                 ),
             ],
-            esPredeterminada: index == 0,
             orden: index,
           ),
       ],

@@ -16,8 +16,8 @@ void main() {
   tearDown(() => db.close());
 
   test('permite varias variantes sin nombre y costo cero', () async {
-    await _insertVariant(db, id: 'v1', order: 0, isDefault: true, cost: 0);
-    await _insertVariant(db, id: 'v2', order: 1, isDefault: false);
+    await _insertVariant(db, id: 'v1', order: 0, cost: 0);
+    await _insertVariant(db, id: 'v2', order: 1);
     expect(await db.select(db.productVariants).get(), hasLength(2));
   });
 
@@ -26,48 +26,24 @@ void main() {
       db,
       id: 'v1',
       order: 0,
-      isDefault: true,
       name: 'Grande',
       nameKey: 'grande',
     );
 
     await expectLater(
-      _insertVariant(
-        db,
-        id: 'bad-name',
-        order: 1,
-        isDefault: false,
-        name: 'Sin clave',
-      ),
+      _insertVariant(db, id: 'bad-name', order: 1, name: 'Sin clave'),
       throwsA(anything),
     );
     await expectLater(
-      _insertVariant(
-        db,
-        id: 'bad-price',
-        order: 1,
-        isDefault: false,
-        price: 0,
-      ),
+      _insertVariant(db, id: 'bad-price', order: 1, price: 0),
       throwsA(anything),
     );
     await expectLater(
-      _insertVariant(
-        db,
-        id: 'bad-cost',
-        order: 1,
-        isDefault: false,
-        cost: -1,
-      ),
+      _insertVariant(db, id: 'bad-cost', order: 1, cost: -1),
       throwsA(anything),
     );
     await expectLater(
-      _insertVariant(
-        db,
-        id: 'bad-order',
-        order: -1,
-        isDefault: false,
-      ),
+      _insertVariant(db, id: 'bad-order', order: -1),
       throwsA(anything),
     );
     await expectLater(
@@ -75,7 +51,6 @@ void main() {
         db,
         id: 'duplicate-name',
         order: 1,
-        isDefault: false,
         name: 'GRANDE',
         nameKey: 'grande',
       ),
@@ -88,7 +63,7 @@ Future<void> _insertVariant(
   AppDatabase db, {
   required String id,
   required int order,
-  required bool isDefault,
+
   String? name,
   String? nameKey,
   int price = 100,
@@ -104,7 +79,6 @@ Future<void> _insertVariant(
           nameKey: Value(nameKey),
           salePriceMinor: price,
           standardCostMinor: Value(cost),
-          isDefault: isDefault,
           sortOrder: order,
         ),
       );

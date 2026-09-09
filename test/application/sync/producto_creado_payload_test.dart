@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 
 void main() {
@@ -25,7 +26,7 @@ void main() {
           'barcode': null,
           'sale_price_minor': 5050,
           'standard_cost_minor': null,
-          'is_default': true,
+
           'sort_order': 0,
         },
       ],
@@ -44,7 +45,6 @@ void main() {
           nombre: '  Ｇｒａｎｄｅ  ',
           precioVentaMenor: 1000,
           costoEstandarMenor: 200,
-          esPredeterminada: true,
           orden: 0,
         ),
         ProductoCreadoVariante.create(
@@ -52,7 +52,6 @@ void main() {
           nombre: '',
           precioVentaMenor: 1200,
           costoEstandarMenor: 0,
-          esPredeterminada: false,
           orden: 1,
         ),
       ],
@@ -89,7 +88,7 @@ void main() {
     );
   });
 
-  test('rechaza duplicados normalizados, IDs, orden y predeterminada', () {
+  test('rechaza duplicados normalizados, IDs y orden', () {
     final valid = _advancedJson();
 
     final duplicateName = _copyJson(valid);
@@ -112,14 +111,44 @@ void main() {
       () => ProductoCreadoPayload.fromJson(invalidOrder),
       throwsFormatException,
     );
-
-    final invalidDefault = _copyJson(valid);
-    (invalidDefault['variants']! as List)[1]['is_default'] = true;
-    expect(
-      () => ProductoCreadoPayload.fromJson(invalidDefault),
-      throwsFormatException,
-    );
   });
+
+  test(
+    'lee eventos anteriores sin conservar is_default ni alterar variantes',
+    () {
+      final canonical = _advancedJson();
+      final legacy = _copyJson(canonical);
+      for (final variant in legacy['variants']! as List) {
+        (variant as Map)['is_default'] = true;
+      }
+      expect(ProductoCreadoPayload.fromJson(legacy).toJson(), canonical);
+    },
+  );
+
+  test(
+    'actualización legada ignora flags en before/after y no inventa cambios',
+    () {
+      final before = _advancedJson();
+      final after = _advancedJson();
+      for (final variant in before['variants']! as List) {
+        (variant as Map)['is_default'] = true;
+      }
+      for (final variant in after['variants']! as List) {
+        (variant as Map)['is_default'] = false;
+      }
+      final payload = ProductoActualizadoPayload.fromJson({
+        'base_event_id': 'base-event',
+        'before': before,
+        'after': after,
+      });
+      expect(
+        ProductoActualizadoPayload.sameState(payload.before, payload.after),
+        isTrue,
+      );
+      expect(payload.toJson()['before'], _advancedJson());
+      expect(payload.toJson()['after'], _advancedJson());
+    },
+  );
 
   test('costo acepta null, cero y positivos y rechaza negativos', () {
     for (final cost in <int?>[null, 0, 1, 9007199254740991]) {
@@ -224,7 +253,6 @@ void main() {
           precioVentaMenor: 3500,
           costoEstandarMenor: null,
           componentesReceta: [component],
-          esPredeterminada: true,
           orden: 0,
         ),
       ],
@@ -255,7 +283,6 @@ void main() {
         costoEstandarMenor: null,
         inventoryItemId: _item1,
         componentesReceta: [component],
-        esPredeterminada: true,
         orden: 0,
       ),
       throwsFormatException,
@@ -274,7 +301,6 @@ Map<String, Object?> _advancedJson() {
         nombre: 'Grande',
         precioVentaMenor: 1000,
         costoEstandarMenor: 200,
-        esPredeterminada: true,
         orden: 0,
       ),
       ProductoCreadoVariante.create(
@@ -282,7 +308,6 @@ Map<String, Object?> _advancedJson() {
         nombre: 'Chica',
         precioVentaMenor: 800,
         costoEstandarMenor: null,
-        esPredeterminada: false,
         orden: 1,
       ),
     ],

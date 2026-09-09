@@ -42,9 +42,6 @@ class ProductVariants extends Table with CommonFields {
     onDelete: KeyAction.restrict,
   )();
 
-  /// Indica que esta es la variante elegida por omisión.
-  BoolColumn get isDefault => boolean()();
-
   /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   IntColumn get sortOrder => integer()();
 

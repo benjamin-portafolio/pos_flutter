@@ -31,7 +31,6 @@ void main() {
               id: 'variant-legacy',
               productId: 'product-legacy',
               salePriceMinor: 1000,
-              isDefault: true,
               sortOrder: 0,
               createdEventId: const Value('event-legacy'),
               lastEventId: const Value('event-legacy'),

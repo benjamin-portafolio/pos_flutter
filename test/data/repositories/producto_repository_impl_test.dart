@@ -29,7 +29,6 @@ void main() {
         productId: 'selected',
         price: 6075,
         standardCost: 2200,
-        isDefault: false,
         sortOrder: 1,
       );
       await _insertVariant(
@@ -38,7 +37,6 @@ void main() {
         productId: 'selected',
         price: 4550,
         standardCost: 0,
-        isDefault: true,
         sortOrder: 0,
       );
       await _insertVariant(
@@ -46,7 +44,6 @@ void main() {
         id: 'hidden',
         productId: 'selected',
         price: 1000,
-        isDefault: false,
         sortOrder: 2,
         active: false,
       );
@@ -55,7 +52,6 @@ void main() {
         id: 'other-v',
         productId: 'other',
         price: 1000,
-        isDefault: true,
         sortOrder: 0,
       );
       final detail = await repository.obtenerDetalle('selected');
@@ -86,7 +82,6 @@ void main() {
         id: 'variant-z-2',
         productId: 'product-z',
         price: 5200,
-        isDefault: true,
         sortOrder: 2,
       );
       await _insertVariant(
@@ -94,7 +89,6 @@ void main() {
         id: 'variant-z-0',
         productId: 'product-z',
         price: 5000,
-        isDefault: false,
         sortOrder: 0,
       );
       await _insertVariant(
@@ -102,7 +96,6 @@ void main() {
         id: 'variant-z-1-inactive',
         productId: 'product-z',
         price: 5100,
-        isDefault: false,
         sortOrder: 1,
         active: false,
       );
@@ -112,7 +105,6 @@ void main() {
         id: 'variant-b',
         productId: 'product-b',
         price: 2500,
-        isDefault: true,
         sortOrder: 0,
       );
       await _insertProduct(db, id: 'product-a', name: 'Alfa');
@@ -121,7 +113,6 @@ void main() {
         id: 'variant-a',
         productId: 'product-a',
         price: 2000,
-        isDefault: true,
         sortOrder: 0,
       );
       await _insertProduct(
@@ -135,7 +126,6 @@ void main() {
         id: 'variant-inactive-product',
         productId: 'product-inactive',
         price: 1000,
-        isDefault: true,
         sortOrder: 0,
       );
 
@@ -149,8 +139,8 @@ void main() {
       final beta = articles.last;
       expect(beta.categoriaNombre, 'Bebidas');
       expect(beta.categoriaColor, ColorCategoria.blue);
-      expect(beta.variantePredeterminadaId, 'variant-z-2');
-      expect(beta.precioPredeterminadoMenor, 5200);
+      expect(beta.precioMinimoMenor, 5000);
+      expect(beta.precioMaximoMenor, 5200);
       expect(beta.variantesActivas.map((variant) => variant.varianteId), [
         'variant-z-0',
         'variant-z-2',
@@ -248,7 +238,6 @@ void main() {
       id: 'variant-1',
       productId: 'product-active',
       price: 1000,
-      isDefault: true,
       sortOrder: 0,
     );
     await _insertVariant(
@@ -256,7 +245,6 @@ void main() {
       id: 'variant-2',
       productId: 'product-active',
       price: 2000,
-      isDefault: false,
       sortOrder: 1,
     );
 
@@ -287,7 +275,6 @@ void main() {
         id: 'variant-new',
         productId: 'product-new',
         price: 3200,
-        isDefault: true,
         sortOrder: 0,
       );
     });
@@ -305,7 +292,6 @@ void main() {
       nameKey: 'grande',
       price: 1000,
       standardCost: 200,
-      isDefault: true,
       sortOrder: 0,
     );
 
@@ -315,25 +301,14 @@ void main() {
     expect(variant.costoEstandarMenor, 200);
   });
 
-  test(
-    'una proyección activa sin predeterminada válida produce error',
-    () async {
-      await _insertProduct(db, id: 'invalid-product', name: 'Inválido');
-      await _insertVariant(
-        db,
-        id: 'invalid-variant',
-        productId: 'invalid-product',
-        price: 1000,
-        isDefault: false,
-        sortOrder: 0,
-      );
+  test('una proyección activa sin variantes produce error', () async {
+    await _insertProduct(db, id: 'invalid-product', name: 'Inválido');
 
-      await expectLater(
-        repository.watchArticulos(),
-        emitsError(isA<StateError>()),
-      );
-    },
-  );
+    await expectLater(
+      repository.watchArticulos(),
+      emitsError(isA<StateError>()),
+    );
+  });
 }
 
 Future<void> _insertCategory(
@@ -381,7 +356,6 @@ Future<void> _insertVariant(
   String? name,
   String? nameKey,
   int? standardCost,
-  required bool isDefault,
   required int sortOrder,
   bool active = true,
 }) {
@@ -395,7 +369,6 @@ Future<void> _insertVariant(
           nameKey: Value(nameKey),
           salePriceMinor: price,
           standardCostMinor: Value(standardCost),
-          isDefault: isDefault,
           sortOrder: sortOrder,
           active: Value(active),
         ),
@@ -415,7 +388,6 @@ Future<void> _insertSimpleArticle(
       id: 'variant-$id',
       productId: id,
       price: 1000,
-      isDefault: true,
       sortOrder: 0,
     );
   });

@@ -17,7 +17,6 @@ class ProductoCreadoPayload {
 
   static const aggregateType = 'product';
   static const eventType = 'producto_creado';
-
   final String nombre;
   final String? categoriaId;
   final SaleConfiguration saleConfiguration;
@@ -72,7 +71,6 @@ class ProductoCreadoPayload {
           nombre: null,
           precioVentaMenor: precioVentaMenor,
           costoEstandarMenor: null,
-          esPredeterminada: true,
           orden: 0,
         ),
       ],
@@ -228,7 +226,6 @@ class ProductoCreadoVariante {
     required this.costoEstandarMenor,
     required this.inventoryItemId,
     required this.componentesReceta,
-    required this.esPredeterminada,
     required this.orden,
   });
 
@@ -239,7 +236,6 @@ class ProductoCreadoVariante {
     required int? costoEstandarMenor,
     String? inventoryItemId,
     List<ProductoCreadoComponenteReceta> componentesReceta = const [],
-    required bool esPredeterminada,
     required int orden,
   }) {
     final normalizedName = NombreVariante.fromInput(nombre);
@@ -265,7 +261,6 @@ class ProductoCreadoVariante {
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
       inventoryItemId: normalizedInventoryItemId,
       componentesReceta: validatedComponents,
-      esPredeterminada: esPredeterminada,
       orden: orden,
     );
   }
@@ -277,7 +272,6 @@ class ProductoCreadoVariante {
   final int? costoEstandarMenor;
   final String? inventoryItemId;
   final List<ProductoCreadoComponenteReceta> componentesReceta;
-  final bool esPredeterminada;
   final int orden;
 
   factory ProductoCreadoVariante.fromJson(
@@ -297,10 +291,8 @@ class ProductoCreadoVariante {
     final parsedCost = standardCost == null
         ? null
         : _requiredInt(standardCost, '$fieldName.standard_cost_minor');
-    final isDefault = json['is_default'];
-    if (isDefault is! bool) {
-      throw FormatException('$fieldName.is_default debe ser booleano.');
-    }
+    // Compatibilidad: is_default de eventos anteriores se ignora.
+    // El contrato actual solo conserva el orden de las variantes.
     final recipeComponents = _parseRecipeComponents(
       json['inventory_configuration'],
       fieldName: '$fieldName.inventory_configuration',
@@ -319,7 +311,6 @@ class ProductoCreadoVariante {
           '$fieldName.inventory_item_id',
         ),
         componentesReceta: recipeComponents,
-        esPredeterminada: isDefault,
         orden: _requiredInt(json['sort_order'], '$fieldName.sort_order'),
       );
     } on ArgumentError catch (error) {
@@ -344,7 +335,6 @@ class ProductoCreadoVariante {
             .map((component) => component.toJson())
             .toList(growable: false),
       },
-    'is_default': esPredeterminada,
     'sort_order': orden,
   };
 }
@@ -410,7 +400,6 @@ class ProductoCreadoDependencia {
     required this.refId,
     required this.dependsOnEventId,
   });
-
   final String refId;
   final String dependsOnEventId;
 
@@ -426,7 +415,6 @@ class ProductoCreadoInventarioDependencia {
     required this.refId,
     this.dependsOnEventId,
   });
-
   final String refId;
   final String? dependsOnEventId;
 
@@ -526,7 +514,6 @@ List<ProductoCreadoVariante> _validateVariants(
   final ids = <String>{};
   final nameKeys = <String>{};
   final inventoryItemIds = <String>{};
-  var defaults = 0;
   for (var index = 0; index < variants.length; index++) {
     final variant = variants[index];
     if (!ids.add(variant.id)) {
@@ -549,17 +536,6 @@ List<ProductoCreadoVariante> _validateVariants(
         'sort_order debe ser consecutivo desde cero.',
       );
     }
-    if (variant.esPredeterminada) defaults++;
-    if (variant.esPredeterminada != (index == 0)) {
-      throw const FormatException(
-        'La primera variante debe ser la única predeterminada.',
-      );
-    }
-  }
-  if (defaults != 1) {
-    throw const FormatException(
-      'producto_creado requiere exactamente una variante predeterminada.',
-    );
   }
   return List.unmodifiable(variants);
 }

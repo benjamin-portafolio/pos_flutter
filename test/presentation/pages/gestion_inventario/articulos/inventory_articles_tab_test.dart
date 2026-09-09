@@ -367,14 +367,11 @@ const _articles = [
     categoriaId: 'category-1',
     categoriaNombre: 'Bebidas',
     categoriaColor: ColorCategoria.blue,
-    variantePredeterminadaId: 'variant-coffee',
-    precioPredeterminadoMenor: 4550,
     variantesActivas: [
       VarianteListado(
         varianteId: 'variant-coffee',
         nombre: null,
         precioVentaMenor: 4550,
-        predeterminada: true,
         orden: 0,
       ),
     ],
@@ -386,14 +383,11 @@ const _articles = [
     categoriaId: 'category-2',
     categoriaNombre: 'Tés',
     categoriaColor: ColorCategoria.green,
-    variantePredeterminadaId: 'variant-tea',
-    precioPredeterminadoMenor: 3200,
     variantesActivas: [
       VarianteListado(
         varianteId: 'variant-tea',
         nombre: null,
         precioVentaMenor: 3200,
-        predeterminada: true,
         orden: 0,
       ),
     ],
@@ -405,14 +399,11 @@ const _articles = [
     categoriaId: null,
     categoriaNombre: null,
     categoriaColor: null,
-    variantePredeterminadaId: 'variant-water',
-    precioPredeterminadoMenor: 2000,
     variantesActivas: [
       VarianteListado(
         varianteId: 'variant-water',
         nombre: null,
         precioVentaMenor: 2000,
-        predeterminada: true,
         orden: 0,
       ),
     ],
@@ -424,14 +415,11 @@ const _articles = [
     categoriaId: 'category-3',
     categoriaNombre: 'Postres',
     categoriaColor: ColorCategoria.pink,
-    variantePredeterminadaId: 'variant-cake',
-    precioPredeterminadoMenor: 6000,
     variantesActivas: [
       VarianteListado(
         varianteId: 'variant-cake',
         nombre: null,
         precioVentaMenor: 6000,
-        predeterminada: true,
         orden: 0,
       ),
     ],

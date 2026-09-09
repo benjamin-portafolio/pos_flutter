@@ -61,7 +61,6 @@ class ProductoProjection extends SyncProjection {
     required super.lastEventId,
     required super.lastServerSequence,
   });
-
   final String nombre;
   final String? categoriaId;
   final SaleConfiguration saleConfiguration;
@@ -76,7 +75,6 @@ class ProductoVarianteProjection extends SyncProjection {
     required this.precioVentaMenor,
     this.costoEstandarMenor,
     this.inventoryItemId,
-    required this.esPredeterminada,
     required this.orden,
     required super.active,
     required super.version,
@@ -84,14 +82,12 @@ class ProductoVarianteProjection extends SyncProjection {
     required super.lastEventId,
     required super.lastServerSequence,
   });
-
   final String productoId;
   final String? nombre;
   final String? nameKey;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
   final String? inventoryItemId;
-  final bool esPredeterminada;
   final int orden;
 }
 
@@ -101,7 +97,6 @@ class ProductoRecetaComponenteProjection {
     required this.inventoryItemId,
     required this.quantityAtomic,
   });
-
   final String varianteId;
   final String inventoryItemId;
   final int quantityAtomic;

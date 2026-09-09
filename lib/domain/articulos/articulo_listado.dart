@@ -9,18 +9,22 @@ class ArticuloListado {
     required this.categoriaId,
     required this.categoriaNombre,
     required this.categoriaColor,
-    required this.variantePredeterminadaId,
-    required this.precioPredeterminadoMenor,
     required this.variantesActivas,
   });
-
   final String productoId;
   final String nombre;
   final bool activo;
   final String? categoriaId;
   final String? categoriaNombre;
   final ColorCategoria? categoriaColor;
-  final String variantePredeterminadaId;
-  final int precioPredeterminadoMenor;
   final List<VarianteListado> variantesActivas;
+
+  /// Extremos del precio entre variantes activas, independientes de su orden.
+  int get precioMinimoMenor => variantesActivas
+      .map((variante) => variante.precioVentaMenor)
+      .reduce((left, right) => left < right ? left : right);
+
+  int get precioMaximoMenor => variantesActivas
+      .map((variante) => variante.precioVentaMenor)
+      .reduce((left, right) => left > right ? left : right);
 }

@@ -87,7 +87,6 @@ class ProductoEventHandler {
           precioVentaMenor: variant.precioVentaMenor,
           costoEstandarMenor: variant.costoEstandarMenor,
           inventoryItemId: variant.inventoryItemId,
-          esPredeterminada: variant.esPredeterminada,
           orden: variant.orden,
           active: true,
           version: version,

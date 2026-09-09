@@ -31,7 +31,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
           precioVentaMenor: variant.precioVentaMenor,
           costoEstandarMenor: variant.costoEstandarMenor,
           inventoryItemId: variant.inventoryItemId,
-          esPredeterminada: variant.esPredeterminada,
           orden: variant.orden,
           componentesReceta: recipe
               .map(
@@ -130,7 +129,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
           v.id,
           drift.ProductVariantsCompanion(
             active: const Value(false),
-            isDefault: const Value(false),
             version: Value(version),
             lastEventId: Value(lastEventId),
             lastServerSequence: Value(sequence),
@@ -158,7 +156,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
             precioVentaMenor: v.precioVentaMenor,
             costoEstandarMenor: v.costoEstandarMenor,
             inventoryItemId: v.inventoryItemId,
-            esPredeterminada: v.esPredeterminada,
             orden: v.orden,
             active: true,
             version: version,
@@ -180,7 +177,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
             salePriceMinor: Value(v.precioVentaMenor),
             standardCostMinor: Value(v.costoEstandarMenor),
             inventoryItemId: Value(v.inventoryItemId),
-            isDefault: Value(v.esPredeterminada),
             sortOrder: Value(v.orden),
             version: Value(version),
             lastEventId: Value(lastEventId),
@@ -270,7 +266,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         salePriceMinor: projection.precioVentaMenor,
         standardCostMinor: Value(projection.costoEstandarMenor),
         inventoryItemId: Value(projection.inventoryItemId),
-        isDefault: projection.esPredeterminada,
         sortOrder: projection.orden,
         active: Value(projection.active),
         version: Value(projection.version),
@@ -369,7 +364,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       precioVentaMenor: row.salePriceMinor,
       costoEstandarMenor: row.standardCostMinor,
       inventoryItemId: row.inventoryItemId,
-      esPredeterminada: row.isDefault,
       orden: row.sortOrder,
       active: row.active,
       version: row.version,

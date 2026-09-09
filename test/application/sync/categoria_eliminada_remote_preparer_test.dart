@@ -660,7 +660,7 @@ Map<String, Object?> _productPayload(String variantId) => {
       'sku': null,
       'barcode': null,
       'sale_price_minor': 1000,
-      'is_default': true,
+
       'sort_order': 0,
     },
   ],

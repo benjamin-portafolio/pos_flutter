@@ -46,14 +46,11 @@ void main() {
       categoriaId: 'category-1',
       categoriaNombre: 'Bebidas',
       categoriaColor: ColorCategoria.blue,
-      variantePredeterminadaId: 'variant-1',
-      precioPredeterminadoMenor: 4550,
       variantesActivas: [
         VarianteListado(
           varianteId: 'variant-1',
           nombre: null,
           precioVentaMenor: 4550,
-          predeterminada: true,
           orden: 0,
         ),
       ],
@@ -307,14 +304,11 @@ void main() {
           categoriaId: null,
           categoriaNombre: null,
           categoriaColor: null,
-          variantePredeterminadaId: 'variant-2',
-          precioPredeterminadoMenor: 3200,
           variantesActivas: [
             VarianteListado(
               varianteId: 'variant-2',
               nombre: null,
               precioVentaMenor: 3200,
-              predeterminada: true,
               orden: 0,
             ),
           ],

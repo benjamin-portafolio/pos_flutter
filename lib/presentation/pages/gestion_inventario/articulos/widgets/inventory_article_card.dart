@@ -87,7 +87,7 @@ class InventoryArticleCard extends StatelessWidget {
                         ],
                         const SizedBox(height: 6),
                         Text(
-                          _formatPrice(articulo.precioPredeterminadoMenor),
+                          _priceLabel,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
                                 color: colorScheme.primary,
@@ -127,12 +127,20 @@ class InventoryArticleCard extends StatelessWidget {
     );
   }
 
+  String get _priceLabel {
+    final minimum = articulo.precioMinimoMenor;
+    final maximum = articulo.precioMaximoMenor;
+    return minimum == maximum
+        ? _formatPrice(minimum)
+        : '${_formatPrice(minimum)} – ${_formatPrice(maximum)}';
+  }
+
   String get _semanticLabel {
     final category = articulo.categoriaNombre == null
         ? 'sin categoría'
         : 'categoría ${articulo.categoriaNombre}';
     return '${articulo.nombre}, $category, '
-        '${_formatPrice(articulo.precioPredeterminadoMenor)}';
+        '$_priceLabel';
   }
 
   static int _compareVariants(VarianteListado left, VarianteListado right) {
