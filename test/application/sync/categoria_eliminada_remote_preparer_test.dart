@@ -96,6 +96,90 @@ void main() {
   tearDown(() => db.close());
 
   test(
+    'borrado físico local se restaura ante edición oficial; el eco del borrado no resucita filas',
+    () async {
+      await remoteApplier.applySyncedEvents([
+        _categoryCreated(),
+        _productCreated(),
+      ]);
+      final projection = DriftProductoProjectionStore(productoDao: productoDao);
+      final before = await projection.snapshot('product_1');
+      final product = (await projection.findProductById('product_1'))!;
+      final deletion = SyncEvent(
+        eventId: 'local_delete',
+        aggregateType: 'product',
+        aggregateId: product.id,
+        eventType: ProductoActualizadoPayload.eventType,
+        deviceId: 'device',
+        userId: 'user',
+        baseVersion: product.version,
+        baseServerSequence: product.lastServerSequence,
+        createdAtLocal: DateTime(2026),
+        payload: ProductoActualizadoPayload(
+          baseEventId: product.lastEventId!,
+          before: before,
+          after: before,
+          deleteProduct: true,
+        ).toJson(),
+      );
+      const refs = [
+        LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+      ];
+      await localStore.appendAndApply(deletion, refs: refs);
+      expect(await projection.findProductById(product.id), isNull);
+      final edited = ProductoCreadoPayload.create(
+        nombre: 'Oficial',
+        categoriaId: before.categoriaId,
+        saleConfiguration: before.saleConfiguration,
+        variantes: before.variantes,
+      );
+      final official = deletion.copyWith(
+        eventId: 'official_edit',
+        serverSequence: 3,
+        deliveryStatus: 'delivered',
+        payload: ProductoActualizadoPayload(
+          baseEventId: product.lastEventId!,
+          before: before,
+          after: edited,
+        ).toJson(),
+      );
+      await remoteApplier.applySyncedEvents([official]);
+      expect((await projection.findProductById(product.id))!.nombre, 'Oficial');
+      expect(
+        (await productoDao.obtenerVariantesPorProducto(
+          product.id,
+        )).single.createdEventId,
+        product.createdEventId,
+      );
+      final stored = await db.select(db.events).get();
+      expect(
+        stored.singleWhere((e) => e.eventId == deletion.eventId).deliveryStatus,
+        'conflict',
+      );
+      final nextDelete = deletion.copyWith(
+        eventId: 'next_delete',
+        baseVersion: 2,
+        baseServerSequence: 3,
+        payload: ProductoActualizadoPayload(
+          baseEventId: official.eventId,
+          before: edited,
+          after: edited,
+          deleteProduct: true,
+        ).toJson(),
+      );
+      await localStore.appendAndApply(nextDelete, refs: refs);
+      await remoteApplier.applySyncedEvents([
+        nextDelete.copyWith(serverSequence: 4, deliveryStatus: 'delivered'),
+      ]);
+      expect(await projection.findProductById(product.id), isNull);
+      expect(await db.select(db.productUpdateUndo).get(), isEmpty);
+      // A repeated creation in pull is an echo, not a new creation.
+      await remoteApplier.applySyncedEvents([_productCreated()]);
+      expect(await projection.findProductById(product.id), isNull);
+    },
+  );
+
+  test(
     'producto remoto revierte cadena local completa y el eco conserva cambios posteriores',
     () async {
       await remoteApplier.applySyncedEvents([

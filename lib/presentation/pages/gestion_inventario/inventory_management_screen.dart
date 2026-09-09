@@ -439,6 +439,12 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                     final service =
                         widget.productoCommandService ??
                         getIt<ProductoCommandService>();
+                    if (result.eliminarProducto) {
+                      return service.eliminarArticulo(
+                        productId: article.productoId,
+                        baseEventId: detail.lastEventId!,
+                      );
+                    }
                     return service.actualizarArticulo(
                       productId: article.productoId,
                       baseEventId: detail.lastEventId!,

@@ -1,3 +1,4 @@
+import 'package:pos_flutter/data/local/drift/drift_inventory_projection_store.dart';
 import 'package:pos_flutter/application/commands/producto_command_service.dart';
 import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
@@ -35,6 +36,233 @@ void main() {
   tearDown(() async {
     await db.close();
   });
+
+  for (final mode in [AppMode.standalone, AppMode.serverSync]) {
+    for (final dependency in ['none', 'inventory', 'recipe']) {
+      test(
+        '${mode.name}: elimina variante con $dependency, reutiliza nombre y elimina producto conservando historial',
+        () async {
+          final projection = DriftProductoProjectionStore(
+            productoDao: productoDao,
+          );
+          final store = _store(mode, db, productoDao, eventDao);
+          const refs = [
+            LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+          ];
+          const itemId = '00000000-0000-4000-8000-000000000030';
+          if (dependency != 'none') {
+            await db
+                .into(db.inventoryItems)
+                .insert(
+                  InventoryItemsCompanion.insert(
+                    id: itemId,
+                    defaultUnitId: InventoryUnitIds.piece,
+                    name: 'Recurso',
+                  ),
+                );
+            await db
+                .into(db.inventoryBalances)
+                .insert(
+                  InventoryBalancesCompanion.insert(
+                    inventoryItemId: itemId,
+                    quantityOnHandAtomic: 50,
+                    quantityAvailableAtomic: 50,
+                    lastEventId: 'stock',
+                  ),
+                );
+            await db
+                .into(db.inventoryMovements)
+                .insert(
+                  InventoryMovementsCompanion.insert(
+                    movementId: 'movement',
+                    inventoryItemId: itemId,
+                    eventId: 'stock',
+                    movementType: 'initial_balance',
+                    quantityDeltaAtomic: 50,
+                    createdAtLocal: DateTime(2026),
+                  ),
+                );
+          }
+          final original = ProductoCreadoPayload.fromJson(
+            _advancedEvent().payload,
+          );
+          final first = original.variantes.first;
+          final before = ProductoCreadoPayload.create(
+            nombre: original.nombre,
+            categoriaId: null,
+            saleConfiguration: original.saleConfiguration,
+            variantes: [
+              ProductoCreadoVariante.create(
+                id: first.id,
+                nombre: first.nombre,
+                precioVentaMenor: first.precioVentaMenor,
+                costoEstandarMenor: first.costoEstandarMenor,
+                esPredeterminada: true,
+                orden: 0,
+                inventoryItemId: dependency == 'inventory' ? itemId : null,
+                componentesReceta: dependency == 'recipe'
+                    ? [
+                        ProductoCreadoComponenteReceta.create(
+                          inventoryItemId: itemId,
+                          quantityAtomic: 1,
+                        ),
+                      ]
+                    : [],
+              ),
+              original.variantes.last,
+            ],
+            dependenciasInventario: dependency == 'none'
+                ? []
+                : [const ProductoCreadoInventarioDependencia(refId: itemId)],
+          );
+          final creation = _advancedEvent().copyWith(payload: before.toJson());
+          await store.appendAndApply(creation, refs: refs);
+          final initialRows = await productoDao.obtenerVariantesPorProducto(
+            'product_1',
+          );
+          final after = ProductoCreadoPayload.simple(
+            nombre: before.nombre,
+            categoriaId: null,
+            varianteId: before.variantes.last.id,
+            precioVentaMenor: 2000,
+          );
+          final deletion = creation.copyWith(
+            eventId: 'remove_variant',
+            eventType: ProductoActualizadoPayload.eventType,
+            payload: ProductoActualizadoPayload(
+              baseEventId: creation.eventId,
+              before: before,
+              after: after,
+            ).toJson(),
+          );
+          await store.appendAndApply(deletion, refs: refs);
+          final removed = await productoDao.obtenerVariantePorId(first.id);
+          expect(removed == null, dependency == 'none');
+          if (removed != null) {
+            expect(removed.active, isFalse);
+            expect(removed.name, first.nombre);
+            expect(
+              removed.inventoryItemId,
+              dependency == 'inventory' ? itemId : null,
+            );
+            expect(
+              await productoDao.obtenerComponentesRecetaPorVariante(first.id),
+              dependency == 'recipe' ? hasLength(1) : isEmpty,
+            );
+          }
+          final active = await projection.snapshot('product_1');
+          expect(active.variantes.single.id, before.variantes.last.id);
+          expect(active.variantes.single.esPredeterminada, isTrue);
+          // Restore pending deletion with exact creation IDs, names and recipes.
+          if (mode == AppMode.serverSync) {
+            await db.transaction(
+              () => projection.applyUpdate(
+                deletion,
+                before,
+                restore: true,
+                baseEventId: creation.eventId,
+              ),
+            );
+            expect(
+              await productoDao.obtenerVariantesPorProducto('product_1'),
+              initialRows,
+            );
+            expect(
+              (await projection.snapshot('product_1')).toJson(),
+              before.toJson(),
+            );
+            await ProductoEventHandler(
+              projection,
+            ).applyProductoActualizado(deletion);
+          }
+          final renamed = ProductoCreadoPayload.create(
+            nombre: before.nombre,
+            categoriaId: null,
+            saleConfiguration: before.saleConfiguration,
+            variantes: [
+              ProductoCreadoVariante.create(
+                id: after.variantes.single.id,
+                nombre: first.nombre,
+                precioVentaMenor: 2000,
+                costoEstandarMenor: null,
+                esPredeterminada: true,
+                orden: 0,
+              ),
+            ],
+          );
+          final update = deletion.copyWith(
+            eventId: 'reuse_name',
+            baseVersion: 2,
+            payload: ProductoActualizadoPayload(
+              baseEventId: deletion.eventId,
+              before: after,
+              after: renamed,
+            ).toJson(),
+          );
+          await store.appendAndApply(update, refs: refs);
+          final deleteProduct = update.copyWith(
+            eventId: 'delete_product',
+            baseVersion: 3,
+            payload: ProductoActualizadoPayload(
+              baseEventId: update.eventId,
+              before: renamed,
+              after: renamed,
+              deleteProduct: true,
+            ).toJson(),
+          );
+          await store.appendAndApply(deleteProduct, refs: refs);
+          final product = await productoDao.obtenerProductoPorId('product_1');
+          expect(product == null, dependency == 'none');
+          if (product != null) expect(product.active, isFalse);
+          expect(await productoDao.watchProductosListado().first, isEmpty);
+          expect(
+            await db.select(db.inventoryItems).get(),
+            dependency == 'none' ? isEmpty : hasLength(1),
+          );
+          if (dependency != 'none') {
+            expect(
+              (await db.select(db.inventoryBalances).get())
+                  .single
+                  .quantityOnHandAtomic,
+              50,
+            );
+          }
+          if (dependency != 'none') {
+            expect(
+              (await db.select(db.inventoryMovements).get())
+                  .single
+                  .quantityDeltaAtomic,
+              50,
+            );
+          }
+          expect(
+            await db.select(db.eventRefs).get(),
+            mode == AppMode.standalone ? isEmpty : isNotEmpty,
+          );
+          if (mode == AppMode.serverSync) {
+            await db.transaction(
+              () => projection.applyUpdate(
+                deleteProduct,
+                renamed,
+                restore: true,
+                baseEventId: update.eventId,
+              ),
+            );
+            expect(
+              (await projection.snapshot('product_1')).toJson(),
+              renamed.toJson(),
+            );
+            expect(
+              (await productoDao.obtenerProductoPorId(
+                'product_1',
+              ))!.createdEventId,
+              creation.eventId,
+            );
+          }
+        },
+      );
+    }
+  }
 
   for (final mode in [AppMode.standalone, AppMode.serverSync]) {
     test(
@@ -329,6 +557,39 @@ void main() {
       );
       expect(await db.select(db.events).get(), hasLength(2));
       expect(await db.select(db.eventRefs).get(), isEmpty);
+      var current = (await projection.findProductById(product.id))!;
+      await service.actualizarArticulo(
+        productId: product.id,
+        baseEventId: current.lastEventId!,
+        variantIds: [state.variantes.last.id],
+        command: const CrearArticuloCommand.conVariantes(
+          nombre: 'Nuevo',
+          variantes: [
+            CrearArticuloVarianteCommand(
+              nombre: 'Nueva',
+              precioVenta: '5',
+              costoEstandar: null,
+            ),
+          ],
+        ),
+      );
+      expect(
+        (await projection.snapshot(product.id)).variantes.single.id,
+        state.variantes.last.id,
+      );
+      current = (await projection.findProductById(product.id))!;
+      await service.eliminarArticulo(
+        productId: product.id,
+        baseEventId: current.lastEventId!,
+      );
+      expect(await projection.findProductById(product.id), isNull);
+      expect(await db.select(db.eventRefs).get(), isEmpty);
+      expect(
+        (await db.select(db.events).get()).every(
+          (e) => e.deliveryStatus == 'not_required',
+        ),
+        isTrue,
+      );
     },
   );
 
@@ -420,6 +681,10 @@ DriftLocalEventStore _store(
       handlers: productoEventHandlers(
         ProductoEventHandler(
           DriftProductoProjectionStore(productoDao: productoDao),
+          inventoryProjectionStore: DriftInventoryProjectionStore(
+            inventoryDao: InventoryDao(db),
+            unitDao: UnitDao(db),
+          ),
         ),
       ),
     ),

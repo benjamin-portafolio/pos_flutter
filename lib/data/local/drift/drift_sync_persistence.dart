@@ -93,6 +93,11 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
       serverTime: serverTime,
       rejectionReason: rejectionReason,
     );
+    if (status == 'delivered') {
+      await (_db.delete(
+        _db.productUpdateUndo,
+      )..where((b) => b.eventId.equals(eventId))).go();
+    }
   }
 
   @override

@@ -6,6 +6,12 @@ import 'products.dart';
 
 /// Proyección local de las presentaciones vendibles de un producto.
 @DataClassName('ProductVariantRow')
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX ux_product_variants_product_sort ON product_variants (product_id, sort_order) WHERE active = 1',
+)
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX ux_product_variants_product_name_key ON product_variants (product_id, name_key) WHERE active = 1 AND name_key IS NOT NULL',
+)
 class ProductVariants extends Table with CommonFields {
   /// Producto propietario de la variante. La cascada solo protege limpiezas
   /// tecnicas de proyecciones; no representa un borrado de negocio.
@@ -39,17 +45,11 @@ class ProductVariants extends Table with CommonFields {
   /// Indica que esta es la variante elegida por omisión.
   BoolColumn get isDefault => boolean()();
 
-  /// Posición consecutiva dentro del producto, iniciando en cero.
+  /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   IntColumn get sortOrder => integer()();
 
   @override
   Set<Column> get primaryKey => {id};
-
-  @override
-  List<Set<Column>> get uniqueKeys => [
-    {productId, sortOrder},
-    {productId, nameKey},
-  ];
 
   @override
   List<String> get customConstraints => [

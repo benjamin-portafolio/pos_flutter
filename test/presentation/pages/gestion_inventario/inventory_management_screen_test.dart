@@ -1028,6 +1028,12 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
 
 class _FakeProductoCommandService implements ProductoCommandService {
   @override
+  Future<void> eliminarArticulo({
+    required String productId,
+    required String baseEventId,
+  }) async {}
+
+  @override
   Future<void> actualizarArticulo({
     required String productId,
     required String baseEventId,

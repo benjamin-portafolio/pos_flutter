@@ -137,6 +137,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     String productId,
     int serverSequence,
   ) async {
+    await descartarRespaldosConfirmados(productId);
     await (update(products)..where(
           (product) =>
               product.id.equals(productId) &
@@ -163,6 +164,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     String productId,
     int serverSequence,
   ) async {
+    await descartarRespaldosConfirmados(productId);
     await (update(products)..where(
           (product) =>
               product.id.equals(productId) &
@@ -190,8 +192,13 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     )..where((product) => product.createdEventId.equals(eventId))).go();
   }
 
-  Future<void> prepararActualizacionVariantes(String productId) async {
-    final variants = await obtenerVariantesPorProducto(productId);
+  Future<void> prepararActualizacionVariantes(
+    String productId,
+    Set<String> ids,
+  ) async {
+    final variants = (await obtenerVariantesPorProducto(
+      productId,
+    )).where((v) => ids.contains(v.id)).toList();
     final maxOrder = variants.fold<int>(
       0,
       (value, row) => row.sortOrder > value ? row.sortOrder : value,
@@ -231,6 +238,108 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     await (update(
       productVariants,
     )..where((v) => v.id.equals(id))).write(values);
+  }
+
+  Future<void> guardarRespaldoActualizacion(
+    String eventId,
+    String productId,
+  ) async {
+    final product = await obtenerProductoPorId(productId);
+    final variants = await obtenerVariantesPorProducto(productId);
+    final recipes = <RecipeComponentRow>[];
+    for (final v in variants) {
+      recipes.addAll(await obtenerComponentesRecetaPorVariante(v.id));
+    }
+    await into(db.productUpdateUndo).insert(
+      ProductUpdateUndoCompanion.insert(
+        eventId: eventId,
+        productId: productId,
+        snapshotJson: jsonEncode({
+          'product': product!.toJson(),
+          'variants': variants.map((v) => v.toJson()).toList(),
+          'recipes': recipes.map((r) => r.toJson()).toList(),
+        }),
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
+  }
+
+  Future<bool> restaurarRespaldoActualizacion(
+    String eventId,
+    String baseEventId,
+  ) async {
+    final backup = await (select(
+      db.productUpdateUndo,
+    )..where((b) => b.eventId.equals(eventId))).getSingleOrNull();
+    if (backup == null) return false;
+    final current = await obtenerProductoPorId(backup.productId);
+    if (current != null && current.lastEventId != eventId) {
+      await (delete(
+        db.productUpdateUndo,
+      )..where((b) => b.eventId.equals(eventId))).go();
+      return true;
+    }
+    final data = jsonDecode(backup.snapshotJson) as Map<String, dynamic>;
+    final product = ProductRow.fromJson(
+      Map<String, dynamic>.from(data['product'] as Map),
+    );
+    final base = await (select(
+      db.events,
+    )..where((e) => e.eventId.equals(baseEventId))).getSingleOrNull();
+    final sequence = [
+      product.lastServerSequence,
+      current?.lastServerSequence,
+      base?.serverSequence,
+    ].whereType<int>().fold<int?>(null, (a, b) => a == null || b > a ? b : a);
+    // El producto puede haber sido eliminado físicamente. Recuperar primero el padre.
+    await into(products).insertOnConflictUpdate(
+      product.copyWith(lastServerSequence: Value(sequence)),
+    );
+    final variants = (data['variants'] as List)
+        .map(
+          (v) =>
+              ProductVariantRow.fromJson(Map<String, dynamic>.from(v as Map)),
+        )
+        .toList();
+    final ids = variants.map((v) => v.id).toSet();
+    final present = await obtenerVariantesPorProducto(product.id);
+    await prepararActualizacionVariantes(
+      product.id,
+      present.map((v) => v.id).toSet(),
+    );
+    await (delete(
+      productVariants,
+    )..where((v) => v.productId.equals(product.id) & v.id.isNotIn(ids))).go();
+    for (final v in variants) {
+      await into(
+        productVariants,
+      ).insertOnConflictUpdate(v.copyWith(lastServerSequence: Value(sequence)));
+    }
+    for (final r in data['recipes'] as List) {
+      await into(recipeComponents).insert(
+        RecipeComponentRow.fromJson(Map<String, dynamic>.from(r as Map)),
+      );
+    }
+    await (delete(
+      db.productUpdateUndo,
+    )..where((b) => b.eventId.equals(eventId))).go();
+    return true;
+  }
+
+  Future<void> eliminarVarianteSinDependencias(String id) async {
+    await (delete(productVariants)..where((v) => v.id.equals(id))).go();
+  }
+
+  Future<void> descartarRespaldosConfirmados(String productId) async {
+    final confirmed = selectOnly(db.events)
+      ..addColumns([db.events.eventId])
+      ..where(
+        db.events.aggregateId.equals(productId) &
+            db.events.deliveryStatus.equals('delivered'),
+      );
+    await (delete(
+      db.productUpdateUndo,
+    )..where((b) => b.eventId.isInQuery(confirmed))).go();
   }
 
   String _escapeLike(String value) {

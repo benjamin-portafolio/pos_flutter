@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/sync/pending_event_revalidator.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
 import 'dart:convert';
 
@@ -104,54 +105,52 @@ void main() {
     await db.close();
   });
 
-  for (final reject in [false, true]) {
-    test(
-      'producto actualizado espera su base y propaga conflicto: $reject',
-      () async {
-        final creation = SyncEvent(
-          eventId: 'create_product',
-          aggregateType: 'product',
-          aggregateId: 'product',
-          eventType: ProductoCreadoPayload.eventType,
-          deviceId: 'device',
-          userId: 'user',
-          baseVersion: 1,
-          createdAtLocal: DateTime(2026),
-          payload: ProductoCreadoPayload.simple(
-            nombre: 'Café',
+  for (final deleting in [false, true]) {
+    for (final reject in [false, true]) {
+      test(
+        'producto actualizado (borrado=$deleting) espera su base y propaga conflicto: $reject',
+        () async {
+          final creation = SyncEvent(
+            eventId: 'create_product',
+            aggregateType: 'product',
+            aggregateId: 'product',
+            eventType: ProductoCreadoPayload.eventType,
+            deviceId: 'device',
+            userId: 'user',
+            baseVersion: 1,
+            createdAtLocal: DateTime(2026),
+            payload: ProductoCreadoPayload.simple(
+              nombre: 'Café',
+              categoriaId: null,
+              varianteId: '00000000-0000-4000-8000-000000000001',
+              precioVentaMenor: 1000,
+            ).toJson(),
+          );
+          const refs = [
+            LocalEventRef.affects(refType: 'product', refId: 'product'),
+          ];
+          await localEventStore.appendAndApply(creation, refs: refs);
+          final before = await productoProjectionStore.snapshot('product');
+          final after = ProductoCreadoPayload.simple(
+            nombre: 'Nuevo',
             categoriaId: null,
-            varianteId: '00000000-0000-4000-8000-000000000001',
-            precioVentaMenor: 1000,
-          ).toJson(),
-        );
-        const refs = [
-          LocalEventRef.affects(refType: 'product', refId: 'product'),
-        ];
-        await localEventStore.appendAndApply(creation, refs: refs);
-        final before = await productoProjectionStore.snapshot('product');
-        final after = ProductoCreadoPayload.simple(
-          nombre: 'Nuevo',
-          categoriaId: null,
-          varianteId: before.variantes.single.id,
-          precioVentaMenor: 2000,
-        );
-        final update = creation.copyWith(
-          eventId: 'update_product',
-          eventType: ProductoActualizadoPayload.eventType,
-          payload: ProductoActualizadoPayload(
-            baseEventId: creation.eventId,
-            before: before,
-            after: after,
-          ).toJson(),
-        );
-        await localEventStore.appendAndApply(update, refs: refs);
-        var calls = 0;
-        final service = SyncPushService(
-          syncPersistence: syncPersistence,
-          endpointConfig: SyncEndpointConfig(
-            initialBaseUrl: 'http://localhost:3000',
-          ),
-          conflictProjectionCleaner: SyncConflictProjectionCleaner(
+            varianteId: before.variantes.single.id,
+            precioVentaMenor: 2000,
+          );
+          final update = creation.copyWith(
+            eventId: 'update_product',
+            eventType: ProductoActualizadoPayload.eventType,
+            payload: ProductoActualizadoPayload(
+              baseEventId: creation.eventId,
+              before: before,
+              after: deleting ? before : after,
+              deleteProduct: deleting,
+            ).toJson(),
+          );
+          await localEventStore.appendAndApply(update, refs: refs);
+          final revalidator = PendingEventRevalidator(
+            syncPersistence: syncPersistence,
+            syncedEventHistory: syncPersistence,
             espacioProjectionStore: espacioProjectionStore,
             categoriaProjectionStore: categoriaProjectionStore,
             productoProjectionStore: productoProjectionStore,
@@ -161,53 +160,78 @@ void main() {
                 CategoriaMovidaConflictProjectionRestorer(
                   categoriaProjectionStore,
                 ),
-          ),
-          client: MockClient((request) async {
-            final body = jsonDecode(request.body) as Map<String, dynamic>;
-            final events = body['events'] as List;
-            expect(events, hasLength(1));
-            expect(
-              events.single['event_id'],
-              calls++ == 0 ? creation.eventId : update.eventId,
-            );
-            return http.Response(
-              jsonEncode({
-                'results': [
-                  {
-                    'event_id': events.single['event_id'],
-                    'status': reject ? 'conflict' : 'accepted',
-                    'server_sequence': calls,
-                    'created_at_server': '2026-01-01T00:00:00.000Z',
-                  },
-                ],
-              }),
-              200,
-            );
-          }),
-        );
-        await service.pushPendingEvents();
-        expect(
-          (await syncPersistence.eventById(update.eventId))!.deliveryStatus,
-          reject ? 'conflict' : 'pending',
-        );
-        if (reject) {
-          expect(
-            await productoProjectionStore.findProductById('product'),
-            isNull,
           );
-        } else {
+          await revalidator.revalidatePendingEvents();
+          expect((await syncPersistence.pendingEvents()).length, 2);
+          var calls = 0;
+          final service = SyncPushService(
+            syncPersistence: syncPersistence,
+            endpointConfig: SyncEndpointConfig(
+              initialBaseUrl: 'http://localhost:3000',
+            ),
+            conflictProjectionCleaner: SyncConflictProjectionCleaner(
+              espacioProjectionStore: espacioProjectionStore,
+              categoriaProjectionStore: categoriaProjectionStore,
+              productoProjectionStore: productoProjectionStore,
+              categoriaConflictProjectionRestorer:
+                  CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+              categoriaMovidaConflictProjectionRestorer:
+                  CategoriaMovidaConflictProjectionRestorer(
+                    categoriaProjectionStore,
+                  ),
+            ),
+            client: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              final events = body['events'] as List;
+              expect(events, hasLength(1));
+              expect(
+                events.single['event_id'],
+                calls++ == 0 ? creation.eventId : update.eventId,
+              );
+              return http.Response(
+                jsonEncode({
+                  'results': [
+                    {
+                      'event_id': events.single['event_id'],
+                      'status': reject ? 'conflict' : 'accepted',
+                      'server_sequence': calls,
+                      'created_at_server': '2026-01-01T00:00:00.000Z',
+                    },
+                  ],
+                }),
+                200,
+              );
+            }),
+          );
           await service.pushPendingEvents();
           expect(
             (await syncPersistence.eventById(update.eventId))!.deliveryStatus,
-            'delivered',
+            reject ? 'conflict' : 'pending',
           );
-          expect(
-            (await productoProjectionStore.findProductById('product'))!.nombre,
-            'Nuevo',
-          );
-        }
-      },
-    );
+          if (reject) {
+            expect(
+              await productoProjectionStore.findProductById('product'),
+              isNull,
+            );
+          } else {
+            await service.pushPendingEvents();
+            expect(
+              (await syncPersistence.eventById(update.eventId))!.deliveryStatus,
+              'delivered',
+            );
+            final product = await productoProjectionStore.findProductById(
+              'product',
+            );
+            if (deleting) {
+              expect(product, isNull);
+              expect(await db.select(db.productUpdateUndo).get(), isEmpty);
+            } else {
+              expect(product!.nombre, 'Nuevo');
+            }
+          }
+        },
+      );
+    }
   }
 
   test(

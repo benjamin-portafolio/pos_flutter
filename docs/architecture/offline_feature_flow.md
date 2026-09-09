@@ -347,12 +347,12 @@ flutter test
 
 ## Actualización de productos y variantes
 
-`producto_actualizado` actualiza el producto y todas sus variantes existentes
+`producto_actualizado` actualiza el producto y sus variantes activas
 atómicamente. El contrato tipado transporta `base_event_id`, `before` y `after`;
 ambos estados reutilizan la validación del contrato de producto creado. El
 sobre conserva `base_version` y la secuencia oficial conocida. Se mantienen
 los identificadores, el evento de creación y la configuración de venta
-(modo, unidad y cantidad de referencia del precio). Permite agregar variantes nuevas conservando las existentes. Las variantes nuevas reciben UUID al guardar y se retiran de la proyección si se revierte el evento.
+(modo, unidad y cantidad de referencia del precio). Permite agregar variantes nuevas y retirar variantes existentes con la política de borrado descrita abajo. Las variantes nuevas reciben UUID al guardar y se retiran de la proyección si se revierte el evento.
 
 El formulario conserva el evento base que leyó al abrirse. El comando y el
 handler rechazan bases obsoletas. NestJS verifica la base y la forma de venta
@@ -369,3 +369,56 @@ Cambiar recetas o desactivar seguimiento no modifica saldos ni borra recursos
 o movimientos anteriores. Activar seguimiento sin un vínculo existente crea
 un recurso mediante el flujo habitual, en el mismo lote local. Los saldos de
 un recurso ya vinculado se corrigen mediante movimientos de inventario.
+
+
+## Eliminación de variantes y del último producto
+
+El editor confirma ELIMINAR y retira inmediatamente la variante del borrador,
+tanto en alta como en edición. Se persiste al guardar el artículo; cancelar
+el formulario descarta la eliminación. La primera variante restante pasa a ser
+la predeterminada. Eliminar la última muestra una advertencia de eliminación
+del producto y deja el formulario pendiente de guardar esa eliminación. En un
+alta sin persistir, guardar ese estado descarta el borrador sin crear eventos.
+
+La eliminación de variantes viaja en `producto_actualizado` como diferencia
+entre `before.variants` y `after.variants`. Para eliminar el producto completo,
+el contrato usa `delete_product: true`, `after: null` y conserva `before` como
+base validable. Internamente el contrato tipado conserva la base para las
+validaciones compartidas. Un cliente anterior rechaza `after: null` en vez de
+ignorar silenciosamente la eliminación; todos los dispositivos deben actualizarse.
+El comando de eliminación declara referencias `affects` al producto, variantes
+y recetas retiradas. No requiere que los recursos históricos sigan activos.
+
+La decisión se calcula con las relaciones persistidas dentro de la transacción:
+
+- Sin recurso directo y sin componentes de receta: borrado físico de variante.
+- Con recurso directo o receta: `active = false`, preservando nombre, vínculo,
+  componentes e identidad; deja de ser predeterminada.
+- Producto sin variantes remanentes: borrado físico. Si quedan variantes
+  históricas inactivas, el producto también se desactiva para conservar el padre.
+- No se eliminan recursos de inventario, saldos ni movimientos.
+
+Los índices de nombre y posición son únicos solo entre variantes activas. El
+recurso directo sigue siendo exclusivo incluso en una variante desactivada.
+Los listados y snapshots editables omiten variantes inactivas. Los eventos son
+historial auditable y no se borran; el servidor impide reutilizar identificadores
+históricos y la repetición de una creación aceptada no resucita un producto.
+
+La versión/base del producto serializa cambios de recetas y vínculos. NestJS
+valida `before` contra PostgreSQL, incluyendo recetas, antes de aplicar la
+eliminación. Un dispositivo con una base anterior entra en conflicto; no decide
+el modo de borrado del servidor. Las nuevas relaciones de negocio que se agreguen
+al esquema (por ejemplo ventas) deberán incorporarse a esta política en ambos
+proyectores antes de habilitar su uso con borrado físico.
+
+En `server_sync`, `product_update_undo` guarda las filas originales antes de un
+borrado optimista para restaurar incluso filas borradas físicamente. La reversión
+ocurre en orden inverso y conserva identificadores de creación. El respaldo
+local se descarta al restaurar o confirmar su evento. Standalone no genera estos
+respaldos de sincronización ni `event_refs`, y conserva `not_required`.
+
+El esquema local mantiene la versión 7 según las reglas de desarrollo. Al abrir
+una base anterior sin `product_update_undo`, `_resetDatabaseOnStartup` la recrea
+una vez; una base actual se conserva. Un respaldo restaurado de esquema anterior
+se rechaza sin eliminarlo. PostgreSQL incluye la migración
+`1788912000000-AddActiveVariantUniqueness` para los índices parciales.

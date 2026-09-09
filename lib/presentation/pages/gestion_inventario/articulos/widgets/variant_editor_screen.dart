@@ -19,6 +19,7 @@ class VariantEditorScreen extends StatefulWidget {
     this.preview = false,
     this.editing = false,
     required this.canDelete,
+    this.isLastVariant = false,
     required this.existingNameKeys,
     required this.inventoryUnit,
     this.inventoryUnits = const [],
@@ -31,6 +32,7 @@ class VariantEditorScreen extends StatefulWidget {
   final bool preview;
   final bool editing;
   final bool canDelete;
+  final bool isLastVariant;
   final Set<String> existingNameKeys;
   final UnidadInventario inventoryUnit;
   final List<UnidadInventario> inventoryUnits;
@@ -104,9 +106,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
               child: FilledButton(
                 key: const Key('delete_variant_button'),
                 onPressed: widget.canDelete && !widget.preview
-                    ? () => Navigator.of(
-                        context,
-                      ).pop(const VariantEditorResult.deleted())
+                    ? _confirmDelete
                     : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: colorScheme.error,
@@ -339,6 +339,41 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('delete_variant_dialog'),
+        scrollable: true,
+        icon: const Icon(Icons.delete_forever),
+        title: Text(
+          widget.isLastVariant
+              ? '¿Eliminar la última variante y el producto?'
+              : '¿Eliminar esta variante?',
+        ),
+        content: Text(
+          '${widget.isLastVariant ? 'También se eliminará el producto. ' : ''}'
+          'Se conservarán los registros que tengan dependencias para mantener el historial. '
+          'El cambio se aplicará al guardar el artículo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('NO'),
+          ),
+          TextButton(
+            key: const Key('confirm_delete_variant_button'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ELIMINAR'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      Navigator.of(context).pop(const VariantEditorResult.deleted());
+    }
   }
 
   String? _validateName(String? value) {

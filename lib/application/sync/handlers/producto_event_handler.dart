@@ -113,10 +113,8 @@ class ProductoEventHandler {
     final product = await _productoProjectionStore.findProductById(
       event.aggregateId,
     );
-    if (product == null || !product.active) {
-      throw StateError('El artículo no existe.');
-    }
-    if (product.lastEventId == event.eventId) {
+    if (payload.deleteProduct && product == null) return;
+    if (product != null && product.lastEventId == event.eventId) {
       if (event.serverSequence != null) {
         await _productoProjectionStore.advanceLastServerSequence(
           product.id,
@@ -124,6 +122,9 @@ class ProductoEventHandler {
         );
       }
       return;
+    }
+    if (product == null || !product.active) {
+      throw StateError('El artículo no existe.');
     }
     if (product.lastEventId != payload.baseEventId ||
         product.version != event.baseVersion) {
@@ -133,16 +134,25 @@ class ProductoEventHandler {
     if (!ProductoActualizadoPayload.sameState(current, payload.before)) {
       throw StateError('La base del artículo no coincide.');
     }
-    for (final variant in payload.after.variantes) {
+    for (final variant
+        in payload.deleteProduct
+            ? <ProductoCreadoVariante>[]
+            : payload.after.variantes) {
       final existingVariant = await _productoProjectionStore.findVariantById(
         variant.id,
       );
-      if (existingVariant != null && existingVariant.productoId != product.id) {
+      if (existingVariant != null &&
+          (!existingVariant.active ||
+              existingVariant.productoId != product.id)) {
         throw StateError('La variante pertenece a otro artículo.');
       }
     }
-    await _validateInventory(payload.after);
-    await _productoProjectionStore.applyUpdate(event, payload.after);
+    if (!payload.deleteProduct) await _validateInventory(payload.after);
+    await _productoProjectionStore.applyUpdate(
+      event,
+      payload.after,
+      deleteProduct: payload.deleteProduct,
+    );
   }
 
   Future<void> _validateInventory(ProductoCreadoPayload payload) async {

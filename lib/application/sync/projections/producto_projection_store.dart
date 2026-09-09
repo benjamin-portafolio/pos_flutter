@@ -9,6 +9,7 @@ abstract interface class ProductoProjectionStore {
     SyncEvent event,
     ProductoCreadoPayload state, {
     bool restore = false,
+    bool deleteProduct = false,
     String? baseEventId,
   });
 

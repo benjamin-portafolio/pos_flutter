@@ -10,8 +10,10 @@ class ArticuloFormResult {
     required this.variantes,
     required this.categoriaId,
     required this.saleConfiguration,
+    this.eliminarProducto = false,
   });
 
+  final bool eliminarProducto;
   final String nombre;
   final List<ArticuloFormVarianteResult> variantes;
   final String? categoriaId;

@@ -20,7 +20,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     }
     final variants = await findVariantsByProductId(productId);
     final values = <ProductoCreadoVariante>[];
-    for (final variant in variants) {
+    for (final variant in variants.where((v) => v.active)) {
       final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
         variant.id,
       );
@@ -63,8 +63,16 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     SyncEvent event,
     ProductoCreadoPayload state, {
     bool restore = false,
+    bool deleteProduct = false,
     String? baseEventId,
   }) async {
+    if (restore &&
+        await _productoDao.restaurarRespaldoActualizacion(
+          event.eventId,
+          baseEventId!,
+        )) {
+      return;
+    }
     final product = await findProductById(event.aggregateId);
     if (product == null) {
       if (restore) return;
@@ -73,6 +81,22 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     if (restore && product.lastEventId != event.eventId) return;
     if (product.saleConfiguration != state.saleConfiguration) {
       throw StateError('No se puede cambiar la forma de venta.');
+    }
+    final previousVariants = await findVariantsByProductId(product.id);
+    final keptIds = deleteProduct
+        ? <String>{}
+        : state.variantes.map((v) => v.id).toSet();
+    final removed = previousVariants
+        .where((v) => v.active && !keptIds.contains(v.id))
+        .toList();
+    if (!restore &&
+        removed.isNotEmpty &&
+        event.deliveryStatus == 'pending' &&
+        event.serverSequence == null) {
+      await _productoDao.guardarRespaldoActualizacion(
+        event.eventId,
+        product.id,
+      );
     }
     final version = restore ? event.baseVersion! : event.baseVersion! + 1;
     final lastEventId = restore ? baseEventId! : event.eventId;
@@ -85,7 +109,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         nombre: state.nombre,
         categoriaId: state.categoriaId,
         saleConfiguration: product.saleConfiguration,
-        active: product.active,
+        active: !deleteProduct,
         version: version,
         createdEventId: product.createdEventId,
         lastEventId: lastEventId,
@@ -95,7 +119,33 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     if (restore) {
       await _productoDao.eliminarVariantesAgregadas(product.id, event.eventId);
     }
-    await _productoDao.prepararActualizacionVariantes(product.id);
+    for (final v in removed) {
+      final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
+        v.id,
+      );
+      if (v.inventoryItemId == null && recipe.isEmpty) {
+        await _productoDao.eliminarVarianteSinDependencias(v.id);
+      } else {
+        await _productoDao.actualizarVariante(
+          v.id,
+          drift.ProductVariantsCompanion(
+            active: const Value(false),
+            isDefault: const Value(false),
+            version: Value(version),
+            lastEventId: Value(lastEventId),
+            lastServerSequence: Value(sequence),
+          ),
+        );
+      }
+    }
+    if (deleteProduct) {
+      // Retener el padre mientras cualquier variante histórica lo referencie.
+      if ((await findVariantsByProductId(product.id)).isEmpty) {
+        await _productoDao.eliminarProductoPorId(product.id);
+      }
+      return;
+    }
+    await _productoDao.prepararActualizacionVariantes(product.id, keptIds);
     for (final v in state.variantes) {
       final existing = await findVariantById(v.id);
       if (existing == null) {
@@ -124,6 +174,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         await _productoDao.actualizarVariante(
           v.id,
           drift.ProductVariantsCompanion(
+            active: const Value(true),
             name: Value(v.nombre),
             nameKey: Value(v.nameKey),
             salePriceMinor: Value(v.precioVentaMenor),

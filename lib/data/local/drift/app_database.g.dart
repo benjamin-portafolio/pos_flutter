@@ -2745,11 +2745,6 @@ class $ProductVariantsTable extends ProductVariants
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  List<Set<GeneratedColumn>> get uniqueKeys => [
-    {productId, sortOrder},
-    {productId, nameKey},
-  ];
-  @override
   ProductVariantRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ProductVariantRow(
@@ -2865,7 +2860,7 @@ class ProductVariantRow extends DataClass
   /// Indica que esta es la variante elegida por omisión.
   final bool isDefault;
 
-  /// Posición consecutiva dentro del producto, iniciando en cero.
+  /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   final int sortOrder;
   const ProductVariantRow({
     required this.id,
@@ -3314,6 +3309,287 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('inventoryItemId: $inventoryItemId, ')
           ..write('isDefault: $isDefault, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ProductUpdateUndoTable extends ProductUpdateUndo
+    with TableInfo<$ProductUpdateUndoTable, ProductUpdateUndoData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProductUpdateUndoTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _eventIdMeta = const VerificationMeta(
+    'eventId',
+  );
+  @override
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+    'event_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _snapshotJsonMeta = const VerificationMeta(
+    'snapshotJson',
+  );
+  @override
+  late final GeneratedColumn<String> snapshotJson = GeneratedColumn<String>(
+    'snapshot_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [eventId, productId, snapshotJson];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'product_update_undo';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProductUpdateUndoData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('event_id')) {
+      context.handle(
+        _eventIdMeta,
+        eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('snapshot_json')) {
+      context.handle(
+        _snapshotJsonMeta,
+        snapshotJson.isAcceptableOrUnknown(
+          data['snapshot_json']!,
+          _snapshotJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_snapshotJsonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {eventId};
+  @override
+  ProductUpdateUndoData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProductUpdateUndoData(
+      eventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      snapshotJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot_json'],
+      )!,
+    );
+  }
+
+  @override
+  $ProductUpdateUndoTable createAlias(String alias) {
+    return $ProductUpdateUndoTable(attachedDatabase, alias);
+  }
+}
+
+class ProductUpdateUndoData extends DataClass
+    implements Insertable<ProductUpdateUndoData> {
+  /// Evento pendiente cuya aplicación modificó o eliminó estas filas.
+  final String eventId;
+
+  /// Agregado para encontrar sus respaldos al recibir confirmaciones.
+  final String productId;
+
+  /// Filas Drift originales (producto, variantes y recetas) serializadas como JSON.
+  final String snapshotJson;
+  const ProductUpdateUndoData({
+    required this.eventId,
+    required this.productId,
+    required this.snapshotJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['event_id'] = Variable<String>(eventId);
+    map['product_id'] = Variable<String>(productId);
+    map['snapshot_json'] = Variable<String>(snapshotJson);
+    return map;
+  }
+
+  ProductUpdateUndoCompanion toCompanion(bool nullToAbsent) {
+    return ProductUpdateUndoCompanion(
+      eventId: Value(eventId),
+      productId: Value(productId),
+      snapshotJson: Value(snapshotJson),
+    );
+  }
+
+  factory ProductUpdateUndoData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProductUpdateUndoData(
+      eventId: serializer.fromJson<String>(json['eventId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      snapshotJson: serializer.fromJson<String>(json['snapshotJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'eventId': serializer.toJson<String>(eventId),
+      'productId': serializer.toJson<String>(productId),
+      'snapshotJson': serializer.toJson<String>(snapshotJson),
+    };
+  }
+
+  ProductUpdateUndoData copyWith({
+    String? eventId,
+    String? productId,
+    String? snapshotJson,
+  }) => ProductUpdateUndoData(
+    eventId: eventId ?? this.eventId,
+    productId: productId ?? this.productId,
+    snapshotJson: snapshotJson ?? this.snapshotJson,
+  );
+  ProductUpdateUndoData copyWithCompanion(ProductUpdateUndoCompanion data) {
+    return ProductUpdateUndoData(
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      snapshotJson: data.snapshotJson.present
+          ? data.snapshotJson.value
+          : this.snapshotJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductUpdateUndoData(')
+          ..write('eventId: $eventId, ')
+          ..write('productId: $productId, ')
+          ..write('snapshotJson: $snapshotJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(eventId, productId, snapshotJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProductUpdateUndoData &&
+          other.eventId == this.eventId &&
+          other.productId == this.productId &&
+          other.snapshotJson == this.snapshotJson);
+}
+
+class ProductUpdateUndoCompanion
+    extends UpdateCompanion<ProductUpdateUndoData> {
+  final Value<String> eventId;
+  final Value<String> productId;
+  final Value<String> snapshotJson;
+  final Value<int> rowid;
+  const ProductUpdateUndoCompanion({
+    this.eventId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.snapshotJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProductUpdateUndoCompanion.insert({
+    required String eventId,
+    required String productId,
+    required String snapshotJson,
+    this.rowid = const Value.absent(),
+  }) : eventId = Value(eventId),
+       productId = Value(productId),
+       snapshotJson = Value(snapshotJson);
+  static Insertable<ProductUpdateUndoData> custom({
+    Expression<String>? eventId,
+    Expression<String>? productId,
+    Expression<String>? snapshotJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (eventId != null) 'event_id': eventId,
+      if (productId != null) 'product_id': productId,
+      if (snapshotJson != null) 'snapshot_json': snapshotJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProductUpdateUndoCompanion copyWith({
+    Value<String>? eventId,
+    Value<String>? productId,
+    Value<String>? snapshotJson,
+    Value<int>? rowid,
+  }) {
+    return ProductUpdateUndoCompanion(
+      eventId: eventId ?? this.eventId,
+      productId: productId ?? this.productId,
+      snapshotJson: snapshotJson ?? this.snapshotJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (snapshotJson.present) {
+      map['snapshot_json'] = Variable<String>(snapshotJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductUpdateUndoCompanion(')
+          ..write('eventId: $eventId, ')
+          ..write('productId: $productId, ')
+          ..write('snapshotJson: $snapshotJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7380,6 +7656,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ProductVariantsTable productVariants = $ProductVariantsTable(
     this,
   );
+  late final $ProductUpdateUndoTable productUpdateUndo =
+      $ProductUpdateUndoTable(this);
   late final $RecipeComponentsTable recipeComponents = $RecipeComponentsTable(
     this,
   );
@@ -7393,6 +7671,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $InventoryBalancesTable(this);
   late final $InventoryMovementsTable inventoryMovements =
       $InventoryMovementsTable(this);
+  late final Index uxProductVariantsProductSort = Index(
+    'ux_product_variants_product_sort',
+    'CREATE UNIQUE INDEX ux_product_variants_product_sort ON product_variants (product_id, sort_order) WHERE active = 1',
+  );
+  late final Index uxProductVariantsProductNameKey = Index(
+    'ux_product_variants_product_name_key',
+    'CREATE UNIQUE INDEX ux_product_variants_product_name_key ON product_variants (product_id, name_key) WHERE active = 1 AND name_key IS NOT NULL',
+  );
   late final Index ixRecipeComponentsInventoryItem = Index(
     'ix_recipe_components_inventory_item',
     'CREATE INDEX ix_recipe_components_inventory_item ON recipe_components (inventory_item_id)',
@@ -7421,6 +7707,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     products,
     inventoryItems,
     productVariants,
+    productUpdateUndo,
     recipeComponents,
     espacios,
     events,
@@ -7428,6 +7715,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncCheckpoints,
     inventoryBalances,
     inventoryMovements,
+    uxProductVariantsProductSort,
+    uxProductVariantsProductNameKey,
     ixRecipeComponentsInventoryItem,
     idxEspaciosIdentificacionUnique,
   ];
@@ -10426,6 +10715,183 @@ typedef $$ProductVariantsTableProcessedTableManager =
         bool recipeComponentsRefs,
       })
     >;
+typedef $$ProductUpdateUndoTableCreateCompanionBuilder =
+    ProductUpdateUndoCompanion Function({
+      required String eventId,
+      required String productId,
+      required String snapshotJson,
+      Value<int> rowid,
+    });
+typedef $$ProductUpdateUndoTableUpdateCompanionBuilder =
+    ProductUpdateUndoCompanion Function({
+      Value<String> eventId,
+      Value<String> productId,
+      Value<String> snapshotJson,
+      Value<int> rowid,
+    });
+
+class $$ProductUpdateUndoTableFilterComposer
+    extends Composer<_$AppDatabase, $ProductUpdateUndoTable> {
+  $$ProductUpdateUndoTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get snapshotJson => $composableBuilder(
+    column: $table.snapshotJson,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ProductUpdateUndoTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProductUpdateUndoTable> {
+  $$ProductUpdateUndoTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get snapshotJson => $composableBuilder(
+    column: $table.snapshotJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProductUpdateUndoTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProductUpdateUndoTable> {
+  $$ProductUpdateUndoTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get snapshotJson => $composableBuilder(
+    column: $table.snapshotJson,
+    builder: (column) => column,
+  );
+}
+
+class $$ProductUpdateUndoTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProductUpdateUndoTable,
+          ProductUpdateUndoData,
+          $$ProductUpdateUndoTableFilterComposer,
+          $$ProductUpdateUndoTableOrderingComposer,
+          $$ProductUpdateUndoTableAnnotationComposer,
+          $$ProductUpdateUndoTableCreateCompanionBuilder,
+          $$ProductUpdateUndoTableUpdateCompanionBuilder,
+          (
+            ProductUpdateUndoData,
+            BaseReferences<
+              _$AppDatabase,
+              $ProductUpdateUndoTable,
+              ProductUpdateUndoData
+            >,
+          ),
+          ProductUpdateUndoData,
+          PrefetchHooks Function()
+        > {
+  $$ProductUpdateUndoTableTableManager(
+    _$AppDatabase db,
+    $ProductUpdateUndoTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProductUpdateUndoTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProductUpdateUndoTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProductUpdateUndoTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> eventId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<String> snapshotJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProductUpdateUndoCompanion(
+                eventId: eventId,
+                productId: productId,
+                snapshotJson: snapshotJson,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String eventId,
+                required String productId,
+                required String snapshotJson,
+                Value<int> rowid = const Value.absent(),
+              }) => ProductUpdateUndoCompanion.insert(
+                eventId: eventId,
+                productId: productId,
+                snapshotJson: snapshotJson,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ProductUpdateUndoTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProductUpdateUndoTable,
+      ProductUpdateUndoData,
+      $$ProductUpdateUndoTableFilterComposer,
+      $$ProductUpdateUndoTableOrderingComposer,
+      $$ProductUpdateUndoTableAnnotationComposer,
+      $$ProductUpdateUndoTableCreateCompanionBuilder,
+      $$ProductUpdateUndoTableUpdateCompanionBuilder,
+      (
+        ProductUpdateUndoData,
+        BaseReferences<
+          _$AppDatabase,
+          $ProductUpdateUndoTable,
+          ProductUpdateUndoData
+        >,
+      ),
+      ProductUpdateUndoData,
+      PrefetchHooks Function()
+    >;
 typedef $$RecipeComponentsTableCreateCompanionBuilder =
     RecipeComponentsCompanion Function({
       required String variantId,
@@ -12906,6 +13372,8 @@ class $AppDatabaseManager {
       $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
   $$ProductVariantsTableTableManager get productVariants =>
       $$ProductVariantsTableTableManager(_db, _db.productVariants);
+  $$ProductUpdateUndoTableTableManager get productUpdateUndo =>
+      $$ProductUpdateUndoTableTableManager(_db, _db.productUpdateUndo);
   $$RecipeComponentsTableTableManager get recipeComponents =>
       $$RecipeComponentsTableTableManager(_db, _db.recipeComponents);
   $$EspaciosTableTableManager get espacios =>

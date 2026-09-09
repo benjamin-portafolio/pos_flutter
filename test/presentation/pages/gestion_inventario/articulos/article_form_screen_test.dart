@@ -53,7 +53,7 @@ void main() {
       tester
           .widget<FilledButton>(find.byKey(const Key('delete_variant_button')))
           .onPressed,
-      isNull,
+      isNotNull,
     );
     await tester.enterText(
       find.byKey(const Key('variant_name_field')),
@@ -86,6 +86,95 @@ void main() {
     expect(result!.variantes.first.id, 'variant-id');
     expect(result!.saleConfiguration, const UnitSaleConfiguration());
   });
+
+  testWidgets(
+    'edición oculta la predeterminada antes de guardar y advierte al borrar la última',
+    (tester) async {
+      ArticuloFormResult? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ArticleFormScreen(
+            categorias: const [],
+            unidadesVenta: _units,
+            initialValue: const ArticuloFormResult(
+              nombre: 'Café',
+              categoriaId: null,
+              saleConfiguration: UnitSaleConfiguration(),
+              variantes: [
+                ArticuloFormVarianteResult(
+                  id: 'first',
+                  nombre: 'Grande',
+                  precioVenta: '10',
+                  costoEstandar: null,
+                ),
+                ArticuloFormVarianteResult(
+                  id: 'second',
+                  nombre: 'Chica',
+                  precioVenta: '8',
+                  costoEstandar: null,
+                ),
+              ],
+            ),
+            onSave: (value) async => saved = value,
+          ),
+        ),
+      );
+      Future<void> openFirst() async {
+        await tester.ensureVisible(
+          find.byKey(const Key('article_variant_card_0')),
+        );
+        await tester.tap(find.byKey(const Key('article_variant_card_0')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('delete_variant_button')));
+        await tester.pumpAndSettle();
+      }
+
+      await openFirst();
+      await tester.tap(find.text('NO'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('variant_editor_screen')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('delete_variant_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm_delete_variant_button')));
+      await tester.pumpAndSettle();
+      expect(find.text('Grande'), findsNothing);
+      expect(find.text('Chica'), findsOneWidget);
+      expect(saved, isNull);
+      await openFirst();
+      expect(
+        find.text('¿Eliminar la última variante y el producto?'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('confirm_delete_variant_button')));
+      await tester.pumpAndSettle();
+      expect(find.text('Chica'), findsNothing);
+      expect(find.byKey(const Key('product_pending_deletion')), findsOneWidget);
+      expect(saved, isNull);
+      await tester.tap(find.byKey(const Key('save_article_button')));
+      await tester.pumpAndSettle();
+      expect(saved!.eliminarProducto, isTrue);
+      expect(saved!.variantes, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'eliminar la última variante de un alta descarta el borrador sin crear producto',
+    (tester) async {
+      var saves = 0;
+      await _pumpForm(tester, onSave: (_) async => saves++);
+      await _chooseAdvanced(tester);
+      await tester.tap(find.byKey(const Key('article_variant_card_0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('delete_variant_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm_delete_variant_button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('article_variant_card_0')), findsNothing);
+      await tester.tap(find.byKey(const Key('save_article_button')));
+      await tester.pumpAndSettle();
+      expect(saves, 0);
+    },
+  );
 
   testWidgets('inicia con venta por unidad', (tester) async {
     await _pumpForm(tester);
@@ -376,49 +465,58 @@ void main() {
     expect(find.textContaining('no negativo'), findsOneWidget);
   });
 
-  testWidgets('agrega varias variantes y elimina solo una adicional', (
-    tester,
-  ) async {
-    await _pumpForm(tester);
-    await _chooseAdvanced(tester);
-    await _editVariant(tester, 0, name: 'Grande', price: '10');
+  testWidgets(
+    'agrega varias variantes y confirma el borrado de una adicional',
+    (tester) async {
+      await _pumpForm(tester);
+      await _chooseAdvanced(tester);
+      await _editVariant(tester, 0, name: 'Grande', price: '10');
 
-    await tester.tap(find.byKey(const Key('article_variant_card_0')));
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<FilledButton>(find.byKey(const Key('delete_variant_button')))
-          .onPressed,
-      isNull,
-    );
-    await tester.tap(find.byKey(const Key('close_variant_editor_button')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('article_variant_card_0')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('delete_variant_button')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      await tester.tap(find.byKey(const Key('close_variant_editor_button')));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('add_article_variant_button')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('variant_sale_price_field')),
-      '12',
-    );
-    await tester.tap(find.byKey(const Key('save_variant_button')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('article_variant_card_1')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add_article_variant_button')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('variant_sale_price_field')),
+        '12',
+      );
+      await tester.tap(find.byKey(const Key('save_variant_button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('article_variant_card_1')), findsOneWidget);
 
-    await tester.ensureVisible(find.byKey(const Key('article_variant_card_1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('article_variant_card_1')));
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<FilledButton>(find.byKey(const Key('delete_variant_button')))
-          .onPressed,
-      isNotNull,
-    );
-    await tester.tap(find.byKey(const Key('delete_variant_button')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('article_variant_card_1')), findsNothing);
-    expect(find.byKey(const Key('article_variant_card_0')), findsOneWidget);
-  });
+      await tester.ensureVisible(
+        find.byKey(const Key('article_variant_card_1')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('article_variant_card_1')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('delete_variant_button')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      await tester.tap(find.byKey(const Key('delete_variant_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm_delete_variant_button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('article_variant_card_1')), findsNothing);
+      expect(find.byKey(const Key('article_variant_card_0')), findsOneWidget);
+    },
+  );
 
   testWidgets('reordena variantes y guarda la nueva posición', (tester) async {
     ArticuloFormResult? result;

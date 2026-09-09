@@ -6,6 +6,7 @@ class ProductoActualizadoPayload {
     required this.baseEventId,
     required this.before,
     required this.after,
+    this.deleteProduct = false,
   }) {
     if (baseEventId.trim().isEmpty) {
       throw const FormatException('Falta el evento base.');
@@ -13,31 +14,46 @@ class ProductoActualizadoPayload {
     if (before.saleConfiguration != after.saleConfiguration) {
       throw const FormatException('No se puede cambiar la forma de venta.');
     }
-    final ids = after.variantes.map((v) => v.id).toSet();
-    if (!before.variantes.every((v) => ids.contains(v.id))) {
+    if (deleteProduct && !sameState(before, after)) {
       throw const FormatException(
-        'La actualización debe conservar las variantes existentes.',
+        'El borrado debe conservar el estado anterior.',
       );
     }
   }
   static const aggregateType = 'product';
   static const eventType = 'producto_actualizado';
+
+  /// La eliminación conserva la base y serializa after=null (producto ausente).
+  final bool deleteProduct;
+  Iterable<ProductoCreadoVariante> get removedVariants =>
+      before.variantes.where(
+        (v) => deleteProduct || !after.variantes.any((next) => next.id == v.id),
+      );
   final String baseEventId;
   final ProductoCreadoPayload before;
   final ProductoCreadoPayload after;
   factory ProductoActualizadoPayload.fromJson(Map<String, Object?> json) {
-    if (json['base_event_id'] is! String ||
+    if ((json.containsKey('delete_product') &&
+            json['delete_product'] is! bool) ||
+        json['base_event_id'] is! String ||
         json['before'] is! Map ||
-        json['after'] is! Map) {
+        !json.containsKey('after') ||
+        (json['delete_product'] == true
+            ? json['after'] != null
+            : json['after'] is! Map)) {
       throw const FormatException('Actualización de producto inválida.');
     }
     return ProductoActualizadoPayload(
       baseEventId: json['base_event_id'] as String,
+      deleteProduct: json['delete_product'] == true,
       before: ProductoCreadoPayload.fromJson(
         Map<String, Object?>.from(json['before'] as Map),
       ),
       after: ProductoCreadoPayload.fromJson(
-        Map<String, Object?>.from(json['after'] as Map),
+        Map<String, Object?>.from(
+          (json['delete_product'] == true ? json['before'] : json['after'])
+              as Map,
+        ),
       ),
     );
   }
@@ -82,14 +98,17 @@ class ProductoActualizadoPayload {
 
   Set<String> get dependencyEventIds => {
     baseEventId,
-    ?after.dependenciaCategoria?.dependsOnEventId,
-    ...after.dependenciasInventario
-        .map((d) => d.dependsOnEventId)
-        .whereType<String>(),
+    if (!deleteProduct) ?after.dependenciaCategoria?.dependsOnEventId,
+    if (!deleteProduct)
+      ...after.dependenciasInventario
+          .map((d) => d.dependsOnEventId)
+          .whereType<String>(),
   };
   Map<String, Object?> toJson() => {
     'base_event_id': baseEventId,
+    if (deleteProduct) 'delete_product': true,
     'before': before.toJson(),
-    'after': after.toJson(),
+    // Clientes anteriores rechazan after=null en lugar de ignorar el borrado.
+    'after': deleteProduct ? null : after.toJson(),
   };
 }

@@ -56,6 +56,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   String? _saveError;
   bool _saving = false;
   bool _canPop = false;
+  bool _deleteProduct = false;
   List<ArticuloFormVarianteResult>? _advancedVariants;
   String? _variantListError;
 
@@ -125,7 +126,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                         ),
                       )
                     : const Icon(Icons.check_circle_outline),
-                label: const Text('GUARDAR'),
+                label: Text(_deleteProduct ? 'GUARDAR ELIMINACIÓN' : 'GUARDAR'),
               ),
             ),
           ],
@@ -139,124 +140,133 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.preview) ...[
-                    const Text('Artículo en modo de consulta.'),
+                  if (_deleteProduct) ...[
+                    const Text(
+                      'Producto pendiente de eliminación. Guarda para confirmar o cancela para descartar el cambio.',
+                      key: Key('product_pending_deletion'),
+                    ),
                     const SizedBox(height: 12),
                   ],
-                  _FormCard(
-                    child: TextFormField(
-                      key: const Key('article_name_field'),
-                      controller: _nameController,
-                      enabled: !_saving && !widget.preview,
-                      textInputAction: TextInputAction.next,
-                      maxLength: 160,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre del artículo *',
-                        hintText: 'Introduce el nombre del artículo',
-                        border: InputBorder.none,
-                        counterText: '',
-                        prefixIcon: Icon(Icons.check_circle_outline),
-                      ),
-                      validator: _validateName,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FormCard(
-                    child: DropdownButtonFormField<String>(
-                      key: const Key('article_category_field'),
-                      initialValue: _selectedCategoryId ?? _noCategoryValue,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría',
-                        border: InputBorder.none,
-                        prefixIcon: Icon(Icons.category_outlined),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: _noCategoryValue,
-                          child: Text('Sin categoría'),
-                        ),
-                        ...widget.categorias.map(
-                          (categoria) => DropdownMenuItem<String>(
-                            value: categoria.id,
-                            child: Text(categoria.nombre),
-                          ),
-                        ),
-                      ],
-                      onChanged: _saving || widget.preview
-                          ? null
-                          : (value) {
-                              setState(
-                                () => _selectedCategoryId =
-                                    value == _noCategoryValue ? null : value,
-                              );
-                            },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _SaleModeCard(
-                    saleMode: _saleMode,
-                    selectedUnit: _selectedSaleUnit,
-                    enabled: !_saving && !widget.editing,
-                    showUnitError: _showSaleUnitError,
-                    onSelectMode: _selectSaleMode,
-                    onSelectUnit: _selectSaleUnit,
-                  ),
-                  const SizedBox(height: 12),
-                  if (!widget.editing)
-                    SegmentedButton<_ArticleCreationMode>(
-                      key: const Key('article_creation_mode_selector'),
-                      segments: const [
-                        ButtonSegment(
-                          value: _ArticleCreationMode.simple,
-                          label: Text('Sencillo'),
-                        ),
-                        ButtonSegment(
-                          value: _ArticleCreationMode.advanced,
-                          label: Text('Avanzado'),
-                        ),
-                      ],
-                      selected: {_creationMode},
-                      showSelectedIcon: false,
-                      expandedInsets: EdgeInsets.zero,
-                      onSelectionChanged: _saving || widget.editing
-                          ? null
-                          : (selection) =>
-                                _selectCreationMode(selection.single),
-                    ),
-                  const SizedBox(height: 12),
-                  if (_creationMode == _ArticleCreationMode.simple)
+                  if (!_deleteProduct) ...[
+                    if (widget.preview) ...[
+                      const Text('Artículo en modo de consulta.'),
+                      const SizedBox(height: 12),
+                    ],
                     _FormCard(
                       child: TextFormField(
-                        key: const Key('article_price_field'),
-                        controller: _priceController,
+                        key: const Key('article_name_field'),
+                        controller: _nameController,
                         enabled: !_saving && !widget.preview,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: const [CurrencyInputFormatter()],
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _submit(),
-                        decoration: InputDecoration(
-                          labelText: _priceLabel,
-                          hintText: '0.00',
+                        textInputAction: TextInputAction.next,
+                        maxLength: 160,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre del artículo *',
+                          hintText: 'Introduce el nombre del artículo',
                           border: InputBorder.none,
-                          prefixIcon: const Icon(Icons.attach_money),
+                          counterText: '',
+                          prefixIcon: Icon(Icons.check_circle_outline),
                         ),
-                        validator: _validatePrice,
+                        validator: _validateName,
                       ),
-                    )
-                  else
-                    AdvancedVariantsSection(
-                      variants: _advancedVariants ?? const [],
-                      preview: widget.preview,
-                      allowAdd: !widget.preview,
-                      enabled: !_saving,
-                      error: _variantListError,
-                      onEdit: _editVariant,
-                      onMoveUp: (index) => _moveVariant(index, index - 1),
-                      onMoveDown: (index) => _moveVariant(index, index + 1),
-                      onAdd: _addVariant,
                     ),
+                    const SizedBox(height: 12),
+                    _FormCard(
+                      child: DropdownButtonFormField<String>(
+                        key: const Key('article_category_field'),
+                        initialValue: _selectedCategoryId ?? _noCategoryValue,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoría',
+                          border: InputBorder.none,
+                          prefixIcon: Icon(Icons.category_outlined),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: _noCategoryValue,
+                            child: Text('Sin categoría'),
+                          ),
+                          ...widget.categorias.map(
+                            (categoria) => DropdownMenuItem<String>(
+                              value: categoria.id,
+                              child: Text(categoria.nombre),
+                            ),
+                          ),
+                        ],
+                        onChanged: _saving || widget.preview
+                            ? null
+                            : (value) {
+                                setState(
+                                  () => _selectedCategoryId =
+                                      value == _noCategoryValue ? null : value,
+                                );
+                              },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _SaleModeCard(
+                      saleMode: _saleMode,
+                      selectedUnit: _selectedSaleUnit,
+                      enabled: !_saving && !widget.editing,
+                      showUnitError: _showSaleUnitError,
+                      onSelectMode: _selectSaleMode,
+                      onSelectUnit: _selectSaleUnit,
+                    ),
+                    const SizedBox(height: 12),
+                    if (!widget.editing)
+                      SegmentedButton<_ArticleCreationMode>(
+                        key: const Key('article_creation_mode_selector'),
+                        segments: const [
+                          ButtonSegment(
+                            value: _ArticleCreationMode.simple,
+                            label: Text('Sencillo'),
+                          ),
+                          ButtonSegment(
+                            value: _ArticleCreationMode.advanced,
+                            label: Text('Avanzado'),
+                          ),
+                        ],
+                        selected: {_creationMode},
+                        showSelectedIcon: false,
+                        expandedInsets: EdgeInsets.zero,
+                        onSelectionChanged: _saving || widget.editing
+                            ? null
+                            : (selection) =>
+                                  _selectCreationMode(selection.single),
+                      ),
+                    const SizedBox(height: 12),
+                    if (_creationMode == _ArticleCreationMode.simple)
+                      _FormCard(
+                        child: TextFormField(
+                          key: const Key('article_price_field'),
+                          controller: _priceController,
+                          enabled: !_saving && !widget.preview,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: const [CurrencyInputFormatter()],
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            labelText: _priceLabel,
+                            hintText: '0.00',
+                            border: InputBorder.none,
+                            prefixIcon: const Icon(Icons.attach_money),
+                          ),
+                          validator: _validatePrice,
+                        ),
+                      )
+                    else
+                      AdvancedVariantsSection(
+                        variants: _advancedVariants ?? const [],
+                        preview: widget.preview,
+                        allowAdd: !widget.preview,
+                        enabled: !_saving,
+                        error: _variantListError,
+                        onEdit: _editVariant,
+                        onMoveUp: (index) => _moveVariant(index, index - 1),
+                        onMoveDown: (index) => _moveVariant(index, index + 1),
+                        onAdd: _addVariant,
+                      ),
+                  ],
                   if (_saveError != null) ...[
                     const SizedBox(height: 16),
                     Material(
@@ -379,8 +389,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           inventoryUnits: widget.unidadesVenta,
           inventoryResourceRepository: widget.inventoryResourceRepository,
           onCreateInventoryResource: widget.onCreateInventoryResource,
-          canDelete:
-              index > 0 && (!widget.editing || variants[index].id == null),
+          canDelete: true,
+          isLastVariant: variants.length == 1,
           existingNameKeys: _variantNameKeys(excludingIndex: index),
         ),
       ),
@@ -389,6 +399,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     setState(() {
       if (result.deleted) {
         variants.removeAt(index);
+        _deleteProduct = variants.isEmpty;
       } else {
         variants[index] = result.value!;
       }
@@ -524,6 +535,39 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
 
   Future<void> _submit() async {
     if (_saving || widget.preview || widget.onSave == null) return;
+    if (_deleteProduct) {
+      setState(() {
+        _saving = true;
+        _saveError = null;
+      });
+      try {
+        // Un alta descartada no crea un producto ni un evento de borrado.
+        if (widget.editing) {
+          final initial = widget.initialValue!;
+          await widget.onSave!(
+            ArticuloFormResult(
+              nombre: initial.nombre,
+              variantes: const [],
+              categoriaId: initial.categoriaId,
+              saleConfiguration: initial.saleConfiguration,
+              eliminarProducto: true,
+            ),
+          );
+        }
+        if (!mounted) return;
+        setState(() => _canPop = true);
+        await Future<void>.delayed(Duration.zero);
+        if (mounted) Navigator.of(context).pop(true);
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _saving = false;
+          _saveError =
+              'No se pudo eliminar el artículo. Vuelve a abrirlo e intenta de nuevo.';
+        });
+      }
+      return;
+    }
     final validFields = _formKey.currentState!.validate();
     final validSaleUnit =
         _saleMode == SaleMode.unit || _selectedSaleUnit != null;

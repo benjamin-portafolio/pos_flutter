@@ -233,15 +233,28 @@ class PendingEventRevalidator {
     final product = await _productoProjectionStore?.findProductById(
       event.aggregateId,
     );
-    if (product == null || !product.active) {
-      return const _PendingConflict('El artículo ya no existe.');
+    if (!payload.deleteProduct && (product == null || !product.active)) {
+      // A later local deletion can hide this update's optimistic projection.
+      final pending = await _syncPersistence.pendingEvents();
+      if (!pending.any(
+        (e) =>
+            e.aggregateId == event.aggregateId &&
+            e.eventType == ProductoActualizadoPayload.eventType &&
+            ProductoActualizadoPayload.fromJson(e.payload).deleteProduct,
+      )) {
+        return const _PendingConflict('El artículo ya no existe.');
+      }
     }
-    if (payload.after.categoriaId != null &&
+    if (!payload.deleteProduct &&
+        payload.after.categoriaId != null &&
         await _categoriaProjectionStore.findById(payload.after.categoriaId!) ==
             null) {
       return const _PendingConflict('La categoría ya no existe.');
     }
-    for (final dependency in payload.after.dependenciasInventario) {
+    for (final dependency
+        in payload.deleteProduct
+            ? <ProductoCreadoInventarioDependencia>[]
+            : payload.after.dependenciasInventario) {
       final item = await _inventoryProjectionStore?.findItemById(
         dependency.refId,
       );

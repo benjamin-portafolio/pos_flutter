@@ -77,6 +77,44 @@ class ProductoCommandService {
     );
   }
 
+  Future<void> eliminarArticulo({
+    required String productId,
+    required String baseEventId,
+  }) async {
+    final product = await _obtenerBaseEdicion(productId);
+    if (product.lastEventId != baseEventId) {
+      throw StateError('El artículo cambió. Vuelve a abrirlo.');
+    }
+    final before = await _productoProjectionStore!.snapshot(productId);
+    final payload = ProductoActualizadoPayload(
+      baseEventId: baseEventId,
+      before: before,
+      after: before,
+      deleteProduct: true,
+    );
+    await _eventStore.appendAndApply(
+      SyncEvent(
+        eventId: _uuid.v4(),
+        aggregateType: ProductoActualizadoPayload.aggregateType,
+        aggregateId: productId,
+        eventType: ProductoActualizadoPayload.eventType,
+        deviceId: _commandContext.deviceId,
+        userId: _commandContext.userId,
+        baseVersion: product.version,
+        baseServerSequence: product.lastServerSequence,
+        createdAtLocal: DateTime.now(),
+        payload: payload.toJson(),
+      ),
+      refs: [
+        LocalEventRef.affects(refType: 'product', refId: productId),
+        for (final v in payload.removedVariants) ...[
+          LocalEventRef.affects(refType: 'product_variant', refId: v.id),
+          LocalEventRef.affects(refType: 'recipe', refId: v.id),
+        ],
+      ],
+    );
+  }
+
   Future<void> crearArticulo(CrearArticuloCommand command) =>
       _saveArticulo(command);
 
@@ -155,11 +193,9 @@ class ProductoCommandService {
           growable: false,
         );
     if (variantIds.length != normalizedVariants.length ||
-        (before != null &&
-            (variantIds.toSet().length != variantIds.length ||
-                !before.variantes.every((v) => variantIds.contains(v.id))))) {
+        variantIds.toSet().length != variantIds.length) {
       throw const FormatException(
-        'Deben conservarse las variantes existentes.',
+        'Los identificadores de variantes deben ser únicos y coincidir con el formulario.',
       );
     }
     final eventId = _uuid.v4();
@@ -266,6 +302,13 @@ class ProductoCommandService {
         growable: false,
       ),
     );
+    final updatePayload = before == null
+        ? null
+        : ProductoActualizadoPayload(
+            baseEventId: existing!.lastEventId!,
+            before: before,
+            after: payload,
+          );
     final event = SyncEvent(
       eventId: eventId,
       aggregateType: ProductoCreadoPayload.aggregateType,
@@ -278,13 +321,7 @@ class ProductoCommandService {
       baseVersion: existing?.version ?? 1,
       baseServerSequence: existing?.lastServerSequence,
       createdAtLocal: DateTime.now(),
-      payload: before == null
-          ? payload.toJson()
-          : ProductoActualizadoPayload(
-              baseEventId: existing!.lastEventId!,
-              before: before,
-              after: payload,
-            ).toJson(),
+      payload: updatePayload?.toJson() ?? payload.toJson(),
     );
     final referencedInventoryItemIds = <String>{
       for (final variant in payload.variantes) ...[
@@ -308,6 +345,11 @@ class ProductoCommandService {
         event: event,
         refs: [
           LocalEventRef.affects(refType: 'product', refId: productId),
+          if (updatePayload != null)
+            for (final v in updatePayload.removedVariants) ...[
+              LocalEventRef.affects(refType: 'product_variant', refId: v.id),
+              LocalEventRef.affects(refType: 'recipe', refId: v.id),
+            ],
           for (var index = 0; index < payload.variantes.length; index++) ...[
             LocalEventRef.affects(
               refType: 'product_variant',

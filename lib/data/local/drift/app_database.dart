@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'dart:convert';
+import 'tables/product_update_undo.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
@@ -37,6 +40,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     Categories,
     Products,
     ProductVariants,
+    ProductUpdateUndo,
     RecipeComponents,
     Espacios,
     Events,
@@ -157,9 +161,37 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final file = await appDatabaseFile();
+    await _resetDatabaseOnStartup(file);
 
     return NativeDatabase.createInBackground(file);
   });
+}
+
+/// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
+/// ni cambiar schemaVersion. Las bases actuales se conservan entre arranques.
+Future<void> _resetDatabaseOnStartup(File file) async {
+  if (!await file.exists()) return;
+  final connection = sqlite.sqlite3.open(file.path);
+  final bool current;
+  try {
+    current = connection
+        .select(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'product_update_undo'",
+        )
+        .isNotEmpty;
+  } finally {
+    connection.close();
+  }
+  if (current) return;
+  if (await appDatabaseShouldPreserveRestoredDatabase()) {
+    throw StateError(
+      'El respaldo restaurado usa un esquema anterior. Se requiere una base del esquema actual.',
+    );
+  }
+  for (final suffix in ['', '-wal', '-shm']) {
+    final old = File('${file.path}$suffix');
+    if (await old.exists()) await old.delete();
+  }
 }
 
 Future<File> appDatabaseFile() async {
