@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
@@ -7,6 +9,196 @@ import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/arti
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/models/articulo_form_result.dart';
 
 void main() {
+  const editableArticle = ArticuloFormResult(
+    nombre: 'Café',
+    categoriaId: null,
+    saleConfiguration: UnitSaleConfiguration(),
+    variantes: [
+      ArticuloFormVarianteResult(
+        id: 'first',
+        nombre: 'Grande',
+        precioVenta: '10',
+        costoEstandar: null,
+      ),
+      ArticuloFormVarianteResult(
+        id: 'second',
+        nombre: 'Chica',
+        precioVenta: '8',
+        costoEstandar: null,
+      ),
+    ],
+  );
+
+  testWidgets(
+    'botón rojo a la izquierda confirma y elimina sin guardar el borrador',
+    (tester) async {
+      ArticuloFormResult? saved;
+      bool? closedResult;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  closedResult = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => ArticleFormScreen(
+                        categorias: const [],
+                        unidadesVenta: _units,
+                        initialValue: editableArticle,
+                        onSave: (value) async => saved = value,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Abrir artículo'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Abrir artículo'));
+      await tester.pumpAndSettle();
+      final deleteFinder = find.byKey(const Key('delete_article_button'));
+      final deleteRect = tester.getRect(deleteFinder);
+      expect(
+        deleteRect.left,
+        greaterThanOrEqualTo(tester.getRect(find.byTooltip('Cancelar')).right),
+      );
+      expect(
+        deleteRect.right,
+        lessThan(tester.getRect(find.text('EDITAR ARTÍCULO')).left),
+      );
+      final button = tester.widget<IconButton>(deleteFinder);
+      expect(
+        button.style!.backgroundColor!.resolve({}),
+        Theme.of(tester.element(deleteFinder)).colorScheme.error,
+      );
+      await tester.enterText(find.byKey(const Key('article_name_field')), '');
+      await tester.tap(deleteFinder);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('"Café" y sus 2 variantes'), findsOneWidget);
+      expect(
+        find.textContaining('Se conservarán los recursos de inventario'),
+        findsOneWidget,
+      );
+      expect(saved, isNull);
+      await tester.tap(find.byKey(const Key('confirm_delete_article_button')));
+      await tester.pumpAndSettle();
+      expect(saved!.eliminarProducto, isTrue);
+      expect(saved!.nombre, 'Café');
+      expect(saved!.variantes, isEmpty);
+      expect(closedResult, isTrue);
+      expect(find.text('Abrir artículo'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'cancelar eliminación conserva el borrador y no ejecuta el comando',
+    (tester) async {
+      var saves = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ArticleFormScreen(
+            categorias: const [],
+            unidadesVenta: _units,
+            initialValue: editableArticle,
+            onSave: (_) async => saves++,
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('article_name_field')),
+        'Café editado',
+      );
+      await tester.tap(find.byKey(const Key('delete_article_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('CANCELAR'));
+      await tester.pumpAndSettle();
+      expect(saves, 0);
+      expect(find.text('Café editado'), findsOneWidget);
+      expect(find.byKey(const Key('product_pending_deletion')), findsNothing);
+      expect(find.byKey(const Key('article_variant_card_0')), findsOneWidget);
+      expect(find.byKey(const Key('article_variant_card_1')), findsOneWidget);
+    },
+  );
+
+  testWidgets('bloquea acciones mientras elimina y conserva edición si falla', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    var saves = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleFormScreen(
+          categorias: const [],
+          unidadesVenta: _units,
+          initialValue: editableArticle,
+          onSave: (_) {
+            saves++;
+            return pending.future;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('delete_article_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm_delete_article_button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('delete_article_button')))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byWidgetPredicate(
+              (widget) => widget is IconButton && widget.tooltip == 'Cancelar',
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('save_article_button')))
+          .onPressed,
+      isNull,
+    );
+    pending.completeError(StateError('No se pudo eliminar'));
+    await tester.pumpAndSettle();
+    expect(saves, 1);
+    expect(find.byKey(const Key('article_save_error')), findsOneWidget);
+    expect(find.byKey(const Key('article_variant_card_1')), findsOneWidget);
+    expect(find.byKey(const Key('product_pending_deletion')), findsNothing);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('delete_article_button')))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('oculta eliminación en alta y consulta', (tester) async {
+    await _pumpForm(tester);
+    expect(find.byKey(const Key('delete_article_button')), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleFormScreen(
+          key: const Key('preview'),
+          categorias: const [],
+          unidadesVenta: _units,
+          initialValue: editableArticle,
+        ),
+      ),
+    );
+    expect(find.text('VER ARTÍCULO'), findsOneWidget);
+    expect(find.byKey(const Key('delete_article_button')), findsNothing);
+  });
+
   testWidgets('edita datos y conserva identidad y forma de venta', (
     tester,
   ) async {

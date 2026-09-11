@@ -86,6 +86,9 @@ class ProductoCommandService {
       throw StateError('El artículo cambió. Vuelve a abrirlo.');
     }
     final before = await _productoProjectionStore!.snapshot(productId);
+    final variants = await _productoProjectionStore.findVariantsByProductId(
+      productId,
+    );
     final payload = ProductoActualizadoPayload(
       baseEventId: baseEventId,
       before: before,
@@ -107,7 +110,7 @@ class ProductoCommandService {
       ),
       refs: [
         LocalEventRef.affects(refType: 'product', refId: productId),
-        for (final v in payload.removedVariants) ...[
+        for (final v in variants) ...[
           LocalEventRef.affects(refType: 'product_variant', refId: v.id),
           LocalEventRef.affects(refType: 'recipe', refId: v.id),
         ],

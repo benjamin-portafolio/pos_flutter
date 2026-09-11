@@ -14,8 +14,8 @@ import 'product_variants.dart';
   'ON recipe_components (inventory_item_id)',
 )
 class RecipeComponents extends Table {
-  /// Variante cuya receta consume el recurso. La cascada solo protege
-  /// reconstrucciones técnicas de la proyección.
+  /// Variante cuya receta consume el recurso. La cascada elimina su receta
+  /// al borrar la variante, sin eliminar los recursos de inventario.
   TextColumn get variantId =>
       text().references(ProductVariants, #id, onDelete: KeyAction.cascade)();
 

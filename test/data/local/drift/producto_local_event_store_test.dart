@@ -40,7 +40,7 @@ void main() {
   for (final mode in [AppMode.standalone, AppMode.serverSync]) {
     for (final dependency in ['none', 'inventory', 'recipe']) {
       test(
-        '${mode.name}: elimina variante con $dependency, reutiliza nombre y elimina producto conservando historial',
+        '${mode.name}: elimina producto y variantes históricas con $dependency conservando inventario',
         () async {
           final projection = DriftProductoProjectionStore(
             productoDao: productoDao,
@@ -119,6 +119,41 @@ void main() {
           final initialRows = await productoDao.obtenerVariantesPorProducto(
             'product_1',
           );
+          // Un fallo transaccional tras borrar variantes activas y recetas
+          // debe recuperar también el evento y su respaldo temporal.
+          await expectLater(
+            db.transaction(() async {
+              final immediateDelete = creation.copyWith(
+                eventId: 'rolled_back_delete',
+                eventType: ProductoActualizadoPayload.eventType,
+                payload: ProductoActualizadoPayload(
+                  baseEventId: creation.eventId,
+                  before: before,
+                  after: before,
+                  deleteProduct: true,
+                ).toJson(),
+              );
+              await store.appendAndApply(immediateDelete, refs: refs);
+              expect(await db.select(db.products).get(), isEmpty);
+              expect(await db.select(db.productVariants).get(), isEmpty);
+              expect(await db.select(db.recipeComponents).get(), isEmpty);
+              throw StateError('fallo transaccional simulado');
+            }),
+            throwsStateError,
+          );
+          expect(
+            await productoDao.obtenerVariantesPorProducto('product_1'),
+            initialRows,
+          );
+          expect(
+            (await projection.snapshot('product_1')).toJson(),
+            before.toJson(),
+          );
+          expect(
+            await eventDao.obtenerEventoPorId('rolled_back_delete'),
+            isNull,
+          );
+          expect(await db.select(db.productUpdateUndo).get(), isEmpty);
           final after = ProductoCreadoPayload.simple(
             nombre: before.nombre,
             categoriaId: null,
@@ -197,20 +232,74 @@ void main() {
             ).toJson(),
           );
           await store.appendAndApply(update, refs: refs);
-          final deleteProduct = update.copyWith(
-            eventId: 'delete_product',
-            baseVersion: 3,
-            payload: ProductoActualizadoPayload(
-              baseEventId: update.eventId,
-              before: renamed,
-              after: renamed,
-              deleteProduct: true,
-            ).toJson(),
+          final rowsBeforeDelete = await productoDao
+              .obtenerVariantesPorProducto('product_1');
+          final recipesBeforeDelete = await db
+              .select(db.recipeComponents)
+              .get();
+          final persistence = DriftSyncPersistence(
+            db: db,
+            eventDao: eventDao,
+            eventRefDao: EventRefDao(db),
+            syncCheckpointDao: SyncCheckpointDao(db),
           );
-          await store.appendAndApply(deleteProduct, refs: refs);
+          final service = ProductoCommandService(
+            eventStore: store,
+            commandContext: const LocalCommandContext(
+              deviceId: 'device',
+              userId: 'user',
+            ),
+            categoriaProjectionStore: DriftCategoriaProjectionStore(
+              categoriaDao: CategoriaDao(db),
+            ),
+            syncedEventHistory: persistence,
+            unidadInventarioRepository: UnidadInventarioRepositoryImpl(
+              unitDao: UnitDao(db),
+            ),
+            productoProjectionStore: projection,
+          );
+          await service.eliminarArticulo(
+            productId: 'product_1',
+            baseEventId: update.eventId,
+          );
+          final deletionRow = (await db.select(db.events).get()).singleWhere(
+            (row) => !{
+              creation.eventId,
+              deletion.eventId,
+              update.eventId,
+            }.contains(row.eventId),
+          );
+          final deleteProduct = (await persistence.eventById(
+            deletionRow.eventId,
+          ))!;
+          if (mode == AppMode.serverSync) {
+            final deletionRefs = await persistence.refsForEvents([
+              deleteProduct.eventId,
+            ]);
+            for (final row in rowsBeforeDelete) {
+              expect(
+                deletionRefs.any(
+                  (ref) =>
+                      ref.refType == 'product_variant' && ref.refId == row.id,
+                ),
+                isTrue,
+              );
+              expect(
+                deletionRefs.any(
+                  (ref) => ref.refType == 'recipe' && ref.refId == row.id,
+                ),
+                isTrue,
+              );
+            }
+          }
           final product = await productoDao.obtenerProductoPorId('product_1');
-          expect(product == null, dependency == 'none');
-          if (product != null) expect(product.active, isFalse);
+          expect(product, isNull);
+          expect(await db.select(db.productVariants).get(), isEmpty);
+          expect(await db.select(db.recipeComponents).get(), isEmpty);
+          await ProductoEventHandler(
+            projection,
+          ).applyProductoActualizado(deleteProduct);
+          expect(await productoDao.obtenerProductoPorId('product_1'), isNull);
           expect(await productoDao.watchProductosListado().first, isEmpty);
           expect(
             await db.select(db.inventoryItems).get(),
@@ -236,6 +325,15 @@ void main() {
             await db.select(db.eventRefs).get(),
             mode == AppMode.standalone ? isEmpty : isNotEmpty,
           );
+          expect(
+            (await eventDao.obtenerEventoPorId(
+              deleteProduct.eventId,
+            ))!.deliveryStatus,
+            mode == AppMode.standalone ? 'not_required' : 'pending',
+          );
+          if (mode == AppMode.standalone) {
+            expect(await db.select(db.productUpdateUndo).get(), isEmpty);
+          }
           if (mode == AppMode.serverSync) {
             await db.transaction(
               () => projection.applyUpdate(
@@ -250,11 +348,40 @@ void main() {
               renamed.toJson(),
             );
             expect(
+              await productoDao.obtenerVariantesPorProducto('product_1'),
+              rowsBeforeDelete,
+            );
+            expect(
+              await db.select(db.recipeComponents).get(),
+              recipesBeforeDelete,
+            );
+            expect(
+              (await db.select(db.productUpdateUndo).get()).where(
+                (row) => row.eventId == deleteProduct.eventId,
+              ),
+              isEmpty,
+            );
+            expect(
               (await productoDao.obtenerProductoPorId(
                 'product_1',
               ))!.createdEventId,
               creation.eventId,
             );
+            await ProductoEventHandler(
+              projection,
+            ).applyProductoActualizado(deleteProduct);
+            await persistence.updateEventSyncStatus(
+              deleteProduct.eventId,
+              'delivered',
+              serverSequence: 10,
+            );
+            expect(
+              (await db.select(db.productUpdateUndo).get()).where(
+                (row) => row.eventId == deleteProduct.eventId,
+              ),
+              isEmpty,
+            );
+            expect(await productoDao.obtenerProductoPorId('product_1'), isNull);
           }
         },
       );

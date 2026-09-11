@@ -2806,8 +2806,8 @@ class ProductVariantRow extends DataClass
   /// Sync cursor representing the official server sequence
   final int? lastServerSequence;
 
-  /// Producto propietario de la variante. La cascada solo protege limpiezas
-  /// tecnicas de proyecciones; no representa un borrado de negocio.
+  /// Producto propietario. La cascada elimina sus variantes cuando el comando
+  /// de eliminación borra el producto o se reconstruye la proyección.
   final String productId;
 
   /// Nombre visible normalizado de la variante; null representa una variante
@@ -3668,8 +3668,8 @@ class $RecipeComponentsTable extends RecipeComponents
 
 class RecipeComponentRow extends DataClass
     implements Insertable<RecipeComponentRow> {
-  /// Variante cuya receta consume el recurso. La cascada solo protege
-  /// reconstrucciones técnicas de la proyección.
+  /// Variante cuya receta consume el recurso. La cascada elimina su receta
+  /// al borrar la variante, sin eliminar los recursos de inventario.
   final String variantId;
 
   /// Recurso de inventario consumido. Un recurso no se repite dentro de la

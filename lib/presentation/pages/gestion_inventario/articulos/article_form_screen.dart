@@ -94,10 +94,26 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: IconButton(
-            onPressed: _saving ? null : _requestClose,
-            icon: const Icon(Icons.close),
-            tooltip: 'Cancelar',
+          leadingWidth: widget.editing && !widget.preview ? 104 : null,
+          leading: Row(
+            children: [
+              IconButton(
+                onPressed: _saving ? null : _requestClose,
+                icon: const Icon(Icons.close),
+                tooltip: 'Cancelar',
+              ),
+              if (widget.editing && !widget.preview)
+                IconButton.filled(
+                  key: const Key('delete_article_button'),
+                  onPressed: _saving ? null : _requestDelete,
+                  style: IconButton.styleFrom(
+                    backgroundColor: colorScheme.error,
+                    foregroundColor: colorScheme.onError,
+                  ),
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Eliminar artículo',
+                ),
+            ],
           ),
           title: Text(
             widget.preview
@@ -533,9 +549,45 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     });
   }
 
-  Future<void> _submit() async {
+  Future<void> _requestDelete() async {
+    if (_saving || !widget.editing || widget.preview) return;
+    final initial = widget.initialValue!;
+    final count = initial.variantes.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar artículo'),
+        content: Text(
+          'Se eliminará "${initial.nombre}" y '
+          '${count == 1 ? 'su variante' : 'sus $count variantes'}, '
+          'incluidas sus recetas y las variantes inactivas. '
+          'Se conservarán los recursos de inventario, las existencias y '
+          'los movimientos. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCELAR'),
+          ),
+          FilledButton(
+            key: const Key('confirm_delete_article_button'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('ELIMINAR'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _submit(deleteProduct: true);
+  }
+
+  Future<void> _submit({bool deleteProduct = false}) async {
     if (_saving || widget.preview || widget.onSave == null) return;
-    if (_deleteProduct) {
+    if (_deleteProduct || deleteProduct) {
       setState(() {
         _saving = true;
         _saveError = null;

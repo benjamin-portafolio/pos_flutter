@@ -89,13 +89,19 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         .where((v) => v.active && !keptIds.contains(v.id))
         .toList();
     if (!restore &&
-        removed.isNotEmpty &&
+        (deleteProduct || removed.isNotEmpty) &&
         event.deliveryStatus == 'pending' &&
         event.serverSequence == null) {
       await _productoDao.guardarRespaldoActualizacion(
         event.eventId,
         product.id,
       );
+    }
+    if (deleteProduct) {
+      // El catálogo incluye variantes inactivas y recetas; los recursos y su
+      // historial de inventario tienen un ciclo de vida independiente.
+      await _productoDao.eliminarProductoPorId(product.id);
+      return;
     }
     final version = restore ? event.baseVersion! : event.baseVersion! + 1;
     final lastEventId = restore ? baseEventId! : event.eventId;
@@ -108,7 +114,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         nombre: state.nombre,
         categoriaId: state.categoriaId,
         saleConfiguration: product.saleConfiguration,
-        active: !deleteProduct,
+        active: true,
         version: version,
         createdEventId: product.createdEventId,
         lastEventId: lastEventId,
@@ -135,13 +141,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
           ),
         );
       }
-    }
-    if (deleteProduct) {
-      // Retener el padre mientras cualquier variante histórica lo referencie.
-      if ((await findVariantsByProductId(product.id)).isEmpty) {
-        await _productoDao.eliminarProductoPorId(product.id);
-      }
-      return;
     }
     await _productoDao.prepararActualizacionVariantes(product.id, keptIds);
     for (final v in state.variantes) {

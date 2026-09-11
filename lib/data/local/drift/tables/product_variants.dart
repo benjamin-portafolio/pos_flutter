@@ -13,8 +13,8 @@ import 'products.dart';
   'CREATE UNIQUE INDEX ux_product_variants_product_name_key ON product_variants (product_id, name_key) WHERE active = 1 AND name_key IS NOT NULL',
 )
 class ProductVariants extends Table with CommonFields {
-  /// Producto propietario de la variante. La cascada solo protege limpiezas
-  /// tecnicas de proyecciones; no representa un borrado de negocio.
+  /// Producto propietario. La cascada elimina sus variantes cuando el comando
+  /// de eliminación borra el producto o se reconstruye la proyección.
   TextColumn get productId =>
       text().references(Products, #id, onDelete: KeyAction.cascade)();
 
