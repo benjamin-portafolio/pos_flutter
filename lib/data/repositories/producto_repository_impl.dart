@@ -5,6 +5,9 @@ import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/articulos/articulo_vinculado_categoria.dart';
 import '../../domain/articulos/variante_listado.dart';
 import '../../domain/categorias/color_categoria.dart';
+import '../../domain/inventario/dimension_unidad.dart';
+import '../../domain/inventario/recurso_inventario_listado.dart';
+import '../../domain/inventario/unidad_inventario.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../local/drift/app_database.dart' as drift;
 
@@ -88,21 +91,42 @@ class ProductoRepositoryImpl implements ProductoRepository {
     for (final row in rows) {
       final builder = grouped.putIfAbsent(
         row.producto.id,
-        () =>
-            _ArticuloBuilder(producto: row.producto, categoria: row.categoria),
+        () => _ArticuloBuilder(
+          producto: row.producto,
+          categoria: row.categoria,
+          unidadVenta: row.unidadVenta,
+        ),
       );
       final variante = row.variante;
       if (variante != null) {
-        builder.variantes.add(variante);
+        final inventory = row.inventario;
+        builder.variantes.add(
+          VarianteListado(
+            varianteId: variante.id,
+            nombre: variante.name,
+            precioVentaMenor: variante.salePriceMinor,
+            costoEstandarMenor: variante.standardCostMinor,
+            orden: variante.sortOrder,
+            inventario: inventory == null
+                ? null
+                : RecursoInventarioListado(
+                    id: inventory.id,
+                    nombre: inventory.name,
+                    activo: inventory.active,
+                    existenciaAtomica: row.saldo?.quantityOnHandAtomic ?? 0,
+                    unidadPredeterminada: _toUnit(row.unidadInventario!),
+                  ),
+          ),
+        );
       }
     }
 
     return grouped.values
         .map((builder) {
           builder.variantes.sort((left, right) {
-            final byOrder = left.sortOrder.compareTo(right.sortOrder);
+            final byOrder = left.orden.compareTo(right.orden);
             if (byOrder != 0) return byOrder;
-            return left.id.compareTo(right.id);
+            return left.varianteId.compareTo(right.varianteId);
           });
 
           if (builder.variantes.isEmpty) {
@@ -121,27 +145,38 @@ class ProductoRepositoryImpl implements ProductoRepository {
             categoriaColor: category == null
                 ? null
                 : ColorCategoria.fromKey(category.colorKey),
-            variantesActivas: List.unmodifiable(
-              builder.variantes.map(
-                (variant) => VarianteListado(
-                  varianteId: variant.id,
-                  nombre: variant.name,
-                  precioVentaMenor: variant.salePriceMinor,
-                  costoEstandarMenor: variant.standardCostMinor,
-                  orden: variant.sortOrder,
-                ),
-              ),
-            ),
+            variantesActivas: List.unmodifiable(builder.variantes),
+            unidadVenta: builder.unidadVenta == null
+                ? null
+                : _toUnit(builder.unidadVenta!),
+            cantidadReferenciaPrecioAtomica:
+                builder.producto.priceReferenceQuantityAtomic,
           );
         })
         .toList(growable: false);
   }
+
+  UnidadInventario _toUnit(drift.UnitRow row) => UnidadInventario(
+    id: row.unitId,
+    code: row.code,
+    nombre: row.name,
+    simbolo: row.symbol,
+    dimension: DimensionUnidad.fromCode(row.dimension),
+    factorAtomico: row.atomicFactor,
+    maximosDecimales: row.maxFractionDigits,
+    activa: row.active,
+  );
 }
 
 class _ArticuloBuilder {
-  _ArticuloBuilder({required this.producto, required this.categoria});
+  _ArticuloBuilder({
+    required this.producto,
+    required this.categoria,
+    required this.unidadVenta,
+  });
 
   final drift.ProductRow producto;
   final drift.CategoryRow? categoria;
-  final List<drift.ProductVariantRow> variantes = [];
+  final drift.UnitRow? unidadVenta;
+  final List<VarianteListado> variantes = [];
 }

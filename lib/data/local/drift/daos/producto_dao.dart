@@ -10,6 +10,8 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
   }) {
+    final saleUnit = alias(db.units, 'sale_unit');
+    final inventoryUnit = alias(db.units, 'inventory_unit');
     final query = select(products).join([
       leftOuterJoin(categories, categories.id.equalsExp(products.categoryId)),
       leftOuterJoin(
@@ -17,14 +19,35 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         productVariants.productId.equalsExp(products.id) &
             productVariants.active.equals(true),
       ),
+      leftOuterJoin(saleUnit, saleUnit.unitId.equalsExp(products.saleUnitId)),
+      leftOuterJoin(
+        db.inventoryItems,
+        db.inventoryItems.id.equalsExp(productVariants.inventoryItemId),
+      ),
+      leftOuterJoin(
+        db.inventoryBalances,
+        db.inventoryBalances.inventoryItemId.equalsExp(
+          productVariants.inventoryItemId,
+        ),
+      ),
+      leftOuterJoin(
+        inventoryUnit,
+        inventoryUnit.unitId.equalsExp(db.inventoryItems.defaultUnitId),
+      ),
     ])..where(products.active.equals(true));
 
     final normalizedSearch = busqueda.trim().toLowerCase();
     if (normalizedSearch.isNotEmpty) {
       final pattern = '%${_escapeLike(normalizedSearch)}%';
+      final matchingProducts = selectOnly(productVariants)
+        ..addColumns([productVariants.productId])
+        ..where(
+          productVariants.active.equals(true) &
+              productVariants.name.lower().like(pattern, escapeChar: r'\'),
+        );
       query.where(
         products.name.lower().like(pattern, escapeChar: r'\') |
-            productVariants.name.lower().like(pattern, escapeChar: r'\'),
+            products.id.isInQuery(matchingProducts),
       );
     }
 
@@ -56,6 +79,10 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
               producto: row.readTable(products),
               categoria: row.readTableOrNull(categories),
               variante: row.readTableOrNull(productVariants),
+              unidadVenta: row.readTableOrNull(saleUnit),
+              inventario: row.readTableOrNull(db.inventoryItems),
+              saldo: row.readTableOrNull(db.inventoryBalances),
+              unidadInventario: row.readTableOrNull(inventoryUnit),
             ),
           )
           .toList(growable: false),
@@ -348,16 +375,4 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         .replaceAll('%', r'\%')
         .replaceAll('_', r'\_');
   }
-}
-
-class ProductoListadoRow {
-  const ProductoListadoRow({
-    required this.producto,
-    required this.categoria,
-    required this.variante,
-  });
-
-  final ProductRow producto;
-  final CategoryRow? categoria;
-  final ProductVariantRow? variante;
 }

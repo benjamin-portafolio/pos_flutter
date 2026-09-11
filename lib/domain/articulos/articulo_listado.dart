@@ -1,4 +1,5 @@
 import '../categorias/color_categoria.dart';
+import '../inventario/unidad_inventario.dart';
 import 'variante_listado.dart';
 
 class ArticuloListado {
@@ -10,6 +11,8 @@ class ArticuloListado {
     required this.categoriaNombre,
     required this.categoriaColor,
     required this.variantesActivas,
+    this.unidadVenta,
+    this.cantidadReferenciaPrecioAtomica,
   });
   final String productoId;
   final String nombre;
@@ -19,12 +22,9 @@ class ArticuloListado {
   final ColorCategoria? categoriaColor;
   final List<VarianteListado> variantesActivas;
 
-  /// Extremos del precio entre variantes activas, independientes de su orden.
-  int get precioMinimoMenor => variantesActivas
-      .map((variante) => variante.precioVentaMenor)
-      .reduce((left, right) => left < right ? left : right);
+  /// Unidad de venta por fracción; null para artículos vendidos por pieza.
+  final UnidadInventario? unidadVenta;
 
-  int get precioMaximoMenor => variantesActivas
-      .map((variante) => variante.precioVentaMenor)
-      .reduce((left, right) => left > right ? left : right);
+  /// Cantidad en átomos a la que corresponde el precio en [unidadVenta].
+  final int? cantidadReferenciaPrecioAtomica;
 }

@@ -9,13 +9,21 @@ import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_articles_tab.dart';
-import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/widgets/inventory_article_card.dart';
 
 void main() {
   testWidgets('muestra datos sin controles fuera del alcance', (tester) async {
     await _pumpTab(tester, repository: _FakeProductoRepository(_articles));
 
-    expect(find.byType(InventoryArticleCard), findsNWidgets(4));
+    expect(find.text('Café americano'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Pastel'),
+      200,
+      scrollable: find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(find.text('Pastel'), findsOneWidget);
     expect(find.text('Inventario bajo'), findsNothing);
     expect(find.text('Expirado'), findsNothing);
     expect(find.text('Etiquetas'), findsNothing);

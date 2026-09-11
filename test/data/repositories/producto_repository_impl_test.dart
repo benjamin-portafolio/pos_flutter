@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/repositories/producto_repository_impl.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
+import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
+import 'package:pos_flutter/domain/inventario/inventory_quantity_codec.dart';
+import 'dart:async';
 
 void main() {
   late AppDatabase db;
@@ -139,8 +142,10 @@ void main() {
       final beta = articles.last;
       expect(beta.categoriaNombre, 'Bebidas');
       expect(beta.categoriaColor, ColorCategoria.blue);
-      expect(beta.precioMinimoMenor, 5000);
-      expect(beta.precioMaximoMenor, 5200);
+      expect(beta.variantesActivas.map((variant) => variant.precioVentaMenor), [
+        5000,
+        5200,
+      ]);
       expect(beta.variantesActivas.map((variant) => variant.varianteId), [
         'variant-z-0',
         'variant-z-2',
@@ -300,6 +305,168 @@ void main() {
     expect(variant.nombre, 'Grande');
     expect(variant.costoEstandarMenor, 200);
   });
+
+  test(
+    'buscar una variante conserva todas las opciones activas del producto',
+    () async {
+      await _insertProduct(db, id: 'coffee', name: 'Café');
+      await _insertVariant(
+        db,
+        id: 'small',
+        productId: 'coffee',
+        price: 1000,
+        sortOrder: 0,
+        name: 'Chica',
+        nameKey: 'chica',
+      );
+      await _insertVariant(
+        db,
+        id: 'large',
+        productId: 'coffee',
+        price: 2000,
+        sortOrder: 1,
+        name: 'Grande',
+        nameKey: 'grande',
+      );
+      await _insertVariant(
+        db,
+        id: 'hidden',
+        productId: 'coffee',
+        price: 3000,
+        sortOrder: 2,
+        name: 'Oculta',
+        nameKey: 'oculta',
+        active: false,
+      );
+      final articles = await repository
+          .watchArticulos(busqueda: 'Grande')
+          .first;
+      expect(articles.single.variantesActivas.map((v) => v.varianteId), [
+        'small',
+        'large',
+      ]);
+      expect(
+        await repository.watchArticulos(busqueda: 'Oculta').first,
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'mapea unidades y seguimiento y emite cambios de saldo y unidad',
+    () async {
+      await _insertProduct(db, id: 'flour', name: 'Harina');
+      await (db.update(db.products)..where((p) => p.id.equals('flour'))).write(
+        const ProductsCompanion(
+          saleMode: Value('measured'),
+          saleUnitId: Value(InventoryUnitIds.kilogram),
+          priceReferenceQuantityAtomic: Value(1000),
+        ),
+      );
+      await db
+          .into(db.inventoryItems)
+          .insert(
+            InventoryItemsCompanion.insert(
+              id: 'stock',
+              defaultUnitId: InventoryUnitIds.gram,
+              name: 'Harina',
+            ),
+          );
+      await db
+          .into(db.inventoryBalances)
+          .insert(
+            InventoryBalancesCompanion.insert(
+              inventoryItemId: 'stock',
+              quantityOnHandAtomic: 2500,
+              quantityAvailableAtomic: 2500,
+              lastEventId: 'initial',
+            ),
+          );
+      await _insertVariant(
+        db,
+        id: 'tracked',
+        productId: 'flour',
+        price: 15400,
+        sortOrder: 0,
+      );
+      await (db.update(
+        db.productVariants,
+      )..where((v) => v.id.equals('tracked'))).write(
+        const ProductVariantsCompanion(inventoryItemId: Value('stock')),
+      );
+      await _insertVariant(
+        db,
+        id: 'untracked',
+        productId: 'flour',
+        price: 8000,
+        sortOrder: 1,
+      );
+
+      final queue = StreamIterator(repository.watchArticulos());
+      addTearDown(queue.cancel);
+      expect(await queue.moveNext(), isTrue);
+      final article = queue.current.single;
+      expect(article.unidadVenta!.simbolo, 'kg');
+      expect(article.cantidadReferenciaPrecioAtomica, 1000);
+      expect(
+        const InventoryQuantityCodec().formatAtomic(
+          article.cantidadReferenciaPrecioAtomica!,
+          article.unidadVenta!,
+        ),
+        '1',
+      );
+      final stock = article.variantesActivas.first.inventario!;
+      expect(stock.existenciaAtomica, 2500);
+      expect(stock.unidadPredeterminada.simbolo, 'g');
+      expect(article.variantesActivas.last.inventario, isNull);
+
+      await (db.update(
+        db.inventoryBalances,
+      )..where((b) => b.inventoryItemId.equals('stock'))).write(
+        const InventoryBalancesCompanion(
+          quantityOnHandAtomic: Value(0),
+          quantityAvailableAtomic: Value(0),
+        ),
+      );
+      expect(await queue.moveNext(), isTrue);
+      expect(
+        queue
+            .current
+            .single
+            .variantesActivas
+            .first
+            .inventario!
+            .existenciaAtomica,
+        0,
+      );
+
+      await (db.update(
+        db.inventoryItems,
+      )..where((i) => i.id.equals('stock'))).write(
+        const InventoryItemsCompanion(
+          defaultUnitId: Value(InventoryUnitIds.kilogram),
+        ),
+      );
+      expect(await queue.moveNext(), isTrue);
+      expect(
+        queue
+            .current
+            .single
+            .variantesActivas
+            .first
+            .inventario!
+            .unidadPredeterminada
+            .simbolo,
+        'kg',
+      );
+
+      await (db.update(db.units)
+            ..where((u) => u.unitId.equals(InventoryUnitIds.kilogram)))
+          .write(const UnitsCompanion(symbol: Value('KG')));
+      expect(await queue.moveNext(), isTrue);
+      expect(queue.current.single.unidadVenta!.simbolo, 'KG');
+    },
+  );
 
   test('una proyección activa sin variantes produce error', () async {
     await _insertProduct(db, id: 'invalid-product', name: 'Inválido');

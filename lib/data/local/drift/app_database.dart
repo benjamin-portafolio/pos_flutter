@@ -28,6 +28,7 @@ part 'daos/event_dao.dart';
 part 'daos/event_ref_dao.dart';
 part 'daos/inventory_dao.dart';
 part 'daos/producto_dao.dart';
+part 'daos/producto_listado_row.dart';
 part 'daos/sync_checkpoint_dao.dart';
 part 'daos/unit_dao.dart';
 
