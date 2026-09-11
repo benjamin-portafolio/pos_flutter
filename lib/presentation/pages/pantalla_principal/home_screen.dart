@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,7 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const Center(child: Text('Informes')),
     const Center(child: Text('Hoy')),
     const Center(child: Text('Caja abierta')),
-    const Center(child: Text('Artículos')),
+    const ArticlesScreen(),
   ];
 
   void _onTabTapped(int index) {
@@ -31,7 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
     //return Scaffold(body: Center(child: Text('Hello World!')));
     return Scaffold(
       appBar: AppBar(
-        title: Text('CERVECERIA MAESTRA Y Ta...'),
+        title: Text(
+          _currentIndex == 3 ? 'Artículos' : 'CERVECERIA MAESTRA Y Ta...',
+        ),
         actions: [
           IconButton(icon: Icon(Icons.person_add), onPressed: () {}),
           IconButton(icon: Icon(Icons.phone), onPressed: () {}),
