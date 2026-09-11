@@ -29,6 +29,60 @@ void main() {
     ],
   );
 
+  testWidgets('guardar aparece al capturar datos y se oculta al limpiarlos', (
+    tester,
+  ) async {
+    await _pumpForm(tester);
+    final saveFinder = find.byKey(const Key('save_article_button'));
+    expect(saveFinder, findsNothing);
+
+    for (final field in ['article_name_field', 'article_price_field']) {
+      await tester.enterText(find.byKey(Key(field)), '10');
+      await tester.pump();
+      expect(saveFinder, findsOneWidget);
+      final button = tester.widget<IconButton>(saveFinder);
+      expect(button.style!.backgroundColor!.resolve({}), Colors.green.shade700);
+      expect(button.tooltip, 'Guardar artículo');
+      expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+      expect(find.text('GUARDAR'), findsNothing);
+
+      await tester.enterText(find.byKey(Key(field)), '');
+      await tester.pump();
+      expect(saveFinder, findsNothing);
+    }
+  });
+
+  testWidgets('guardar refleja cambios y restauración de datos y variantes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleFormScreen(
+          categorias: const [],
+          unidadesVenta: _units,
+          initialValue: editableArticle,
+          onSave: (_) async {},
+        ),
+      ),
+    );
+    final saveFinder = find.byKey(const Key('save_article_button'));
+    final nameFinder = find.byKey(const Key('article_name_field'));
+    expect(saveFinder, findsNothing);
+    await tester.enterText(nameFinder, 'Café nuevo');
+    await tester.pump();
+    expect(saveFinder, findsOneWidget);
+    await tester.enterText(nameFinder, 'Café');
+    await tester.pump();
+    expect(saveFinder, findsNothing);
+
+    await _editVariant(tester, 0, name: 'Grande', price: '10');
+    expect(saveFinder, findsNothing);
+    await _editVariant(tester, 0, name: 'Mediano', price: '12');
+    expect(saveFinder, findsOneWidget);
+    await _editVariant(tester, 0, name: 'Grande', price: '10');
+    expect(saveFinder, findsNothing);
+  });
+
   testWidgets(
     'botón rojo a la izquierda confirma y elimina sin guardar el borrador',
     (tester) async {
@@ -162,12 +216,7 @@ void main() {
           .onPressed,
       isNull,
     );
-    expect(
-      tester
-          .widget<TextButton>(find.byKey(const Key('save_article_button')))
-          .onPressed,
-      isNull,
-    );
+    expect(find.byKey(const Key('save_article_button')), findsNothing);
     pending.completeError(StateError('No se pudo eliminar'));
     await tester.pumpAndSettle();
     expect(saves, 1);
@@ -390,7 +439,7 @@ void main() {
     expect(find.byKey(const Key('add_article_variant_button')), findsOneWidget);
     expect(
       tester
-          .widget<TextButton>(find.byKey(const Key('save_article_button')))
+          .widget<IconButton>(find.byKey(const Key('save_article_button')))
           .onPressed,
       isNotNull,
     );

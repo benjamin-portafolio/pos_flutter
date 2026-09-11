@@ -123,28 +123,31 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                 : 'AÑADIR ARTÍCULO',
           ),
           actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton.icon(
-                key: const Key('save_article_button'),
-                onPressed: _saving || widget.preview ? null : _submit,
-                style: TextButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
+            if (!widget.preview && _hasChanges)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton.filled(
+                  key: const Key('save_article_button'),
+                  onPressed: _saving || widget.preview ? null : _submit,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  tooltip: _deleteProduct
+                      ? 'Guardar eliminación'
+                      : 'Guardar artículo',
                 ),
-                icon: _saving
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colorScheme.onPrimary,
-                        ),
-                      )
-                    : const Icon(Icons.check_circle_outline),
-                label: Text(_deleteProduct ? 'GUARDAR ELIMINACIÓN' : 'GUARDAR'),
               ),
-            ),
           ],
         ),
         backgroundColor: const Color(0xFFE6E6E6),
@@ -172,6 +175,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                       child: TextFormField(
                         key: const Key('article_name_field'),
                         controller: _nameController,
+                        onChanged: (_) => setState(() {}),
                         enabled: !_saving && !widget.preview,
                         textInputAction: TextInputAction.next,
                         maxLength: 160,
@@ -254,6 +258,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                         child: TextFormField(
                           key: const Key('article_price_field'),
                           controller: _priceController,
+                          onChanged: (_) => setState(() {}),
                           enabled: !_saving && !widget.preview,
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
@@ -738,7 +743,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (initial != null) {
       return _nameController.text != initial.nombre ||
           _selectedCategoryId != initial.categoriaId ||
-          !listEquals(_advancedVariants, initial.variantes);
+          !_variantsMatch(_advancedVariants ?? const [], initial.variantes);
     }
     return _nameController.text.isNotEmpty ||
         _priceController.text.isNotEmpty ||
@@ -755,6 +760,30 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                   variant.existenciaInicial != null,
             ) ??
             false);
+  }
+
+  bool _variantsMatch(
+    List<ArticuloFormVarianteResult> current,
+    List<ArticuloFormVarianteResult> initial,
+  ) {
+    if (current.length != initial.length) return false;
+    for (var index = 0; index < current.length; index++) {
+      final a = current[index];
+      final b = initial[index];
+      if (a.id != b.id ||
+          a.nombre != b.nombre ||
+          a.precioVenta != b.precioVenta ||
+          a.costoEstandar != b.costoEstandar ||
+          a.inventoryUnitId != b.inventoryUnitId ||
+          a.existenciaInicial != b.existenciaInicial ||
+          !listEquals(
+            a.recipeComponents.map((c) => (c.resource.id, c.quantity)).toList(),
+            b.recipeComponents.map((c) => (c.resource.id, c.quantity)).toList(),
+          )) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool get _hasTrackedVariants =>

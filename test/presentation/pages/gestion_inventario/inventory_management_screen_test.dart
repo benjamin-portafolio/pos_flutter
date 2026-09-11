@@ -105,12 +105,7 @@ void main() {
           .text,
       'Café',
     );
-    expect(
-      tester
-          .widget<TextButton>(find.byKey(const Key('save_article_button')))
-          .onPressed,
-      isNull,
-    );
+    expect(find.byKey(const Key('save_article_button')), findsNothing);
     await tester.ensureVisible(find.byKey(const Key('article_variant_card_1')));
     await tester.tap(find.byKey(const Key('article_variant_card_1')));
     await tester.pumpAndSettle();
