@@ -95,6 +95,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
           producto: row.producto,
           categoria: row.categoria,
           unidadVenta: row.unidadVenta,
+          fechaCreacion: row.fechaCreacion,
         ),
       );
       final variante = row.variante;
@@ -146,6 +147,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
                 ? null
                 : ColorCategoria.fromKey(category.colorKey),
             variantesActivas: List.unmodifiable(builder.variantes),
+            fechaCreacion: builder.fechaCreacion,
             unidadVenta: builder.unidadVenta == null
                 ? null
                 : _toUnit(builder.unidadVenta!),
@@ -173,10 +175,12 @@ class _ArticuloBuilder {
     required this.producto,
     required this.categoria,
     required this.unidadVenta,
+    required this.fechaCreacion,
   });
 
   final drift.ProductRow producto;
   final drift.CategoryRow? categoria;
   final drift.UnitRow? unidadVenta;
+  final DateTime? fechaCreacion;
   final List<VarianteListado> variantes = [];
 }

@@ -16,7 +16,7 @@ import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.da
 
 void main() {
   testWidgets(
-    'abre Artículos desde la navegación y mantiene controles inertes',
+    'abre Artículos con buscador y conserva los otros controles inertes',
     (tester) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
@@ -37,7 +37,9 @@ void main() {
       expect(find.byType(ArticlesScreen), findsOneWidget);
       expect(find.text('Bebidas (1)'), findsOneWidget);
       expect(find.text('Alimentos (0)'), findsOneWidget);
-      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+      final searchField = tester.widget<TextField>(find.byType(TextField));
+      expect(searchField.readOnly, isTrue);
+      expect(searchField.onTap, isNotNull);
       for (final tooltip in ['Código de barras', 'Alta rápida de artículo']) {
         final button = find.byWidgetPredicate(
           (widget) => widget is IconButton && widget.tooltip == tooltip,

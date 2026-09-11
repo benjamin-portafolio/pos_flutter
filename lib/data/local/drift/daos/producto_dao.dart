@@ -13,6 +13,11 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     final saleUnit = alias(db.units, 'sale_unit');
     final inventoryUnit = alias(db.units, 'inventory_unit');
     final query = select(products).join([
+      leftOuterJoin(
+        db.events,
+        db.events.eventId.equalsExp(products.createdEventId),
+        useColumns: false,
+      ),
       leftOuterJoin(categories, categories.id.equalsExp(products.categoryId)),
       leftOuterJoin(
         productVariants,
@@ -35,6 +40,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         inventoryUnit.unitId.equalsExp(db.inventoryItems.defaultUnitId),
       ),
     ])..where(products.active.equals(true));
+    query.addColumns([db.events.createdAtLocal]);
 
     final normalizedSearch = busqueda.trim().toLowerCase();
     if (normalizedSearch.isNotEmpty) {
@@ -83,6 +89,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
               inventario: row.readTableOrNull(db.inventoryItems),
               saldo: row.readTableOrNull(db.inventoryBalances),
               unidadInventario: row.readTableOrNull(inventoryUnit),
+              fechaCreacion: row.read(db.events.createdAtLocal),
             ),
           )
           .toList(growable: false),

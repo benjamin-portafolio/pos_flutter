@@ -6,6 +6,7 @@ import 'package:pos_flutter/data/repositories/producto_repository_impl.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/domain/inventario/inventory_quantity_codec.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
 import 'dart:async';
 
 void main() {
@@ -20,6 +21,41 @@ void main() {
   tearDown(() async {
     await db.close();
   });
+
+  test(
+    'lee la fecha original sin usar ediciones ni confirmaciones posteriores',
+    () async {
+      await _insertSimpleArticle(db, id: 'coffee', name: 'Café');
+      final created = DateTime.utc(2026, 9, 9, 10);
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              eventId: 'created',
+              aggregateType: ProductoCreadoPayload.aggregateType,
+              aggregateId: 'coffee',
+              eventType: ProductoCreadoPayload.eventType,
+              deviceId: 'device',
+              userId: 'user',
+              createdAtLocal: created,
+              createdAtServer: Value(created.add(const Duration(days: 1))),
+              payload: '{}',
+            ),
+          );
+      await (db.update(db.products)..where((p) => p.id.equals('coffee'))).write(
+        const ProductsCompanion(
+          createdEventId: Value('created'),
+          lastEventId: Value('edited'),
+        ),
+      );
+      await _insertSimpleArticle(db, id: 'legacy', name: 'Sin evento');
+
+      final articles = await repository.watchArticulos().first;
+      expect(articles.first.fechaCreacion!.isAtSameMomentAs(created), isTrue);
+      expect(articles.last.fechaCreacion, isNull);
+      expect(articles.first.variantesActivas, hasLength(1));
+    },
+  );
 
   test(
     'detalle carga todas las variantes activas del producto seleccionado',

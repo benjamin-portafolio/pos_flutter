@@ -10,6 +10,7 @@ class ProductoListadoRow {
     required this.inventario,
     required this.saldo,
     required this.unidadInventario,
+    required this.fechaCreacion,
   });
 
   final ProductRow producto;
@@ -19,4 +20,5 @@ class ProductoListadoRow {
   final InventoryItemRow? inventario;
   final InventoryBalanceRow? saldo;
   final UnitRow? unidadInventario;
+  final DateTime? fechaCreacion;
 }

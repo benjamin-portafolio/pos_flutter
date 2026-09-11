@@ -13,6 +13,7 @@ class ArticuloListado {
     required this.variantesActivas,
     this.unidadVenta,
     this.cantidadReferenciaPrecioAtomica,
+    this.fechaCreacion,
   });
   final String productoId;
   final String nombre;
@@ -21,6 +22,9 @@ class ArticuloListado {
   final String? categoriaNombre;
   final ColorCategoria? categoriaColor;
   final List<VarianteListado> variantesActivas;
+
+  /// Fecha original del evento de creación; null si no se conserva ese evento.
+  final DateTime? fechaCreacion;
 
   /// Unidad de venta por fracción; null para artículos vendidos por pieza.
   final UnidadInventario? unidadVenta;
