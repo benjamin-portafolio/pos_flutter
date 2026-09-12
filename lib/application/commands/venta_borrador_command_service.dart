@@ -1,0 +1,128 @@
+import 'package:uuid/uuid.dart';
+import '../../domain/articulos/sale_configuration.dart';
+import '../../domain/inventario/inventory_quantity_codec.dart';
+import '../../domain/repositories/unidad_inventario_repository.dart';
+import '../sync/local_event_store.dart';
+import '../sync/models/sync_event.dart';
+import '../sync/payloads/producto_agregado_borrador_payload.dart';
+import '../sync/payloads/sale_item_snapshot.dart';
+import '../sync/projections/producto_projection_store.dart';
+import '../sync/projections/sale_draft_projection_store.dart';
+import '../sync/projections/sale_item_projection.dart';
+import 'agregar_producto_borrador_command.dart';
+import 'local_command_context.dart';
+
+class VentaBorradorCommandService {
+  VentaBorradorCommandService({
+    required this.store,
+    required this.products,
+    required this.units,
+    required this.events,
+    required this.context,
+  });
+  final SaleDraftProjectionStore store;
+  final ProductoProjectionStore products;
+  final UnidadInventarioRepository units;
+  final LocalEventStore events;
+  final LocalCommandContext context;
+  final _uuid = const Uuid();
+
+  Future<void> agregar(
+    AgregarProductoBorradorCommand command,
+  ) => store.atomic(() async {
+    final variant = await products.findVariantById(command.variantId.trim());
+    if (variant == null || !variant.active) {
+      throw StateError('La variante ya no está disponible.');
+    }
+    final product = await products.findProductById(variant.productoId);
+    if (product == null || !product.active) {
+      throw StateError('El artículo ya no está disponible.');
+    }
+    final config = product.saleConfiguration;
+    final unit = config is MeasuredSaleConfiguration
+        ? await units.obtenerUnidadPorId(config.saleUnitId)
+        : null;
+    int? atomic;
+    if (config is MeasuredSaleConfiguration) {
+      if (unit == null || !unit.activa || command.expectedUnitId != unit.id) {
+        throw StateError(
+          'La unidad de venta cambió o no está disponible. Vuelve a seleccionar el artículo.',
+        );
+      }
+      atomic = const InventoryQuantityCodec().parsePositiveAtomic(
+        command.measuredQuantity ?? '',
+        unit,
+      );
+    } else if (command.measuredQuantity != null ||
+        command.expectedUnitId != null) {
+      throw StateError(
+        'El modo de venta cambió. Vuelve a seleccionar el artículo.',
+      );
+    }
+    var snapshot = SaleItemSnapshot(
+      variantId: variant.id,
+      productName: product.nombre,
+      variantName: variant.nombre,
+      saleMode: config is MeasuredSaleConfiguration ? 'measured' : 'unit',
+      quantity: atomic == null ? 1 : null,
+      measuredQuantityAtomic: atomic,
+      unitPriceMinor: variant.precioVentaMenor,
+      standardCostMinor: variant.costoEstandarMenor,
+      priceReferenceQuantityAtomic: config.priceReferenceQuantityAtomic,
+      unitCode: unit?.code,
+      unitSymbol: unit?.simbolo,
+      unitAtomicFactor: unit?.factorAtomico,
+    );
+    final sale = await store.findDraft(context.userId, context.deviceId);
+    final saleId = sale?.id ?? _uuid.v4();
+    final lines = await store.items(saleId);
+    SaleItemProjection? existing;
+    for (final line in lines) {
+      if (line.active && line.snapshot.sameConditions(snapshot)) {
+        existing = line;
+        break;
+      }
+    }
+    if (existing != null) snapshot = existing.snapshot.plus(snapshot);
+    final itemId = existing?.id ?? _uuid.v4();
+    final sortOrder =
+        existing?.sortOrder ??
+        lines.fold<int>(
+              -1,
+              (max, line) => line.sortOrder > max ? line.sortOrder : max,
+            ) +
+            1;
+    final payload = ProductoAgregadoBorradorPayload(
+      saleItemId: itemId,
+      sortOrder: sortOrder,
+      item: snapshot,
+    );
+    final refs = [
+      LocalEventRef.affects(refType: 'sale', refId: saleId),
+      LocalEventRef.affects(refType: 'sale_item', refId: itemId),
+      LocalEventRef.uses(refType: 'product', refId: product.id),
+      LocalEventRef.uses(refType: 'product_variant', refId: variant.id),
+      if (unit != null) LocalEventRef.uses(refType: 'unit', refId: unit.id),
+    ];
+    if (context.userId.trim().isEmpty ||
+        context.deviceId.trim().isEmpty ||
+        refs.any((ref) => ref.refId.trim().isEmpty)) {
+      throw StateError('Las referencias y el contexto local son obligatorios.');
+    }
+    await events.appendAndApply(
+      SyncEvent(
+        eventId: _uuid.v4(),
+        aggregateType: ProductoAgregadoBorradorPayload.aggregateType,
+        aggregateId: saleId,
+        eventType: ProductoAgregadoBorradorPayload.eventType,
+        deviceId: context.deviceId,
+        userId: context.userId,
+        baseVersion: sale?.version ?? 0,
+        createdAtLocal: DateTime.now(),
+        deliveryStatus: 'not_required',
+        payload: payload.toJson(),
+      ),
+      refs: refs,
+    );
+  });
+}

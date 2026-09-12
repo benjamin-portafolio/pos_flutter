@@ -1,15 +1,14 @@
-import 'dart:io';
-import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'dart:convert';
-import 'tables/product_update_undo.dart';
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:pos_flutter/data/local/drift/tables/categories.dart';
 import 'package:pos_flutter/data/local/drift/tables/espacios.dart';
-import 'package:pos_flutter/data/local/drift/tables/events.dart';
 import 'package:pos_flutter/data/local/drift/tables/event_refs.dart';
+import 'package:pos_flutter/data/local/drift/tables/events.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_balances.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_items.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_movements.dart';
@@ -20,8 +19,19 @@ import 'package:pos_flutter/data/local/drift/tables/sync_checkpoints.dart';
 import 'package:pos_flutter/data/local/drift/tables/units.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+
+import '../../../application/sync/payloads/sale_item_snapshot.dart';
+import '../../../application/sync/projections/sale_draft_projection_store.dart';
+import '../../../application/sync/projections/sale_item_projection.dart';
+import '../../../application/sync/projections/sale_projection.dart';
+import '../../../domain/ventas/sale_status.dart';
+import 'tables/product_update_undo.dart';
+import 'tables/sale_items.dart';
+import 'tables/sales.dart';
 
 part 'app_database.g.dart';
+part 'daos/sale_dao.dart';
 part 'daos/categoria_dao.dart';
 part 'daos/espacio_dao.dart';
 part 'daos/event_dao.dart';
@@ -51,6 +61,8 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     InventoryItems,
     InventoryBalances,
     InventoryMovements,
+    Sales,
+    SaleItems,
   ],
   daos: [
     CategoriaDao,
@@ -61,6 +73,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     SyncCheckpointDao,
     UnitDao,
     InventoryDao,
+    SaleDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -169,8 +182,8 @@ LazyDatabase _openConnection() {
 }
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
-/// ni cambiar schemaVersion. La columna legada is_default identifica bases
-/// anteriores; las bases actuales se conservan entre arranques.
+/// ni cambiar schemaVersion. Ventas debe existir y no puede conservarse la
+/// columna legada is_default; las bases actuales se conservan entre arranques.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
   final connection = sqlite.sqlite3.open(file.path);
@@ -183,6 +196,16 @@ Future<void> _resetDatabaseOnStartup(File file) async {
         connection
             .select(
               "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'product_update_undo'",
+            )
+            .isNotEmpty &&
+        connection
+            .select(
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sales'",
+            )
+            .isNotEmpty &&
+        connection
+            .select(
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sale_items'",
             )
             .isNotEmpty &&
         variantColumns.isNotEmpty &&

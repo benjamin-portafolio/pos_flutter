@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,7 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     const Center(child: Text('Informes')),
     const Center(child: Text('Hoy')),
-    const Center(child: Text('Caja abierta')),
+    const CajaScreen(),
     const ArticlesScreen(),
   ];
 
@@ -64,80 +65,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-/*class CajaScreen extends StatelessWidget {
-  const CajaScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('CERVECERIA MAESTRA Y Ta...'),
-        actions: [
-          IconButton(icon: Icon(Icons.person_add), onPressed: () {}),
-          IconButton(icon: Icon(Icons.phone), onPressed: () {}),
-        ],
-      ),
-      drawer: MenuLateral(),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  hintText: 'Quiero vender...',
-                  prefixIcon: Icon(Icons.search),
-                  suffixIcon: Icon(Icons.qr_code),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-              Expanded(
-                child: Center(
-                  child: Card(
-                    elevation: 2,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SeleccionMesaScreen(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 40),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_circle,
-                              color: Colors.green,
-                              size: 40,
-                            ),
-                            SizedBox(height: 10),
-                            Text('NUEVO ORDEN', style: TextStyle(fontSize: 16)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Text(
-                'Total de pedidos de mesa: 0',
-                style: TextStyle(fontSize: 16, color: Colors.blue),
-              ),
-              SizedBox(height: 10),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-*/

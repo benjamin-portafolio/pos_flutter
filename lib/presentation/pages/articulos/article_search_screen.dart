@@ -2,14 +2,24 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../application/commands/agregar_producto_borrador_command.dart';
+import '../../../application/commands/venta_borrador_command_service.dart';
+import '../../../core/di/injection.dart';
 import '../../../domain/articulos/articulo_listado.dart';
 import '../../../domain/categorias/color_categoria.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../gestion_inventario/categorias/category_color_palette.dart';
 import 'models/article_search_item.dart';
+import 'sale_quantity_dialog.dart';
 
 class ArticleSearchScreen extends StatefulWidget {
-  const ArticleSearchScreen({required this.productoRepository, super.key});
+  const ArticleSearchScreen({
+    required this.productoRepository,
+    this.ventaBorradorCommandService,
+    super.key,
+  });
+
+  final VentaBorradorCommandService? ventaBorradorCommandService;
 
   final ProductoRepository productoRepository;
 
@@ -18,6 +28,57 @@ class ArticleSearchScreen extends StatefulWidget {
 }
 
 class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
+  bool _adding = false;
+
+  Future<void> _add(ArticleSearchItem item) async {
+    if (_adding) return;
+    setState(() => _adding = true);
+    _focusNode.unfocus();
+    try {
+      final unit = item.article.unidadVenta;
+      String? amount;
+      if (unit != null) {
+        amount = await showDialog<String>(
+          context: context,
+          builder: (_) => SaleQuantityDialog(
+            productName: [
+              item.article.nombre,
+              if (item.variant.nombre != null) item.variant.nombre!,
+            ].join(' · '),
+            unit: unit,
+          ),
+        );
+        if (amount == null || !mounted) return;
+      }
+      await (widget.ventaBorradorCommandService ??
+              getIt<VentaBorradorCommandService>())
+          .agregar(
+            AgregarProductoBorradorCommand(
+              variantId: item.variant.varianteId,
+              measuredQuantity: amount,
+              expectedUnitId: unit?.id,
+            ),
+          );
+      if (mounted) _message('Artículo agregado a la venta.');
+    } on FormatException catch (error) {
+      if (mounted) _message(error.message);
+    } on StateError catch (error) {
+      if (mounted) _message(error.message.toString());
+    } catch (_) {
+      if (mounted) {
+        _message('No se pudo agregar el artículo. Intenta nuevamente.');
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  void _message(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   late final Stream<List<ArticuloListado>> _articles = widget.productoRepository
@@ -138,6 +199,7 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
                           key: ValueKey(results[index].variant.varianteId),
                           item: results[index],
                           circleSize: circleSize,
+                          onTap: _adding ? null : () => _add(results[index]),
                         ),
                       );
                     },
@@ -156,11 +218,13 @@ class _ArticleSearchTile extends StatelessWidget {
   const _ArticleSearchTile({
     required this.item,
     required this.circleSize,
+    required this.onTap,
     super.key,
   });
 
   final ArticleSearchItem item;
   final double circleSize;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -175,66 +239,73 @@ class _ArticleSearchTile extends StatelessWidget {
         price,
       ].join(', '),
       excludeSemantics: true,
+      button: true,
+      enabled: onTap != null,
+      onTap: onTap,
       child: Card(
         margin: EdgeInsets.zero,
         color: Colors.white,
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            children: [
-              Container(
-                width: circleSize,
-                height: circleSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: CategoryColorPalette.resolve(
-                    item.article.categoriaColor ?? ColorCategoria.grey,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              children: [
+                Container(
+                  width: circleSize,
+                  height: circleSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: CategoryColorPalette.resolve(
+                      item.article.categoriaColor ?? ColorCategoria.grey,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.article.nombre,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (variantName != null && variantName.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  variantName,
+                  item.article.nombre,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     height: 1.2,
-                    color: Color(0xFF616161),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (variantName != null && variantName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    variantName,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.2,
+                      color: Color(0xFF616161),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    price,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.2,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ],
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  price,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.2,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

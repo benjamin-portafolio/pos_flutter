@@ -1,3 +1,7 @@
+import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
+import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
+import 'package:pos_flutter/application/commands/agregar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/venta_borrador_command_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -60,11 +64,12 @@ void main() {
   });
 
   testWidgets(
-    'filtra producto y variante, limpia y no actúa al tocar mosaicos',
+    'filtra producto y variante, agrega al tocar el mosaico y limpia',
     (tester) async {
       _phoneSize(tester);
       final repository = _Products(() => Stream.value(_catalog));
-      await _pump(tester, repository);
+      final capture = _Capture();
+      await _pump(tester, repository, capture: capture);
       await tester.enterText(find.byType(TextField), 'café');
       await tester.pumpAndSettle();
       expect(find.text('Café'), findsNWidgets(2));
@@ -83,6 +88,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ArticleSearchScreen), findsOneWidget);
       expect(find.text('Grande'), findsOneWidget);
+      expect(capture.commands.single.variantId, 'large');
+      expect(capture.commands.single.measuredQuantity, isNull);
+      expect(find.text('Artículo agregado a la venta.'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'inexistente');
       await tester.pumpAndSettle();
@@ -207,6 +215,96 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'venta medida pide cantidad, valida y permite cancelar sin capturar',
+    (tester) async {
+      final capture = _Capture();
+      final article = ArticuloListado(
+        productoId: 'measured',
+        nombre: 'Granel',
+        activo: true,
+        categoriaId: null,
+        categoriaNombre: null,
+        categoriaColor: null,
+        cantidadReferenciaPrecioAtomica: 1000,
+        unidadVenta: const UnidadInventario(
+          id: 'kg',
+          code: 'kg',
+          nombre: 'Kilogramo',
+          simbolo: 'kg',
+          dimension: DimensionUnidad.mass,
+          factorAtomico: 1000,
+          maximosDecimales: 3,
+          activa: true,
+        ),
+        variantesActivas: const [
+          VarianteListado(
+            varianteId: 'measured-variant',
+            nombre: null,
+            precioVentaMenor: 20000,
+            orden: 0,
+          ),
+        ],
+      );
+      await _pump(
+        tester,
+        _Products(() => Stream.value([article])),
+        capture: capture,
+      );
+      await tester.tap(find.byType(Card));
+      await tester.pumpAndSettle();
+      expect(capture.commands, isEmpty);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Cantidad (kg)'),
+        '0',
+      );
+      await tester.tap(find.text('Agregar'));
+      await tester.pumpAndSettle();
+      expect(find.text('La cantidad debe ser mayor que cero.'), findsOneWidget);
+      expect(capture.commands, isEmpty);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(capture.commands, isEmpty);
+      await tester.tap(find.byType(Card));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Cantidad (kg)'),
+        '0.25',
+      );
+      await tester.tap(find.text('Agregar'));
+      await tester.pumpAndSettle();
+      expect(capture.commands.single.measuredQuantity, '0.25');
+      expect(capture.commands.single.expectedUnitId, 'kg');
+      expect(capture.commands.single.variantId, 'measured-variant');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'evita dobles envíos mientras guarda y permite reintentar un fallo',
+    (tester) async {
+      final gate = Completer<void>();
+      final capture = _Capture()..gate = gate.future;
+      await _pump(
+        tester,
+        _Products(() => Stream.value([_catalog.last])),
+        capture: capture,
+      );
+      await tester.tap(find.byType(Card));
+      await tester.pump();
+      await tester.tap(find.byType(Card));
+      expect(capture.commands, hasLength(1));
+      gate.completeError(StateError('No se pudo guardar.'));
+      await tester.pumpAndSettle();
+      expect(find.text('No se pudo guardar.'), findsOneWidget);
+      capture.gate = null;
+      await tester.tap(find.byType(Card));
+      await tester.pumpAndSettle();
+      expect(capture.commands, hasLength(2));
+      expect(find.text('Artículo agregado a la venta.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 void _phoneSize(WidgetTester tester, {double width = 360}) {
@@ -216,9 +314,18 @@ void _phoneSize(WidgetTester tester, {double width = 360}) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-Future<void> _pump(WidgetTester tester, ProductoRepository repository) async {
+Future<void> _pump(
+  WidgetTester tester,
+  ProductoRepository repository, {
+  _Capture? capture,
+}) async {
   await tester.pumpWidget(
-    MaterialApp(home: ArticleSearchScreen(productoRepository: repository)),
+    MaterialApp(
+      home: ArticleSearchScreen(
+        productoRepository: repository,
+        ventaBorradorCommandService: capture,
+      ),
+    ),
   );
   await tester.pumpAndSettle();
 }
@@ -302,3 +409,16 @@ final _catalog = [
     ],
   ),
 ];
+
+class _Capture implements VentaBorradorCommandService {
+  final commands = <AgregarProductoBorradorCommand>[];
+  Future<void>? gate;
+  @override
+  Future<void> agregar(AgregarProductoBorradorCommand command) async {
+    commands.add(command);
+    await gate;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}

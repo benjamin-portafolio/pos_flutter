@@ -3,18 +3,19 @@ import 'package:get_it/get_it.dart';
 import '../../application/backup/backup_scheduler.dart';
 import '../../application/backup/backup_service.dart';
 import '../../application/backup/backup_store.dart';
-import '../../application/config/app_config.dart';
-import '../../application/config/app_config_controller.dart';
-import '../../application/config/app_config_store.dart';
 import '../../application/commands/categoria_command_service.dart';
 import '../../application/commands/espacio_command_service.dart';
 import '../../application/commands/inventory_command_service.dart';
 import '../../application/commands/local_command_context.dart';
 import '../../application/commands/producto_command_service.dart';
-import '../../application/sync/device_wifi_connectivity.dart';
+import '../../application/commands/venta_borrador_command_service.dart';
+import '../../application/config/app_config.dart';
+import '../../application/config/app_config_controller.dart';
+import '../../application/config/app_config_store.dart';
 import '../../application/sync/categoria_conflict_projection_restorer.dart';
 import '../../application/sync/categoria_eliminada_conflict_projection_restorer.dart';
 import '../../application/sync/categoria_movida_conflict_projection_restorer.dart';
+import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/event_processor.dart';
 import '../../application/sync/handlers/categoria_event_handler.dart';
 import '../../application/sync/handlers/categoria_event_registry.dart';
@@ -24,12 +25,15 @@ import '../../application/sync/handlers/inventory_event_handler.dart';
 import '../../application/sync/handlers/inventory_event_registry.dart';
 import '../../application/sync/handlers/producto_event_handler.dart';
 import '../../application/sync/handlers/producto_event_registry.dart';
+import '../../application/sync/handlers/venta_borrador_event_handler.dart';
 import '../../application/sync/local_event_store.dart';
+import '../../application/sync/payloads/producto_agregado_borrador_payload.dart';
 import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
 import '../../application/sync/projections/inventory_projection_store.dart';
 import '../../application/sync/projections/producto_projection_store.dart';
+import '../../application/sync/projections/sale_draft_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/remote_event_preparer.dart';
 import '../../application/sync/server_echo_acknowledger.dart';
@@ -92,9 +96,26 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<InventoryEventHandler>(
     () => InventoryEventHandler(getIt<InventoryProjectionStore>()),
   );
+  getIt.registerLazySingleton<SaleDraftProjectionStore>(
+    () => getIt<AppDatabase>().saleDao,
+  );
+  getIt.registerLazySingleton<VentaBorradorEventHandler>(
+    () => VentaBorradorEventHandler(getIt<SaleDraftProjectionStore>()),
+  );
+  getIt.registerLazySingleton<VentaBorradorCommandService>(
+    () => VentaBorradorCommandService(
+      store: getIt<SaleDraftProjectionStore>(),
+      products: getIt<ProductoProjectionStore>(),
+      units: getIt<UnidadInventarioRepository>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+    ),
+  );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        ProductoAgregadoBorradorPayload.eventType:
+            getIt<VentaBorradorEventHandler>().apply,
         ...espacioEventHandlers(getIt<EspacioEventHandler>()),
         ...categoriaEventHandlers(getIt<CategoriaEventHandler>()),
         ...productoEventHandlers(getIt<ProductoEventHandler>()),

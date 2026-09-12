@@ -6,6 +6,7 @@ import '../../../application/config/app_config_controller.dart';
 import '../../../application/sync/event_processor.dart';
 import '../../../application/sync/local_event_store.dart';
 import '../../../application/sync/models/sync_event.dart';
+import '../../../application/sync/payloads/producto_agregado_borrador_payload.dart';
 import 'app_database.dart';
 
 class DriftLocalEventStore
@@ -81,7 +82,12 @@ class DriftLocalEventStore
 
   SyncEvent _localEventForCurrentMode(SyncEvent event) {
     final mode = _appConfigController?.mode;
-    if (mode == AppMode.standalone) {
+    // Esta familia registra cambios de borrador que permanecen locales para
+    // siempre. Confirmar una venta requerirá otro evento, no promover éstos.
+    final localDraft =
+        event.aggregateType == ProductoAgregadoBorradorPayload.aggregateType &&
+        event.eventType == ProductoAgregadoBorradorPayload.eventType;
+    if (mode == AppMode.standalone || localDraft) {
       return event.copyWith(
         applicationStatus: 'applied',
         deliveryStatus: 'not_required',

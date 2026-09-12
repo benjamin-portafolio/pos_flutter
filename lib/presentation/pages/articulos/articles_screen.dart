@@ -6,7 +6,7 @@ import '../../../domain/categorias/categoria.dart';
 import '../../../domain/repositories/categoria_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../gestion_inventario/categorias/category_color_palette.dart';
-import 'article_search_screen.dart';
+import '../../widgets/article_search_bar.dart';
 
 class ArticlesScreen extends StatefulWidget {
   const ArticlesScreen({
@@ -50,16 +50,7 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     return SafeArea(
       child: Column(
         children: [
-          _ArticleSearchBar(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ArticleSearchScreen(
-                  productoRepository:
-                      widget.productoRepository ?? getIt<ProductoRepository>(),
-                ),
-              ),
-            ),
-          ),
+          ArticleSearchBar(productoRepository: widget.productoRepository),
           Expanded(
             child: ColoredBox(
               color: const Color(0xFFE6E6E6),
@@ -115,54 +106,6 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ArticleSearchBar extends StatelessWidget {
-  const _ArticleSearchBar({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              readOnly: true,
-              showCursor: false,
-              onTap: onTap,
-              decoration: InputDecoration(
-                hintText: 'Quiero vender…',
-                prefixIcon: Icon(Icons.search, color: primaryColor),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.outlined(
-            onPressed: null,
-            tooltip: 'Código de barras',
-            disabledColor: primaryColor,
-            icon: const Icon(Icons.qr_code_scanner),
-          ),
-          const SizedBox(width: 8),
-          IconButton.outlined(
-            onPressed: null,
-            tooltip: 'Alta rápida de artículo',
-            disabledColor: primaryColor,
-            icon: const Icon(Icons.bolt),
           ),
         ],
       ),
