@@ -6,6 +6,57 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
     with _$SaleDaoMixin
     implements SaleDraftProjectionStore {
   SaleDao(super.db);
+
+  /// Una sola consulta observa cabecera y líneas de forma consistente.
+  Stream<List<({SaleRow sale, SaleItemRow? item})>> watchDraft(
+    String userId,
+    String deviceId,
+  ) {
+    final query =
+        select(sales).join([
+            leftOuterJoin(
+              saleItems,
+              saleItems.saleId.equalsExp(sales.id) &
+                  saleItems.active.equals(true),
+            ),
+          ])
+          ..where(
+            sales.userId.equals(userId) &
+                sales.deviceId.equals(deviceId) &
+                sales.active.equals(true) &
+                sales.status.equals(SaleStatus.borrador.name),
+          )
+          ..orderBy([OrderingTerm.asc(saleItems.sortOrder)]);
+    return query.watch().map(
+      (rows) => [
+        for (final row in rows)
+          (sale: row.readTable(sales), item: row.readTableOrNull(saleItems)),
+      ],
+    );
+  }
+
+  @override
+  Future<bool> wasCleared(String saleId) async =>
+      await (select(db.events)
+            ..where(
+              (t) =>
+                  t.aggregateId.equals(saleId) &
+                  t.aggregateType.equals(
+                    VentaBorradorLimpiadaPayload.aggregateType,
+                  ) &
+                  t.eventType.equals(VentaBorradorLimpiadaPayload.eventType) &
+                  t.applicationStatus.equals('applied'),
+            )
+            ..limit(1))
+          .getSingleOrNull() !=
+      null;
+
+  @override
+  Future<void> deleteDraft(String saleId) => transaction(() async {
+    await (delete(saleItems)..where((t) => t.saleId.equals(saleId))).go();
+    await (delete(sales)..where((t) => t.id.equals(saleId))).go();
+  });
+
   @override
   Future<T> atomic<T>(Future<T> Function() action) => transaction(action);
   @override

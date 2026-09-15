@@ -11,8 +11,11 @@ import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
+import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
+
+import '../../../support/fake_sale_draft_repository.dart';
 
 void main() {
   testWidgets(
@@ -28,6 +31,7 @@ void main() {
       getIt.registerSingleton<ProductoRepository>(
         _Products(Stream.value([_article])),
       );
+      getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository());
       addTearDown(getIt.reset);
 
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));

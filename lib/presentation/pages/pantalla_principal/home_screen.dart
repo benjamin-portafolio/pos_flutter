@@ -13,11 +13,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 2;
 
-  final List<Widget> _screens = [
+  late final List<Widget> _screens = [
     const Center(child: Text('Informes')),
     const Center(child: Text('Hoy')),
-    const CajaScreen(),
-    const ArticlesScreen(),
+    CajaScreen(onOpenCaja: () => _onTabTapped(2)),
+    ArticlesScreen(onOpenCaja: () => _onTabTapped(2)),
   ];
 
   void _onTabTapped(int index) {

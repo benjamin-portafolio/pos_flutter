@@ -3,8 +3,8 @@ import '../models/sync_event.dart';
 import '../payloads/producto_agregado_borrador_payload.dart';
 import '../payloads/sale_item_snapshot.dart';
 import '../projections/sale_draft_projection_store.dart';
-import '../projections/sale_projection.dart';
 import '../projections/sale_item_projection.dart';
+import '../projections/sale_projection.dart';
 
 class VentaBorradorEventHandler {
   VentaBorradorEventHandler(this.store);
@@ -17,6 +17,7 @@ class VentaBorradorEventHandler {
         event.deliveryStatus != 'not_required') {
       throw StateError('La captura del borrador es exclusivamente local.');
     }
+    if (await store.wasCleared(event.aggregateId)) return;
     final sale = await store.findById(event.aggregateId);
     final nextVersion = (event.baseVersion ?? -1) + 1;
     if (nextVersion < 1) throw StateError('El evento requiere versión base.');

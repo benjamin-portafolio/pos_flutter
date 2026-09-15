@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../../application/commands/venta_borrador_command_service.dart';
 import '../../core/di/injection.dart';
 import '../../domain/repositories/producto_repository.dart';
+import '../../domain/repositories/sale_draft_repository.dart';
 import '../pages/articulos/article_search_screen.dart';
 
 class ArticleSearchBar extends StatelessWidget {
   const ArticleSearchBar({
     this.productoRepository,
+    this.saleDraftRepository,
+    this.ventaBorradorCommandService,
+    this.onOpenCaja,
     this.showQuickAdd = true,
     super.key,
   });
 
+  final SaleDraftRepository? saleDraftRepository;
+  final VentaBorradorCommandService? ventaBorradorCommandService;
+  final VoidCallback? onOpenCaja;
   final ProductoRepository? productoRepository;
   final bool showQuickAdd;
 
@@ -28,6 +36,9 @@ class ArticleSearchBar extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => ArticleSearchScreen(
+                    saleDraftRepository: saleDraftRepository,
+                    ventaBorradorCommandService: ventaBorradorCommandService,
+                    onOpenCaja: onOpenCaja,
                     productoRepository:
                         productoRepository ?? getIt<ProductoRepository>(),
                   ),

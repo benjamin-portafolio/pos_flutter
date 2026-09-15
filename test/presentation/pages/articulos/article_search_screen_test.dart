@@ -1,22 +1,107 @@
-import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
-import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
-import 'package:pos_flutter/application/commands/agregar_producto_borrador_command.dart';
-import 'package:pos_flutter/application/commands/venta_borrador_command_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/commands/agregar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/venta_borrador_command_service.dart';
+import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
 import 'package:pos_flutter/domain/categorias/categoria.dart';
 import 'package:pos_flutter/domain/categorias/color_categoria.dart';
+import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
+import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
+import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
+import 'package:pos_flutter/domain/ventas/sale_draft.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/category_color_palette.dart';
+import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
+
+import '../../../support/fake_sale_draft_repository.dart';
+import '../../../support/sale_draft_fixtures.dart';
 
 void main() {
+  setUp(
+    () =>
+        getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository()),
+  );
+  tearDown(() => getIt.reset());
+  testWidgets(
+    'observa cantidades, conserva el botón al filtrar y lo retira al limpiar',
+    (tester) async {
+      _phoneSize(tester);
+      final updates = StreamController<SaleDraft?>();
+      addTearDown(updates.close);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ArticleSearchScreen(
+            productoRepository: _Products(() => Stream.value(_catalog)),
+            saleDraftRepository: FakeSaleDraftRepository(() => updates.stream),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Ir a caja'), findsNothing);
+      updates.add(sampleSale());
+      await tester.pumpAndSettle();
+      expect(find.text('×2'), findsNWidgets(2));
+      expect(find.text('×1'), findsOneWidget);
+      expect(find.text('Ir a caja (3 artículos)'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'inexistente');
+      await tester.pumpAndSettle();
+      expect(find.text('Ir a caja (3 artículos)'), findsOneWidget);
+      updates.add(null);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Ir a caja'), findsNothing);
+      await tester.tap(find.byTooltip('Limpiar búsqueda'));
+      await tester.pumpAndSettle();
+      expect(find.text('×2'), findsNothing);
+      expect(find.text('×1'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'ir a caja desde la búsqueda de artículos selecciona la pestaña caja',
+    (tester) async {
+      _phoneSize(tester);
+      await getIt.unregister<SaleDraftRepository>();
+      getIt.registerSingleton<SaleDraftRepository>(
+        FakeSaleDraftRepository(() => Stream.value(sampleSale())),
+      );
+      getIt.registerSingleton<ProductoRepository>(
+        _Products(() => Stream.value(_catalog)),
+      );
+      getIt.registerSingleton<CategoriaRepository>(_Categories());
+      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomNavigationBar),
+          matching: find.text('Artículos'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ir a caja (3 artículos)'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ArticleSearchScreen), findsNothing);
+      expect(find.byType(CajaScreen), findsOneWidget);
+      expect(
+        tester
+            .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+            .currentIndex,
+        2,
+      );
+      expect(find.text(r'Cobrar: $109.00'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('abre con recientes de todo el catálogo y regresa a categorías', (
     tester,
   ) async {
@@ -90,7 +175,7 @@ void main() {
       expect(find.text('Grande'), findsOneWidget);
       expect(capture.commands.single.variantId, 'large');
       expect(capture.commands.single.measuredQuantity, isNull);
-      expect(find.text('Artículo agregado a la venta.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
 
       await tester.enterText(find.byType(TextField), 'inexistente');
       await tester.pumpAndSettle();
@@ -301,7 +386,7 @@ void main() {
       await tester.tap(find.byType(Card));
       await tester.pumpAndSettle();
       expect(capture.commands, hasLength(2));
-      expect(find.text('Artículo agregado a la venta.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

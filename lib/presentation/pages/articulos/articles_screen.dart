@@ -5,16 +5,18 @@ import '../../../domain/articulos/articulo_listado.dart';
 import '../../../domain/categorias/categoria.dart';
 import '../../../domain/repositories/categoria_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
-import '../gestion_inventario/categorias/category_color_palette.dart';
 import '../../widgets/article_search_bar.dart';
+import '../gestion_inventario/categorias/category_color_palette.dart';
 
 class ArticlesScreen extends StatefulWidget {
   const ArticlesScreen({
     this.categoriaRepository,
     this.productoRepository,
+    this.onOpenCaja,
     super.key,
   });
 
+  final VoidCallback? onOpenCaja;
   final CategoriaRepository? categoriaRepository;
   final ProductoRepository? productoRepository;
 
@@ -50,7 +52,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     return SafeArea(
       child: Column(
         children: [
-          ArticleSearchBar(productoRepository: widget.productoRepository),
+          ArticleSearchBar(
+            productoRepository: widget.productoRepository,
+            onOpenCaja: widget.onOpenCaja,
+          ),
           Expanded(
             child: ColoredBox(
               color: const Color(0xFFE6E6E6),

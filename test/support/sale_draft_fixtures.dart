@@ -1,0 +1,66 @@
+import 'package:pos_flutter/domain/ventas/sale_draft.dart';
+import 'package:pos_flutter/domain/ventas/sale_draft_item.dart';
+
+SaleDraft sampleSale() => SaleDraft(
+  id: 'sale',
+  totalMinor: 10900,
+  items: const [
+    SaleDraftItem(
+      id: 'line-1',
+      variantId: 'small',
+      productName: 'Test Variantes',
+      variantName: null,
+      quantity: 2,
+      measuredQuantityAtomic: null,
+      unitPriceMinor: 4200,
+      priceReferenceQuantityAtomic: null,
+      unitCode: null,
+      unitSymbol: null,
+      unitAtomicFactor: null,
+      totalMinor: 8400,
+    ),
+    SaleDraftItem(
+      id: 'line-2',
+      variantId: 'large',
+      productName: 'Test Variantes',
+      variantName: 'Test',
+      quantity: 2,
+      measuredQuantityAtomic: null,
+      unitPriceMinor: 200,
+      priceReferenceQuantityAtomic: null,
+      unitCode: null,
+      unitSymbol: null,
+      unitAtomicFactor: null,
+      totalMinor: 400,
+    ),
+    SaleDraftItem(
+      id: 'line-3',
+      variantId: 'bread',
+      productName: 'Test Variantes',
+      variantName: 'Variante 2',
+      quantity: 1,
+      measuredQuantityAtomic: null,
+      unitPriceMinor: 2100,
+      priceReferenceQuantityAtomic: null,
+      unitCode: null,
+      unitSymbol: null,
+      unitAtomicFactor: null,
+      totalMinor: 2100,
+    ),
+  ],
+);
+
+const measuredSaleItem = SaleDraftItem(
+  id: 'measured-line',
+  variantId: 'measured',
+  productName: 'Café a granel',
+  variantName: 'Tueste medio',
+  quantity: null,
+  measuredQuantityAtomic: 750,
+  unitPriceMinor: 20000,
+  priceReferenceQuantityAtomic: 1000,
+  unitCode: 'kg',
+  unitSymbol: 'kg',
+  unitAtomicFactor: 1000,
+  totalMinor: 15000,
+);

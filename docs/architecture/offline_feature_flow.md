@@ -422,3 +422,20 @@ una base anterior sin `product_update_undo`, `_resetDatabaseOnStartup` la recrea
 una vez; una base actual se conserva. Un respaldo restaurado de esquema anterior
 se rechaza sin eliminarlo. PostgreSQL incluye la migración
 `1788912000000-AddActiveVariantUniqueness` para los índices parciales.
+
+## Lectura y limpieza del borrador de venta
+
+Búsqueda y caja observan `SaleDraftRepository.watchCurrentDraft`, limitado al
+usuario y dispositivo actuales. Una consulta Drift conjunta de `sales` y
+`sale_items` mantiene consistentes líneas e importes. El repositorio entrega
+modelos de dominio con los snapshots y totales persistidos, sin releer precios
+del catálogo. El contador de artículos cuenta variantes distintas; las piezas
+y las cantidades medidas se presentan por separado.
+
+`LimpiarVentaBorradorCommand` registra `venta_borrador_limpiada` con las
+referencias de la venta y todas sus líneas. El handler borra físicamente primero
+las líneas y después la venta dentro de la transacción del evento. El evento
+permanece local (`not_required`) en ambos modos; sólo `server_sync` persiste
+`event_refs`. El historial se conserva, y su registro de limpieza impide que
+reaplicar un evento antiguo de agregado restaure la venta. La siguiente captura
+crea un borrador con una identidad nueva.

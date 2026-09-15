@@ -1,15 +1,19 @@
 import 'package:uuid/uuid.dart';
+
 import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/inventario/inventory_quantity_codec.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
+import '../../domain/ventas/sale_status.dart';
 import '../sync/local_event_store.dart';
 import '../sync/models/sync_event.dart';
 import '../sync/payloads/producto_agregado_borrador_payload.dart';
 import '../sync/payloads/sale_item_snapshot.dart';
+import '../sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../sync/projections/producto_projection_store.dart';
 import '../sync/projections/sale_draft_projection_store.dart';
 import '../sync/projections/sale_item_projection.dart';
 import 'agregar_producto_borrador_command.dart';
+import 'limpiar_venta_borrador_command.dart';
 import 'local_command_context.dart';
 
 class VentaBorradorCommandService {
@@ -26,6 +30,50 @@ class VentaBorradorCommandService {
   final LocalEventStore events;
   final LocalCommandContext context;
   final _uuid = const Uuid();
+
+  Future<void> limpiar(LimpiarVentaBorradorCommand command) =>
+      store.atomic(() async {
+        final saleId = command.saleId.trim();
+        if (saleId.isEmpty ||
+            context.userId.trim().isEmpty ||
+            context.deviceId.trim().isEmpty) {
+          throw const FormatException(
+            'La venta y el contexto local son obligatorios.',
+          );
+        }
+        final sale = await store.findById(saleId);
+        if (sale == null) return;
+        if (sale.userId != context.userId ||
+            sale.deviceId != context.deviceId ||
+            !sale.active ||
+            sale.status != SaleStatus.borrador) {
+          throw StateError('La venta no corresponde al borrador actual.');
+        }
+        final items = await store.items(saleId);
+        final payload = VentaBorradorLimpiadaPayload(
+          saleItemIds: items.map((item) => item.id).toList(),
+        );
+        final refs = [
+          LocalEventRef.affects(refType: 'sale', refId: saleId),
+          for (final id in payload.saleItemIds)
+            LocalEventRef.affects(refType: 'sale_item', refId: id),
+        ];
+        await events.appendAndApply(
+          SyncEvent(
+            eventId: _uuid.v4(),
+            aggregateType: VentaBorradorLimpiadaPayload.aggregateType,
+            aggregateId: saleId,
+            eventType: VentaBorradorLimpiadaPayload.eventType,
+            deviceId: context.deviceId,
+            userId: context.userId,
+            baseVersion: sale.version,
+            createdAtLocal: DateTime.now(),
+            deliveryStatus: 'not_required',
+            payload: payload.toJson(),
+          ),
+          refs: refs,
+        );
+      });
 
   Future<void> agregar(
     AgregarProductoBorradorCommand command,

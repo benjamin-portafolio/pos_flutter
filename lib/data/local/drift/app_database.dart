@@ -22,6 +22,7 @@ import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../../../application/sync/payloads/sale_item_snapshot.dart';
+import '../../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../../application/sync/projections/sale_draft_projection_store.dart';
 import '../../../application/sync/projections/sale_item_projection.dart';
 import '../../../application/sync/projections/sale_projection.dart';

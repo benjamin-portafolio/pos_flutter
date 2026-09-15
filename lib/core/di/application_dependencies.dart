@@ -26,8 +26,10 @@ import '../../application/sync/handlers/inventory_event_registry.dart';
 import '../../application/sync/handlers/producto_event_handler.dart';
 import '../../application/sync/handlers/producto_event_registry.dart';
 import '../../application/sync/handlers/venta_borrador_event_handler.dart';
+import '../../application/sync/handlers/venta_borrador_limpiada_event_handler.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/payloads/producto_agregado_borrador_payload.dart';
+import '../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
@@ -53,6 +55,8 @@ import '../../application/sync/synced_event_history.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_local_event_store.dart';
+import '../../data/repositories/sale_draft_repository_impl.dart';
+import '../../domain/repositories/sale_draft_repository.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 
 void registerApplicationDependencies(
@@ -99,6 +103,16 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<SaleDraftProjectionStore>(
     () => getIt<AppDatabase>().saleDao,
   );
+  getIt.registerLazySingleton<SaleDraftRepository>(
+    () => SaleDraftRepositoryImpl(
+      saleDao: getIt<AppDatabase>().saleDao,
+      userId: getIt<LocalCommandContext>().userId,
+      deviceId: getIt<LocalCommandContext>().deviceId,
+    ),
+  );
+  getIt.registerLazySingleton<VentaBorradorLimpiadaEventHandler>(
+    () => VentaBorradorLimpiadaEventHandler(getIt<SaleDraftProjectionStore>()),
+  );
   getIt.registerLazySingleton<VentaBorradorEventHandler>(
     () => VentaBorradorEventHandler(getIt<SaleDraftProjectionStore>()),
   );
@@ -114,6 +128,8 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        VentaBorradorLimpiadaPayload.eventType:
+            getIt<VentaBorradorLimpiadaEventHandler>().apply,
         ProductoAgregadoBorradorPayload.eventType:
             getIt<VentaBorradorEventHandler>().apply,
         ...espacioEventHandlers(getIt<EspacioEventHandler>()),
