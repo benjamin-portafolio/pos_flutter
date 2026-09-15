@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../application/commands/agregar_producto_borrador_command.dart';
-import '../../../application/commands/venta_borrador_command_service.dart';
+import '../../../application/commands/ventas/agregar_producto_borrador_command.dart';
+import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/articulos/articulo_listado.dart';
 import '../../../domain/categorias/color_categoria.dart';

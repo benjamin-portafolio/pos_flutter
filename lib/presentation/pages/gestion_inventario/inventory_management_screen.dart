@@ -4,16 +4,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../application/commands/categoria_command_service.dart';
-import '../../../application/commands/crear_articulo_command.dart';
-import '../../../application/commands/crear_categoria_command.dart';
-import '../../../application/commands/crear_recurso_inventario_command.dart';
-import '../../../application/commands/editar_recurso_inventario_command.dart';
-import '../../../application/commands/editar_categoria_command.dart';
-import '../../../application/commands/eliminar_categoria_command.dart';
-import '../../../application/commands/mover_categoria_command.dart';
-import '../../../application/commands/producto_command_service.dart';
-import '../../../application/commands/inventory_command_service.dart';
+import '../../../application/commands/categorias/categoria_command_service.dart';
+import '../../../application/commands/articulos/crear_articulo_command.dart';
+import '../../../application/commands/articulos/crear_articulo_variante_command.dart';
+import '../../../application/commands/articulos/crear_articulo_recipe_component_command.dart';
+import '../../../application/commands/categorias/crear_categoria_command.dart';
+import '../../../application/commands/inventario/crear_recurso_inventario_command.dart';
+import '../../../application/commands/inventario/editar_recurso_inventario_command.dart';
+import '../../../application/commands/categorias/editar_categoria_command.dart';
+import '../../../application/commands/categorias/eliminar_categoria_command.dart';
+import '../../../application/commands/categorias/mover_categoria_command.dart';
+import '../../../application/commands/articulos/producto_command_service.dart';
+import '../../../application/commands/inventario/inventory_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/categorias/categoria.dart';
 import '../../../domain/categorias/direccion_movimiento_categoria.dart';

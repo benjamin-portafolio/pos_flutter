@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pos_flutter/application/commands/crear_recurso_inventario_command.dart';
-import 'package:pos_flutter/application/commands/editar_recurso_inventario_command.dart';
-import 'package:pos_flutter/application/commands/inventory_command_service.dart';
+import 'package:pos_flutter/application/commands/inventario/crear_recurso_inventario_command.dart';
+import 'package:pos_flutter/application/commands/inventario/editar_recurso_inventario_command.dart';
+import 'package:pos_flutter/application/commands/inventario/inventory_command_service.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';

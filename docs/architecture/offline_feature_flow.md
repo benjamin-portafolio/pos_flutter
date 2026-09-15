@@ -48,6 +48,12 @@ UI
 
 `application/commands`
 
+- Agrupa comandos y command services en subcarpetas por funcionalidad:
+  `categorias`, `espacios`, `articulos`, `inventario` y `ventas`.
+- Cada `Command` contiene los datos de una intencion de cambio; el
+  `CommandService` correspondiente coordina su ejecucion. Ambos viven juntos
+  dentro de la subcarpeta de su funcionalidad, en archivos separados.
+- Mantiene `LocalCommandContext` en la raiz por ser compartido entre servicios.
 - Convierte una intencion de negocio en uno o mas eventos.
 - Construye el payload tipado del evento y lo serializa con `toJson`.
 - Declara las referencias de negocio que necesita el evento.
@@ -93,8 +99,8 @@ UI
 ```text
 lib/domain/espacios/espacio.dart
 lib/domain/espacios/visibilidad_espacio.dart
-lib/application/commands/crear_espacio_command.dart
-lib/application/commands/espacio_command_service.dart
+lib/application/commands/espacios/crear_espacio_command.dart
+lib/application/commands/espacios/espacio_command_service.dart
 lib/application/sync/models/sync_event.dart
 lib/application/sync/payloads/espacio_creado_payload.dart
 lib/application/sync/payloads/categoria_creada_payload.dart
@@ -344,6 +350,56 @@ Siempre:
 dart analyze
 flutter test
 ```
+
+## Organización de ProductoCommandService
+
+En `lib/application/commands/articulos/producto_command_service.dart`, los métodos
+`crearArticulo` y `actualizarArticulo` construyen explícitamente sus respectivos
+eventos. La edición carga y valida su base antes de preparar el nuevo estado.
+
+La preparación compartida se distribuye en métodos privados:
+
+- `_prepareArticulo`: coordina la preparación y construye el payload de producto.
+- `_normalizeVariants` y `_resolveVariantIds`: validan los datos y las identidades de variantes.
+- `_prepareInventoryBindings` y `_resolveInventoryDependencies`: preparan los recursos nuevos y las dependencias de inventario.
+- `_buildVariantPayloads`: construye las variantes del payload.
+- `_buildArticleRefs`: declara las referencias del producto, variantes, recetas, categoría, inventario y unidad cuando corresponden.
+- `_appendArticulo`: arma el lote con los recursos nuevos antes del evento de producto y lo entrega a `appendAndApplyAll`.
+
+El producto y todas sus variantes siguen viajando en un solo evento de producto.
+Drift guarda y aplica el lote completo en una misma transacción local.
+
+## Organización de otros comandos y de la revalidación
+
+- `CategoriaCommandService.eliminarCategoria` coordina la preparación del borrado,
+  la creación del evento y su aplicación. Métodos privados validan los artículos
+  confirmados, resuelven su destino, calculan el reordenamiento y construyen las
+  referencias. El handler conserva la validación final dentro de la transacción.
+- `InventoryCommandService.editarRecurso` prepara por separado el cambio de nombre
+  y el movimiento. Si hay ambos, el movimiento usa el evento del cambio de nombre
+  como base, incrementa la versión y espera su entrega antes del push. El lote
+  sigue guardándose y aplicándose atómicamente.
+- `VentaBorradorCommandService.agregar` separa la captura del artículo, la cantidad
+  medida, la agrupación con una línea compatible y las referencias. Todo sigue
+  ejecutándose dentro de `store.atomic` y el evento conserva `not_required`.
+- `SyncPushService` separa el estado efectivo de la respuesta, su persistencia y
+  la propagación de conflictos a los eventos en espera. Un duplicado conserva el
+  estado original informado por el servidor. La actualización de estados y refs
+  y la restauración inversa de proyecciones comparten una transacción.
+
+`PendingEventRevalidator` coordina los validadores de
+`lib/application/sync/revalidation`: `EspacioPendingEventValidator`,
+`CategoriaPendingEventValidator`, `ProductoPendingEventValidator` e
+`InventoryPendingEventValidator`. Cada uno conserva las reglas de su agregado,
+la detección de dependencias fallidas y la restauración de sus proyecciones.
+`PendingEventDependencyResolver` comparte la consulta de dependencias y la
+resolución de la secuencia oficial de un evento base.
+
+El coordinador recorre los pendientes en el orden recibido y comparte los IDs
+que ya detectó en conflicto entre todos los validadores. Después marca los
+conflictos y restaura sus proyecciones en orden inverso dentro de una sola
+transacción. Si falla una restauración, se revierten tanto los cambios de estado
+como las restauraciones ya realizadas.
 
 ## Actualización de productos y variantes
 

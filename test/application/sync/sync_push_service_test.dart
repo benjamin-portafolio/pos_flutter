@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
 import 'package:pos_flutter/application/sync/pending_event_revalidator.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
 import 'dart:convert';
@@ -6,9 +7,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:pos_flutter/application/commands/crear_recurso_inventario_command.dart';
-import 'package:pos_flutter/application/commands/editar_recurso_inventario_command.dart';
-import 'package:pos_flutter/application/commands/inventory_command_service.dart';
+import 'package:pos_flutter/application/commands/inventario/crear_recurso_inventario_command.dart';
+import 'package:pos_flutter/application/commands/inventario/editar_recurso_inventario_command.dart';
+import 'package:pos_flutter/application/commands/inventario/inventory_command_service.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/sync/categoria_conflict_projection_restorer.dart';
 import 'package:pos_flutter/application/sync/categoria_eliminada_conflict_projection_restorer.dart';
@@ -104,6 +105,183 @@ void main() {
   tearDown(() async {
     await db.close();
   });
+
+  for (final failRestoration in [false, true]) {
+    test(
+      'revalidación entre agregados restaura en orden inverso y conserva atomicidad: $failRestoration',
+      () async {
+        final categoryEvent = _localCategoriaCreada();
+        final productEvent = _localProductoCreado();
+        await localEventStore.appendAndApply(
+          categoryEvent,
+          refs: const [
+            LocalEventRef.affects(refType: 'category', refId: 'category_1'),
+          ],
+        );
+        await localEventStore.appendAndApply(
+          productEvent,
+          refs: const [
+            LocalEventRef.affects(refType: 'product', refId: 'product_1'),
+            LocalEventRef.uses(refType: 'category', refId: 'category_1'),
+          ],
+        );
+        final category = (await categoriaProjectionStore.findById(
+          'category_1',
+        ))!;
+        // Simula el estado oficial que invalida el alta local de la categoría.
+        await categoriaProjectionStore.update(
+          CategoriaProjection(
+            id: category.id,
+            nombre: category.nombre,
+            color: category.color,
+            orden: category.orden,
+            active: true,
+            version: category.version,
+            createdEventId: 'official_category_event',
+            lastEventId: 'official_category_event',
+            lastServerSequence: 10,
+          ),
+        );
+        final restored = <String>[];
+        final revalidator = PendingEventRevalidator(
+          syncPersistence: syncPersistence,
+          syncedEventHistory: syncPersistence,
+          espacioProjectionStore: espacioProjectionStore,
+          categoriaProjectionStore: _RecordingCategoryRestoration(
+            categoriaDao,
+            restored,
+            fail: failRestoration,
+          ),
+          productoProjectionStore: _RecordingProductRestoration(
+            productoDao,
+            restored,
+          ),
+          categoriaConflictProjectionRestorer:
+              CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+          categoriaMovidaConflictProjectionRestorer:
+              CategoriaMovidaConflictProjectionRestorer(
+                categoriaProjectionStore,
+              ),
+        );
+
+        if (failRestoration) {
+          await expectLater(
+            revalidator.revalidatePendingEvents(),
+            throwsStateError,
+          );
+          expect(
+            await productoProjectionStore.findProductById('product_1'),
+            isNotNull,
+          );
+        } else {
+          final report = await revalidator.revalidatePendingEvents();
+          expect(report.checked, 2);
+          expect(report.conflicts, 2);
+          expect(
+            await productoProjectionStore.findProductById('product_1'),
+            isNull,
+          );
+          expect(
+            (await syncPersistence.eventById(
+              productEvent.eventId,
+            ))!.rejectionReason,
+            contains('depende de una categoría'),
+          );
+        }
+        expect(restored, [productEvent.eventId, categoryEvent.eventId]);
+        for (final eventId in [categoryEvent.eventId, productEvent.eventId]) {
+          expect(
+            (await syncPersistence.eventById(eventId))!.deliveryStatus,
+            failRestoration ? 'pending' : 'conflict',
+          );
+        }
+        expect(
+          (await categoriaProjectionStore.findById(
+            'category_1',
+          ))!.createdEventId,
+          'official_category_event',
+        );
+      },
+    );
+  }
+
+  for (final (remoteStatus, originalStatus, expectedStatus) in const [
+    ('accepted', null, 'delivered'),
+    ('duplicate', null, 'delivered'),
+    ('duplicate', 'synced', 'delivered'),
+    ('duplicate', 'delivered', 'delivered'),
+    ('duplicate', 'rejected', 'rejected'),
+    ('duplicate', 'pending', 'pending'),
+    ('rejected', null, 'rejected'),
+    ('conflict', null, 'conflict'),
+    ('unknown', null, 'pending'),
+  ]) {
+    test(
+      'push conserva estado y referencias para $remoteStatus/$originalStatus',
+      () async {
+        final event = _localEspacioEvent();
+        await localEventStore.appendAndApply(
+          event,
+          refs: const [
+            LocalEventRef.affects(refType: 'espacio', refId: 'local_space_1'),
+          ],
+        );
+        final service = SyncPushService(
+          syncPersistence: syncPersistence,
+          endpointConfig: SyncEndpointConfig(
+            initialBaseUrl: 'http://localhost:3000',
+          ),
+          conflictProjectionCleaner: SyncConflictProjectionCleaner(
+            espacioProjectionStore: espacioProjectionStore,
+            categoriaProjectionStore: categoriaProjectionStore,
+            categoriaConflictProjectionRestorer:
+                CategoriaConflictProjectionRestorer(categoriaProjectionStore),
+            categoriaMovidaConflictProjectionRestorer:
+                CategoriaMovidaConflictProjectionRestorer(
+                  categoriaProjectionStore,
+                ),
+          ),
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'results': [
+                  {
+                    'event_id': event.eventId,
+                    'status': remoteStatus,
+                    'original_sync_status': ?originalStatus,
+                    'server_sequence': 13,
+                  },
+                ],
+              }),
+              200,
+            ),
+          ),
+        );
+        final report = await service.pushPendingEvents();
+        final stored = (await syncPersistence.eventById(event.eventId))!;
+        expect(stored.deliveryStatus, expectedStatus);
+        expect(
+          stored.serverSequence,
+          expectedStatus == 'pending' ? isNull : 13,
+        );
+        final ref = (await db.select(db.eventRefs).get()).single;
+        expect(
+          ref.source,
+          expectedStatus == 'pending' ? 'local_pending' : 'server',
+        );
+        expect(ref.serverSequence, expectedStatus == 'pending' ? isNull : 13);
+        expect(report.total, 1);
+        expect(report.synced, expectedStatus == 'delivered' ? 1 : 0);
+        expect(report.rejected, expectedStatus == 'rejected' ? 1 : 0);
+        expect(report.conflicts, expectedStatus == 'conflict' ? 1 : 0);
+        expect(report.pending, expectedStatus == 'pending' ? 1 : 0);
+        expect(
+          await espacioProjectionStore.findById(event.aggregateId),
+          expectedStatus == 'conflict' ? isNull : isNotNull,
+        );
+      },
+    );
+  }
 
   for (final deleting in [false, true]) {
     for (final reject in [false, true]) {
@@ -919,4 +1097,35 @@ SyncEvent _localCategoriaMovidaB() {
       },
     },
   );
+}
+
+class _RecordingCategoryRestoration extends DriftCategoriaProjectionStore {
+  _RecordingCategoryRestoration(
+    CategoriaDao dao,
+    this.restored, {
+    required this.fail,
+  }) : super(categoriaDao: dao);
+
+  final List<String> restored;
+  final bool fail;
+
+  @override
+  Future<void> deleteCreatedByEvent(String eventId) async {
+    restored.add(eventId);
+    if (fail) throw StateError('Fallo al restaurar categoría');
+    await super.deleteCreatedByEvent(eventId);
+  }
+}
+
+class _RecordingProductRestoration extends DriftProductoProjectionStore {
+  _RecordingProductRestoration(ProductoDao dao, this.restored)
+    : super(productoDao: dao);
+
+  final List<String> restored;
+
+  @override
+  Future<void> deleteCreatedByEvent(String eventId) async {
+    restored.add(eventId);
+    await super.deleteCreatedByEvent(eventId);
+  }
 }

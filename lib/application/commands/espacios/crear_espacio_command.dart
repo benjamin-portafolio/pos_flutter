@@ -1,4 +1,4 @@
-import '../../domain/espacios/visibilidad_espacio.dart';
+import '../../../domain/espacios/visibilidad_espacio.dart';
 
 class CrearEspacioCommand {
   const CrearEspacioCommand({

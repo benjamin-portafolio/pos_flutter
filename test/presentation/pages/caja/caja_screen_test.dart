@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pos_flutter/application/commands/limpiar_venta_borrador_command.dart';
-import 'package:pos_flutter/application/commands/venta_borrador_command_service.dart';
+import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_command.dart';
+import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/models/sale_draft_display.dart';

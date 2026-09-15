@@ -2,7 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
-import 'package:pos_flutter/application/commands/producto_command_service.dart';
+import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';

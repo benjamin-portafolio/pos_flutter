@@ -1,19 +1,19 @@
 import 'package:uuid/uuid.dart';
 
-import '../../domain/categorias/direccion_movimiento_categoria.dart';
-import '../../domain/categorias/nombre_categoria.dart';
-import '../sync/local_event_store.dart';
-import '../sync/models/sync_event.dart';
-import '../sync/payloads/categoria_actualizada_payload.dart';
-import '../sync/payloads/categoria_creada_payload.dart';
-import '../sync/payloads/categoria_eliminada_payload.dart';
-import '../sync/payloads/categoria_movida_payload.dart';
-import '../sync/projections/categoria_projection_store.dart';
-import '../sync/projections/producto_projection_store.dart';
+import '../../../domain/categorias/direccion_movimiento_categoria.dart';
+import '../../../domain/categorias/nombre_categoria.dart';
+import '../../sync/local_event_store.dart';
+import '../../sync/models/sync_event.dart';
+import '../../sync/payloads/categoria_actualizada_payload.dart';
+import '../../sync/payloads/categoria_creada_payload.dart';
+import '../../sync/payloads/categoria_eliminada_payload.dart';
+import '../../sync/payloads/categoria_movida_payload.dart';
+import '../../sync/projections/categoria_projection_store.dart';
+import '../../sync/projections/producto_projection_store.dart';
 import 'crear_categoria_command.dart';
 import 'editar_categoria_command.dart';
 import 'eliminar_categoria_command.dart';
-import 'local_command_context.dart';
+import '../local_command_context.dart';
 import 'mover_categoria_command.dart';
 
 class CategoriaCommandService {
@@ -166,6 +166,28 @@ class CategoriaCommandService {
   }
 
   Future<void> eliminarCategoria(EliminarCategoriaCommand command) async {
+    final (deleted, payload) = await _prepareCategoryDeletion(command);
+    final event = SyncEvent(
+      eventId: _uuid.v4(),
+      aggregateType: CategoriaEliminadaPayload.aggregateType,
+      aggregateId: deleted.id,
+      eventType: CategoriaEliminadaPayload.eventType,
+      deviceId: _commandContext.deviceId,
+      userId: _commandContext.userId,
+      baseServerSequence: deleted.lastServerSequence,
+      baseVersion: deleted.version,
+      createdAtLocal: DateTime.now(),
+      payload: payload.toJson(),
+    );
+
+    await _eventStore.appendAndApply(
+      event,
+      refs: _buildDeletionRefs(deleted.id, payload),
+    );
+  }
+
+  Future<(CategoriaProjection, CategoriaEliminadaPayload)>
+  _prepareCategoryDeletion(EliminarCategoriaCommand command) async {
     final productoProjectionStore = _productoProjectionStore;
     if (productoProjectionStore == null) {
       throw StateError(
@@ -189,17 +211,7 @@ class CategoriaCommandService {
     final deleted = currentCategories[currentIndex];
     final linkedProducts = await productoProjectionStore
         .findProductsByCategoryId(deleted.id);
-    final actualProductIds =
-        linkedProducts.map((product) => product.id).toList(growable: false)
-          ..sort();
-    final confirmedProductIds = command.productoIdsConfirmados.toList()..sort();
-    if (confirmedProductIds.toSet().length != confirmedProductIds.length ||
-        !_sameStrings(actualProductIds, confirmedProductIds)) {
-      throw StateError(
-        'El conjunto de artículos vinculados cambió desde la confirmación.',
-      );
-    }
-
+    _validateConfirmedProducts(linkedProducts, command.productoIdsConfirmados);
     final baseEventId = _baseEventId(deleted);
     final createdEventId = deleted.createdEventId;
     if (createdEventId == null) {
@@ -208,7 +220,56 @@ class CategoriaCommandService {
       );
     }
 
-    final shifted = currentCategories
+    final shifted = _buildShiftedCategories(currentCategories, currentIndex);
+    final productResolution = _resolveProductResolution(
+      command,
+      deleted,
+      currentCategories,
+      linkedProducts,
+    );
+    final linkedPayload = _buildLinkedProducts(
+      linkedProducts,
+      deleted.id,
+      productResolution.categoriaDestino?.categoriaId,
+    );
+    final payload = CategoriaEliminadaPayload.fromValues(
+      baseEventId: baseEventId,
+      categoriaEliminada: CategoriaEliminadaSnapshot(
+        nombre: deleted.nombre,
+        color: deleted.color,
+        orden: deleted.orden,
+        active: deleted.active,
+        createdEventId: createdEventId,
+      ),
+      resolucionProductos: productResolution,
+      productosVinculados: linkedPayload,
+      categoriasDesplazadas: shifted,
+    );
+    payload.validateForSourceCategory(deleted.id);
+    return (deleted, payload);
+  }
+
+  void _validateConfirmedProducts(
+    List<ProductoProjection> linkedProducts,
+    List<String> confirmedIds,
+  ) {
+    final actualProductIds =
+        linkedProducts.map((product) => product.id).toList(growable: false)
+          ..sort();
+    final confirmedProductIds = confirmedIds.toList()..sort();
+    if (confirmedProductIds.toSet().length != confirmedProductIds.length ||
+        !_sameStrings(actualProductIds, confirmedProductIds)) {
+      throw StateError(
+        'El conjunto de artículos vinculados cambió desde la confirmación.',
+      );
+    }
+  }
+
+  List<CategoriaEliminadaCategoriaDesplazada> _buildShiftedCategories(
+    List<CategoriaProjection> currentCategories,
+    int currentIndex,
+  ) {
+    return currentCategories
         .skip(currentIndex + 1)
         .map((category) {
           return CategoriaEliminadaCategoriaDesplazada(
@@ -221,9 +282,14 @@ class CategoriaCommandService {
           );
         })
         .toList(growable: false);
+  }
 
-    CategoriaEliminadaResolucion productResolution;
-    String? targetCategoryId;
+  CategoriaEliminadaResolucion _resolveProductResolution(
+    EliminarCategoriaCommand command,
+    CategoriaProjection deleted,
+    List<CategoriaProjection> currentCategories,
+    List<ProductoProjection> linkedProducts,
+  ) {
     switch (command.resolucion) {
       case ResolucionProductosCategoria.none:
         if (linkedProducts.isNotEmpty || command.categoriaDestinoId != null) {
@@ -231,7 +297,7 @@ class CategoriaCommandService {
             'La resolución none solo puede eliminar una categoría vacía.',
           );
         }
-        productResolution = const CategoriaEliminadaResolucion.none();
+        return const CategoriaEliminadaResolucion.none();
       case ResolucionProductosCategoria.move:
         final destinationId = command.categoriaDestinoId;
         if (destinationId == null || destinationId.trim().isEmpty) {
@@ -251,8 +317,7 @@ class CategoriaCommandService {
         if (destination == null || !destination.active) {
           throw StateError('La categoría destino no está disponible.');
         }
-        targetCategoryId = destination.id;
-        productResolution = CategoriaEliminadaResolucion.move(
+        return CategoriaEliminadaResolucion.move(
           CategoriaEliminadaCategoriaDestino(
             categoriaId: destination.id,
             baseEventId: _baseEventId(destination),
@@ -266,70 +331,55 @@ class CategoriaCommandService {
             'Dejar sin categoría no admite una categoría destino.',
           );
         }
-        productResolution = const CategoriaEliminadaResolucion.uncategorize();
+        return const CategoriaEliminadaResolucion.uncategorize();
     }
+  }
 
-    final linkedPayload =
-        linkedProducts
-            .map(
-              (product) => CategoriaEliminadaProductoVinculado(
-                productoId: product.id,
-                baseEventId: _productBaseEventId(product),
-                baseVersion: product.version,
-                baseServerSequence: product.lastServerSequence,
-                categoriaAnteriorId: deleted.id,
-                categoriaNuevaId: targetCategoryId,
-              ),
-            )
-            .toList(growable: false)
-          ..sort((left, right) => left.productoId.compareTo(right.productoId));
-    final payload = CategoriaEliminadaPayload.fromValues(
-      baseEventId: baseEventId,
-      categoriaEliminada: CategoriaEliminadaSnapshot(
-        nombre: deleted.nombre,
-        color: deleted.color,
-        orden: deleted.orden,
-        active: deleted.active,
-        createdEventId: createdEventId,
+  List<CategoriaEliminadaProductoVinculado> _buildLinkedProducts(
+    List<ProductoProjection> linkedProducts,
+    String deletedCategoryId,
+    String? targetCategoryId,
+  ) {
+    return linkedProducts
+        .map(
+          (product) => CategoriaEliminadaProductoVinculado(
+            productoId: product.id,
+            baseEventId: _productBaseEventId(product),
+            baseVersion: product.version,
+            baseServerSequence: product.lastServerSequence,
+            categoriaAnteriorId: deletedCategoryId,
+            categoriaNuevaId: targetCategoryId,
+          ),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => left.productoId.compareTo(right.productoId));
+  }
+
+  List<LocalEventRef> _buildDeletionRefs(
+    String categoryId,
+    CategoriaEliminadaPayload payload,
+  ) {
+    final shifted = payload.categoriasDesplazadas;
+    final linkedPayload = payload.productosVinculados;
+    final targetCategoryId =
+        payload.resolucionProductos.categoriaDestino?.categoriaId;
+    return [
+      LocalEventRef.affects(refType: 'category', refId: categoryId),
+      ...shifted.map(
+        (category) => LocalEventRef.affects(
+          refType: 'category',
+          refId: category.categoriaId,
+        ),
       ),
-      resolucionProductos: productResolution,
-      productosVinculados: linkedPayload,
-      categoriasDesplazadas: shifted,
-    );
-    payload.validateForSourceCategory(deleted.id);
-    final event = SyncEvent(
-      eventId: _uuid.v4(),
-      aggregateType: CategoriaEliminadaPayload.aggregateType,
-      aggregateId: deleted.id,
-      eventType: CategoriaEliminadaPayload.eventType,
-      deviceId: _commandContext.deviceId,
-      userId: _commandContext.userId,
-      baseServerSequence: deleted.lastServerSequence,
-      baseVersion: deleted.version,
-      createdAtLocal: DateTime.now(),
-      payload: payload.toJson(),
-    );
-
-    await _eventStore.appendAndApply(
-      event,
-      refs: [
-        LocalEventRef.affects(refType: 'category', refId: deleted.id),
-        ...shifted.map(
-          (category) => LocalEventRef.affects(
-            refType: 'category',
-            refId: category.categoriaId,
-          ),
+      ...linkedPayload.map(
+        (product) => LocalEventRef.affects(
+          refType: 'product',
+          refId: product.productoId,
         ),
-        ...linkedPayload.map(
-          (product) => LocalEventRef.affects(
-            refType: 'product',
-            refId: product.productoId,
-          ),
-        ),
-        if (targetCategoryId != null)
-          LocalEventRef.uses(refType: 'category', refId: targetCategoryId),
-      ],
-    );
+      ),
+      if (targetCategoryId != null)
+        LocalEventRef.uses(refType: 'category', refId: targetCategoryId),
+    ];
   }
 
   String _productBaseEventId(ProductoProjection projection) {

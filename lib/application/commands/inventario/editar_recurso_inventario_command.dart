@@ -1,4 +1,4 @@
-import '../../domain/inventario/tipo_movimiento_inventario.dart';
+import '../../../domain/inventario/tipo_movimiento_inventario.dart';
 
 class EditarRecursoInventarioCommand {
   const EditarRecursoInventarioCommand({

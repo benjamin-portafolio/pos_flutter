@@ -51,6 +51,12 @@ presentation
 
 - Un resultado de formulario vive en `presentation`.
 - Un comando de aplicacion vive en `application/commands`.
+- Agrupar comandos y sus command services por funcionalidad dentro de
+  `application/commands`: `categorias`, `espacios`, `articulos`, `inventario`
+  y `ventas`. Mantener `LocalCommandContext` en la raiz como contexto compartido.
+- Usar el sufijo `Command` para los datos que expresan una intencion de cambio
+  y `CommandService` para el servicio que la procesa. Organizar sus tests con
+  las mismas subcarpetas dentro de `test/application/commands`.
 - Enums o conceptos de negocio viven en `domain`.
 - Las tablas Drift y DAOs viven en `data/local/drift`.
 - Toda tabla Drift debe incluir un comentario sobre su finalidad y documentar

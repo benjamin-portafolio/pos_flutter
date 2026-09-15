@@ -2,28 +2,29 @@ import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
-import '../../domain/articulos/costo_estandar.dart';
-import '../../domain/articulos/nombre_producto.dart';
-import '../../domain/articulos/nombre_variante.dart';
-import '../../domain/articulos/precio_venta.dart';
-import '../../domain/articulos/sale_configuration.dart';
-import '../../domain/inventario/dimension_unidad.dart';
-import '../../domain/inventario/inventory_quantity_codec.dart';
-import '../../domain/inventario/tipo_movimiento_inventario.dart';
-import '../../domain/inventario/unidad_inventario.dart';
-import '../../domain/repositories/unidad_inventario_repository.dart';
-import '../sync/local_event_store.dart';
-import '../sync/models/sync_event.dart';
-import '../sync/payloads/categoria_creada_payload.dart';
-import '../sync/payloads/producto_creado_payload.dart';
-import '../sync/payloads/recurso_inventario_creado_payload.dart';
-import '../sync/projections/categoria_projection_store.dart';
-import '../sync/projections/inventory_projection_store.dart';
-import '../sync/synced_event_history.dart';
+import '../../../domain/articulos/costo_estandar.dart';
+import '../../../domain/articulos/nombre_producto.dart';
+import '../../../domain/articulos/nombre_variante.dart';
+import '../../../domain/articulos/precio_venta.dart';
+import '../../../domain/articulos/sale_configuration.dart';
+import '../../../domain/inventario/dimension_unidad.dart';
+import '../../../domain/inventario/inventory_quantity_codec.dart';
+import '../../../domain/inventario/tipo_movimiento_inventario.dart';
+import '../../../domain/inventario/unidad_inventario.dart';
+import '../../../domain/repositories/unidad_inventario_repository.dart';
+import '../../sync/local_event_store.dart';
+import '../../sync/models/sync_event.dart';
+import '../../sync/payloads/categoria_creada_payload.dart';
+import '../../sync/payloads/producto_creado_payload.dart';
+import '../../sync/payloads/recurso_inventario_creado_payload.dart';
+import '../../sync/projections/categoria_projection_store.dart';
+import '../../sync/projections/inventory_projection_store.dart';
+import '../../sync/synced_event_history.dart';
 import 'crear_articulo_command.dart';
-import '../sync/payloads/producto_actualizado_payload.dart';
-import '../sync/projections/producto_projection_store.dart';
-import 'local_command_context.dart';
+import 'crear_articulo_variante_command.dart';
+import '../../sync/payloads/producto_actualizado_payload.dart';
+import '../../sync/projections/producto_projection_store.dart';
+import '../local_command_context.dart';
 
 class ProductoCommandService {
   ProductoCommandService({
@@ -70,11 +71,34 @@ class ProductoCommandService {
     if (product.lastEventId != baseEventId) {
       throw StateError('El artículo cambió. Vuelve a abrirlo.');
     }
-    await _saveArticulo(
+    final before = await _productoProjectionStore!.snapshot(productId);
+    if (product.saleConfiguration != command.saleConfiguration) {
+      throw const FormatException('No se puede cambiar la forma de venta.');
+    }
+    final article = await _prepareArticulo(
       command,
-      existing: product,
+      existingProductId: productId,
+      before: before,
       existingVariantIds: variantIds,
     );
+    final payload = ProductoActualizadoPayload(
+      baseEventId: product.lastEventId!,
+      before: before,
+      after: article.payload,
+    );
+    final event = SyncEvent(
+      eventId: article.eventId,
+      aggregateType: ProductoActualizadoPayload.aggregateType,
+      aggregateId: article.productId,
+      eventType: ProductoActualizadoPayload.eventType,
+      deviceId: _commandContext.deviceId,
+      userId: _commandContext.userId,
+      baseVersion: product.version,
+      baseServerSequence: product.lastServerSequence,
+      createdAtLocal: DateTime.now(),
+      payload: payload.toJson(),
+    );
+    await _appendArticulo(article, event, updatePayload: payload);
   }
 
   Future<void> eliminarArticulo({
@@ -118,26 +142,76 @@ class ProductoCommandService {
     );
   }
 
-  Future<void> crearArticulo(CrearArticuloCommand command) =>
-      _saveArticulo(command);
+  Future<void> crearArticulo(CrearArticuloCommand command) async {
+    final article = await _prepareArticulo(command);
+    final event = SyncEvent(
+      eventId: article.eventId,
+      aggregateType: ProductoCreadoPayload.aggregateType,
+      aggregateId: article.productId,
+      eventType: ProductoCreadoPayload.eventType,
+      deviceId: _commandContext.deviceId,
+      userId: _commandContext.userId,
+      baseVersion: 1,
+      createdAtLocal: DateTime.now(),
+      payload: article.payload.toJson(),
+    );
+    await _appendArticulo(article, event);
+  }
 
-  Future<void> _saveArticulo(
+  Future<_PreparedArticulo> _prepareArticulo(
     CrearArticuloCommand command, {
-    ProductoProjection? existing,
+    String? existingProductId,
+    ProductoCreadoPayload? before,
     List<String?>? existingVariantIds,
   }) async {
-    final before = existing == null
-        ? null
-        : await _productoProjectionStore!.snapshot(existing.id);
-    if (existing != null &&
-        existing.saleConfiguration != command.saleConfiguration) {
-      throw const FormatException('No se puede cambiar la forma de venta.');
-    }
-
     final nombre = NombreProducto.fromInput(command.nombre);
     final saleConfiguration = await _validateSaleConfiguration(
       command.saleConfiguration,
     );
+    final variants = await _normalizeVariants(command, saleConfiguration);
+    final categoriaId = _normalizeOptional(command.categoriaId);
+    final dependency = categoriaId == null
+        ? null
+        : await _categoryDependency(categoriaId);
+    final productId = existingProductId ?? _uuid.v4();
+    final variantIds = _resolveVariantIds(variants.length, existingVariantIds);
+    final eventId = _uuid.v4();
+    final inventoryBindings = _prepareInventoryBindings(
+      variants,
+      variantIds,
+      before,
+    );
+    final inventoryDependencies = await _resolveInventoryDependencies(
+      variants,
+      variantIds,
+      inventoryBindings,
+      before,
+    );
+    final payload = ProductoCreadoPayload.create(
+      nombre: nombre.value,
+      categoriaId: categoriaId,
+      saleConfiguration: saleConfiguration,
+      variantes: _buildVariantPayloads(
+        variants,
+        variantIds,
+        inventoryBindings,
+        before,
+      ),
+      dependenciaCategoria: dependency,
+      dependenciasInventario: inventoryDependencies,
+    );
+    return _PreparedArticulo(
+      productId: productId,
+      eventId: eventId,
+      payload: payload,
+      inventoryBindings: inventoryBindings,
+    );
+  }
+
+  Future<List<_NormalizedVariant>> _normalizeVariants(
+    CrearArticuloCommand command,
+    SaleConfiguration saleConfiguration,
+  ) async {
     final capturedVariants = command.variantes.isEmpty
         ? [
             CrearArticuloVarianteCommand(
@@ -183,25 +257,30 @@ class ProductoCommandService {
         ),
       );
     }
-    final categoriaId = _normalizeOptional(command.categoriaId);
-    final dependency = categoriaId == null
-        ? null
-        : await _categoryDependency(categoriaId);
-    final productId = existing?.id ?? _uuid.v4();
+    return normalizedVariants;
+  }
+
+  List<String> _resolveVariantIds(
+    int variantCount,
+    List<String?>? existingVariantIds,
+  ) {
     final variantIds =
         existingVariantIds?.map((id) => id ?? _uuid.v4()).toList() ??
-        List.generate(
-          normalizedVariants.length,
-          (_) => _uuid.v4(),
-          growable: false,
-        );
-    if (variantIds.length != normalizedVariants.length ||
+        List.generate(variantCount, (_) => _uuid.v4(), growable: false);
+    if (variantIds.length != variantCount ||
         variantIds.toSet().length != variantIds.length) {
       throw const FormatException(
         'Los identificadores de variantes deben ser únicos y coincidir con el formulario.',
       );
     }
-    final eventId = _uuid.v4();
+    return variantIds;
+  }
+
+  List<_InventoryBinding> _prepareInventoryBindings(
+    List<_NormalizedVariant> normalizedVariants,
+    List<String> variantIds,
+    ProductoCreadoPayload? before,
+  ) {
     final inventoryBindings = <_InventoryBinding>[];
     for (var index = 0; index < normalizedVariants.length; index++) {
       final inventory = normalizedVariants[index].inventory;
@@ -230,9 +309,16 @@ class ProductoCommandService {
         ),
       );
     }
-    final inventoryByVariant = {
-      for (final binding in inventoryBindings) binding.variantIndex: binding,
-    };
+    return inventoryBindings;
+  }
+
+  Future<List<ProductoCreadoInventarioDependencia>>
+  _resolveInventoryDependencies(
+    List<_NormalizedVariant> normalizedVariants,
+    List<String> variantIds,
+    List<_InventoryBinding> inventoryBindings,
+    ProductoCreadoPayload? before,
+  ) async {
     final inventoryDependencies = <String, ProductoCreadoInventarioDependencia>{
       for (final binding in inventoryBindings)
         binding.inventoryItemId: ProductoCreadoInventarioDependencia(
@@ -269,62 +355,50 @@ class ProductoCommandService {
         );
       }
     }
-    final payload = ProductoCreadoPayload.create(
-      nombre: nombre.value,
-      categoriaId: categoriaId,
-      saleConfiguration: saleConfiguration,
-      variantes: [
-        for (var index = 0; index < normalizedVariants.length; index++)
-          ProductoCreadoVariante.create(
-            id: variantIds[index],
-            nombre: normalizedVariants[index].nombre,
-            precioVentaMenor: normalizedVariants[index].precioVentaMenor,
-            costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
-            inventoryItemId:
-                inventoryByVariant[index]?.inventoryItemId ??
-                (normalizedVariants[index].inventory == null
-                    ? null
-                    : before?.variantes
-                          .where((v) => v.id == variantIds[index])
-                          .firstOrNull
-                          ?.inventoryItemId),
-            componentesReceta: [
-              for (final component
-                  in normalizedVariants[index].recipeComponents)
-                ProductoCreadoComponenteReceta.create(
-                  inventoryItemId: component.inventoryItemId,
-                  quantityAtomic: component.quantityAtomic,
-                ),
-            ],
-            orden: index,
-          ),
-      ],
-      dependenciaCategoria: dependency,
-      dependenciasInventario: inventoryDependencies.values.toList(
-        growable: false,
-      ),
-    );
-    final updatePayload = before == null
-        ? null
-        : ProductoActualizadoPayload(
-            baseEventId: existing!.lastEventId!,
-            before: before,
-            after: payload,
-          );
-    final event = SyncEvent(
-      eventId: eventId,
-      aggregateType: ProductoCreadoPayload.aggregateType,
-      aggregateId: productId,
-      eventType: existing == null
-          ? ProductoCreadoPayload.eventType
-          : ProductoActualizadoPayload.eventType,
-      deviceId: _commandContext.deviceId,
-      userId: _commandContext.userId,
-      baseVersion: existing?.version ?? 1,
-      baseServerSequence: existing?.lastServerSequence,
-      createdAtLocal: DateTime.now(),
-      payload: updatePayload?.toJson() ?? payload.toJson(),
-    );
+    return inventoryDependencies.values.toList(growable: false);
+  }
+
+  List<ProductoCreadoVariante> _buildVariantPayloads(
+    List<_NormalizedVariant> normalizedVariants,
+    List<String> variantIds,
+    List<_InventoryBinding> inventoryBindings,
+    ProductoCreadoPayload? before,
+  ) {
+    final inventoryByVariant = {
+      for (final binding in inventoryBindings) binding.variantIndex: binding,
+    };
+    return [
+      for (var index = 0; index < normalizedVariants.length; index++)
+        ProductoCreadoVariante.create(
+          id: variantIds[index],
+          nombre: normalizedVariants[index].nombre,
+          precioVentaMenor: normalizedVariants[index].precioVentaMenor,
+          costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
+          inventoryItemId:
+              inventoryByVariant[index]?.inventoryItemId ??
+              (normalizedVariants[index].inventory == null
+                  ? null
+                  : before?.variantes
+                        .where((v) => v.id == variantIds[index])
+                        .firstOrNull
+                        ?.inventoryItemId),
+          componentesReceta: [
+            for (final component in normalizedVariants[index].recipeComponents)
+              ProductoCreadoComponenteReceta.create(
+                inventoryItemId: component.inventoryItemId,
+                quantityAtomic: component.quantityAtomic,
+              ),
+          ],
+          orden: index,
+        ),
+    ];
+  }
+
+  List<LocalEventRef> _buildArticleRefs({
+    required String productId,
+    required ProductoCreadoPayload payload,
+    ProductoActualizadoPayload? updatePayload,
+  }) {
     final referencedInventoryItemIds = <String>{
       for (final variant in payload.variantes) ...[
         if (variant.inventoryItemId != null) variant.inventoryItemId!,
@@ -334,56 +408,66 @@ class ProductoCommandService {
       ],
     }.toList()..sort();
 
-    final createdAt = event.createdAtLocal;
-    final entries = <LocalEventAppend>[
-      for (final binding in inventoryBindings)
+    final categoriaId = payload.categoriaId;
+    final saleConfiguration = payload.saleConfiguration;
+    return [
+      LocalEventRef.affects(refType: 'product', refId: productId),
+      if (updatePayload != null)
+        for (final v in updatePayload.removedVariants) ...[
+          LocalEventRef.affects(refType: 'product_variant', refId: v.id),
+          LocalEventRef.affects(refType: 'recipe', refId: v.id),
+        ],
+      for (var index = 0; index < payload.variantes.length; index++) ...[
+        LocalEventRef.affects(
+          refType: 'product_variant',
+          refId: payload.variantes[index].id,
+        ),
+        if (updatePayload != null)
+          LocalEventRef.affects(
+            refType: 'recipe',
+            refId: payload.variantes[index].id,
+          ),
+        if (payload.variantes[index].nameKey case final nameKey?)
+          LocalEventRef.requiresUnique(
+            refType: 'product_variant_name',
+            refId: _variantNameRefId(productId, nameKey),
+          ),
+      ],
+      for (final inventoryItemId in referencedInventoryItemIds)
+        LocalEventRef.uses(refType: 'inventory_item', refId: inventoryItemId),
+      if (categoriaId != null)
+        LocalEventRef.uses(refType: 'category', refId: categoriaId),
+      if (saleConfiguration is MeasuredSaleConfiguration)
+        LocalEventRef.uses(
+          refType: 'unit',
+          refId: saleConfiguration.saleUnitId,
+        ),
+    ];
+  }
+
+  Future<void> _appendArticulo(
+    _PreparedArticulo article,
+    SyncEvent event, {
+    ProductoActualizadoPayload? updatePayload,
+  }) {
+    final entries = [
+      for (final binding in article.inventoryBindings)
         _inventoryCreationAppend(
           binding: binding,
-          productName: nombre.value,
-          variantName: normalizedVariants[binding.variantIndex].nombre,
-          createdAt: createdAt,
+          productName: article.payload.nombre,
+          variantName: article.payload.variantes[binding.variantIndex].nombre,
+          createdAt: event.createdAtLocal,
         ),
       LocalEventAppend(
         event: event,
-        refs: [
-          LocalEventRef.affects(refType: 'product', refId: productId),
-          if (updatePayload != null)
-            for (final v in updatePayload.removedVariants) ...[
-              LocalEventRef.affects(refType: 'product_variant', refId: v.id),
-              LocalEventRef.affects(refType: 'recipe', refId: v.id),
-            ],
-          for (var index = 0; index < payload.variantes.length; index++) ...[
-            LocalEventRef.affects(
-              refType: 'product_variant',
-              refId: payload.variantes[index].id,
-            ),
-            if (existing != null)
-              LocalEventRef.affects(
-                refType: 'recipe',
-                refId: payload.variantes[index].id,
-              ),
-            if (payload.variantes[index].nameKey case final nameKey?)
-              LocalEventRef.requiresUnique(
-                refType: 'product_variant_name',
-                refId: _variantNameRefId(productId, nameKey),
-              ),
-          ],
-          for (final inventoryItemId in referencedInventoryItemIds)
-            LocalEventRef.uses(
-              refType: 'inventory_item',
-              refId: inventoryItemId,
-            ),
-          if (categoriaId != null)
-            LocalEventRef.uses(refType: 'category', refId: categoriaId),
-          if (saleConfiguration is MeasuredSaleConfiguration)
-            LocalEventRef.uses(
-              refType: 'unit',
-              refId: saleConfiguration.saleUnitId,
-            ),
-        ],
+        refs: _buildArticleRefs(
+          productId: article.productId,
+          payload: article.payload,
+          updatePayload: updatePayload,
+        ),
       ),
     ];
-    await _eventStore.appendAndApplyAll(entries);
+    return _eventStore.appendAndApplyAll(entries);
   }
 
   Future<_NormalizedInventory?> _normalizeInventoryTracking(
@@ -643,6 +727,20 @@ class ProductoCommandService {
     final encoded = base64Url.encode(utf8.encode(nameKey)).replaceAll('=', '');
     return '$productId:$encoded';
   }
+}
+
+class _PreparedArticulo {
+  const _PreparedArticulo({
+    required this.productId,
+    required this.eventId,
+    required this.payload,
+    required this.inventoryBindings,
+  });
+
+  final String productId;
+  final String eventId;
+  final ProductoCreadoPayload payload;
+  final List<_InventoryBinding> inventoryBindings;
 }
 
 class _NormalizedVariant {

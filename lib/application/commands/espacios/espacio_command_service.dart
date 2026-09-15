@@ -1,12 +1,12 @@
 import 'package:uuid/uuid.dart';
 
-import '../../domain/espacios/identificacion_espacio.dart';
-import '../../domain/espacios/nombre_espacio.dart';
-import '../sync/local_event_store.dart';
-import '../sync/models/sync_event.dart';
-import '../sync/payloads/espacio_creado_payload.dart';
+import '../../../domain/espacios/identificacion_espacio.dart';
+import '../../../domain/espacios/nombre_espacio.dart';
+import '../../sync/local_event_store.dart';
+import '../../sync/models/sync_event.dart';
+import '../../sync/payloads/espacio_creado_payload.dart';
 import 'crear_espacio_command.dart';
-import 'local_command_context.dart';
+import '../local_command_context.dart';
 
 class EspacioCommandService {
   EspacioCommandService({

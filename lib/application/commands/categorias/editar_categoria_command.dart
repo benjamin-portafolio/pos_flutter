@@ -1,4 +1,4 @@
-import '../../domain/categorias/color_categoria.dart';
+import '../../../domain/categorias/color_categoria.dart';
 
 class EditarCategoriaCommand {
   const EditarCategoriaCommand({

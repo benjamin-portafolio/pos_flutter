@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pos_flutter/application/commands/agregar_producto_borrador_command.dart';
-import 'package:pos_flutter/application/commands/venta_borrador_command_service.dart';
+import 'package:pos_flutter/application/commands/ventas/agregar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';

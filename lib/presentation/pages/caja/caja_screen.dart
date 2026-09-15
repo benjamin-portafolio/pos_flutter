@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../application/commands/limpiar_venta_borrador_command.dart';
-import '../../../application/commands/venta_borrador_command_service.dart';
+import '../../../application/commands/ventas/limpiar_venta_borrador_command.dart';
+import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';

@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pos_flutter/application/commands/crear_articulo_command.dart';
+import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
+import 'package:pos_flutter/application/commands/articulos/crear_articulo_variante_command.dart';
+import 'package:pos_flutter/application/commands/articulos/crear_articulo_recipe_component_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
-import 'package:pos_flutter/application/commands/producto_command_service.dart';
+import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';

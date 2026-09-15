@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pos_flutter/application/commands/categoria_command_service.dart';
-import 'package:pos_flutter/application/commands/crear_categoria_command.dart';
-import 'package:pos_flutter/application/commands/editar_categoria_command.dart';
-import 'package:pos_flutter/application/commands/eliminar_categoria_command.dart';
+import 'package:pos_flutter/application/commands/categorias/categoria_command_service.dart';
+import 'package:pos_flutter/application/commands/categorias/crear_categoria_command.dart';
+import 'package:pos_flutter/application/commands/categorias/editar_categoria_command.dart';
+import 'package:pos_flutter/application/commands/categorias/eliminar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
-import 'package:pos_flutter/application/commands/mover_categoria_command.dart';
+import 'package:pos_flutter/application/commands/categorias/mover_categoria_command.dart';
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';

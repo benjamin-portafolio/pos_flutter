@@ -1,4 +1,4 @@
-import '../../domain/categorias/direccion_movimiento_categoria.dart';
+import '../../../domain/categorias/direccion_movimiento_categoria.dart';
 
 class MoverCategoriaCommand {
   const MoverCategoriaCommand({

@@ -72,160 +72,105 @@ class SyncPushService {
       throw SyncPushException('Respuesta invalida del servidor: $error');
     }
 
-    return _syncPersistence.runInTransaction(() async {
-      var synced = 0;
-      var rejected = 0;
-      var conflicts = 0;
-      var pending = 0;
-      final conflictEvents = <SyncEvent>[];
+    return _syncPersistence.runInTransaction(
+      () => _applyPushResults(events, waitingEvents, remoteResults),
+    );
+  }
 
-      for (final event in events) {
-        final result = remoteResults[event.eventId];
-        switch (result?.status) {
-          case 'accepted':
-            await _syncPersistence.updateEventSyncStatus(
-              event.eventId,
-              'delivered',
-              serverSequence: result?.serverSequence,
-              serverTime: result?.serverTime,
-              rejectionReason: result?.reason,
-            );
-            final serverSequence = result?.serverSequence;
-            if (serverSequence != null) {
-              await _syncPersistence.markRefsSynced(
-                event.eventId,
-                serverSequence,
-              );
-            }
-            synced++;
-            break;
-          case 'duplicate':
-            final effectiveStatus = result?.originalSyncStatus ?? 'delivered';
-            if (effectiveStatus == 'delivered') {
-              await _syncPersistence.updateEventSyncStatus(
-                event.eventId,
-                'delivered',
-                serverSequence: result?.serverSequence,
-                serverTime: result?.serverTime,
-                rejectionReason: result?.reason,
-              );
-              final serverSequence = result?.serverSequence;
-              if (serverSequence != null) {
-                await _syncPersistence.markRefsSynced(
-                  event.eventId,
-                  serverSequence,
-                );
-              }
-              synced++;
-            } else if (effectiveStatus == 'conflict') {
-              await _syncPersistence.updateEventSyncStatus(
-                event.eventId,
-                'conflict',
-                serverSequence: result?.serverSequence,
-                serverTime: result?.serverTime,
-                rejectionReason: result?.reason,
-              );
-              final serverSequence = result?.serverSequence;
-              if (serverSequence != null) {
-                await _syncPersistence.markRefsSynced(
-                  event.eventId,
-                  serverSequence,
-                );
-              }
-              conflictEvents.add(event);
-              conflicts++;
-            } else if (effectiveStatus == 'rejected') {
-              await _syncPersistence.updateEventSyncStatus(
-                event.eventId,
-                'rejected',
-                serverSequence: result?.serverSequence,
-                serverTime: result?.serverTime,
-                rejectionReason: result?.reason,
-              );
-              final serverSequence = result?.serverSequence;
-              if (serverSequence != null) {
-                await _syncPersistence.markRefsSynced(
-                  event.eventId,
-                  serverSequence,
-                );
-              }
-              rejected++;
-            } else {
-              pending++;
-            }
-            break;
-          case 'rejected':
-            await _syncPersistence.updateEventSyncStatus(
-              event.eventId,
-              'rejected',
-              serverSequence: result?.serverSequence,
-              serverTime: result?.serverTime,
-              rejectionReason: result?.reason,
-            );
-            final serverSequence = result?.serverSequence;
-            if (serverSequence != null) {
-              await _syncPersistence.markRefsSynced(
-                event.eventId,
-                serverSequence,
-              );
-            }
-            rejected++;
-            break;
-          case 'conflict':
-            await _syncPersistence.updateEventSyncStatus(
-              event.eventId,
-              'conflict',
-              serverSequence: result?.serverSequence,
-              serverTime: result?.serverTime,
-              rejectionReason: result?.reason,
-            );
-            final serverSequence = result?.serverSequence;
-            if (serverSequence != null) {
-              await _syncPersistence.markRefsSynced(
-                event.eventId,
-                serverSequence,
-              );
-            }
-            conflictEvents.add(event);
-            conflicts++;
-            break;
-          default:
-            pending++;
-            break;
-        }
+  Future<SyncPushReport> _applyPushResults(
+    List<SyncEvent> events,
+    List<SyncEvent> waitingEvents,
+    Map<String, _RemoteEventResult> remoteResults,
+  ) async {
+    var synced = 0;
+    var rejected = 0;
+    var pending = 0;
+    final conflictEvents = <SyncEvent>[];
+
+    for (final event in events) {
+      final result = remoteResults[event.eventId];
+      final status = _effectiveDeliveryStatus(result);
+      if (status == 'pending') {
+        pending++;
+        continue;
       }
-
-      final conflictedEventIds = conflictEvents
-          .map((event) => event.eventId)
-          .toSet();
-      var waitingConflicts = 0;
-      for (final event in waitingEvents) {
-        if (!_dependsOnEventIds(event, conflictedEventIds)) continue;
-
-        await _syncPersistence.updateEventSyncStatus(
-          event.eventId,
-          'conflict',
-          rejectionReason:
-              'El evento depende de otro evento local en conflicto.',
-        );
-        conflictEvents.add(event);
-        conflictedEventIds.add(event.eventId);
-        waitingConflicts++;
-        conflicts++;
+      await _persistRemoteResult(event, result!, status);
+      switch (status) {
+        case 'delivered':
+          synced++;
+        case 'rejected':
+          rejected++;
+        case 'conflict':
+          conflictEvents.add(event);
       }
+    }
 
-      for (final event in conflictEvents.reversed) {
-        await _conflictProjectionCleaner.hideConflictProjection(event);
-      }
+    final waitingConflicts = await _propagateWaitingConflicts(
+      waitingEvents,
+      conflictEvents,
+    );
+    for (final event in conflictEvents.reversed) {
+      await _conflictProjectionCleaner.hideConflictProjection(event);
+    }
 
-      return SyncPushReport(
-        total: events.length + waitingEvents.length,
-        synced: synced,
-        rejected: rejected,
-        conflicts: conflicts,
-        pending: pending + waitingEvents.length - waitingConflicts,
+    return SyncPushReport(
+      total: events.length + waitingEvents.length,
+      synced: synced,
+      rejected: rejected,
+      conflicts: conflictEvents.length,
+      pending: pending + waitingEvents.length - waitingConflicts,
+    );
+  }
+
+  String _effectiveDeliveryStatus(_RemoteEventResult? result) {
+    return switch (result?.status) {
+      'accepted' => 'delivered',
+      'duplicate' => result!.originalSyncStatus ?? 'delivered',
+      'rejected' => 'rejected',
+      'conflict' => 'conflict',
+      _ => 'pending',
+    };
+  }
+
+  Future<void> _persistRemoteResult(
+    SyncEvent event,
+    _RemoteEventResult result,
+    String status,
+  ) async {
+    await _syncPersistence.updateEventSyncStatus(
+      event.eventId,
+      status,
+      serverSequence: result.serverSequence,
+      serverTime: result.serverTime,
+      rejectionReason: result.reason,
+    );
+    final serverSequence = result.serverSequence;
+    if (serverSequence != null) {
+      await _syncPersistence.markRefsSynced(event.eventId, serverSequence);
+    }
+  }
+
+  Future<int> _propagateWaitingConflicts(
+    List<SyncEvent> waitingEvents,
+    List<SyncEvent> conflictEvents,
+  ) async {
+    final conflictedEventIds = conflictEvents
+        .map((event) => event.eventId)
+        .toSet();
+    var waitingConflicts = 0;
+    for (final event in waitingEvents) {
+      if (!_dependsOnEventIds(event, conflictedEventIds)) continue;
+
+      await _syncPersistence.updateEventSyncStatus(
+        event.eventId,
+        'conflict',
+        rejectionReason: 'El evento depende de otro evento local en conflicto.',
       );
-    });
+      conflictEvents.add(event);
+      conflictedEventIds.add(event.eventId);
+      waitingConflicts++;
+    }
+    return waitingConflicts;
   }
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {

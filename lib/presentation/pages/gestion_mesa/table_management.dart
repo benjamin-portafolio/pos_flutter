@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../application/commands/crear_espacio_command.dart';
-import '../../../application/commands/espacio_command_service.dart';
+import '../../../application/commands/espacios/crear_espacio_command.dart';
+import '../../../application/commands/espacios/espacio_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/espacios/espacio.dart';
 import '../../../domain/repositories/espacio_repository.dart';
