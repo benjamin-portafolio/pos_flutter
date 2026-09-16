@@ -9,6 +9,7 @@ import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
 import '../../widgets/article_search_bar.dart';
 import 'models/sale_draft_display.dart';
+import 'payment_method_screen.dart';
 
 class CajaScreen extends StatefulWidget {
   const CajaScreen({
@@ -189,7 +190,16 @@ class _CajaScreenState extends State<CajaScreen> {
                           ),
                           const SizedBox(height: 8),
                           FilledButton(
-                            onPressed: null,
+                            onPressed:
+                                sale == null || sale.items.isEmpty || _clearing
+                                ? null
+                                : () => Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => PaymentMethodScreen(
+                                        totalMinor: sale.totalMinor,
+                                      ),
+                                    ),
+                                  ),
                             child: Text('Cobrar: $total'),
                           ),
                         ],

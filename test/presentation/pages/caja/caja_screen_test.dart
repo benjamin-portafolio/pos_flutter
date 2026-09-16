@@ -6,7 +6,9 @@ import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_c
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/models/sale_draft_display.dart';
+import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
 
 import '../../../support/fake_sale_draft_repository.dart';
 import '../../../support/sale_draft_fixtures.dart';
@@ -41,7 +43,7 @@ void main() {
               find.widgetWithText(FilledButton, r'Cobrar: $109.00'),
             )
             .onPressed,
-        isNull,
+        isNotNull,
       );
       for (final button in tester.widgetList<IconButton>(
         find.byWidgetPredicate(
@@ -59,6 +61,69 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('cobrar abre efectivo y regresar conserva la venta', (
+    tester,
+  ) async {
+    _phone(tester);
+    final commands = _Commands();
+    await _pump(tester, sampleSale(), commands: commands);
+    await tester.tap(find.text(r'Cobrar: $109.00'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PaymentMethodScreen), findsOneWidget);
+    expect(find.text('DETALLES DEL CLIENTE (OPCIONAL)'), findsOneWidget);
+    expect(find.text('Nombre del cliente'), findsOneWidget);
+    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
+      expect(field.enabled, isFalse);
+    }
+    for (final label in [
+      'Tarjeta de débito',
+      'Tarjeta de crédito',
+      'Transferencia bancaria',
+    ]) {
+      expect(
+        tester
+            .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, label))
+            .onPressed,
+        isNull,
+      );
+    }
+    for (final button in tester.widgetList<IconButton>(
+      find.byType(IconButton),
+    )) {
+      if (button.tooltip == 'Buscar cliente' ||
+          button.tooltip == 'Más datos del cliente') {
+        expect(button.onPressed, isNull);
+      }
+    }
+    await tester.tap(find.text('Efectivo'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CashPaymentScreen), findsOneWidget);
+    expect(find.text(r'$109.00'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '200');
+    await tester.pump();
+    expect(find.text(r'$91.00'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text(r'Cobrar: $109.00'), findsOneWidget);
+    expect(find.text('3 artículos · 5 unidades'), findsOneWidget);
+    expect(commands.cleared, isEmpty);
+  });
+
+  testWidgets('no permite cobrar un borrador sin artículos', (tester) async {
+    _phone(tester);
+    await _pump(tester, SaleDraft(id: 'empty', totalMinor: 0, items: []));
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, r'Cobrar: $0.00'),
+          )
+          .onPressed,
+      isNull,
+    );
+  });
 
   testWidgets(
     'limpiar envía la venta concreta, bloquea dobles toques y observa el estado vacío',
@@ -97,6 +162,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('La venta está vacía.'), findsOneWidget);
       expect(find.text(r'Cobrar: $0.00'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, r'Cobrar: $0.00'),
+            )
+            .onPressed,
+        isNull,
+      );
       expect(
         tester
             .widget<FilledButton>(
