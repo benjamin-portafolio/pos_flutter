@@ -29,9 +29,39 @@ commit permite abrir el recibo. El recibo y la lista «Ventas cobradas» observa
 repositorio y siguen disponibles después de reiniciar, incluso con incidencias.
 Una nueva captura usa otro borrador y conserva la venta confirmada.
 
-El estado de negocio es `confirmada`; la entrega se mantiene en el evento. La UI
+El estado de negocio es `confirmada`; la entrega se mantiene en el evento. La lista «Ventas cobradas»
 muestra «Cobrada, pendiente de sincronizar», «Sincronizada» o «Requiere atención» y
 el motivo disponible. En standalone muestra «Cobrada (registro local)».
+
+### Imagen del recibo
+
+Después del commit, `CashPaymentScreen` abre `SaleReceiptScreen` con el ID de venta.
+La pantalla observa `ConfirmedSaleRepository` y genera un PNG en memoria desde los
+datos históricos del cobro, sin consultar el catálogo. La imagen incluye ID, fecha
+local, moneda, efectivo, detalle, subtotal, total, recibido y cambio. `#I` cuenta
+variantes distintas; `#U` suma piezas y agrupa las cantidades medidas por unidad,
+sin mezclar piezas, kilos o litros. Se omite MRP.
+
+`SaleReceiptImageGenerator` dibuja todas las líneas y calcula la altura del PNG
+antes de rasterizarlo; la vista previa permite desplazarse por el ticket completo.
+El botón WhatsApp abre el menú nativo de compartir con el PNG completo mediante
+`share_plus`; el usuario elige WhatsApp y confirma el destinatario y el envío.
+Se reutiliza la misma imagen de la vista previa, con nombre `ticket-<saleId>.png`.
+El plugin crea un archivo temporal en caché para compartirlo; no se agregan tablas
+ni eventos. El botón permanece deshabilitado hasta tener la imagen y mientras el
+selector está abierto. Los errores permiten reintentar; cancelar no modifica la
+venta ni se interpreta como entrega. En iPad el menú se ancla al botón. WhatsApp
+debe estar disponible entre los destinos de compartir del dispositivo. En web se
+requiere soporte para compartir archivos; no se usa la descarga como alternativa.
+Compartir, SMS, descargar, imprimir, más opciones, regresar, borrar y editar
+permanecen visibles sin funcionalidad por el alcance solicitado.
+La navegación atrás y «Nueva venta»
+permiten salir del recibo. La cabecera comercial queda fuera de esta etapa.
+
+Las pruebas del recibo verifican que se comparta el PNG completo de la vista previa,
+el nombre del archivo, el anclaje del selector, el bloqueo de doble pulsación,
+la cancelación, el reintento tras error y la salida de la pantalla durante el
+selector. La entrega real en WhatsApp requiere una prueba en dispositivo.
 
 ## Contrato y trazabilidad
 

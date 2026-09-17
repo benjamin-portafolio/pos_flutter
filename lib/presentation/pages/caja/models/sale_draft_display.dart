@@ -27,9 +27,13 @@ class SaleDraftDisplay {
     ].join(' · ');
   }
 
+  static String receiptQuantities(Iterable<SaleDraftItem> items) =>
+      _quantities(items, abbreviatePieces: true).join(' · ');
+
   static List<String> _quantities(
     Iterable<SaleDraftItem> items, {
     bool badge = false,
+    bool abbreviatePieces = false,
   }) {
     var pieces = BigInt.zero;
     final measures = <(String, String, int), BigInt>{};
@@ -49,6 +53,8 @@ class SaleDraftDisplay {
       if (pieces > BigInt.zero)
         badge
             ? '×$pieces'
+            : abbreviatePieces
+            ? '$pieces pzas'
             : '$pieces ${pieces == BigInt.one ? 'unidad' : 'unidades'}',
       for (final entry in measures.entries)
         '${_measure(entry.value, entry.key.$3)} ${entry.key.$2}',

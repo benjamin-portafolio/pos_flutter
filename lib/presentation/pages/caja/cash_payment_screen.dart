@@ -1,7 +1,7 @@
 import '../../../application/commands/ventas/confirmar_venta_command.dart';
 import '../../../application/commands/ventas/venta_command_service.dart';
 import '../../../core/di/injection.dart';
-import 'confirmed_sales_screen.dart';
+import 'sale_receipt_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -47,7 +47,7 @@ class _CashPaymentScreenState extends State<CashPaymentScreen> {
       if (!mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => ConfirmedSalesScreen(saleId: widget.saleId),
+          builder: (_) => SaleReceiptScreen(saleId: widget.saleId!),
         ),
       );
       if (mounted) Navigator.of(context).pop(true);

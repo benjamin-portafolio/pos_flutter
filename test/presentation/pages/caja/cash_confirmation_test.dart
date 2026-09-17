@@ -7,6 +7,8 @@ import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
 import 'package:pos_flutter/domain/ventas/confirmed_sale.dart';
 import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/sale_receipt_screen.dart';
+import '../../../support/pump_receipt_image.dart';
 
 class _Service implements VentaCommandService {
   final commit = Completer<String>();
@@ -62,7 +64,7 @@ void main() {
       await tester.tap(find.text('Recibido por efectivo'));
       await tester.pump();
       expect(find.text('Registrando…'), findsOneWidget);
-      expect(find.text('Ventas cobradas'), findsNothing);
+      expect(find.byType(SaleReceiptScreen), findsNothing);
       final button = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Registrando…'),
       );
@@ -75,8 +77,9 @@ void main() {
         input.isEmpty ? null : int.parse(input) * 100,
       );
       service.commit.complete('confirmed-event');
-      await tester.pumpAndSettle();
-      expect(find.text('Cobrada, pendiente de sincronizar'), findsOneWidget);
+      await pumpReceiptImage(tester);
+      expect(find.byType(SaleReceiptScreen), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
       expect(find.text('Nueva venta'), findsOneWidget);
     });
   }
@@ -111,7 +114,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('El borrador cambió'), findsOneWidget);
       expect(find.text('200'), findsOneWidget);
-      expect(find.text('Ventas cobradas'), findsNothing);
+      expect(find.byType(SaleReceiptScreen), findsNothing);
     },
   );
 }

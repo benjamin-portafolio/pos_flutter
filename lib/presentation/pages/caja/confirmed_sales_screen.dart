@@ -6,8 +6,7 @@ import 'models/sale_draft_display.dart';
 
 /// Consulta persistente del cobro, incluidas incidencias de entrega.
 class ConfirmedSalesScreen extends StatefulWidget {
-  const ConfirmedSalesScreen({this.saleId, super.key});
-  final String? saleId;
+  const ConfirmedSalesScreen({super.key});
   @override
   State<ConfirmedSalesScreen> createState() => _ConfirmedSalesScreenState();
 }
@@ -26,23 +25,10 @@ class _ConfirmedSalesScreenState extends State<ConfirmedSalesScreen> {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final events = snapshot.data!
-            .where((e) => widget.saleId == null || e.id == widget.saleId)
-            .toList();
+        final events = snapshot.data!;
         return ListView(children: [for (final e in events) _receipt(e)]);
       },
     ),
-    bottomNavigationBar: widget.saleId == null
-        ? null
-        : SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Nueva venta'),
-              ),
-            ),
-          ),
   );
   Widget _receipt(ConfirmedSale e) {
     final status = switch (e.deliveryStatus) {
