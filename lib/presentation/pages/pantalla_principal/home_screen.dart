@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
+import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 2;
 
   late final List<Widget> _screens = [
-    const Center(child: Text('Informes')),
+    const ReportsScreen(),
     const Center(child: Text('Hoy')),
     CajaScreen(onOpenCaja: () => _onTabTapped(2)),
     ArticlesScreen(onOpenCaja: () => _onTabTapped(2)),
