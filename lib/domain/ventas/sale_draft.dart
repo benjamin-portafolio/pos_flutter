@@ -4,11 +4,13 @@ import 'sale_draft_item.dart';
 class SaleDraft {
   SaleDraft({
     required this.id,
+    this.lastEventId,
     required this.totalMinor,
     required List<SaleDraftItem> items,
   }) : items = List.unmodifiable(items);
 
   final String id;
+  final String? lastEventId;
   final int totalMinor;
   final List<SaleDraftItem> items;
 

@@ -1,3 +1,10 @@
+import '../../domain/repositories/confirmed_sale_repository.dart';
+import '../../data/repositories/confirmed_sale_repository_impl.dart';
+import '../../application/commands/ventas/venta_command_service.dart';
+import '../../application/sync/projections/confirmed_sale_store.dart';
+import '../../application/sync/handlers/venta_confirmada_event_handler.dart';
+import '../../application/sync/payloads/venta_confirmada_payload.dart';
+import '../../data/local/drift/drift_confirmed_sale_store.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../application/backup/backup_scheduler.dart';
@@ -125,9 +132,29 @@ void registerApplicationDependencies(
       context: getIt<LocalCommandContext>(),
     ),
   );
+  getIt.registerLazySingleton<ConfirmedSaleStore>(
+    () => DriftConfirmedSaleStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<ConfirmedSaleRepository>(
+    () => ConfirmedSaleRepositoryImpl(getIt<ConfirmedSaleStore>()),
+  );
+  getIt.registerLazySingleton<VentaConfirmadaEventHandler>(
+    () => VentaConfirmadaEventHandler(getIt<ConfirmedSaleStore>()),
+  );
+  getIt.registerLazySingleton<VentaCommandService>(
+    () => VentaCommandService(
+      drafts: getIt<SaleDraftProjectionStore>(),
+      products: getIt<ProductoProjectionStore>(),
+      inventory: getIt<InventoryProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+    ),
+  );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        VentaConfirmadaPayload.eventType:
+            getIt<VentaConfirmadaEventHandler>().apply,
         VentaBorradorLimpiadaPayload.eventType:
             getIt<VentaBorradorLimpiadaEventHandler>().apply,
         ProductoAgregadoBorradorPayload.eventType:
@@ -141,6 +168,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      confirmedSaleStore: getIt<ConfirmedSaleStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),

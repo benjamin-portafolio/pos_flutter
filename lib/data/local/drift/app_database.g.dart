@@ -6839,6 +6839,2180 @@ class InventoryBalancesCompanion extends UpdateCompanion<InventoryBalanceRow> {
   }
 }
 
+class $SalesTable extends Sales with TableInfo<$SalesTable, SaleRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SalesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('borrador'),
+  );
+  static const VerificationMeta _totalMinorMeta = const VerificationMeta(
+    'totalMinor',
+  );
+  @override
+  late final GeneratedColumn<int> totalMinor = GeneratedColumn<int>(
+    'total_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtLocalMeta = const VerificationMeta(
+    'createdAtLocal',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAtLocal =
+      GeneratedColumn<DateTime>(
+        'created_at_local',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _updatedAtLocalMeta = const VerificationMeta(
+    'updatedAtLocal',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAtLocal =
+      GeneratedColumn<DateTime>(
+        'updated_at_local',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    userId,
+    deviceId,
+    status,
+    totalMinor,
+    createdAtLocal,
+    updatedAtLocal,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sales';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SaleRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('total_minor')) {
+      context.handle(
+        _totalMinorMeta,
+        totalMinor.isAcceptableOrUnknown(data['total_minor']!, _totalMinorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_totalMinorMeta);
+    }
+    if (data.containsKey('created_at_local')) {
+      context.handle(
+        _createdAtLocalMeta,
+        createdAtLocal.isAcceptableOrUnknown(
+          data['created_at_local']!,
+          _createdAtLocalMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtLocalMeta);
+    }
+    if (data.containsKey('updated_at_local')) {
+      context.handle(
+        _updatedAtLocalMeta,
+        updatedAtLocal.isAcceptableOrUnknown(
+          data['updated_at_local']!,
+          _updatedAtLocalMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtLocalMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SaleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SaleRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      totalMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_minor'],
+      )!,
+      createdAtLocal: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at_local'],
+      )!,
+      updatedAtLocal: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at_local'],
+      )!,
+    );
+  }
+
+  @override
+  $SalesTable createAlias(String alias) {
+    return $SalesTable(attachedDatabase, alias);
+  }
+}
+
+class SaleRow extends DataClass implements Insertable<SaleRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Usuario que inició la captura; se conserva en cada edición.
+  final String userId;
+
+  /// Dispositivo de origen del borrador.
+  final String deviceId;
+
+  /// Estado de negocio: borrador, descartada o confirmada; independiente de sync.
+  final String status;
+
+  /// Suma en centavos de líneas activas, recalculada en la misma transacción.
+  final int totalMinor;
+
+  /// Fecha local original de creación, conservada al editar.
+  final DateTime createdAtLocal;
+
+  /// Fecha local de la última modificación.
+  final DateTime updatedAtLocal;
+  const SaleRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.userId,
+    required this.deviceId,
+    required this.status,
+    required this.totalMinor,
+    required this.createdAtLocal,
+    required this.updatedAtLocal,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['user_id'] = Variable<String>(userId);
+    map['device_id'] = Variable<String>(deviceId);
+    map['status'] = Variable<String>(status);
+    map['total_minor'] = Variable<int>(totalMinor);
+    map['created_at_local'] = Variable<DateTime>(createdAtLocal);
+    map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
+    return map;
+  }
+
+  SalesCompanion toCompanion(bool nullToAbsent) {
+    return SalesCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      userId: Value(userId),
+      deviceId: Value(deviceId),
+      status: Value(status),
+      totalMinor: Value(totalMinor),
+      createdAtLocal: Value(createdAtLocal),
+      updatedAtLocal: Value(updatedAtLocal),
+    );
+  }
+
+  factory SaleRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SaleRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      userId: serializer.fromJson<String>(json['userId']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      status: serializer.fromJson<String>(json['status']),
+      totalMinor: serializer.fromJson<int>(json['totalMinor']),
+      createdAtLocal: serializer.fromJson<DateTime>(json['createdAtLocal']),
+      updatedAtLocal: serializer.fromJson<DateTime>(json['updatedAtLocal']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'userId': serializer.toJson<String>(userId),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'status': serializer.toJson<String>(status),
+      'totalMinor': serializer.toJson<int>(totalMinor),
+      'createdAtLocal': serializer.toJson<DateTime>(createdAtLocal),
+      'updatedAtLocal': serializer.toJson<DateTime>(updatedAtLocal),
+    };
+  }
+
+  SaleRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? userId,
+    String? deviceId,
+    String? status,
+    int? totalMinor,
+    DateTime? createdAtLocal,
+    DateTime? updatedAtLocal,
+  }) => SaleRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    userId: userId ?? this.userId,
+    deviceId: deviceId ?? this.deviceId,
+    status: status ?? this.status,
+    totalMinor: totalMinor ?? this.totalMinor,
+    createdAtLocal: createdAtLocal ?? this.createdAtLocal,
+    updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
+  );
+  SaleRow copyWithCompanion(SalesCompanion data) {
+    return SaleRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      status: data.status.present ? data.status.value : this.status,
+      totalMinor: data.totalMinor.present
+          ? data.totalMinor.value
+          : this.totalMinor,
+      createdAtLocal: data.createdAtLocal.present
+          ? data.createdAtLocal.value
+          : this.createdAtLocal,
+      updatedAtLocal: data.updatedAtLocal.present
+          ? data.updatedAtLocal.value
+          : this.updatedAtLocal,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SaleRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('status: $status, ')
+          ..write('totalMinor: $totalMinor, ')
+          ..write('createdAtLocal: $createdAtLocal, ')
+          ..write('updatedAtLocal: $updatedAtLocal')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    userId,
+    deviceId,
+    status,
+    totalMinor,
+    createdAtLocal,
+    updatedAtLocal,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SaleRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.userId == this.userId &&
+          other.deviceId == this.deviceId &&
+          other.status == this.status &&
+          other.totalMinor == this.totalMinor &&
+          other.createdAtLocal == this.createdAtLocal &&
+          other.updatedAtLocal == this.updatedAtLocal);
+}
+
+class SalesCompanion extends UpdateCompanion<SaleRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> userId;
+  final Value<String> deviceId;
+  final Value<String> status;
+  final Value<int> totalMinor;
+  final Value<DateTime> createdAtLocal;
+  final Value<DateTime> updatedAtLocal;
+  final Value<int> rowid;
+  const SalesCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.totalMinor = const Value.absent(),
+    this.createdAtLocal = const Value.absent(),
+    this.updatedAtLocal = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SalesCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String userId,
+    required String deviceId,
+    this.status = const Value.absent(),
+    required int totalMinor,
+    required DateTime createdAtLocal,
+    required DateTime updatedAtLocal,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       deviceId = Value(deviceId),
+       totalMinor = Value(totalMinor),
+       createdAtLocal = Value(createdAtLocal),
+       updatedAtLocal = Value(updatedAtLocal);
+  static Insertable<SaleRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? userId,
+    Expression<String>? deviceId,
+    Expression<String>? status,
+    Expression<int>? totalMinor,
+    Expression<DateTime>? createdAtLocal,
+    Expression<DateTime>? updatedAtLocal,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (userId != null) 'user_id': userId,
+      if (deviceId != null) 'device_id': deviceId,
+      if (status != null) 'status': status,
+      if (totalMinor != null) 'total_minor': totalMinor,
+      if (createdAtLocal != null) 'created_at_local': createdAtLocal,
+      if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SalesCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? userId,
+    Value<String>? deviceId,
+    Value<String>? status,
+    Value<int>? totalMinor,
+    Value<DateTime>? createdAtLocal,
+    Value<DateTime>? updatedAtLocal,
+    Value<int>? rowid,
+  }) {
+    return SalesCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      userId: userId ?? this.userId,
+      deviceId: deviceId ?? this.deviceId,
+      status: status ?? this.status,
+      totalMinor: totalMinor ?? this.totalMinor,
+      createdAtLocal: createdAtLocal ?? this.createdAtLocal,
+      updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (totalMinor.present) {
+      map['total_minor'] = Variable<int>(totalMinor.value);
+    }
+    if (createdAtLocal.present) {
+      map['created_at_local'] = Variable<DateTime>(createdAtLocal.value);
+    }
+    if (updatedAtLocal.present) {
+      map['updated_at_local'] = Variable<DateTime>(updatedAtLocal.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalesCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('status: $status, ')
+          ..write('totalMinor: $totalMinor, ')
+          ..write('createdAtLocal: $createdAtLocal, ')
+          ..write('updatedAtLocal: $updatedAtLocal, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SaleItemsTable extends SaleItems
+    with TableInfo<$SaleItemsTable, SaleItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SaleItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _saleIdMeta = const VerificationMeta('saleId');
+  @override
+  late final GeneratedColumn<String> saleId = GeneratedColumn<String>(
+    'sale_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sales (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _variantIdMeta = const VerificationMeta(
+    'variantId',
+  );
+  @override
+  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
+    'variant_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES product_variants (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _consumptionConfigurationKeyMeta =
+      const VerificationMeta('consumptionConfigurationKey');
+  @override
+  late final GeneratedColumn<String> consumptionConfigurationKey =
+      GeneratedColumn<String>(
+        'consumption_configuration_key',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _productNameSnapshotMeta =
+      const VerificationMeta('productNameSnapshot');
+  @override
+  late final GeneratedColumn<String> productNameSnapshot =
+      GeneratedColumn<String>(
+        'product_name_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _variantNameSnapshotMeta =
+      const VerificationMeta('variantNameSnapshot');
+  @override
+  late final GeneratedColumn<String> variantNameSnapshot =
+      GeneratedColumn<String>(
+        'variant_name_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleModeSnapshotMeta = const VerificationMeta(
+    'saleModeSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> saleModeSnapshot = GeneratedColumn<String>(
+    'sale_mode_snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _measuredQuantityAtomicMeta =
+      const VerificationMeta('measuredQuantityAtomic');
+  @override
+  late final GeneratedColumn<int> measuredQuantityAtomic = GeneratedColumn<int>(
+    'measured_quantity_atomic',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitPriceMinorMeta = const VerificationMeta(
+    'unitPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> unitPriceMinor = GeneratedColumn<int>(
+    'unit_price_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _standardCostMinorSnapshotMeta =
+      const VerificationMeta('standardCostMinorSnapshot');
+  @override
+  late final GeneratedColumn<int> standardCostMinorSnapshot =
+      GeneratedColumn<int>(
+        'standard_cost_minor_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _priceReferenceQuantityAtomicSnapshotMeta =
+      const VerificationMeta('priceReferenceQuantityAtomicSnapshot');
+  @override
+  late final GeneratedColumn<int> priceReferenceQuantityAtomicSnapshot =
+      GeneratedColumn<int>(
+        'price_reference_quantity_atomic_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleUnitCodeSnapshotMeta =
+      const VerificationMeta('saleUnitCodeSnapshot');
+  @override
+  late final GeneratedColumn<String> saleUnitCodeSnapshot =
+      GeneratedColumn<String>(
+        'sale_unit_code_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleUnitSymbolSnapshotMeta =
+      const VerificationMeta('saleUnitSymbolSnapshot');
+  @override
+  late final GeneratedColumn<String> saleUnitSymbolSnapshot =
+      GeneratedColumn<String>(
+        'sale_unit_symbol_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleUnitAtomicFactorSnapshotMeta =
+      const VerificationMeta('saleUnitAtomicFactorSnapshot');
+  @override
+  late final GeneratedColumn<int> saleUnitAtomicFactorSnapshot =
+      GeneratedColumn<int>(
+        'sale_unit_atomic_factor_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _totalMinorMeta = const VerificationMeta(
+    'totalMinor',
+  );
+  @override
+  late final GeneratedColumn<int> totalMinor = GeneratedColumn<int>(
+    'total_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    saleId,
+    variantId,
+    consumptionConfigurationKey,
+    productNameSnapshot,
+    variantNameSnapshot,
+    saleModeSnapshot,
+    quantity,
+    measuredQuantityAtomic,
+    unitPriceMinor,
+    standardCostMinorSnapshot,
+    priceReferenceQuantityAtomicSnapshot,
+    saleUnitCodeSnapshot,
+    saleUnitSymbolSnapshot,
+    saleUnitAtomicFactorSnapshot,
+    totalMinor,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sale_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SaleItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_id')) {
+      context.handle(
+        _saleIdMeta,
+        saleId.isAcceptableOrUnknown(data['sale_id']!, _saleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_saleIdMeta);
+    }
+    if (data.containsKey('variant_id')) {
+      context.handle(
+        _variantIdMeta,
+        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_variantIdMeta);
+    }
+    if (data.containsKey('consumption_configuration_key')) {
+      context.handle(
+        _consumptionConfigurationKeyMeta,
+        consumptionConfigurationKey.isAcceptableOrUnknown(
+          data['consumption_configuration_key']!,
+          _consumptionConfigurationKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('product_name_snapshot')) {
+      context.handle(
+        _productNameSnapshotMeta,
+        productNameSnapshot.isAcceptableOrUnknown(
+          data['product_name_snapshot']!,
+          _productNameSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_productNameSnapshotMeta);
+    }
+    if (data.containsKey('variant_name_snapshot')) {
+      context.handle(
+        _variantNameSnapshotMeta,
+        variantNameSnapshot.isAcceptableOrUnknown(
+          data['variant_name_snapshot']!,
+          _variantNameSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_mode_snapshot')) {
+      context.handle(
+        _saleModeSnapshotMeta,
+        saleModeSnapshot.isAcceptableOrUnknown(
+          data['sale_mode_snapshot']!,
+          _saleModeSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_saleModeSnapshotMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('measured_quantity_atomic')) {
+      context.handle(
+        _measuredQuantityAtomicMeta,
+        measuredQuantityAtomic.isAcceptableOrUnknown(
+          data['measured_quantity_atomic']!,
+          _measuredQuantityAtomicMeta,
+        ),
+      );
+    }
+    if (data.containsKey('unit_price_minor')) {
+      context.handle(
+        _unitPriceMinorMeta,
+        unitPriceMinor.isAcceptableOrUnknown(
+          data['unit_price_minor']!,
+          _unitPriceMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_unitPriceMinorMeta);
+    }
+    if (data.containsKey('standard_cost_minor_snapshot')) {
+      context.handle(
+        _standardCostMinorSnapshotMeta,
+        standardCostMinorSnapshot.isAcceptableOrUnknown(
+          data['standard_cost_minor_snapshot']!,
+          _standardCostMinorSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('price_reference_quantity_atomic_snapshot')) {
+      context.handle(
+        _priceReferenceQuantityAtomicSnapshotMeta,
+        priceReferenceQuantityAtomicSnapshot.isAcceptableOrUnknown(
+          data['price_reference_quantity_atomic_snapshot']!,
+          _priceReferenceQuantityAtomicSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_unit_code_snapshot')) {
+      context.handle(
+        _saleUnitCodeSnapshotMeta,
+        saleUnitCodeSnapshot.isAcceptableOrUnknown(
+          data['sale_unit_code_snapshot']!,
+          _saleUnitCodeSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_unit_symbol_snapshot')) {
+      context.handle(
+        _saleUnitSymbolSnapshotMeta,
+        saleUnitSymbolSnapshot.isAcceptableOrUnknown(
+          data['sale_unit_symbol_snapshot']!,
+          _saleUnitSymbolSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_unit_atomic_factor_snapshot')) {
+      context.handle(
+        _saleUnitAtomicFactorSnapshotMeta,
+        saleUnitAtomicFactorSnapshot.isAcceptableOrUnknown(
+          data['sale_unit_atomic_factor_snapshot']!,
+          _saleUnitAtomicFactorSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_minor')) {
+      context.handle(
+        _totalMinorMeta,
+        totalMinor.isAcceptableOrUnknown(data['total_minor']!, _totalMinorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_totalMinorMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sortOrderMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SaleItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SaleItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      saleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_id'],
+      )!,
+      variantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_id'],
+      )!,
+      consumptionConfigurationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}consumption_configuration_key'],
+      ),
+      productNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_name_snapshot'],
+      )!,
+      variantNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_name_snapshot'],
+      ),
+      saleModeSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_mode_snapshot'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      ),
+      measuredQuantityAtomic: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}measured_quantity_atomic'],
+      ),
+      unitPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unit_price_minor'],
+      )!,
+      standardCostMinorSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}standard_cost_minor_snapshot'],
+      ),
+      priceReferenceQuantityAtomicSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}price_reference_quantity_atomic_snapshot'],
+      ),
+      saleUnitCodeSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_unit_code_snapshot'],
+      ),
+      saleUnitSymbolSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_unit_symbol_snapshot'],
+      ),
+      saleUnitAtomicFactorSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sale_unit_atomic_factor_snapshot'],
+      ),
+      totalMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_minor'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $SaleItemsTable createAlias(String alias) {
+    return $SaleItemsTable(attachedDatabase, alias);
+  }
+}
+
+class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Venta propietaria; no permite eliminar una venta con líneas.
+  final String saleId;
+
+  /// Variante capturada; protege la referencia frente al borrado físico.
+  final String variantId;
+
+  /// Configuración conocida al capturar; exige revisión si cambia antes del cobro.
+  final String? consumptionConfigurationKey;
+
+  /// Nombre del producto al agregar la línea.
+  final String productNameSnapshot;
+
+  /// Nombre opcional de la variante al agregar la línea.
+  final String? variantNameSnapshot;
+
+  /// Modo capturado: unit o measured.
+  final String saleModeSnapshot;
+
+  /// Conteo entero positivo en unit; null en measured.
+  final int? quantity;
+
+  /// Cantidad atómica positiva en measured; null en unit.
+  final int? measuredQuantityAtomic;
+
+  /// Precio capturado en centavos por pieza o por cantidad de referencia.
+  final int unitPriceMinor;
+
+  /// Costo estándar capturado; null conserva que se desconoce el costo.
+  final int? standardCostMinorSnapshot;
+
+  /// Cantidad atómica a la que corresponde el precio medido; null en unit.
+  final int? priceReferenceQuantityAtomicSnapshot;
+
+  /// Código original de la unidad medida; null en unit.
+  final String? saleUnitCodeSnapshot;
+
+  /// Símbolo original para presentar la cantidad; null en unit.
+  final String? saleUnitSymbolSnapshot;
+
+  /// Átomos por unidad de presentación original; null en unit.
+  final int? saleUnitAtomicFactorSnapshot;
+
+  /// Importe de la línea con redondeo half-up sobre su cantidad total.
+  final int totalMinor;
+
+  /// Orden estable dentro de la venta, desde cero.
+  final int sortOrder;
+  const SaleItemRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.saleId,
+    required this.variantId,
+    this.consumptionConfigurationKey,
+    required this.productNameSnapshot,
+    this.variantNameSnapshot,
+    required this.saleModeSnapshot,
+    this.quantity,
+    this.measuredQuantityAtomic,
+    required this.unitPriceMinor,
+    this.standardCostMinorSnapshot,
+    this.priceReferenceQuantityAtomicSnapshot,
+    this.saleUnitCodeSnapshot,
+    this.saleUnitSymbolSnapshot,
+    this.saleUnitAtomicFactorSnapshot,
+    required this.totalMinor,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['sale_id'] = Variable<String>(saleId);
+    map['variant_id'] = Variable<String>(variantId);
+    if (!nullToAbsent || consumptionConfigurationKey != null) {
+      map['consumption_configuration_key'] = Variable<String>(
+        consumptionConfigurationKey,
+      );
+    }
+    map['product_name_snapshot'] = Variable<String>(productNameSnapshot);
+    if (!nullToAbsent || variantNameSnapshot != null) {
+      map['variant_name_snapshot'] = Variable<String>(variantNameSnapshot);
+    }
+    map['sale_mode_snapshot'] = Variable<String>(saleModeSnapshot);
+    if (!nullToAbsent || quantity != null) {
+      map['quantity'] = Variable<int>(quantity);
+    }
+    if (!nullToAbsent || measuredQuantityAtomic != null) {
+      map['measured_quantity_atomic'] = Variable<int>(measuredQuantityAtomic);
+    }
+    map['unit_price_minor'] = Variable<int>(unitPriceMinor);
+    if (!nullToAbsent || standardCostMinorSnapshot != null) {
+      map['standard_cost_minor_snapshot'] = Variable<int>(
+        standardCostMinorSnapshot,
+      );
+    }
+    if (!nullToAbsent || priceReferenceQuantityAtomicSnapshot != null) {
+      map['price_reference_quantity_atomic_snapshot'] = Variable<int>(
+        priceReferenceQuantityAtomicSnapshot,
+      );
+    }
+    if (!nullToAbsent || saleUnitCodeSnapshot != null) {
+      map['sale_unit_code_snapshot'] = Variable<String>(saleUnitCodeSnapshot);
+    }
+    if (!nullToAbsent || saleUnitSymbolSnapshot != null) {
+      map['sale_unit_symbol_snapshot'] = Variable<String>(
+        saleUnitSymbolSnapshot,
+      );
+    }
+    if (!nullToAbsent || saleUnitAtomicFactorSnapshot != null) {
+      map['sale_unit_atomic_factor_snapshot'] = Variable<int>(
+        saleUnitAtomicFactorSnapshot,
+      );
+    }
+    map['total_minor'] = Variable<int>(totalMinor);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  SaleItemsCompanion toCompanion(bool nullToAbsent) {
+    return SaleItemsCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      saleId: Value(saleId),
+      variantId: Value(variantId),
+      consumptionConfigurationKey:
+          consumptionConfigurationKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(consumptionConfigurationKey),
+      productNameSnapshot: Value(productNameSnapshot),
+      variantNameSnapshot: variantNameSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantNameSnapshot),
+      saleModeSnapshot: Value(saleModeSnapshot),
+      quantity: quantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quantity),
+      measuredQuantityAtomic: measuredQuantityAtomic == null && nullToAbsent
+          ? const Value.absent()
+          : Value(measuredQuantityAtomic),
+      unitPriceMinor: Value(unitPriceMinor),
+      standardCostMinorSnapshot:
+          standardCostMinorSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(standardCostMinorSnapshot),
+      priceReferenceQuantityAtomicSnapshot:
+          priceReferenceQuantityAtomicSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(priceReferenceQuantityAtomicSnapshot),
+      saleUnitCodeSnapshot: saleUnitCodeSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saleUnitCodeSnapshot),
+      saleUnitSymbolSnapshot: saleUnitSymbolSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saleUnitSymbolSnapshot),
+      saleUnitAtomicFactorSnapshot:
+          saleUnitAtomicFactorSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saleUnitAtomicFactorSnapshot),
+      totalMinor: Value(totalMinor),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory SaleItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SaleItemRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      saleId: serializer.fromJson<String>(json['saleId']),
+      variantId: serializer.fromJson<String>(json['variantId']),
+      consumptionConfigurationKey: serializer.fromJson<String?>(
+        json['consumptionConfigurationKey'],
+      ),
+      productNameSnapshot: serializer.fromJson<String>(
+        json['productNameSnapshot'],
+      ),
+      variantNameSnapshot: serializer.fromJson<String?>(
+        json['variantNameSnapshot'],
+      ),
+      saleModeSnapshot: serializer.fromJson<String>(json['saleModeSnapshot']),
+      quantity: serializer.fromJson<int?>(json['quantity']),
+      measuredQuantityAtomic: serializer.fromJson<int?>(
+        json['measuredQuantityAtomic'],
+      ),
+      unitPriceMinor: serializer.fromJson<int>(json['unitPriceMinor']),
+      standardCostMinorSnapshot: serializer.fromJson<int?>(
+        json['standardCostMinorSnapshot'],
+      ),
+      priceReferenceQuantityAtomicSnapshot: serializer.fromJson<int?>(
+        json['priceReferenceQuantityAtomicSnapshot'],
+      ),
+      saleUnitCodeSnapshot: serializer.fromJson<String?>(
+        json['saleUnitCodeSnapshot'],
+      ),
+      saleUnitSymbolSnapshot: serializer.fromJson<String?>(
+        json['saleUnitSymbolSnapshot'],
+      ),
+      saleUnitAtomicFactorSnapshot: serializer.fromJson<int?>(
+        json['saleUnitAtomicFactorSnapshot'],
+      ),
+      totalMinor: serializer.fromJson<int>(json['totalMinor']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'saleId': serializer.toJson<String>(saleId),
+      'variantId': serializer.toJson<String>(variantId),
+      'consumptionConfigurationKey': serializer.toJson<String?>(
+        consumptionConfigurationKey,
+      ),
+      'productNameSnapshot': serializer.toJson<String>(productNameSnapshot),
+      'variantNameSnapshot': serializer.toJson<String?>(variantNameSnapshot),
+      'saleModeSnapshot': serializer.toJson<String>(saleModeSnapshot),
+      'quantity': serializer.toJson<int?>(quantity),
+      'measuredQuantityAtomic': serializer.toJson<int?>(measuredQuantityAtomic),
+      'unitPriceMinor': serializer.toJson<int>(unitPriceMinor),
+      'standardCostMinorSnapshot': serializer.toJson<int?>(
+        standardCostMinorSnapshot,
+      ),
+      'priceReferenceQuantityAtomicSnapshot': serializer.toJson<int?>(
+        priceReferenceQuantityAtomicSnapshot,
+      ),
+      'saleUnitCodeSnapshot': serializer.toJson<String?>(saleUnitCodeSnapshot),
+      'saleUnitSymbolSnapshot': serializer.toJson<String?>(
+        saleUnitSymbolSnapshot,
+      ),
+      'saleUnitAtomicFactorSnapshot': serializer.toJson<int?>(
+        saleUnitAtomicFactorSnapshot,
+      ),
+      'totalMinor': serializer.toJson<int>(totalMinor),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  SaleItemRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? saleId,
+    String? variantId,
+    Value<String?> consumptionConfigurationKey = const Value.absent(),
+    String? productNameSnapshot,
+    Value<String?> variantNameSnapshot = const Value.absent(),
+    String? saleModeSnapshot,
+    Value<int?> quantity = const Value.absent(),
+    Value<int?> measuredQuantityAtomic = const Value.absent(),
+    int? unitPriceMinor,
+    Value<int?> standardCostMinorSnapshot = const Value.absent(),
+    Value<int?> priceReferenceQuantityAtomicSnapshot = const Value.absent(),
+    Value<String?> saleUnitCodeSnapshot = const Value.absent(),
+    Value<String?> saleUnitSymbolSnapshot = const Value.absent(),
+    Value<int?> saleUnitAtomicFactorSnapshot = const Value.absent(),
+    int? totalMinor,
+    int? sortOrder,
+  }) => SaleItemRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    saleId: saleId ?? this.saleId,
+    variantId: variantId ?? this.variantId,
+    consumptionConfigurationKey: consumptionConfigurationKey.present
+        ? consumptionConfigurationKey.value
+        : this.consumptionConfigurationKey,
+    productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
+    variantNameSnapshot: variantNameSnapshot.present
+        ? variantNameSnapshot.value
+        : this.variantNameSnapshot,
+    saleModeSnapshot: saleModeSnapshot ?? this.saleModeSnapshot,
+    quantity: quantity.present ? quantity.value : this.quantity,
+    measuredQuantityAtomic: measuredQuantityAtomic.present
+        ? measuredQuantityAtomic.value
+        : this.measuredQuantityAtomic,
+    unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+    standardCostMinorSnapshot: standardCostMinorSnapshot.present
+        ? standardCostMinorSnapshot.value
+        : this.standardCostMinorSnapshot,
+    priceReferenceQuantityAtomicSnapshot:
+        priceReferenceQuantityAtomicSnapshot.present
+        ? priceReferenceQuantityAtomicSnapshot.value
+        : this.priceReferenceQuantityAtomicSnapshot,
+    saleUnitCodeSnapshot: saleUnitCodeSnapshot.present
+        ? saleUnitCodeSnapshot.value
+        : this.saleUnitCodeSnapshot,
+    saleUnitSymbolSnapshot: saleUnitSymbolSnapshot.present
+        ? saleUnitSymbolSnapshot.value
+        : this.saleUnitSymbolSnapshot,
+    saleUnitAtomicFactorSnapshot: saleUnitAtomicFactorSnapshot.present
+        ? saleUnitAtomicFactorSnapshot.value
+        : this.saleUnitAtomicFactorSnapshot,
+    totalMinor: totalMinor ?? this.totalMinor,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  SaleItemRow copyWithCompanion(SaleItemsCompanion data) {
+    return SaleItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      saleId: data.saleId.present ? data.saleId.value : this.saleId,
+      variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      consumptionConfigurationKey: data.consumptionConfigurationKey.present
+          ? data.consumptionConfigurationKey.value
+          : this.consumptionConfigurationKey,
+      productNameSnapshot: data.productNameSnapshot.present
+          ? data.productNameSnapshot.value
+          : this.productNameSnapshot,
+      variantNameSnapshot: data.variantNameSnapshot.present
+          ? data.variantNameSnapshot.value
+          : this.variantNameSnapshot,
+      saleModeSnapshot: data.saleModeSnapshot.present
+          ? data.saleModeSnapshot.value
+          : this.saleModeSnapshot,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      measuredQuantityAtomic: data.measuredQuantityAtomic.present
+          ? data.measuredQuantityAtomic.value
+          : this.measuredQuantityAtomic,
+      unitPriceMinor: data.unitPriceMinor.present
+          ? data.unitPriceMinor.value
+          : this.unitPriceMinor,
+      standardCostMinorSnapshot: data.standardCostMinorSnapshot.present
+          ? data.standardCostMinorSnapshot.value
+          : this.standardCostMinorSnapshot,
+      priceReferenceQuantityAtomicSnapshot:
+          data.priceReferenceQuantityAtomicSnapshot.present
+          ? data.priceReferenceQuantityAtomicSnapshot.value
+          : this.priceReferenceQuantityAtomicSnapshot,
+      saleUnitCodeSnapshot: data.saleUnitCodeSnapshot.present
+          ? data.saleUnitCodeSnapshot.value
+          : this.saleUnitCodeSnapshot,
+      saleUnitSymbolSnapshot: data.saleUnitSymbolSnapshot.present
+          ? data.saleUnitSymbolSnapshot.value
+          : this.saleUnitSymbolSnapshot,
+      saleUnitAtomicFactorSnapshot: data.saleUnitAtomicFactorSnapshot.present
+          ? data.saleUnitAtomicFactorSnapshot.value
+          : this.saleUnitAtomicFactorSnapshot,
+      totalMinor: data.totalMinor.present
+          ? data.totalMinor.value
+          : this.totalMinor,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SaleItemRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('saleId: $saleId, ')
+          ..write('variantId: $variantId, ')
+          ..write('consumptionConfigurationKey: $consumptionConfigurationKey, ')
+          ..write('productNameSnapshot: $productNameSnapshot, ')
+          ..write('variantNameSnapshot: $variantNameSnapshot, ')
+          ..write('saleModeSnapshot: $saleModeSnapshot, ')
+          ..write('quantity: $quantity, ')
+          ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
+          ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('standardCostMinorSnapshot: $standardCostMinorSnapshot, ')
+          ..write(
+            'priceReferenceQuantityAtomicSnapshot: $priceReferenceQuantityAtomicSnapshot, ',
+          )
+          ..write('saleUnitCodeSnapshot: $saleUnitCodeSnapshot, ')
+          ..write('saleUnitSymbolSnapshot: $saleUnitSymbolSnapshot, ')
+          ..write(
+            'saleUnitAtomicFactorSnapshot: $saleUnitAtomicFactorSnapshot, ',
+          )
+          ..write('totalMinor: $totalMinor, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    saleId,
+    variantId,
+    consumptionConfigurationKey,
+    productNameSnapshot,
+    variantNameSnapshot,
+    saleModeSnapshot,
+    quantity,
+    measuredQuantityAtomic,
+    unitPriceMinor,
+    standardCostMinorSnapshot,
+    priceReferenceQuantityAtomicSnapshot,
+    saleUnitCodeSnapshot,
+    saleUnitSymbolSnapshot,
+    saleUnitAtomicFactorSnapshot,
+    totalMinor,
+    sortOrder,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SaleItemRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.saleId == this.saleId &&
+          other.variantId == this.variantId &&
+          other.consumptionConfigurationKey ==
+              this.consumptionConfigurationKey &&
+          other.productNameSnapshot == this.productNameSnapshot &&
+          other.variantNameSnapshot == this.variantNameSnapshot &&
+          other.saleModeSnapshot == this.saleModeSnapshot &&
+          other.quantity == this.quantity &&
+          other.measuredQuantityAtomic == this.measuredQuantityAtomic &&
+          other.unitPriceMinor == this.unitPriceMinor &&
+          other.standardCostMinorSnapshot == this.standardCostMinorSnapshot &&
+          other.priceReferenceQuantityAtomicSnapshot ==
+              this.priceReferenceQuantityAtomicSnapshot &&
+          other.saleUnitCodeSnapshot == this.saleUnitCodeSnapshot &&
+          other.saleUnitSymbolSnapshot == this.saleUnitSymbolSnapshot &&
+          other.saleUnitAtomicFactorSnapshot ==
+              this.saleUnitAtomicFactorSnapshot &&
+          other.totalMinor == this.totalMinor &&
+          other.sortOrder == this.sortOrder);
+}
+
+class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> saleId;
+  final Value<String> variantId;
+  final Value<String?> consumptionConfigurationKey;
+  final Value<String> productNameSnapshot;
+  final Value<String?> variantNameSnapshot;
+  final Value<String> saleModeSnapshot;
+  final Value<int?> quantity;
+  final Value<int?> measuredQuantityAtomic;
+  final Value<int> unitPriceMinor;
+  final Value<int?> standardCostMinorSnapshot;
+  final Value<int?> priceReferenceQuantityAtomicSnapshot;
+  final Value<String?> saleUnitCodeSnapshot;
+  final Value<String?> saleUnitSymbolSnapshot;
+  final Value<int?> saleUnitAtomicFactorSnapshot;
+  final Value<int> totalMinor;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const SaleItemsCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.saleId = const Value.absent(),
+    this.variantId = const Value.absent(),
+    this.consumptionConfigurationKey = const Value.absent(),
+    this.productNameSnapshot = const Value.absent(),
+    this.variantNameSnapshot = const Value.absent(),
+    this.saleModeSnapshot = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.measuredQuantityAtomic = const Value.absent(),
+    this.unitPriceMinor = const Value.absent(),
+    this.standardCostMinorSnapshot = const Value.absent(),
+    this.priceReferenceQuantityAtomicSnapshot = const Value.absent(),
+    this.saleUnitCodeSnapshot = const Value.absent(),
+    this.saleUnitSymbolSnapshot = const Value.absent(),
+    this.saleUnitAtomicFactorSnapshot = const Value.absent(),
+    this.totalMinor = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SaleItemsCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String saleId,
+    required String variantId,
+    this.consumptionConfigurationKey = const Value.absent(),
+    required String productNameSnapshot,
+    this.variantNameSnapshot = const Value.absent(),
+    required String saleModeSnapshot,
+    this.quantity = const Value.absent(),
+    this.measuredQuantityAtomic = const Value.absent(),
+    required int unitPriceMinor,
+    this.standardCostMinorSnapshot = const Value.absent(),
+    this.priceReferenceQuantityAtomicSnapshot = const Value.absent(),
+    this.saleUnitCodeSnapshot = const Value.absent(),
+    this.saleUnitSymbolSnapshot = const Value.absent(),
+    this.saleUnitAtomicFactorSnapshot = const Value.absent(),
+    required int totalMinor,
+    required int sortOrder,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       saleId = Value(saleId),
+       variantId = Value(variantId),
+       productNameSnapshot = Value(productNameSnapshot),
+       saleModeSnapshot = Value(saleModeSnapshot),
+       unitPriceMinor = Value(unitPriceMinor),
+       totalMinor = Value(totalMinor),
+       sortOrder = Value(sortOrder);
+  static Insertable<SaleItemRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? saleId,
+    Expression<String>? variantId,
+    Expression<String>? consumptionConfigurationKey,
+    Expression<String>? productNameSnapshot,
+    Expression<String>? variantNameSnapshot,
+    Expression<String>? saleModeSnapshot,
+    Expression<int>? quantity,
+    Expression<int>? measuredQuantityAtomic,
+    Expression<int>? unitPriceMinor,
+    Expression<int>? standardCostMinorSnapshot,
+    Expression<int>? priceReferenceQuantityAtomicSnapshot,
+    Expression<String>? saleUnitCodeSnapshot,
+    Expression<String>? saleUnitSymbolSnapshot,
+    Expression<int>? saleUnitAtomicFactorSnapshot,
+    Expression<int>? totalMinor,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (saleId != null) 'sale_id': saleId,
+      if (variantId != null) 'variant_id': variantId,
+      if (consumptionConfigurationKey != null)
+        'consumption_configuration_key': consumptionConfigurationKey,
+      if (productNameSnapshot != null)
+        'product_name_snapshot': productNameSnapshot,
+      if (variantNameSnapshot != null)
+        'variant_name_snapshot': variantNameSnapshot,
+      if (saleModeSnapshot != null) 'sale_mode_snapshot': saleModeSnapshot,
+      if (quantity != null) 'quantity': quantity,
+      if (measuredQuantityAtomic != null)
+        'measured_quantity_atomic': measuredQuantityAtomic,
+      if (unitPriceMinor != null) 'unit_price_minor': unitPriceMinor,
+      if (standardCostMinorSnapshot != null)
+        'standard_cost_minor_snapshot': standardCostMinorSnapshot,
+      if (priceReferenceQuantityAtomicSnapshot != null)
+        'price_reference_quantity_atomic_snapshot':
+            priceReferenceQuantityAtomicSnapshot,
+      if (saleUnitCodeSnapshot != null)
+        'sale_unit_code_snapshot': saleUnitCodeSnapshot,
+      if (saleUnitSymbolSnapshot != null)
+        'sale_unit_symbol_snapshot': saleUnitSymbolSnapshot,
+      if (saleUnitAtomicFactorSnapshot != null)
+        'sale_unit_atomic_factor_snapshot': saleUnitAtomicFactorSnapshot,
+      if (totalMinor != null) 'total_minor': totalMinor,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SaleItemsCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? saleId,
+    Value<String>? variantId,
+    Value<String?>? consumptionConfigurationKey,
+    Value<String>? productNameSnapshot,
+    Value<String?>? variantNameSnapshot,
+    Value<String>? saleModeSnapshot,
+    Value<int?>? quantity,
+    Value<int?>? measuredQuantityAtomic,
+    Value<int>? unitPriceMinor,
+    Value<int?>? standardCostMinorSnapshot,
+    Value<int?>? priceReferenceQuantityAtomicSnapshot,
+    Value<String?>? saleUnitCodeSnapshot,
+    Value<String?>? saleUnitSymbolSnapshot,
+    Value<int?>? saleUnitAtomicFactorSnapshot,
+    Value<int>? totalMinor,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return SaleItemsCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      saleId: saleId ?? this.saleId,
+      variantId: variantId ?? this.variantId,
+      consumptionConfigurationKey:
+          consumptionConfigurationKey ?? this.consumptionConfigurationKey,
+      productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
+      variantNameSnapshot: variantNameSnapshot ?? this.variantNameSnapshot,
+      saleModeSnapshot: saleModeSnapshot ?? this.saleModeSnapshot,
+      quantity: quantity ?? this.quantity,
+      measuredQuantityAtomic:
+          measuredQuantityAtomic ?? this.measuredQuantityAtomic,
+      unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+      standardCostMinorSnapshot:
+          standardCostMinorSnapshot ?? this.standardCostMinorSnapshot,
+      priceReferenceQuantityAtomicSnapshot:
+          priceReferenceQuantityAtomicSnapshot ??
+          this.priceReferenceQuantityAtomicSnapshot,
+      saleUnitCodeSnapshot: saleUnitCodeSnapshot ?? this.saleUnitCodeSnapshot,
+      saleUnitSymbolSnapshot:
+          saleUnitSymbolSnapshot ?? this.saleUnitSymbolSnapshot,
+      saleUnitAtomicFactorSnapshot:
+          saleUnitAtomicFactorSnapshot ?? this.saleUnitAtomicFactorSnapshot,
+      totalMinor: totalMinor ?? this.totalMinor,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (saleId.present) {
+      map['sale_id'] = Variable<String>(saleId.value);
+    }
+    if (variantId.present) {
+      map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (consumptionConfigurationKey.present) {
+      map['consumption_configuration_key'] = Variable<String>(
+        consumptionConfigurationKey.value,
+      );
+    }
+    if (productNameSnapshot.present) {
+      map['product_name_snapshot'] = Variable<String>(
+        productNameSnapshot.value,
+      );
+    }
+    if (variantNameSnapshot.present) {
+      map['variant_name_snapshot'] = Variable<String>(
+        variantNameSnapshot.value,
+      );
+    }
+    if (saleModeSnapshot.present) {
+      map['sale_mode_snapshot'] = Variable<String>(saleModeSnapshot.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (measuredQuantityAtomic.present) {
+      map['measured_quantity_atomic'] = Variable<int>(
+        measuredQuantityAtomic.value,
+      );
+    }
+    if (unitPriceMinor.present) {
+      map['unit_price_minor'] = Variable<int>(unitPriceMinor.value);
+    }
+    if (standardCostMinorSnapshot.present) {
+      map['standard_cost_minor_snapshot'] = Variable<int>(
+        standardCostMinorSnapshot.value,
+      );
+    }
+    if (priceReferenceQuantityAtomicSnapshot.present) {
+      map['price_reference_quantity_atomic_snapshot'] = Variable<int>(
+        priceReferenceQuantityAtomicSnapshot.value,
+      );
+    }
+    if (saleUnitCodeSnapshot.present) {
+      map['sale_unit_code_snapshot'] = Variable<String>(
+        saleUnitCodeSnapshot.value,
+      );
+    }
+    if (saleUnitSymbolSnapshot.present) {
+      map['sale_unit_symbol_snapshot'] = Variable<String>(
+        saleUnitSymbolSnapshot.value,
+      );
+    }
+    if (saleUnitAtomicFactorSnapshot.present) {
+      map['sale_unit_atomic_factor_snapshot'] = Variable<int>(
+        saleUnitAtomicFactorSnapshot.value,
+      );
+    }
+    if (totalMinor.present) {
+      map['total_minor'] = Variable<int>(totalMinor.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SaleItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('saleId: $saleId, ')
+          ..write('variantId: $variantId, ')
+          ..write('consumptionConfigurationKey: $consumptionConfigurationKey, ')
+          ..write('productNameSnapshot: $productNameSnapshot, ')
+          ..write('variantNameSnapshot: $variantNameSnapshot, ')
+          ..write('saleModeSnapshot: $saleModeSnapshot, ')
+          ..write('quantity: $quantity, ')
+          ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
+          ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('standardCostMinorSnapshot: $standardCostMinorSnapshot, ')
+          ..write(
+            'priceReferenceQuantityAtomicSnapshot: $priceReferenceQuantityAtomicSnapshot, ',
+          )
+          ..write('saleUnitCodeSnapshot: $saleUnitCodeSnapshot, ')
+          ..write('saleUnitSymbolSnapshot: $saleUnitSymbolSnapshot, ')
+          ..write(
+            'saleUnitAtomicFactorSnapshot: $saleUnitAtomicFactorSnapshot, ',
+          )
+          ..write('totalMinor: $totalMinor, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $InventoryMovementsTable extends InventoryMovements
     with TableInfo<$InventoryMovementsTable, InventoryMovementRow> {
   @override
@@ -6880,6 +9054,9 @@ class $InventoryMovementsTable extends InventoryMovements
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sale_items (id) ON DELETE RESTRICT',
+    ),
   );
   static const VerificationMeta _eventIdMeta = const VerificationMeta(
     'eventId',
@@ -7593,765 +9770,12 @@ class InventoryMovementsCompanion
   }
 }
 
-class $SalesTable extends Sales with TableInfo<$SalesTable, SaleRow> {
+class $SalePaymentsTable extends SalePayments
+    with TableInfo<$SalePaymentsTable, SalePaymentRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $SalesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _activeMeta = const VerificationMeta('active');
-  @override
-  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
-    'active',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("active" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  static const VerificationMeta _versionMeta = const VerificationMeta(
-    'version',
-  );
-  @override
-  late final GeneratedColumn<int> version = GeneratedColumn<int>(
-    'version',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  );
-  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
-    'createdEventId',
-  );
-  @override
-  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
-    'created_event_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
-    'lastEventId',
-  );
-  @override
-  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
-    'last_event_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _lastServerSequenceMeta =
-      const VerificationMeta('lastServerSequence');
-  @override
-  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
-    'last_server_sequence',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
-  @override
-  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
-    'user_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
-    'deviceId',
-  );
-  @override
-  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
-    'device_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
-  @override
-  late final GeneratedColumn<String> status = GeneratedColumn<String>(
-    'status',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('borrador'),
-  );
-  static const VerificationMeta _totalMinorMeta = const VerificationMeta(
-    'totalMinor',
-  );
-  @override
-  late final GeneratedColumn<int> totalMinor = GeneratedColumn<int>(
-    'total_minor',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtLocalMeta = const VerificationMeta(
-    'createdAtLocal',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAtLocal =
-      GeneratedColumn<DateTime>(
-        'created_at_local',
-        aliasedName,
-        false,
-        type: DriftSqlType.dateTime,
-        requiredDuringInsert: true,
-      );
-  static const VerificationMeta _updatedAtLocalMeta = const VerificationMeta(
-    'updatedAtLocal',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAtLocal =
-      GeneratedColumn<DateTime>(
-        'updated_at_local',
-        aliasedName,
-        false,
-        type: DriftSqlType.dateTime,
-        requiredDuringInsert: true,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    active,
-    version,
-    createdEventId,
-    lastEventId,
-    lastServerSequence,
-    userId,
-    deviceId,
-    status,
-    totalMinor,
-    createdAtLocal,
-    updatedAtLocal,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sales';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SaleRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('active')) {
-      context.handle(
-        _activeMeta,
-        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
-      );
-    }
-    if (data.containsKey('version')) {
-      context.handle(
-        _versionMeta,
-        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
-      );
-    }
-    if (data.containsKey('created_event_id')) {
-      context.handle(
-        _createdEventIdMeta,
-        createdEventId.isAcceptableOrUnknown(
-          data['created_event_id']!,
-          _createdEventIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_event_id')) {
-      context.handle(
-        _lastEventIdMeta,
-        lastEventId.isAcceptableOrUnknown(
-          data['last_event_id']!,
-          _lastEventIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_server_sequence')) {
-      context.handle(
-        _lastServerSequenceMeta,
-        lastServerSequence.isAcceptableOrUnknown(
-          data['last_server_sequence']!,
-          _lastServerSequenceMeta,
-        ),
-      );
-    }
-    if (data.containsKey('user_id')) {
-      context.handle(
-        _userIdMeta,
-        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_userIdMeta);
-    }
-    if (data.containsKey('device_id')) {
-      context.handle(
-        _deviceIdMeta,
-        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceIdMeta);
-    }
-    if (data.containsKey('status')) {
-      context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
-      );
-    }
-    if (data.containsKey('total_minor')) {
-      context.handle(
-        _totalMinorMeta,
-        totalMinor.isAcceptableOrUnknown(data['total_minor']!, _totalMinorMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_totalMinorMeta);
-    }
-    if (data.containsKey('created_at_local')) {
-      context.handle(
-        _createdAtLocalMeta,
-        createdAtLocal.isAcceptableOrUnknown(
-          data['created_at_local']!,
-          _createdAtLocalMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtLocalMeta);
-    }
-    if (data.containsKey('updated_at_local')) {
-      context.handle(
-        _updatedAtLocalMeta,
-        updatedAtLocal.isAcceptableOrUnknown(
-          data['updated_at_local']!,
-          _updatedAtLocalMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtLocalMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  SaleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SaleRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      active: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}active'],
-      )!,
-      version: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}version'],
-      )!,
-      createdEventId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}created_event_id'],
-      ),
-      lastEventId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}last_event_id'],
-      ),
-      lastServerSequence: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}last_server_sequence'],
-      ),
-      userId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}user_id'],
-      )!,
-      deviceId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_id'],
-      )!,
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}status'],
-      )!,
-      totalMinor: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}total_minor'],
-      )!,
-      createdAtLocal: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at_local'],
-      )!,
-      updatedAtLocal: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at_local'],
-      )!,
-    );
-  }
-
-  @override
-  $SalesTable createAlias(String alias) {
-    return $SalesTable(attachedDatabase, alias);
-  }
-}
-
-class SaleRow extends DataClass implements Insertable<SaleRow> {
-  /// Unique global ID generated on the device as a UUID
-  final String id;
-
-  /// Logical deletion flag (active = true means not deleted)
-  final bool active;
-
-  /// Version for optimistic concurrency control and conflict resolution
-  final int version;
-
-  /// Reference to the event that created this record
-  final String? createdEventId;
-
-  /// Reference to the last event that modified this record
-  final String? lastEventId;
-
-  /// Sync cursor representing the official server sequence
-  final int? lastServerSequence;
-
-  /// Usuario que inició la captura; se conserva en cada edición.
-  final String userId;
-
-  /// Dispositivo de origen del borrador.
-  final String deviceId;
-
-  /// Estado de captura: borrador o descartada.
-  final String status;
-
-  /// Suma en centavos de líneas activas, recalculada en la misma transacción.
-  final int totalMinor;
-
-  /// Fecha local original de creación, conservada al editar.
-  final DateTime createdAtLocal;
-
-  /// Fecha local de la última modificación.
-  final DateTime updatedAtLocal;
-  const SaleRow({
-    required this.id,
-    required this.active,
-    required this.version,
-    this.createdEventId,
-    this.lastEventId,
-    this.lastServerSequence,
-    required this.userId,
-    required this.deviceId,
-    required this.status,
-    required this.totalMinor,
-    required this.createdAtLocal,
-    required this.updatedAtLocal,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['active'] = Variable<bool>(active);
-    map['version'] = Variable<int>(version);
-    if (!nullToAbsent || createdEventId != null) {
-      map['created_event_id'] = Variable<String>(createdEventId);
-    }
-    if (!nullToAbsent || lastEventId != null) {
-      map['last_event_id'] = Variable<String>(lastEventId);
-    }
-    if (!nullToAbsent || lastServerSequence != null) {
-      map['last_server_sequence'] = Variable<int>(lastServerSequence);
-    }
-    map['user_id'] = Variable<String>(userId);
-    map['device_id'] = Variable<String>(deviceId);
-    map['status'] = Variable<String>(status);
-    map['total_minor'] = Variable<int>(totalMinor);
-    map['created_at_local'] = Variable<DateTime>(createdAtLocal);
-    map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
-    return map;
-  }
-
-  SalesCompanion toCompanion(bool nullToAbsent) {
-    return SalesCompanion(
-      id: Value(id),
-      active: Value(active),
-      version: Value(version),
-      createdEventId: createdEventId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(createdEventId),
-      lastEventId: lastEventId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastEventId),
-      lastServerSequence: lastServerSequence == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastServerSequence),
-      userId: Value(userId),
-      deviceId: Value(deviceId),
-      status: Value(status),
-      totalMinor: Value(totalMinor),
-      createdAtLocal: Value(createdAtLocal),
-      updatedAtLocal: Value(updatedAtLocal),
-    );
-  }
-
-  factory SaleRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SaleRow(
-      id: serializer.fromJson<String>(json['id']),
-      active: serializer.fromJson<bool>(json['active']),
-      version: serializer.fromJson<int>(json['version']),
-      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
-      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
-      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
-      userId: serializer.fromJson<String>(json['userId']),
-      deviceId: serializer.fromJson<String>(json['deviceId']),
-      status: serializer.fromJson<String>(json['status']),
-      totalMinor: serializer.fromJson<int>(json['totalMinor']),
-      createdAtLocal: serializer.fromJson<DateTime>(json['createdAtLocal']),
-      updatedAtLocal: serializer.fromJson<DateTime>(json['updatedAtLocal']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'active': serializer.toJson<bool>(active),
-      'version': serializer.toJson<int>(version),
-      'createdEventId': serializer.toJson<String?>(createdEventId),
-      'lastEventId': serializer.toJson<String?>(lastEventId),
-      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
-      'userId': serializer.toJson<String>(userId),
-      'deviceId': serializer.toJson<String>(deviceId),
-      'status': serializer.toJson<String>(status),
-      'totalMinor': serializer.toJson<int>(totalMinor),
-      'createdAtLocal': serializer.toJson<DateTime>(createdAtLocal),
-      'updatedAtLocal': serializer.toJson<DateTime>(updatedAtLocal),
-    };
-  }
-
-  SaleRow copyWith({
-    String? id,
-    bool? active,
-    int? version,
-    Value<String?> createdEventId = const Value.absent(),
-    Value<String?> lastEventId = const Value.absent(),
-    Value<int?> lastServerSequence = const Value.absent(),
-    String? userId,
-    String? deviceId,
-    String? status,
-    int? totalMinor,
-    DateTime? createdAtLocal,
-    DateTime? updatedAtLocal,
-  }) => SaleRow(
-    id: id ?? this.id,
-    active: active ?? this.active,
-    version: version ?? this.version,
-    createdEventId: createdEventId.present
-        ? createdEventId.value
-        : this.createdEventId,
-    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
-    lastServerSequence: lastServerSequence.present
-        ? lastServerSequence.value
-        : this.lastServerSequence,
-    userId: userId ?? this.userId,
-    deviceId: deviceId ?? this.deviceId,
-    status: status ?? this.status,
-    totalMinor: totalMinor ?? this.totalMinor,
-    createdAtLocal: createdAtLocal ?? this.createdAtLocal,
-    updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
-  );
-  SaleRow copyWithCompanion(SalesCompanion data) {
-    return SaleRow(
-      id: data.id.present ? data.id.value : this.id,
-      active: data.active.present ? data.active.value : this.active,
-      version: data.version.present ? data.version.value : this.version,
-      createdEventId: data.createdEventId.present
-          ? data.createdEventId.value
-          : this.createdEventId,
-      lastEventId: data.lastEventId.present
-          ? data.lastEventId.value
-          : this.lastEventId,
-      lastServerSequence: data.lastServerSequence.present
-          ? data.lastServerSequence.value
-          : this.lastServerSequence,
-      userId: data.userId.present ? data.userId.value : this.userId,
-      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
-      status: data.status.present ? data.status.value : this.status,
-      totalMinor: data.totalMinor.present
-          ? data.totalMinor.value
-          : this.totalMinor,
-      createdAtLocal: data.createdAtLocal.present
-          ? data.createdAtLocal.value
-          : this.createdAtLocal,
-      updatedAtLocal: data.updatedAtLocal.present
-          ? data.updatedAtLocal.value
-          : this.updatedAtLocal,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SaleRow(')
-          ..write('id: $id, ')
-          ..write('active: $active, ')
-          ..write('version: $version, ')
-          ..write('createdEventId: $createdEventId, ')
-          ..write('lastEventId: $lastEventId, ')
-          ..write('lastServerSequence: $lastServerSequence, ')
-          ..write('userId: $userId, ')
-          ..write('deviceId: $deviceId, ')
-          ..write('status: $status, ')
-          ..write('totalMinor: $totalMinor, ')
-          ..write('createdAtLocal: $createdAtLocal, ')
-          ..write('updatedAtLocal: $updatedAtLocal')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    active,
-    version,
-    createdEventId,
-    lastEventId,
-    lastServerSequence,
-    userId,
-    deviceId,
-    status,
-    totalMinor,
-    createdAtLocal,
-    updatedAtLocal,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SaleRow &&
-          other.id == this.id &&
-          other.active == this.active &&
-          other.version == this.version &&
-          other.createdEventId == this.createdEventId &&
-          other.lastEventId == this.lastEventId &&
-          other.lastServerSequence == this.lastServerSequence &&
-          other.userId == this.userId &&
-          other.deviceId == this.deviceId &&
-          other.status == this.status &&
-          other.totalMinor == this.totalMinor &&
-          other.createdAtLocal == this.createdAtLocal &&
-          other.updatedAtLocal == this.updatedAtLocal);
-}
-
-class SalesCompanion extends UpdateCompanion<SaleRow> {
-  final Value<String> id;
-  final Value<bool> active;
-  final Value<int> version;
-  final Value<String?> createdEventId;
-  final Value<String?> lastEventId;
-  final Value<int?> lastServerSequence;
-  final Value<String> userId;
-  final Value<String> deviceId;
-  final Value<String> status;
-  final Value<int> totalMinor;
-  final Value<DateTime> createdAtLocal;
-  final Value<DateTime> updatedAtLocal;
-  final Value<int> rowid;
-  const SalesCompanion({
-    this.id = const Value.absent(),
-    this.active = const Value.absent(),
-    this.version = const Value.absent(),
-    this.createdEventId = const Value.absent(),
-    this.lastEventId = const Value.absent(),
-    this.lastServerSequence = const Value.absent(),
-    this.userId = const Value.absent(),
-    this.deviceId = const Value.absent(),
-    this.status = const Value.absent(),
-    this.totalMinor = const Value.absent(),
-    this.createdAtLocal = const Value.absent(),
-    this.updatedAtLocal = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SalesCompanion.insert({
-    required String id,
-    this.active = const Value.absent(),
-    this.version = const Value.absent(),
-    this.createdEventId = const Value.absent(),
-    this.lastEventId = const Value.absent(),
-    this.lastServerSequence = const Value.absent(),
-    required String userId,
-    required String deviceId,
-    this.status = const Value.absent(),
-    required int totalMinor,
-    required DateTime createdAtLocal,
-    required DateTime updatedAtLocal,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       userId = Value(userId),
-       deviceId = Value(deviceId),
-       totalMinor = Value(totalMinor),
-       createdAtLocal = Value(createdAtLocal),
-       updatedAtLocal = Value(updatedAtLocal);
-  static Insertable<SaleRow> custom({
-    Expression<String>? id,
-    Expression<bool>? active,
-    Expression<int>? version,
-    Expression<String>? createdEventId,
-    Expression<String>? lastEventId,
-    Expression<int>? lastServerSequence,
-    Expression<String>? userId,
-    Expression<String>? deviceId,
-    Expression<String>? status,
-    Expression<int>? totalMinor,
-    Expression<DateTime>? createdAtLocal,
-    Expression<DateTime>? updatedAtLocal,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (active != null) 'active': active,
-      if (version != null) 'version': version,
-      if (createdEventId != null) 'created_event_id': createdEventId,
-      if (lastEventId != null) 'last_event_id': lastEventId,
-      if (lastServerSequence != null)
-        'last_server_sequence': lastServerSequence,
-      if (userId != null) 'user_id': userId,
-      if (deviceId != null) 'device_id': deviceId,
-      if (status != null) 'status': status,
-      if (totalMinor != null) 'total_minor': totalMinor,
-      if (createdAtLocal != null) 'created_at_local': createdAtLocal,
-      if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SalesCompanion copyWith({
-    Value<String>? id,
-    Value<bool>? active,
-    Value<int>? version,
-    Value<String?>? createdEventId,
-    Value<String?>? lastEventId,
-    Value<int?>? lastServerSequence,
-    Value<String>? userId,
-    Value<String>? deviceId,
-    Value<String>? status,
-    Value<int>? totalMinor,
-    Value<DateTime>? createdAtLocal,
-    Value<DateTime>? updatedAtLocal,
-    Value<int>? rowid,
-  }) {
-    return SalesCompanion(
-      id: id ?? this.id,
-      active: active ?? this.active,
-      version: version ?? this.version,
-      createdEventId: createdEventId ?? this.createdEventId,
-      lastEventId: lastEventId ?? this.lastEventId,
-      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
-      userId: userId ?? this.userId,
-      deviceId: deviceId ?? this.deviceId,
-      status: status ?? this.status,
-      totalMinor: totalMinor ?? this.totalMinor,
-      createdAtLocal: createdAtLocal ?? this.createdAtLocal,
-      updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (active.present) {
-      map['active'] = Variable<bool>(active.value);
-    }
-    if (version.present) {
-      map['version'] = Variable<int>(version.value);
-    }
-    if (createdEventId.present) {
-      map['created_event_id'] = Variable<String>(createdEventId.value);
-    }
-    if (lastEventId.present) {
-      map['last_event_id'] = Variable<String>(lastEventId.value);
-    }
-    if (lastServerSequence.present) {
-      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
-    }
-    if (userId.present) {
-      map['user_id'] = Variable<String>(userId.value);
-    }
-    if (deviceId.present) {
-      map['device_id'] = Variable<String>(deviceId.value);
-    }
-    if (status.present) {
-      map['status'] = Variable<String>(status.value);
-    }
-    if (totalMinor.present) {
-      map['total_minor'] = Variable<int>(totalMinor.value);
-    }
-    if (createdAtLocal.present) {
-      map['created_at_local'] = Variable<DateTime>(createdAtLocal.value);
-    }
-    if (updatedAtLocal.present) {
-      map['updated_at_local'] = Variable<DateTime>(updatedAtLocal.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SalesCompanion(')
-          ..write('id: $id, ')
-          ..write('active: $active, ')
-          ..write('version: $version, ')
-          ..write('createdEventId: $createdEventId, ')
-          ..write('lastEventId: $lastEventId, ')
-          ..write('lastServerSequence: $lastServerSequence, ')
-          ..write('userId: $userId, ')
-          ..write('deviceId: $deviceId, ')
-          ..write('status: $status, ')
-          ..write('totalMinor: $totalMinor, ')
-          ..write('createdAtLocal: $createdAtLocal, ')
-          ..write('updatedAtLocal: $updatedAtLocal, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SaleItemsTable extends SaleItems
-    with TableInfo<$SaleItemsTable, SaleItemRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SaleItemsTable(this.attachedDatabase, [this._alias]);
+  $SalePaymentsTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -8427,163 +9851,51 @@ class $SaleItemsTable extends SaleItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES sales (id) ON DELETE RESTRICT',
+      'UNIQUE REFERENCES sales (id) ON DELETE RESTRICT',
     ),
   );
-  static const VerificationMeta _variantIdMeta = const VerificationMeta(
-    'variantId',
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
   );
   @override
-  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
-    'variant_id',
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _receivedMinorMeta = const VerificationMeta(
+    'receivedMinor',
+  );
+  @override
+  late final GeneratedColumn<int> receivedMinor = GeneratedColumn<int>(
+    'received_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _changeMinorMeta = const VerificationMeta(
+    'changeMinor',
+  );
+  @override
+  late final GeneratedColumn<int> changeMinor = GeneratedColumn<int>(
+    'change_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES product_variants (id) ON DELETE RESTRICT',
-    ),
-  );
-  static const VerificationMeta _productNameSnapshotMeta =
-      const VerificationMeta('productNameSnapshot');
-  @override
-  late final GeneratedColumn<String> productNameSnapshot =
-      GeneratedColumn<String>(
-        'product_name_snapshot',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      );
-  static const VerificationMeta _variantNameSnapshotMeta =
-      const VerificationMeta('variantNameSnapshot');
-  @override
-  late final GeneratedColumn<String> variantNameSnapshot =
-      GeneratedColumn<String>(
-        'variant_name_snapshot',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _saleModeSnapshotMeta = const VerificationMeta(
-    'saleModeSnapshot',
-  );
-  @override
-  late final GeneratedColumn<String> saleModeSnapshot = GeneratedColumn<String>(
-    'sale_mode_snapshot',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _quantityMeta = const VerificationMeta(
-    'quantity',
-  );
-  @override
-  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
-    'quantity',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _measuredQuantityAtomicMeta =
-      const VerificationMeta('measuredQuantityAtomic');
-  @override
-  late final GeneratedColumn<int> measuredQuantityAtomic = GeneratedColumn<int>(
-    'measured_quantity_atomic',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _unitPriceMinorMeta = const VerificationMeta(
-    'unitPriceMinor',
-  );
-  @override
-  late final GeneratedColumn<int> unitPriceMinor = GeneratedColumn<int>(
-    'unit_price_minor',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _standardCostMinorSnapshotMeta =
-      const VerificationMeta('standardCostMinorSnapshot');
-  @override
-  late final GeneratedColumn<int> standardCostMinorSnapshot =
-      GeneratedColumn<int>(
-        'standard_cost_minor_snapshot',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _priceReferenceQuantityAtomicSnapshotMeta =
-      const VerificationMeta('priceReferenceQuantityAtomicSnapshot');
-  @override
-  late final GeneratedColumn<int> priceReferenceQuantityAtomicSnapshot =
-      GeneratedColumn<int>(
-        'price_reference_quantity_atomic_snapshot',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _saleUnitCodeSnapshotMeta =
-      const VerificationMeta('saleUnitCodeSnapshot');
-  @override
-  late final GeneratedColumn<String> saleUnitCodeSnapshot =
-      GeneratedColumn<String>(
-        'sale_unit_code_snapshot',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _saleUnitSymbolSnapshotMeta =
-      const VerificationMeta('saleUnitSymbolSnapshot');
-  @override
-  late final GeneratedColumn<String> saleUnitSymbolSnapshot =
-      GeneratedColumn<String>(
-        'sale_unit_symbol_snapshot',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _saleUnitAtomicFactorSnapshotMeta =
-      const VerificationMeta('saleUnitAtomicFactorSnapshot');
-  @override
-  late final GeneratedColumn<int> saleUnitAtomicFactorSnapshot =
-      GeneratedColumn<int>(
-        'sale_unit_atomic_factor_snapshot',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _totalMinorMeta = const VerificationMeta(
-    'totalMinor',
-  );
-  @override
-  late final GeneratedColumn<int> totalMinor = GeneratedColumn<int>(
-    'total_minor',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
-    'sortOrder',
-  );
-  @override
-  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
-    'sort_order',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
   @override
@@ -8595,29 +9907,19 @@ class $SaleItemsTable extends SaleItems
     lastEventId,
     lastServerSequence,
     saleId,
-    variantId,
-    productNameSnapshot,
-    variantNameSnapshot,
-    saleModeSnapshot,
-    quantity,
-    measuredQuantityAtomic,
-    unitPriceMinor,
-    standardCostMinorSnapshot,
-    priceReferenceQuantityAtomicSnapshot,
-    saleUnitCodeSnapshot,
-    saleUnitSymbolSnapshot,
-    saleUnitAtomicFactorSnapshot,
-    totalMinor,
-    sortOrder,
+    amountMinor,
+    receivedMinor,
+    changeMinor,
+    currency,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'sale_items';
+  static const String $name = 'sale_payments';
   @override
   VerificationContext validateIntegrity(
-    Insertable<SaleItemRow> instance, {
+    Insertable<SalePaymentRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -8674,131 +9976,46 @@ class $SaleItemsTable extends SaleItems
     } else if (isInserting) {
       context.missing(_saleIdMeta);
     }
-    if (data.containsKey('variant_id')) {
+    if (data.containsKey('amount_minor')) {
       context.handle(
-        _variantIdMeta,
-        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_variantIdMeta);
-    }
-    if (data.containsKey('product_name_snapshot')) {
-      context.handle(
-        _productNameSnapshotMeta,
-        productNameSnapshot.isAcceptableOrUnknown(
-          data['product_name_snapshot']!,
-          _productNameSnapshotMeta,
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_productNameSnapshotMeta);
+      context.missing(_amountMinorMeta);
     }
-    if (data.containsKey('variant_name_snapshot')) {
+    if (data.containsKey('received_minor')) {
       context.handle(
-        _variantNameSnapshotMeta,
-        variantNameSnapshot.isAcceptableOrUnknown(
-          data['variant_name_snapshot']!,
-          _variantNameSnapshotMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sale_mode_snapshot')) {
-      context.handle(
-        _saleModeSnapshotMeta,
-        saleModeSnapshot.isAcceptableOrUnknown(
-          data['sale_mode_snapshot']!,
-          _saleModeSnapshotMeta,
+        _receivedMinorMeta,
+        receivedMinor.isAcceptableOrUnknown(
+          data['received_minor']!,
+          _receivedMinorMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_saleModeSnapshotMeta);
+      context.missing(_receivedMinorMeta);
     }
-    if (data.containsKey('quantity')) {
+    if (data.containsKey('change_minor')) {
       context.handle(
-        _quantityMeta,
-        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
-      );
-    }
-    if (data.containsKey('measured_quantity_atomic')) {
-      context.handle(
-        _measuredQuantityAtomicMeta,
-        measuredQuantityAtomic.isAcceptableOrUnknown(
-          data['measured_quantity_atomic']!,
-          _measuredQuantityAtomicMeta,
-        ),
-      );
-    }
-    if (data.containsKey('unit_price_minor')) {
-      context.handle(
-        _unitPriceMinorMeta,
-        unitPriceMinor.isAcceptableOrUnknown(
-          data['unit_price_minor']!,
-          _unitPriceMinorMeta,
+        _changeMinorMeta,
+        changeMinor.isAcceptableOrUnknown(
+          data['change_minor']!,
+          _changeMinorMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_unitPriceMinorMeta);
+      context.missing(_changeMinorMeta);
     }
-    if (data.containsKey('standard_cost_minor_snapshot')) {
+    if (data.containsKey('currency')) {
       context.handle(
-        _standardCostMinorSnapshotMeta,
-        standardCostMinorSnapshot.isAcceptableOrUnknown(
-          data['standard_cost_minor_snapshot']!,
-          _standardCostMinorSnapshotMeta,
-        ),
-      );
-    }
-    if (data.containsKey('price_reference_quantity_atomic_snapshot')) {
-      context.handle(
-        _priceReferenceQuantityAtomicSnapshotMeta,
-        priceReferenceQuantityAtomicSnapshot.isAcceptableOrUnknown(
-          data['price_reference_quantity_atomic_snapshot']!,
-          _priceReferenceQuantityAtomicSnapshotMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sale_unit_code_snapshot')) {
-      context.handle(
-        _saleUnitCodeSnapshotMeta,
-        saleUnitCodeSnapshot.isAcceptableOrUnknown(
-          data['sale_unit_code_snapshot']!,
-          _saleUnitCodeSnapshotMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sale_unit_symbol_snapshot')) {
-      context.handle(
-        _saleUnitSymbolSnapshotMeta,
-        saleUnitSymbolSnapshot.isAcceptableOrUnknown(
-          data['sale_unit_symbol_snapshot']!,
-          _saleUnitSymbolSnapshotMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sale_unit_atomic_factor_snapshot')) {
-      context.handle(
-        _saleUnitAtomicFactorSnapshotMeta,
-        saleUnitAtomicFactorSnapshot.isAcceptableOrUnknown(
-          data['sale_unit_atomic_factor_snapshot']!,
-          _saleUnitAtomicFactorSnapshotMeta,
-        ),
-      );
-    }
-    if (data.containsKey('total_minor')) {
-      context.handle(
-        _totalMinorMeta,
-        totalMinor.isAcceptableOrUnknown(data['total_minor']!, _totalMinorMeta),
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
       );
     } else if (isInserting) {
-      context.missing(_totalMinorMeta);
-    }
-    if (data.containsKey('sort_order')) {
-      context.handle(
-        _sortOrderMeta,
-        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_sortOrderMeta);
+      context.missing(_currencyMeta);
     }
     return context;
   }
@@ -8806,9 +10023,9 @@ class $SaleItemsTable extends SaleItems
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  SaleItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+  SalePaymentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SaleItemRow(
+    return SalePaymentRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -8837,72 +10054,32 @@ class $SaleItemsTable extends SaleItems
         DriftSqlType.string,
         data['${effectivePrefix}sale_id'],
       )!,
-      variantId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}variant_id'],
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
       )!,
-      productNameSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}product_name_snapshot'],
+      receivedMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}received_minor'],
       )!,
-      variantNameSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}variant_name_snapshot'],
-      ),
-      saleModeSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sale_mode_snapshot'],
+      changeMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}change_minor'],
       )!,
-      quantity: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}quantity'],
-      ),
-      measuredQuantityAtomic: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}measured_quantity_atomic'],
-      ),
-      unitPriceMinor: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}unit_price_minor'],
-      )!,
-      standardCostMinorSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}standard_cost_minor_snapshot'],
-      ),
-      priceReferenceQuantityAtomicSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}price_reference_quantity_atomic_snapshot'],
-      ),
-      saleUnitCodeSnapshot: attachedDatabase.typeMapping.read(
+      currency: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}sale_unit_code_snapshot'],
-      ),
-      saleUnitSymbolSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sale_unit_symbol_snapshot'],
-      ),
-      saleUnitAtomicFactorSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}sale_unit_atomic_factor_snapshot'],
-      ),
-      totalMinor: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}total_minor'],
-      )!,
-      sortOrder: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}sort_order'],
+        data['${effectivePrefix}currency'],
       )!,
     );
   }
 
   @override
-  $SaleItemsTable createAlias(String alias) {
-    return $SaleItemsTable(attachedDatabase, alias);
+  $SalePaymentsTable createAlias(String alias) {
+    return $SalePaymentsTable(attachedDatabase, alias);
   }
 }
 
-class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
+class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
   /// Unique global ID generated on the device as a UUID
   final String id;
 
@@ -8921,51 +10098,21 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
   /// Sync cursor representing the official server sequence
   final int? lastServerSequence;
 
-  /// Venta propietaria; no permite eliminar una venta con líneas.
+  /// Una sola confirmación de efectivo por venta, incluso con otro event_id.
   final String saleId;
 
-  /// Variante capturada; protege la referencia frente al borrado físico.
-  final String variantId;
+  /// Importe aplicado al pago, excluyendo el cambio.
+  final int amountMinor;
 
-  /// Nombre del producto al agregar la línea.
-  final String productNameSnapshot;
+  /// Efectivo entregado por el cliente.
+  final int receivedMinor;
 
-  /// Nombre opcional de la variante al agregar la línea.
-  final String? variantNameSnapshot;
+  /// Efectivo que se devuelve al cliente.
+  final int changeMinor;
 
-  /// Modo capturado: unit o measured.
-  final String saleModeSnapshot;
-
-  /// Conteo entero positivo en unit; null en measured.
-  final int? quantity;
-
-  /// Cantidad atómica positiva en measured; null en unit.
-  final int? measuredQuantityAtomic;
-
-  /// Precio capturado en centavos por pieza o por cantidad de referencia.
-  final int unitPriceMinor;
-
-  /// Costo estándar capturado; null conserva que se desconoce el costo.
-  final int? standardCostMinorSnapshot;
-
-  /// Cantidad atómica a la que corresponde el precio medido; null en unit.
-  final int? priceReferenceQuantityAtomicSnapshot;
-
-  /// Código original de la unidad medida; null en unit.
-  final String? saleUnitCodeSnapshot;
-
-  /// Símbolo original para presentar la cantidad; null en unit.
-  final String? saleUnitSymbolSnapshot;
-
-  /// Átomos por unidad de presentación original; null en unit.
-  final int? saleUnitAtomicFactorSnapshot;
-
-  /// Importe de la línea con redondeo half-up sobre su cantidad total.
-  final int totalMinor;
-
-  /// Orden estable dentro de la venta, desde cero.
-  final int sortOrder;
-  const SaleItemRow({
+  /// Moneda del pago. Este flujo opera en MXN.
+  final String currency;
+  const SalePaymentRow({
     required this.id,
     required this.active,
     required this.version,
@@ -8973,20 +10120,10 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
     this.lastEventId,
     this.lastServerSequence,
     required this.saleId,
-    required this.variantId,
-    required this.productNameSnapshot,
-    this.variantNameSnapshot,
-    required this.saleModeSnapshot,
-    this.quantity,
-    this.measuredQuantityAtomic,
-    required this.unitPriceMinor,
-    this.standardCostMinorSnapshot,
-    this.priceReferenceQuantityAtomicSnapshot,
-    this.saleUnitCodeSnapshot,
-    this.saleUnitSymbolSnapshot,
-    this.saleUnitAtomicFactorSnapshot,
-    required this.totalMinor,
-    required this.sortOrder,
+    required this.amountMinor,
+    required this.receivedMinor,
+    required this.changeMinor,
+    required this.currency,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9004,49 +10141,15 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
       map['last_server_sequence'] = Variable<int>(lastServerSequence);
     }
     map['sale_id'] = Variable<String>(saleId);
-    map['variant_id'] = Variable<String>(variantId);
-    map['product_name_snapshot'] = Variable<String>(productNameSnapshot);
-    if (!nullToAbsent || variantNameSnapshot != null) {
-      map['variant_name_snapshot'] = Variable<String>(variantNameSnapshot);
-    }
-    map['sale_mode_snapshot'] = Variable<String>(saleModeSnapshot);
-    if (!nullToAbsent || quantity != null) {
-      map['quantity'] = Variable<int>(quantity);
-    }
-    if (!nullToAbsent || measuredQuantityAtomic != null) {
-      map['measured_quantity_atomic'] = Variable<int>(measuredQuantityAtomic);
-    }
-    map['unit_price_minor'] = Variable<int>(unitPriceMinor);
-    if (!nullToAbsent || standardCostMinorSnapshot != null) {
-      map['standard_cost_minor_snapshot'] = Variable<int>(
-        standardCostMinorSnapshot,
-      );
-    }
-    if (!nullToAbsent || priceReferenceQuantityAtomicSnapshot != null) {
-      map['price_reference_quantity_atomic_snapshot'] = Variable<int>(
-        priceReferenceQuantityAtomicSnapshot,
-      );
-    }
-    if (!nullToAbsent || saleUnitCodeSnapshot != null) {
-      map['sale_unit_code_snapshot'] = Variable<String>(saleUnitCodeSnapshot);
-    }
-    if (!nullToAbsent || saleUnitSymbolSnapshot != null) {
-      map['sale_unit_symbol_snapshot'] = Variable<String>(
-        saleUnitSymbolSnapshot,
-      );
-    }
-    if (!nullToAbsent || saleUnitAtomicFactorSnapshot != null) {
-      map['sale_unit_atomic_factor_snapshot'] = Variable<int>(
-        saleUnitAtomicFactorSnapshot,
-      );
-    }
-    map['total_minor'] = Variable<int>(totalMinor);
-    map['sort_order'] = Variable<int>(sortOrder);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['received_minor'] = Variable<int>(receivedMinor);
+    map['change_minor'] = Variable<int>(changeMinor);
+    map['currency'] = Variable<String>(currency);
     return map;
   }
 
-  SaleItemsCompanion toCompanion(bool nullToAbsent) {
-    return SaleItemsCompanion(
+  SalePaymentsCompanion toCompanion(bool nullToAbsent) {
+    return SalePaymentsCompanion(
       id: Value(id),
       active: Value(active),
       version: Value(version),
@@ -9060,48 +10163,19 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           ? const Value.absent()
           : Value(lastServerSequence),
       saleId: Value(saleId),
-      variantId: Value(variantId),
-      productNameSnapshot: Value(productNameSnapshot),
-      variantNameSnapshot: variantNameSnapshot == null && nullToAbsent
-          ? const Value.absent()
-          : Value(variantNameSnapshot),
-      saleModeSnapshot: Value(saleModeSnapshot),
-      quantity: quantity == null && nullToAbsent
-          ? const Value.absent()
-          : Value(quantity),
-      measuredQuantityAtomic: measuredQuantityAtomic == null && nullToAbsent
-          ? const Value.absent()
-          : Value(measuredQuantityAtomic),
-      unitPriceMinor: Value(unitPriceMinor),
-      standardCostMinorSnapshot:
-          standardCostMinorSnapshot == null && nullToAbsent
-          ? const Value.absent()
-          : Value(standardCostMinorSnapshot),
-      priceReferenceQuantityAtomicSnapshot:
-          priceReferenceQuantityAtomicSnapshot == null && nullToAbsent
-          ? const Value.absent()
-          : Value(priceReferenceQuantityAtomicSnapshot),
-      saleUnitCodeSnapshot: saleUnitCodeSnapshot == null && nullToAbsent
-          ? const Value.absent()
-          : Value(saleUnitCodeSnapshot),
-      saleUnitSymbolSnapshot: saleUnitSymbolSnapshot == null && nullToAbsent
-          ? const Value.absent()
-          : Value(saleUnitSymbolSnapshot),
-      saleUnitAtomicFactorSnapshot:
-          saleUnitAtomicFactorSnapshot == null && nullToAbsent
-          ? const Value.absent()
-          : Value(saleUnitAtomicFactorSnapshot),
-      totalMinor: Value(totalMinor),
-      sortOrder: Value(sortOrder),
+      amountMinor: Value(amountMinor),
+      receivedMinor: Value(receivedMinor),
+      changeMinor: Value(changeMinor),
+      currency: Value(currency),
     );
   }
 
-  factory SaleItemRow.fromJson(
+  factory SalePaymentRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SaleItemRow(
+    return SalePaymentRow(
       id: serializer.fromJson<String>(json['id']),
       active: serializer.fromJson<bool>(json['active']),
       version: serializer.fromJson<int>(json['version']),
@@ -9109,36 +10183,10 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
       lastEventId: serializer.fromJson<String?>(json['lastEventId']),
       lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
       saleId: serializer.fromJson<String>(json['saleId']),
-      variantId: serializer.fromJson<String>(json['variantId']),
-      productNameSnapshot: serializer.fromJson<String>(
-        json['productNameSnapshot'],
-      ),
-      variantNameSnapshot: serializer.fromJson<String?>(
-        json['variantNameSnapshot'],
-      ),
-      saleModeSnapshot: serializer.fromJson<String>(json['saleModeSnapshot']),
-      quantity: serializer.fromJson<int?>(json['quantity']),
-      measuredQuantityAtomic: serializer.fromJson<int?>(
-        json['measuredQuantityAtomic'],
-      ),
-      unitPriceMinor: serializer.fromJson<int>(json['unitPriceMinor']),
-      standardCostMinorSnapshot: serializer.fromJson<int?>(
-        json['standardCostMinorSnapshot'],
-      ),
-      priceReferenceQuantityAtomicSnapshot: serializer.fromJson<int?>(
-        json['priceReferenceQuantityAtomicSnapshot'],
-      ),
-      saleUnitCodeSnapshot: serializer.fromJson<String?>(
-        json['saleUnitCodeSnapshot'],
-      ),
-      saleUnitSymbolSnapshot: serializer.fromJson<String?>(
-        json['saleUnitSymbolSnapshot'],
-      ),
-      saleUnitAtomicFactorSnapshot: serializer.fromJson<int?>(
-        json['saleUnitAtomicFactorSnapshot'],
-      ),
-      totalMinor: serializer.fromJson<int>(json['totalMinor']),
-      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      receivedMinor: serializer.fromJson<int>(json['receivedMinor']),
+      changeMinor: serializer.fromJson<int>(json['changeMinor']),
+      currency: serializer.fromJson<String>(json['currency']),
     );
   }
   @override
@@ -9152,32 +10200,14 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
       'lastEventId': serializer.toJson<String?>(lastEventId),
       'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
       'saleId': serializer.toJson<String>(saleId),
-      'variantId': serializer.toJson<String>(variantId),
-      'productNameSnapshot': serializer.toJson<String>(productNameSnapshot),
-      'variantNameSnapshot': serializer.toJson<String?>(variantNameSnapshot),
-      'saleModeSnapshot': serializer.toJson<String>(saleModeSnapshot),
-      'quantity': serializer.toJson<int?>(quantity),
-      'measuredQuantityAtomic': serializer.toJson<int?>(measuredQuantityAtomic),
-      'unitPriceMinor': serializer.toJson<int>(unitPriceMinor),
-      'standardCostMinorSnapshot': serializer.toJson<int?>(
-        standardCostMinorSnapshot,
-      ),
-      'priceReferenceQuantityAtomicSnapshot': serializer.toJson<int?>(
-        priceReferenceQuantityAtomicSnapshot,
-      ),
-      'saleUnitCodeSnapshot': serializer.toJson<String?>(saleUnitCodeSnapshot),
-      'saleUnitSymbolSnapshot': serializer.toJson<String?>(
-        saleUnitSymbolSnapshot,
-      ),
-      'saleUnitAtomicFactorSnapshot': serializer.toJson<int?>(
-        saleUnitAtomicFactorSnapshot,
-      ),
-      'totalMinor': serializer.toJson<int>(totalMinor),
-      'sortOrder': serializer.toJson<int>(sortOrder),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'receivedMinor': serializer.toJson<int>(receivedMinor),
+      'changeMinor': serializer.toJson<int>(changeMinor),
+      'currency': serializer.toJson<String>(currency),
     };
   }
 
-  SaleItemRow copyWith({
+  SalePaymentRow copyWith({
     String? id,
     bool? active,
     int? version,
@@ -9185,21 +10215,11 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
     Value<String?> lastEventId = const Value.absent(),
     Value<int?> lastServerSequence = const Value.absent(),
     String? saleId,
-    String? variantId,
-    String? productNameSnapshot,
-    Value<String?> variantNameSnapshot = const Value.absent(),
-    String? saleModeSnapshot,
-    Value<int?> quantity = const Value.absent(),
-    Value<int?> measuredQuantityAtomic = const Value.absent(),
-    int? unitPriceMinor,
-    Value<int?> standardCostMinorSnapshot = const Value.absent(),
-    Value<int?> priceReferenceQuantityAtomicSnapshot = const Value.absent(),
-    Value<String?> saleUnitCodeSnapshot = const Value.absent(),
-    Value<String?> saleUnitSymbolSnapshot = const Value.absent(),
-    Value<int?> saleUnitAtomicFactorSnapshot = const Value.absent(),
-    int? totalMinor,
-    int? sortOrder,
-  }) => SaleItemRow(
+    int? amountMinor,
+    int? receivedMinor,
+    int? changeMinor,
+    String? currency,
+  }) => SalePaymentRow(
     id: id ?? this.id,
     active: active ?? this.active,
     version: version ?? this.version,
@@ -9211,38 +10231,13 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
         ? lastServerSequence.value
         : this.lastServerSequence,
     saleId: saleId ?? this.saleId,
-    variantId: variantId ?? this.variantId,
-    productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
-    variantNameSnapshot: variantNameSnapshot.present
-        ? variantNameSnapshot.value
-        : this.variantNameSnapshot,
-    saleModeSnapshot: saleModeSnapshot ?? this.saleModeSnapshot,
-    quantity: quantity.present ? quantity.value : this.quantity,
-    measuredQuantityAtomic: measuredQuantityAtomic.present
-        ? measuredQuantityAtomic.value
-        : this.measuredQuantityAtomic,
-    unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
-    standardCostMinorSnapshot: standardCostMinorSnapshot.present
-        ? standardCostMinorSnapshot.value
-        : this.standardCostMinorSnapshot,
-    priceReferenceQuantityAtomicSnapshot:
-        priceReferenceQuantityAtomicSnapshot.present
-        ? priceReferenceQuantityAtomicSnapshot.value
-        : this.priceReferenceQuantityAtomicSnapshot,
-    saleUnitCodeSnapshot: saleUnitCodeSnapshot.present
-        ? saleUnitCodeSnapshot.value
-        : this.saleUnitCodeSnapshot,
-    saleUnitSymbolSnapshot: saleUnitSymbolSnapshot.present
-        ? saleUnitSymbolSnapshot.value
-        : this.saleUnitSymbolSnapshot,
-    saleUnitAtomicFactorSnapshot: saleUnitAtomicFactorSnapshot.present
-        ? saleUnitAtomicFactorSnapshot.value
-        : this.saleUnitAtomicFactorSnapshot,
-    totalMinor: totalMinor ?? this.totalMinor,
-    sortOrder: sortOrder ?? this.sortOrder,
+    amountMinor: amountMinor ?? this.amountMinor,
+    receivedMinor: receivedMinor ?? this.receivedMinor,
+    changeMinor: changeMinor ?? this.changeMinor,
+    currency: currency ?? this.currency,
   );
-  SaleItemRow copyWithCompanion(SaleItemsCompanion data) {
-    return SaleItemRow(
+  SalePaymentRow copyWithCompanion(SalePaymentsCompanion data) {
+    return SalePaymentRow(
       id: data.id.present ? data.id.value : this.id,
       active: data.active.present ? data.active.value : this.active,
       version: data.version.present ? data.version.value : this.version,
@@ -9256,49 +10251,22 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           ? data.lastServerSequence.value
           : this.lastServerSequence,
       saleId: data.saleId.present ? data.saleId.value : this.saleId,
-      variantId: data.variantId.present ? data.variantId.value : this.variantId,
-      productNameSnapshot: data.productNameSnapshot.present
-          ? data.productNameSnapshot.value
-          : this.productNameSnapshot,
-      variantNameSnapshot: data.variantNameSnapshot.present
-          ? data.variantNameSnapshot.value
-          : this.variantNameSnapshot,
-      saleModeSnapshot: data.saleModeSnapshot.present
-          ? data.saleModeSnapshot.value
-          : this.saleModeSnapshot,
-      quantity: data.quantity.present ? data.quantity.value : this.quantity,
-      measuredQuantityAtomic: data.measuredQuantityAtomic.present
-          ? data.measuredQuantityAtomic.value
-          : this.measuredQuantityAtomic,
-      unitPriceMinor: data.unitPriceMinor.present
-          ? data.unitPriceMinor.value
-          : this.unitPriceMinor,
-      standardCostMinorSnapshot: data.standardCostMinorSnapshot.present
-          ? data.standardCostMinorSnapshot.value
-          : this.standardCostMinorSnapshot,
-      priceReferenceQuantityAtomicSnapshot:
-          data.priceReferenceQuantityAtomicSnapshot.present
-          ? data.priceReferenceQuantityAtomicSnapshot.value
-          : this.priceReferenceQuantityAtomicSnapshot,
-      saleUnitCodeSnapshot: data.saleUnitCodeSnapshot.present
-          ? data.saleUnitCodeSnapshot.value
-          : this.saleUnitCodeSnapshot,
-      saleUnitSymbolSnapshot: data.saleUnitSymbolSnapshot.present
-          ? data.saleUnitSymbolSnapshot.value
-          : this.saleUnitSymbolSnapshot,
-      saleUnitAtomicFactorSnapshot: data.saleUnitAtomicFactorSnapshot.present
-          ? data.saleUnitAtomicFactorSnapshot.value
-          : this.saleUnitAtomicFactorSnapshot,
-      totalMinor: data.totalMinor.present
-          ? data.totalMinor.value
-          : this.totalMinor,
-      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      receivedMinor: data.receivedMinor.present
+          ? data.receivedMinor.value
+          : this.receivedMinor,
+      changeMinor: data.changeMinor.present
+          ? data.changeMinor.value
+          : this.changeMinor,
+      currency: data.currency.present ? data.currency.value : this.currency,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('SaleItemRow(')
+    return (StringBuffer('SalePaymentRow(')
           ..write('id: $id, ')
           ..write('active: $active, ')
           ..write('version: $version, ')
@@ -9306,30 +10274,16 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('saleId: $saleId, ')
-          ..write('variantId: $variantId, ')
-          ..write('productNameSnapshot: $productNameSnapshot, ')
-          ..write('variantNameSnapshot: $variantNameSnapshot, ')
-          ..write('saleModeSnapshot: $saleModeSnapshot, ')
-          ..write('quantity: $quantity, ')
-          ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
-          ..write('unitPriceMinor: $unitPriceMinor, ')
-          ..write('standardCostMinorSnapshot: $standardCostMinorSnapshot, ')
-          ..write(
-            'priceReferenceQuantityAtomicSnapshot: $priceReferenceQuantityAtomicSnapshot, ',
-          )
-          ..write('saleUnitCodeSnapshot: $saleUnitCodeSnapshot, ')
-          ..write('saleUnitSymbolSnapshot: $saleUnitSymbolSnapshot, ')
-          ..write(
-            'saleUnitAtomicFactorSnapshot: $saleUnitAtomicFactorSnapshot, ',
-          )
-          ..write('totalMinor: $totalMinor, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('receivedMinor: $receivedMinor, ')
+          ..write('changeMinor: $changeMinor, ')
+          ..write('currency: $currency')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hashAll([
+  int get hashCode => Object.hash(
     id,
     active,
     version,
@@ -9337,25 +10291,15 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
     lastEventId,
     lastServerSequence,
     saleId,
-    variantId,
-    productNameSnapshot,
-    variantNameSnapshot,
-    saleModeSnapshot,
-    quantity,
-    measuredQuantityAtomic,
-    unitPriceMinor,
-    standardCostMinorSnapshot,
-    priceReferenceQuantityAtomicSnapshot,
-    saleUnitCodeSnapshot,
-    saleUnitSymbolSnapshot,
-    saleUnitAtomicFactorSnapshot,
-    totalMinor,
-    sortOrder,
-  ]);
+    amountMinor,
+    receivedMinor,
+    changeMinor,
+    currency,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is SaleItemRow &&
+      (other is SalePaymentRow &&
           other.id == this.id &&
           other.active == this.active &&
           other.version == this.version &&
@@ -9363,25 +10307,13 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           other.lastEventId == this.lastEventId &&
           other.lastServerSequence == this.lastServerSequence &&
           other.saleId == this.saleId &&
-          other.variantId == this.variantId &&
-          other.productNameSnapshot == this.productNameSnapshot &&
-          other.variantNameSnapshot == this.variantNameSnapshot &&
-          other.saleModeSnapshot == this.saleModeSnapshot &&
-          other.quantity == this.quantity &&
-          other.measuredQuantityAtomic == this.measuredQuantityAtomic &&
-          other.unitPriceMinor == this.unitPriceMinor &&
-          other.standardCostMinorSnapshot == this.standardCostMinorSnapshot &&
-          other.priceReferenceQuantityAtomicSnapshot ==
-              this.priceReferenceQuantityAtomicSnapshot &&
-          other.saleUnitCodeSnapshot == this.saleUnitCodeSnapshot &&
-          other.saleUnitSymbolSnapshot == this.saleUnitSymbolSnapshot &&
-          other.saleUnitAtomicFactorSnapshot ==
-              this.saleUnitAtomicFactorSnapshot &&
-          other.totalMinor == this.totalMinor &&
-          other.sortOrder == this.sortOrder);
+          other.amountMinor == this.amountMinor &&
+          other.receivedMinor == this.receivedMinor &&
+          other.changeMinor == this.changeMinor &&
+          other.currency == this.currency);
 }
 
-class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
+class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
   final Value<String> id;
   final Value<bool> active;
   final Value<int> version;
@@ -9389,22 +10321,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
   final Value<String?> lastEventId;
   final Value<int?> lastServerSequence;
   final Value<String> saleId;
-  final Value<String> variantId;
-  final Value<String> productNameSnapshot;
-  final Value<String?> variantNameSnapshot;
-  final Value<String> saleModeSnapshot;
-  final Value<int?> quantity;
-  final Value<int?> measuredQuantityAtomic;
-  final Value<int> unitPriceMinor;
-  final Value<int?> standardCostMinorSnapshot;
-  final Value<int?> priceReferenceQuantityAtomicSnapshot;
-  final Value<String?> saleUnitCodeSnapshot;
-  final Value<String?> saleUnitSymbolSnapshot;
-  final Value<int?> saleUnitAtomicFactorSnapshot;
-  final Value<int> totalMinor;
-  final Value<int> sortOrder;
+  final Value<int> amountMinor;
+  final Value<int> receivedMinor;
+  final Value<int> changeMinor;
+  final Value<String> currency;
   final Value<int> rowid;
-  const SaleItemsCompanion({
+  const SalePaymentsCompanion({
     this.id = const Value.absent(),
     this.active = const Value.absent(),
     this.version = const Value.absent(),
@@ -9412,23 +10334,13 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
     this.saleId = const Value.absent(),
-    this.variantId = const Value.absent(),
-    this.productNameSnapshot = const Value.absent(),
-    this.variantNameSnapshot = const Value.absent(),
-    this.saleModeSnapshot = const Value.absent(),
-    this.quantity = const Value.absent(),
-    this.measuredQuantityAtomic = const Value.absent(),
-    this.unitPriceMinor = const Value.absent(),
-    this.standardCostMinorSnapshot = const Value.absent(),
-    this.priceReferenceQuantityAtomicSnapshot = const Value.absent(),
-    this.saleUnitCodeSnapshot = const Value.absent(),
-    this.saleUnitSymbolSnapshot = const Value.absent(),
-    this.saleUnitAtomicFactorSnapshot = const Value.absent(),
-    this.totalMinor = const Value.absent(),
-    this.sortOrder = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.receivedMinor = const Value.absent(),
+    this.changeMinor = const Value.absent(),
+    this.currency = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  SaleItemsCompanion.insert({
+  SalePaymentsCompanion.insert({
     required String id,
     this.active = const Value.absent(),
     this.version = const Value.absent(),
@@ -9436,30 +10348,18 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
     required String saleId,
-    required String variantId,
-    required String productNameSnapshot,
-    this.variantNameSnapshot = const Value.absent(),
-    required String saleModeSnapshot,
-    this.quantity = const Value.absent(),
-    this.measuredQuantityAtomic = const Value.absent(),
-    required int unitPriceMinor,
-    this.standardCostMinorSnapshot = const Value.absent(),
-    this.priceReferenceQuantityAtomicSnapshot = const Value.absent(),
-    this.saleUnitCodeSnapshot = const Value.absent(),
-    this.saleUnitSymbolSnapshot = const Value.absent(),
-    this.saleUnitAtomicFactorSnapshot = const Value.absent(),
-    required int totalMinor,
-    required int sortOrder,
+    required int amountMinor,
+    required int receivedMinor,
+    required int changeMinor,
+    required String currency,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        saleId = Value(saleId),
-       variantId = Value(variantId),
-       productNameSnapshot = Value(productNameSnapshot),
-       saleModeSnapshot = Value(saleModeSnapshot),
-       unitPriceMinor = Value(unitPriceMinor),
-       totalMinor = Value(totalMinor),
-       sortOrder = Value(sortOrder);
-  static Insertable<SaleItemRow> custom({
+       amountMinor = Value(amountMinor),
+       receivedMinor = Value(receivedMinor),
+       changeMinor = Value(changeMinor),
+       currency = Value(currency);
+  static Insertable<SalePaymentRow> custom({
     Expression<String>? id,
     Expression<bool>? active,
     Expression<int>? version,
@@ -9467,20 +10367,10 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     Expression<String>? lastEventId,
     Expression<int>? lastServerSequence,
     Expression<String>? saleId,
-    Expression<String>? variantId,
-    Expression<String>? productNameSnapshot,
-    Expression<String>? variantNameSnapshot,
-    Expression<String>? saleModeSnapshot,
-    Expression<int>? quantity,
-    Expression<int>? measuredQuantityAtomic,
-    Expression<int>? unitPriceMinor,
-    Expression<int>? standardCostMinorSnapshot,
-    Expression<int>? priceReferenceQuantityAtomicSnapshot,
-    Expression<String>? saleUnitCodeSnapshot,
-    Expression<String>? saleUnitSymbolSnapshot,
-    Expression<int>? saleUnitAtomicFactorSnapshot,
-    Expression<int>? totalMinor,
-    Expression<int>? sortOrder,
+    Expression<int>? amountMinor,
+    Expression<int>? receivedMinor,
+    Expression<int>? changeMinor,
+    Expression<String>? currency,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -9492,34 +10382,15 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
       if (lastServerSequence != null)
         'last_server_sequence': lastServerSequence,
       if (saleId != null) 'sale_id': saleId,
-      if (variantId != null) 'variant_id': variantId,
-      if (productNameSnapshot != null)
-        'product_name_snapshot': productNameSnapshot,
-      if (variantNameSnapshot != null)
-        'variant_name_snapshot': variantNameSnapshot,
-      if (saleModeSnapshot != null) 'sale_mode_snapshot': saleModeSnapshot,
-      if (quantity != null) 'quantity': quantity,
-      if (measuredQuantityAtomic != null)
-        'measured_quantity_atomic': measuredQuantityAtomic,
-      if (unitPriceMinor != null) 'unit_price_minor': unitPriceMinor,
-      if (standardCostMinorSnapshot != null)
-        'standard_cost_minor_snapshot': standardCostMinorSnapshot,
-      if (priceReferenceQuantityAtomicSnapshot != null)
-        'price_reference_quantity_atomic_snapshot':
-            priceReferenceQuantityAtomicSnapshot,
-      if (saleUnitCodeSnapshot != null)
-        'sale_unit_code_snapshot': saleUnitCodeSnapshot,
-      if (saleUnitSymbolSnapshot != null)
-        'sale_unit_symbol_snapshot': saleUnitSymbolSnapshot,
-      if (saleUnitAtomicFactorSnapshot != null)
-        'sale_unit_atomic_factor_snapshot': saleUnitAtomicFactorSnapshot,
-      if (totalMinor != null) 'total_minor': totalMinor,
-      if (sortOrder != null) 'sort_order': sortOrder,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (receivedMinor != null) 'received_minor': receivedMinor,
+      if (changeMinor != null) 'change_minor': changeMinor,
+      if (currency != null) 'currency': currency,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  SaleItemsCompanion copyWith({
+  SalePaymentsCompanion copyWith({
     Value<String>? id,
     Value<bool>? active,
     Value<int>? version,
@@ -9527,23 +10398,13 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     Value<String?>? lastEventId,
     Value<int?>? lastServerSequence,
     Value<String>? saleId,
-    Value<String>? variantId,
-    Value<String>? productNameSnapshot,
-    Value<String?>? variantNameSnapshot,
-    Value<String>? saleModeSnapshot,
-    Value<int?>? quantity,
-    Value<int?>? measuredQuantityAtomic,
-    Value<int>? unitPriceMinor,
-    Value<int?>? standardCostMinorSnapshot,
-    Value<int?>? priceReferenceQuantityAtomicSnapshot,
-    Value<String?>? saleUnitCodeSnapshot,
-    Value<String?>? saleUnitSymbolSnapshot,
-    Value<int?>? saleUnitAtomicFactorSnapshot,
-    Value<int>? totalMinor,
-    Value<int>? sortOrder,
+    Value<int>? amountMinor,
+    Value<int>? receivedMinor,
+    Value<int>? changeMinor,
+    Value<String>? currency,
     Value<int>? rowid,
   }) {
-    return SaleItemsCompanion(
+    return SalePaymentsCompanion(
       id: id ?? this.id,
       active: active ?? this.active,
       version: version ?? this.version,
@@ -9551,26 +10412,10 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
       lastEventId: lastEventId ?? this.lastEventId,
       lastServerSequence: lastServerSequence ?? this.lastServerSequence,
       saleId: saleId ?? this.saleId,
-      variantId: variantId ?? this.variantId,
-      productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
-      variantNameSnapshot: variantNameSnapshot ?? this.variantNameSnapshot,
-      saleModeSnapshot: saleModeSnapshot ?? this.saleModeSnapshot,
-      quantity: quantity ?? this.quantity,
-      measuredQuantityAtomic:
-          measuredQuantityAtomic ?? this.measuredQuantityAtomic,
-      unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
-      standardCostMinorSnapshot:
-          standardCostMinorSnapshot ?? this.standardCostMinorSnapshot,
-      priceReferenceQuantityAtomicSnapshot:
-          priceReferenceQuantityAtomicSnapshot ??
-          this.priceReferenceQuantityAtomicSnapshot,
-      saleUnitCodeSnapshot: saleUnitCodeSnapshot ?? this.saleUnitCodeSnapshot,
-      saleUnitSymbolSnapshot:
-          saleUnitSymbolSnapshot ?? this.saleUnitSymbolSnapshot,
-      saleUnitAtomicFactorSnapshot:
-          saleUnitAtomicFactorSnapshot ?? this.saleUnitAtomicFactorSnapshot,
-      totalMinor: totalMinor ?? this.totalMinor,
-      sortOrder: sortOrder ?? this.sortOrder,
+      amountMinor: amountMinor ?? this.amountMinor,
+      receivedMinor: receivedMinor ?? this.receivedMinor,
+      changeMinor: changeMinor ?? this.changeMinor,
+      currency: currency ?? this.currency,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -9599,63 +10444,17 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     if (saleId.present) {
       map['sale_id'] = Variable<String>(saleId.value);
     }
-    if (variantId.present) {
-      map['variant_id'] = Variable<String>(variantId.value);
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
     }
-    if (productNameSnapshot.present) {
-      map['product_name_snapshot'] = Variable<String>(
-        productNameSnapshot.value,
-      );
+    if (receivedMinor.present) {
+      map['received_minor'] = Variable<int>(receivedMinor.value);
     }
-    if (variantNameSnapshot.present) {
-      map['variant_name_snapshot'] = Variable<String>(
-        variantNameSnapshot.value,
-      );
+    if (changeMinor.present) {
+      map['change_minor'] = Variable<int>(changeMinor.value);
     }
-    if (saleModeSnapshot.present) {
-      map['sale_mode_snapshot'] = Variable<String>(saleModeSnapshot.value);
-    }
-    if (quantity.present) {
-      map['quantity'] = Variable<int>(quantity.value);
-    }
-    if (measuredQuantityAtomic.present) {
-      map['measured_quantity_atomic'] = Variable<int>(
-        measuredQuantityAtomic.value,
-      );
-    }
-    if (unitPriceMinor.present) {
-      map['unit_price_minor'] = Variable<int>(unitPriceMinor.value);
-    }
-    if (standardCostMinorSnapshot.present) {
-      map['standard_cost_minor_snapshot'] = Variable<int>(
-        standardCostMinorSnapshot.value,
-      );
-    }
-    if (priceReferenceQuantityAtomicSnapshot.present) {
-      map['price_reference_quantity_atomic_snapshot'] = Variable<int>(
-        priceReferenceQuantityAtomicSnapshot.value,
-      );
-    }
-    if (saleUnitCodeSnapshot.present) {
-      map['sale_unit_code_snapshot'] = Variable<String>(
-        saleUnitCodeSnapshot.value,
-      );
-    }
-    if (saleUnitSymbolSnapshot.present) {
-      map['sale_unit_symbol_snapshot'] = Variable<String>(
-        saleUnitSymbolSnapshot.value,
-      );
-    }
-    if (saleUnitAtomicFactorSnapshot.present) {
-      map['sale_unit_atomic_factor_snapshot'] = Variable<int>(
-        saleUnitAtomicFactorSnapshot.value,
-      );
-    }
-    if (totalMinor.present) {
-      map['total_minor'] = Variable<int>(totalMinor.value);
-    }
-    if (sortOrder.present) {
-      map['sort_order'] = Variable<int>(sortOrder.value);
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -9665,7 +10464,7 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
 
   @override
   String toString() {
-    return (StringBuffer('SaleItemsCompanion(')
+    return (StringBuffer('SalePaymentsCompanion(')
           ..write('id: $id, ')
           ..write('active: $active, ')
           ..write('version: $version, ')
@@ -9673,24 +10472,10 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('saleId: $saleId, ')
-          ..write('variantId: $variantId, ')
-          ..write('productNameSnapshot: $productNameSnapshot, ')
-          ..write('variantNameSnapshot: $variantNameSnapshot, ')
-          ..write('saleModeSnapshot: $saleModeSnapshot, ')
-          ..write('quantity: $quantity, ')
-          ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
-          ..write('unitPriceMinor: $unitPriceMinor, ')
-          ..write('standardCostMinorSnapshot: $standardCostMinorSnapshot, ')
-          ..write(
-            'priceReferenceQuantityAtomicSnapshot: $priceReferenceQuantityAtomicSnapshot, ',
-          )
-          ..write('saleUnitCodeSnapshot: $saleUnitCodeSnapshot, ')
-          ..write('saleUnitSymbolSnapshot: $saleUnitSymbolSnapshot, ')
-          ..write(
-            'saleUnitAtomicFactorSnapshot: $saleUnitAtomicFactorSnapshot, ',
-          )
-          ..write('totalMinor: $totalMinor, ')
-          ..write('sortOrder: $sortOrder, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('receivedMinor: $receivedMinor, ')
+          ..write('changeMinor: $changeMinor, ')
+          ..write('currency: $currency, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9720,10 +10505,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $InventoryBalancesTable inventoryBalances =
       $InventoryBalancesTable(this);
-  late final $InventoryMovementsTable inventoryMovements =
-      $InventoryMovementsTable(this);
   late final $SalesTable sales = $SalesTable(this);
   late final $SaleItemsTable saleItems = $SaleItemsTable(this);
+  late final $InventoryMovementsTable inventoryMovements =
+      $InventoryMovementsTable(this);
+  late final $SalePaymentsTable salePayments = $SalePaymentsTable(this);
   late final Index uxProductVariantsProductSort = Index(
     'ux_product_variants_product_sort',
     'CREATE UNIQUE INDEX ux_product_variants_product_sort ON product_variants (product_id, sort_order) WHERE active = 1',
@@ -9739,6 +10525,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index idxEspaciosIdentificacionUnique = Index(
     'idx_espacios_identificacion_unique',
     'CREATE UNIQUE INDEX idx_espacios_identificacion_unique ON espacios (identificacion) WHERE identificacion IS NOT NULL AND identificacion != \'\'',
+  );
+  late final Index uxSaleConsumption = Index(
+    'ux_sale_consumption',
+    'CREATE UNIQUE INDEX ux_sale_consumption ON inventory_movements (sale_item_id, inventory_item_id) WHERE movement_type = \'sale_consumption\'',
+  );
+  late final Index ixMovementsEvent = Index(
+    'ix_movements_event',
+    'CREATE INDEX ix_movements_event ON inventory_movements (event_id)',
   );
   late final Index uxSalesLocalDraft = Index(
     'ux_sales_local_draft',
@@ -9776,13 +10570,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     eventRefs,
     syncCheckpoints,
     inventoryBalances,
-    inventoryMovements,
     sales,
     saleItems,
+    inventoryMovements,
+    salePayments,
     uxProductVariantsProductSort,
     uxProductVariantsProductNameKey,
     ixRecipeComponentsInventoryItem,
     idxEspaciosIdentificacionUnique,
+    uxSaleConsumption,
+    ixMovementsEvent,
     uxSalesLocalDraft,
     uxSaleItemsOrder,
   ];
@@ -14937,567 +15734,6 @@ typedef $$InventoryBalancesTableProcessedTableManager =
       InventoryBalanceRow,
       PrefetchHooks Function({bool inventoryItemId})
     >;
-typedef $$InventoryMovementsTableCreateCompanionBuilder =
-    InventoryMovementsCompanion Function({
-      required String movementId,
-      required String inventoryItemId,
-      Value<String?> saleItemId,
-      required String eventId,
-      Value<String?> reversalOfMovementId,
-      required String movementType,
-      required int quantityDeltaAtomic,
-      Value<int?> totalCostMinor,
-      Value<String?> reason,
-      required DateTime createdAtLocal,
-      Value<int?> serverSequence,
-      Value<int> rowid,
-    });
-typedef $$InventoryMovementsTableUpdateCompanionBuilder =
-    InventoryMovementsCompanion Function({
-      Value<String> movementId,
-      Value<String> inventoryItemId,
-      Value<String?> saleItemId,
-      Value<String> eventId,
-      Value<String?> reversalOfMovementId,
-      Value<String> movementType,
-      Value<int> quantityDeltaAtomic,
-      Value<int?> totalCostMinor,
-      Value<String?> reason,
-      Value<DateTime> createdAtLocal,
-      Value<int?> serverSequence,
-      Value<int> rowid,
-    });
-
-final class $$InventoryMovementsTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $InventoryMovementsTable,
-          InventoryMovementRow
-        > {
-  $$InventoryMovementsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $InventoryItemsTable _inventoryItemIdTable(_$AppDatabase db) =>
-      db.inventoryItems.createAlias(
-        'inventory_movements__inventory_item_id__inventory_items__id',
-      );
-
-  $$InventoryItemsTableProcessedTableManager get inventoryItemId {
-    final $_column = $_itemColumn<String>('inventory_item_id')!;
-
-    final manager = $$InventoryItemsTableTableManager(
-      $_db,
-      $_db.inventoryItems,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_inventoryItemIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $InventoryMovementsTable _reversalOfMovementIdTable(
-    _$AppDatabase db,
-  ) => db.inventoryMovements.createAlias(
-    'inventory_movements__reversal_of_movement_id__inventory_movements__movement_id',
-  );
-
-  $$InventoryMovementsTableProcessedTableManager? get reversalOfMovementId {
-    final $_column = $_itemColumn<String>('reversal_of_movement_id');
-    if ($_column == null) return null;
-    final manager = $$InventoryMovementsTableTableManager(
-      $_db,
-      $_db.inventoryMovements,
-    ).filter((f) => f.movementId.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(
-      _reversalOfMovementIdTable($_db),
-    );
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$InventoryMovementsTableFilterComposer
-    extends Composer<_$AppDatabase, $InventoryMovementsTable> {
-  $$InventoryMovementsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get movementId => $composableBuilder(
-    column: $table.movementId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get saleItemId => $composableBuilder(
-    column: $table.saleItemId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get eventId => $composableBuilder(
-    column: $table.eventId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get movementType => $composableBuilder(
-    column: $table.movementType,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get quantityDeltaAtomic => $composableBuilder(
-    column: $table.quantityDeltaAtomic,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get totalCostMinor => $composableBuilder(
-    column: $table.totalCostMinor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get reason => $composableBuilder(
-    column: $table.reason,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAtLocal => $composableBuilder(
-    column: $table.createdAtLocal,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get serverSequence => $composableBuilder(
-    column: $table.serverSequence,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$InventoryItemsTableFilterComposer get inventoryItemId {
-    final $$InventoryItemsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.inventoryItemId,
-      referencedTable: $db.inventoryItems,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryItemsTableFilterComposer(
-            $db: $db,
-            $table: $db.inventoryItems,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$InventoryMovementsTableFilterComposer get reversalOfMovementId {
-    final $$InventoryMovementsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.reversalOfMovementId,
-      referencedTable: $db.inventoryMovements,
-      getReferencedColumn: (t) => t.movementId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryMovementsTableFilterComposer(
-            $db: $db,
-            $table: $db.inventoryMovements,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$InventoryMovementsTableOrderingComposer
-    extends Composer<_$AppDatabase, $InventoryMovementsTable> {
-  $$InventoryMovementsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get movementId => $composableBuilder(
-    column: $table.movementId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get saleItemId => $composableBuilder(
-    column: $table.saleItemId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get eventId => $composableBuilder(
-    column: $table.eventId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get movementType => $composableBuilder(
-    column: $table.movementType,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get quantityDeltaAtomic => $composableBuilder(
-    column: $table.quantityDeltaAtomic,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get totalCostMinor => $composableBuilder(
-    column: $table.totalCostMinor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get reason => $composableBuilder(
-    column: $table.reason,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAtLocal => $composableBuilder(
-    column: $table.createdAtLocal,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get serverSequence => $composableBuilder(
-    column: $table.serverSequence,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$InventoryItemsTableOrderingComposer get inventoryItemId {
-    final $$InventoryItemsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.inventoryItemId,
-      referencedTable: $db.inventoryItems,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryItemsTableOrderingComposer(
-            $db: $db,
-            $table: $db.inventoryItems,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$InventoryMovementsTableOrderingComposer get reversalOfMovementId {
-    final $$InventoryMovementsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.reversalOfMovementId,
-      referencedTable: $db.inventoryMovements,
-      getReferencedColumn: (t) => t.movementId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryMovementsTableOrderingComposer(
-            $db: $db,
-            $table: $db.inventoryMovements,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$InventoryMovementsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $InventoryMovementsTable> {
-  $$InventoryMovementsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get movementId => $composableBuilder(
-    column: $table.movementId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get saleItemId => $composableBuilder(
-    column: $table.saleItemId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get eventId =>
-      $composableBuilder(column: $table.eventId, builder: (column) => column);
-
-  GeneratedColumn<String> get movementType => $composableBuilder(
-    column: $table.movementType,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get quantityDeltaAtomic => $composableBuilder(
-    column: $table.quantityDeltaAtomic,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get totalCostMinor => $composableBuilder(
-    column: $table.totalCostMinor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get reason =>
-      $composableBuilder(column: $table.reason, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAtLocal => $composableBuilder(
-    column: $table.createdAtLocal,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get serverSequence => $composableBuilder(
-    column: $table.serverSequence,
-    builder: (column) => column,
-  );
-
-  $$InventoryItemsTableAnnotationComposer get inventoryItemId {
-    final $$InventoryItemsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.inventoryItemId,
-      referencedTable: $db.inventoryItems,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InventoryItemsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.inventoryItems,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$InventoryMovementsTableAnnotationComposer get reversalOfMovementId {
-    final $$InventoryMovementsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.reversalOfMovementId,
-          referencedTable: $db.inventoryMovements,
-          getReferencedColumn: (t) => t.movementId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$InventoryMovementsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.inventoryMovements,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return composer;
-  }
-}
-
-class $$InventoryMovementsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $InventoryMovementsTable,
-          InventoryMovementRow,
-          $$InventoryMovementsTableFilterComposer,
-          $$InventoryMovementsTableOrderingComposer,
-          $$InventoryMovementsTableAnnotationComposer,
-          $$InventoryMovementsTableCreateCompanionBuilder,
-          $$InventoryMovementsTableUpdateCompanionBuilder,
-          (InventoryMovementRow, $$InventoryMovementsTableReferences),
-          InventoryMovementRow,
-          PrefetchHooks Function({
-            bool inventoryItemId,
-            bool reversalOfMovementId,
-          })
-        > {
-  $$InventoryMovementsTableTableManager(
-    _$AppDatabase db,
-    $InventoryMovementsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$InventoryMovementsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$InventoryMovementsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$InventoryMovementsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> movementId = const Value.absent(),
-                Value<String> inventoryItemId = const Value.absent(),
-                Value<String?> saleItemId = const Value.absent(),
-                Value<String> eventId = const Value.absent(),
-                Value<String?> reversalOfMovementId = const Value.absent(),
-                Value<String> movementType = const Value.absent(),
-                Value<int> quantityDeltaAtomic = const Value.absent(),
-                Value<int?> totalCostMinor = const Value.absent(),
-                Value<String?> reason = const Value.absent(),
-                Value<DateTime> createdAtLocal = const Value.absent(),
-                Value<int?> serverSequence = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => InventoryMovementsCompanion(
-                movementId: movementId,
-                inventoryItemId: inventoryItemId,
-                saleItemId: saleItemId,
-                eventId: eventId,
-                reversalOfMovementId: reversalOfMovementId,
-                movementType: movementType,
-                quantityDeltaAtomic: quantityDeltaAtomic,
-                totalCostMinor: totalCostMinor,
-                reason: reason,
-                createdAtLocal: createdAtLocal,
-                serverSequence: serverSequence,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String movementId,
-                required String inventoryItemId,
-                Value<String?> saleItemId = const Value.absent(),
-                required String eventId,
-                Value<String?> reversalOfMovementId = const Value.absent(),
-                required String movementType,
-                required int quantityDeltaAtomic,
-                Value<int?> totalCostMinor = const Value.absent(),
-                Value<String?> reason = const Value.absent(),
-                required DateTime createdAtLocal,
-                Value<int?> serverSequence = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => InventoryMovementsCompanion.insert(
-                movementId: movementId,
-                inventoryItemId: inventoryItemId,
-                saleItemId: saleItemId,
-                eventId: eventId,
-                reversalOfMovementId: reversalOfMovementId,
-                movementType: movementType,
-                quantityDeltaAtomic: quantityDeltaAtomic,
-                totalCostMinor: totalCostMinor,
-                reason: reason,
-                createdAtLocal: createdAtLocal,
-                serverSequence: serverSequence,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$InventoryMovementsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback:
-              ({inventoryItemId = false, reversalOfMovementId = false}) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (inventoryItemId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.inventoryItemId,
-                                    referencedTable:
-                                        $$InventoryMovementsTableReferences
-                                            ._inventoryItemIdTable(db),
-                                    referencedColumn:
-                                        $$InventoryMovementsTableReferences
-                                            ._inventoryItemIdTable(db)
-                                            .id,
-                                  )
-                                  as T;
-                        }
-                        if (reversalOfMovementId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.reversalOfMovementId,
-                                    referencedTable:
-                                        $$InventoryMovementsTableReferences
-                                            ._reversalOfMovementIdTable(db),
-                                    referencedColumn:
-                                        $$InventoryMovementsTableReferences
-                                            ._reversalOfMovementIdTable(db)
-                                            .movementId,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [];
-                  },
-                );
-              },
-        ),
-      );
-}
-
-typedef $$InventoryMovementsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $InventoryMovementsTable,
-      InventoryMovementRow,
-      $$InventoryMovementsTableFilterComposer,
-      $$InventoryMovementsTableOrderingComposer,
-      $$InventoryMovementsTableAnnotationComposer,
-      $$InventoryMovementsTableCreateCompanionBuilder,
-      $$InventoryMovementsTableUpdateCompanionBuilder,
-      (InventoryMovementRow, $$InventoryMovementsTableReferences),
-      InventoryMovementRow,
-      PrefetchHooks Function({bool inventoryItemId, bool reversalOfMovementId})
-    >;
 typedef $$SalesTableCreateCompanionBuilder =
     SalesCompanion Function({
       required String id,
@@ -15548,6 +15784,24 @@ final class $$SalesTableReferences
     ).filter((f) => f.saleId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_saleItemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SalePaymentsTable, List<SalePaymentRow>>
+  _salePaymentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.salePayments,
+    aliasName: 'sales__id__sale_payments__sale_id',
+  );
+
+  $$SalePaymentsTableProcessedTableManager get salePaymentsRefs {
+    final manager = $$SalePaymentsTableTableManager(
+      $_db,
+      $_db.salePayments,
+    ).filter((f) => f.saleId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_salePaymentsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -15638,6 +15892,31 @@ class $$SalesTableFilterComposer extends Composer<_$AppDatabase, $SalesTable> {
           }) => $$SaleItemsTableFilterComposer(
             $db: $db,
             $table: $db.saleItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> salePaymentsRefs(
+    Expression<bool> Function($$SalePaymentsTableFilterComposer f) f,
+  ) {
+    final $$SalePaymentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.salePayments,
+      getReferencedColumn: (t) => t.saleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalePaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.salePayments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -15799,6 +16078,31 @@ class $$SalesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> salePaymentsRefs<T extends Object>(
+    Expression<T> Function($$SalePaymentsTableAnnotationComposer a) f,
+  ) {
+    final $$SalePaymentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.salePayments,
+      getReferencedColumn: (t) => t.saleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalePaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.salePayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SalesTableTableManager
@@ -15814,7 +16118,7 @@ class $$SalesTableTableManager
           $$SalesTableUpdateCompanionBuilder,
           (SaleRow, $$SalesTableReferences),
           SaleRow,
-          PrefetchHooks Function({bool saleItemsRefs})
+          PrefetchHooks Function({bool saleItemsRefs, bool salePaymentsRefs})
         > {
   $$SalesTableTableManager(_$AppDatabase db, $SalesTable table)
     : super(
@@ -15893,32 +16197,63 @@ class $$SalesTableTableManager
                     (e.readTable(table), $$SalesTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({saleItemsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (saleItemsRefs) db.saleItems],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (saleItemsRefs)
-                    await $_getPrefetchedData<
-                      SaleRow,
-                      $SalesTable,
-                      SaleItemRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$SalesTableReferences
-                          ._saleItemsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$SalesTableReferences(db, table, p0).saleItemsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.saleId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({saleItemsRefs = false, salePaymentsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (saleItemsRefs) db.saleItems,
+                    if (salePaymentsRefs) db.salePayments,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (saleItemsRefs)
+                        await $_getPrefetchedData<
+                          SaleRow,
+                          $SalesTable,
+                          SaleItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SalesTableReferences
+                              ._saleItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SalesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).saleItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.saleId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (salePaymentsRefs)
+                        await $_getPrefetchedData<
+                          SaleRow,
+                          $SalesTable,
+                          SalePaymentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SalesTableReferences
+                              ._salePaymentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SalesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).salePaymentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.saleId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -15935,7 +16270,7 @@ typedef $$SalesTableProcessedTableManager =
       $$SalesTableUpdateCompanionBuilder,
       (SaleRow, $$SalesTableReferences),
       SaleRow,
-      PrefetchHooks Function({bool saleItemsRefs})
+      PrefetchHooks Function({bool saleItemsRefs, bool salePaymentsRefs})
     >;
 typedef $$SaleItemsTableCreateCompanionBuilder =
     SaleItemsCompanion Function({
@@ -15947,6 +16282,7 @@ typedef $$SaleItemsTableCreateCompanionBuilder =
       Value<int?> lastServerSequence,
       required String saleId,
       required String variantId,
+      Value<String?> consumptionConfigurationKey,
       required String productNameSnapshot,
       Value<String?> variantNameSnapshot,
       required String saleModeSnapshot,
@@ -15972,6 +16308,7 @@ typedef $$SaleItemsTableUpdateCompanionBuilder =
       Value<int?> lastServerSequence,
       Value<String> saleId,
       Value<String> variantId,
+      Value<String?> consumptionConfigurationKey,
       Value<String> productNameSnapshot,
       Value<String?> variantNameSnapshot,
       Value<String> saleModeSnapshot,
@@ -16026,6 +16363,30 @@ final class $$SaleItemsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<
+    $InventoryMovementsTable,
+    List<InventoryMovementRow>
+  >
+  _inventoryMovementsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.inventoryMovements,
+        aliasName: 'sale_items__id__inventory_movements__sale_item_id',
+      );
+
+  $$InventoryMovementsTableProcessedTableManager get inventoryMovementsRefs {
+    final manager = $$InventoryMovementsTableTableManager(
+      $_db,
+      $_db.inventoryMovements,
+    ).filter((f) => f.saleItemId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _inventoryMovementsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SaleItemsTableFilterComposer
@@ -16064,6 +16425,11 @@ class $$SaleItemsTableFilterComposer
 
   ColumnFilters<int> get lastServerSequence => $composableBuilder(
     column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get consumptionConfigurationKey => $composableBuilder(
+    column: $table.consumptionConfigurationKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16178,6 +16544,31 @@ class $$SaleItemsTableFilterComposer
     );
     return composer;
   }
+
+  Expression<bool> inventoryMovementsRefs(
+    Expression<bool> Function($$InventoryMovementsTableFilterComposer f) f,
+  ) {
+    final $$InventoryMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.inventoryMovements,
+      getReferencedColumn: (t) => t.saleItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.inventoryMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SaleItemsTableOrderingComposer
@@ -16216,6 +16607,11 @@ class $$SaleItemsTableOrderingComposer
 
   ColumnOrderings<int> get lastServerSequence => $composableBuilder(
     column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get consumptionConfigurationKey => $composableBuilder(
+    column: $table.consumptionConfigurationKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16365,6 +16761,11 @@ class $$SaleItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get consumptionConfigurationKey => $composableBuilder(
+    column: $table.consumptionConfigurationKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get productNameSnapshot => $composableBuilder(
     column: $table.productNameSnapshot,
     builder: (column) => column,
@@ -16472,6 +16873,32 @@ class $$SaleItemsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> inventoryMovementsRefs<T extends Object>(
+    Expression<T> Function($$InventoryMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$InventoryMovementsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.inventoryMovements,
+          getReferencedColumn: (t) => t.saleItemId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$InventoryMovementsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.inventoryMovements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$SaleItemsTableTableManager
@@ -16487,7 +16914,11 @@ class $$SaleItemsTableTableManager
           $$SaleItemsTableUpdateCompanionBuilder,
           (SaleItemRow, $$SaleItemsTableReferences),
           SaleItemRow,
-          PrefetchHooks Function({bool saleId, bool variantId})
+          PrefetchHooks Function({
+            bool saleId,
+            bool variantId,
+            bool inventoryMovementsRefs,
+          })
         > {
   $$SaleItemsTableTableManager(_$AppDatabase db, $SaleItemsTable table)
     : super(
@@ -16510,6 +16941,8 @@ class $$SaleItemsTableTableManager
                 Value<int?> lastServerSequence = const Value.absent(),
                 Value<String> saleId = const Value.absent(),
                 Value<String> variantId = const Value.absent(),
+                Value<String?> consumptionConfigurationKey =
+                    const Value.absent(),
                 Value<String> productNameSnapshot = const Value.absent(),
                 Value<String?> variantNameSnapshot = const Value.absent(),
                 Value<String> saleModeSnapshot = const Value.absent(),
@@ -16534,6 +16967,7 @@ class $$SaleItemsTableTableManager
                 lastServerSequence: lastServerSequence,
                 saleId: saleId,
                 variantId: variantId,
+                consumptionConfigurationKey: consumptionConfigurationKey,
                 productNameSnapshot: productNameSnapshot,
                 variantNameSnapshot: variantNameSnapshot,
                 saleModeSnapshot: saleModeSnapshot,
@@ -16560,6 +16994,8 @@ class $$SaleItemsTableTableManager
                 Value<int?> lastServerSequence = const Value.absent(),
                 required String saleId,
                 required String variantId,
+                Value<String?> consumptionConfigurationKey =
+                    const Value.absent(),
                 required String productNameSnapshot,
                 Value<String?> variantNameSnapshot = const Value.absent(),
                 required String saleModeSnapshot,
@@ -16584,6 +17020,7 @@ class $$SaleItemsTableTableManager
                 lastServerSequence: lastServerSequence,
                 saleId: saleId,
                 variantId: variantId,
+                consumptionConfigurationKey: consumptionConfigurationKey,
                 productNameSnapshot: productNameSnapshot,
                 variantNameSnapshot: variantNameSnapshot,
                 saleModeSnapshot: saleModeSnapshot,
@@ -16608,7 +17045,1152 @@ class $$SaleItemsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({saleId = false, variantId = false}) {
+          prefetchHooksCallback:
+              ({
+                saleId = false,
+                variantId = false,
+                inventoryMovementsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (inventoryMovementsRefs) db.inventoryMovements,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (saleId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.saleId,
+                                    referencedTable: $$SaleItemsTableReferences
+                                        ._saleIdTable(db),
+                                    referencedColumn: $$SaleItemsTableReferences
+                                        ._saleIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (variantId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.variantId,
+                                    referencedTable: $$SaleItemsTableReferences
+                                        ._variantIdTable(db),
+                                    referencedColumn: $$SaleItemsTableReferences
+                                        ._variantIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (inventoryMovementsRefs)
+                        await $_getPrefetchedData<
+                          SaleItemRow,
+                          $SaleItemsTable,
+                          InventoryMovementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SaleItemsTableReferences
+                              ._inventoryMovementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SaleItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).inventoryMovementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.saleItemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$SaleItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SaleItemsTable,
+      SaleItemRow,
+      $$SaleItemsTableFilterComposer,
+      $$SaleItemsTableOrderingComposer,
+      $$SaleItemsTableAnnotationComposer,
+      $$SaleItemsTableCreateCompanionBuilder,
+      $$SaleItemsTableUpdateCompanionBuilder,
+      (SaleItemRow, $$SaleItemsTableReferences),
+      SaleItemRow,
+      PrefetchHooks Function({
+        bool saleId,
+        bool variantId,
+        bool inventoryMovementsRefs,
+      })
+    >;
+typedef $$InventoryMovementsTableCreateCompanionBuilder =
+    InventoryMovementsCompanion Function({
+      required String movementId,
+      required String inventoryItemId,
+      Value<String?> saleItemId,
+      required String eventId,
+      Value<String?> reversalOfMovementId,
+      required String movementType,
+      required int quantityDeltaAtomic,
+      Value<int?> totalCostMinor,
+      Value<String?> reason,
+      required DateTime createdAtLocal,
+      Value<int?> serverSequence,
+      Value<int> rowid,
+    });
+typedef $$InventoryMovementsTableUpdateCompanionBuilder =
+    InventoryMovementsCompanion Function({
+      Value<String> movementId,
+      Value<String> inventoryItemId,
+      Value<String?> saleItemId,
+      Value<String> eventId,
+      Value<String?> reversalOfMovementId,
+      Value<String> movementType,
+      Value<int> quantityDeltaAtomic,
+      Value<int?> totalCostMinor,
+      Value<String?> reason,
+      Value<DateTime> createdAtLocal,
+      Value<int?> serverSequence,
+      Value<int> rowid,
+    });
+
+final class $$InventoryMovementsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $InventoryMovementsTable,
+          InventoryMovementRow
+        > {
+  $$InventoryMovementsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $InventoryItemsTable _inventoryItemIdTable(_$AppDatabase db) =>
+      db.inventoryItems.createAlias(
+        'inventory_movements__inventory_item_id__inventory_items__id',
+      );
+
+  $$InventoryItemsTableProcessedTableManager get inventoryItemId {
+    final $_column = $_itemColumn<String>('inventory_item_id')!;
+
+    final manager = $$InventoryItemsTableTableManager(
+      $_db,
+      $_db.inventoryItems,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inventoryItemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SaleItemsTable _saleItemIdTable(_$AppDatabase db) => db.saleItems
+      .createAlias('inventory_movements__sale_item_id__sale_items__id');
+
+  $$SaleItemsTableProcessedTableManager? get saleItemId {
+    final $_column = $_itemColumn<String>('sale_item_id');
+    if ($_column == null) return null;
+    final manager = $$SaleItemsTableTableManager(
+      $_db,
+      $_db.saleItems,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_saleItemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $InventoryMovementsTable _reversalOfMovementIdTable(
+    _$AppDatabase db,
+  ) => db.inventoryMovements.createAlias(
+    'inventory_movements__reversal_of_movement_id__inventory_movements__movement_id',
+  );
+
+  $$InventoryMovementsTableProcessedTableManager? get reversalOfMovementId {
+    final $_column = $_itemColumn<String>('reversal_of_movement_id');
+    if ($_column == null) return null;
+    final manager = $$InventoryMovementsTableTableManager(
+      $_db,
+      $_db.inventoryMovements,
+    ).filter((f) => f.movementId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(
+      _reversalOfMovementIdTable($_db),
+    );
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$InventoryMovementsTableFilterComposer
+    extends Composer<_$AppDatabase, $InventoryMovementsTable> {
+  $$InventoryMovementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get movementId => $composableBuilder(
+    column: $table.movementId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantityDeltaAtomic => $composableBuilder(
+    column: $table.quantityDeltaAtomic,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalCostMinor => $composableBuilder(
+    column: $table.totalCostMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAtLocal => $composableBuilder(
+    column: $table.createdAtLocal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverSequence => $composableBuilder(
+    column: $table.serverSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$InventoryItemsTableFilterComposer get inventoryItemId {
+    final $$InventoryItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryItemId,
+      referencedTable: $db.inventoryItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.inventoryItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SaleItemsTableFilterComposer get saleItemId {
+    final $$SaleItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.saleItemId,
+      referencedTable: $db.saleItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SaleItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.saleItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InventoryMovementsTableFilterComposer get reversalOfMovementId {
+    final $$InventoryMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.reversalOfMovementId,
+      referencedTable: $db.inventoryMovements,
+      getReferencedColumn: (t) => t.movementId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.inventoryMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$InventoryMovementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $InventoryMovementsTable> {
+  $$InventoryMovementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get movementId => $composableBuilder(
+    column: $table.movementId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantityDeltaAtomic => $composableBuilder(
+    column: $table.quantityDeltaAtomic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalCostMinor => $composableBuilder(
+    column: $table.totalCostMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAtLocal => $composableBuilder(
+    column: $table.createdAtLocal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverSequence => $composableBuilder(
+    column: $table.serverSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$InventoryItemsTableOrderingComposer get inventoryItemId {
+    final $$InventoryItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryItemId,
+      referencedTable: $db.inventoryItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventoryItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SaleItemsTableOrderingComposer get saleItemId {
+    final $$SaleItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.saleItemId,
+      referencedTable: $db.saleItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SaleItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.saleItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InventoryMovementsTableOrderingComposer get reversalOfMovementId {
+    final $$InventoryMovementsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.reversalOfMovementId,
+      referencedTable: $db.inventoryMovements,
+      getReferencedColumn: (t) => t.movementId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryMovementsTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventoryMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$InventoryMovementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InventoryMovementsTable> {
+  $$InventoryMovementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get movementId => $composableBuilder(
+    column: $table.movementId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+
+  GeneratedColumn<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get quantityDeltaAtomic => $composableBuilder(
+    column: $table.quantityDeltaAtomic,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalCostMinor => $composableBuilder(
+    column: $table.totalCostMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAtLocal => $composableBuilder(
+    column: $table.createdAtLocal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverSequence => $composableBuilder(
+    column: $table.serverSequence,
+    builder: (column) => column,
+  );
+
+  $$InventoryItemsTableAnnotationComposer get inventoryItemId {
+    final $$InventoryItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryItemId,
+      referencedTable: $db.inventoryItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.inventoryItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SaleItemsTableAnnotationComposer get saleItemId {
+    final $$SaleItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.saleItemId,
+      referencedTable: $db.saleItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SaleItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.saleItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InventoryMovementsTableAnnotationComposer get reversalOfMovementId {
+    final $$InventoryMovementsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.reversalOfMovementId,
+          referencedTable: $db.inventoryMovements,
+          getReferencedColumn: (t) => t.movementId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$InventoryMovementsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.inventoryMovements,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$InventoryMovementsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $InventoryMovementsTable,
+          InventoryMovementRow,
+          $$InventoryMovementsTableFilterComposer,
+          $$InventoryMovementsTableOrderingComposer,
+          $$InventoryMovementsTableAnnotationComposer,
+          $$InventoryMovementsTableCreateCompanionBuilder,
+          $$InventoryMovementsTableUpdateCompanionBuilder,
+          (InventoryMovementRow, $$InventoryMovementsTableReferences),
+          InventoryMovementRow,
+          PrefetchHooks Function({
+            bool inventoryItemId,
+            bool saleItemId,
+            bool reversalOfMovementId,
+          })
+        > {
+  $$InventoryMovementsTableTableManager(
+    _$AppDatabase db,
+    $InventoryMovementsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InventoryMovementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$InventoryMovementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$InventoryMovementsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> movementId = const Value.absent(),
+                Value<String> inventoryItemId = const Value.absent(),
+                Value<String?> saleItemId = const Value.absent(),
+                Value<String> eventId = const Value.absent(),
+                Value<String?> reversalOfMovementId = const Value.absent(),
+                Value<String> movementType = const Value.absent(),
+                Value<int> quantityDeltaAtomic = const Value.absent(),
+                Value<int?> totalCostMinor = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                Value<DateTime> createdAtLocal = const Value.absent(),
+                Value<int?> serverSequence = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => InventoryMovementsCompanion(
+                movementId: movementId,
+                inventoryItemId: inventoryItemId,
+                saleItemId: saleItemId,
+                eventId: eventId,
+                reversalOfMovementId: reversalOfMovementId,
+                movementType: movementType,
+                quantityDeltaAtomic: quantityDeltaAtomic,
+                totalCostMinor: totalCostMinor,
+                reason: reason,
+                createdAtLocal: createdAtLocal,
+                serverSequence: serverSequence,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String movementId,
+                required String inventoryItemId,
+                Value<String?> saleItemId = const Value.absent(),
+                required String eventId,
+                Value<String?> reversalOfMovementId = const Value.absent(),
+                required String movementType,
+                required int quantityDeltaAtomic,
+                Value<int?> totalCostMinor = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                required DateTime createdAtLocal,
+                Value<int?> serverSequence = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => InventoryMovementsCompanion.insert(
+                movementId: movementId,
+                inventoryItemId: inventoryItemId,
+                saleItemId: saleItemId,
+                eventId: eventId,
+                reversalOfMovementId: reversalOfMovementId,
+                movementType: movementType,
+                quantityDeltaAtomic: quantityDeltaAtomic,
+                totalCostMinor: totalCostMinor,
+                reason: reason,
+                createdAtLocal: createdAtLocal,
+                serverSequence: serverSequence,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$InventoryMovementsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                inventoryItemId = false,
+                saleItemId = false,
+                reversalOfMovementId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (inventoryItemId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.inventoryItemId,
+                                    referencedTable:
+                                        $$InventoryMovementsTableReferences
+                                            ._inventoryItemIdTable(db),
+                                    referencedColumn:
+                                        $$InventoryMovementsTableReferences
+                                            ._inventoryItemIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (saleItemId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.saleItemId,
+                                    referencedTable:
+                                        $$InventoryMovementsTableReferences
+                                            ._saleItemIdTable(db),
+                                    referencedColumn:
+                                        $$InventoryMovementsTableReferences
+                                            ._saleItemIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (reversalOfMovementId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.reversalOfMovementId,
+                                    referencedTable:
+                                        $$InventoryMovementsTableReferences
+                                            ._reversalOfMovementIdTable(db),
+                                    referencedColumn:
+                                        $$InventoryMovementsTableReferences
+                                            ._reversalOfMovementIdTable(db)
+                                            .movementId,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$InventoryMovementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InventoryMovementsTable,
+      InventoryMovementRow,
+      $$InventoryMovementsTableFilterComposer,
+      $$InventoryMovementsTableOrderingComposer,
+      $$InventoryMovementsTableAnnotationComposer,
+      $$InventoryMovementsTableCreateCompanionBuilder,
+      $$InventoryMovementsTableUpdateCompanionBuilder,
+      (InventoryMovementRow, $$InventoryMovementsTableReferences),
+      InventoryMovementRow,
+      PrefetchHooks Function({
+        bool inventoryItemId,
+        bool saleItemId,
+        bool reversalOfMovementId,
+      })
+    >;
+typedef $$SalePaymentsTableCreateCompanionBuilder =
+    SalePaymentsCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String saleId,
+      required int amountMinor,
+      required int receivedMinor,
+      required int changeMinor,
+      required String currency,
+      Value<int> rowid,
+    });
+typedef $$SalePaymentsTableUpdateCompanionBuilder =
+    SalePaymentsCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> saleId,
+      Value<int> amountMinor,
+      Value<int> receivedMinor,
+      Value<int> changeMinor,
+      Value<String> currency,
+      Value<int> rowid,
+    });
+
+final class $$SalePaymentsTableReferences
+    extends BaseReferences<_$AppDatabase, $SalePaymentsTable, SalePaymentRow> {
+  $$SalePaymentsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SalesTable _saleIdTable(_$AppDatabase db) =>
+      db.sales.createAlias('sale_payments__sale_id__sales__id');
+
+  $$SalesTableProcessedTableManager get saleId {
+    final $_column = $_itemColumn<String>('sale_id')!;
+
+    final manager = $$SalesTableTableManager(
+      $_db,
+      $_db.sales,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_saleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SalePaymentsTableFilterComposer
+    extends Composer<_$AppDatabase, $SalePaymentsTable> {
+  $$SalePaymentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get receivedMinor => $composableBuilder(
+    column: $table.receivedMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get changeMinor => $composableBuilder(
+    column: $table.changeMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SalesTableFilterComposer get saleId {
+    final $$SalesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.saleId,
+      referencedTable: $db.sales,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalesTableFilterComposer(
+            $db: $db,
+            $table: $db.sales,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SalePaymentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SalePaymentsTable> {
+  $$SalePaymentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get receivedMinor => $composableBuilder(
+    column: $table.receivedMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get changeMinor => $composableBuilder(
+    column: $table.changeMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SalesTableOrderingComposer get saleId {
+    final $$SalesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.saleId,
+      referencedTable: $db.sales,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalesTableOrderingComposer(
+            $db: $db,
+            $table: $db.sales,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SalePaymentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SalePaymentsTable> {
+  $$SalePaymentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get receivedMinor => $composableBuilder(
+    column: $table.receivedMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get changeMinor => $composableBuilder(
+    column: $table.changeMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  $$SalesTableAnnotationComposer get saleId {
+    final $$SalesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.saleId,
+      referencedTable: $db.sales,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sales,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SalePaymentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SalePaymentsTable,
+          SalePaymentRow,
+          $$SalePaymentsTableFilterComposer,
+          $$SalePaymentsTableOrderingComposer,
+          $$SalePaymentsTableAnnotationComposer,
+          $$SalePaymentsTableCreateCompanionBuilder,
+          $$SalePaymentsTableUpdateCompanionBuilder,
+          (SalePaymentRow, $$SalePaymentsTableReferences),
+          SalePaymentRow,
+          PrefetchHooks Function({bool saleId})
+        > {
+  $$SalePaymentsTableTableManager(_$AppDatabase db, $SalePaymentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalePaymentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalePaymentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SalePaymentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> saleId = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<int> receivedMinor = const Value.absent(),
+                Value<int> changeMinor = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SalePaymentsCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                saleId: saleId,
+                amountMinor: amountMinor,
+                receivedMinor: receivedMinor,
+                changeMinor: changeMinor,
+                currency: currency,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String saleId,
+                required int amountMinor,
+                required int receivedMinor,
+                required int changeMinor,
+                required String currency,
+                Value<int> rowid = const Value.absent(),
+              }) => SalePaymentsCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                saleId: saleId,
+                amountMinor: amountMinor,
+                receivedMinor: receivedMinor,
+                changeMinor: changeMinor,
+                currency: currency,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SalePaymentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({saleId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -16633,23 +18215,10 @@ class $$SaleItemsTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.saleId,
-                                referencedTable: $$SaleItemsTableReferences
+                                referencedTable: $$SalePaymentsTableReferences
                                     ._saleIdTable(db),
-                                referencedColumn: $$SaleItemsTableReferences
+                                referencedColumn: $$SalePaymentsTableReferences
                                     ._saleIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-                    if (variantId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.variantId,
-                                referencedTable: $$SaleItemsTableReferences
-                                    ._variantIdTable(db),
-                                referencedColumn: $$SaleItemsTableReferences
-                                    ._variantIdTable(db)
                                     .id,
                               )
                               as T;
@@ -16666,19 +18235,19 @@ class $$SaleItemsTableTableManager
       );
 }
 
-typedef $$SaleItemsTableProcessedTableManager =
+typedef $$SalePaymentsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $SaleItemsTable,
-      SaleItemRow,
-      $$SaleItemsTableFilterComposer,
-      $$SaleItemsTableOrderingComposer,
-      $$SaleItemsTableAnnotationComposer,
-      $$SaleItemsTableCreateCompanionBuilder,
-      $$SaleItemsTableUpdateCompanionBuilder,
-      (SaleItemRow, $$SaleItemsTableReferences),
-      SaleItemRow,
-      PrefetchHooks Function({bool saleId, bool variantId})
+      $SalePaymentsTable,
+      SalePaymentRow,
+      $$SalePaymentsTableFilterComposer,
+      $$SalePaymentsTableOrderingComposer,
+      $$SalePaymentsTableAnnotationComposer,
+      $$SalePaymentsTableCreateCompanionBuilder,
+      $$SalePaymentsTableUpdateCompanionBuilder,
+      (SalePaymentRow, $$SalePaymentsTableReferences),
+      SalePaymentRow,
+      PrefetchHooks Function({bool saleId})
     >;
 
 class $AppDatabaseManager {
@@ -16708,12 +18277,14 @@ class $AppDatabaseManager {
       $$SyncCheckpointsTableTableManager(_db, _db.syncCheckpoints);
   $$InventoryBalancesTableTableManager get inventoryBalances =>
       $$InventoryBalancesTableTableManager(_db, _db.inventoryBalances);
-  $$InventoryMovementsTableTableManager get inventoryMovements =>
-      $$InventoryMovementsTableTableManager(_db, _db.inventoryMovements);
   $$SalesTableTableManager get sales =>
       $$SalesTableTableManager(_db, _db.sales);
   $$SaleItemsTableTableManager get saleItems =>
       $$SaleItemsTableTableManager(_db, _db.saleItems);
+  $$InventoryMovementsTableTableManager get inventoryMovements =>
+      $$InventoryMovementsTableTableManager(_db, _db.inventoryMovements);
+  $$SalePaymentsTableTableManager get salePayments =>
+      $$SalePaymentsTableTableManager(_db, _db.salePayments);
 }
 
 mixin _$CategoriaDaoMixin on DatabaseAccessor<AppDatabase> {
@@ -16833,11 +18404,13 @@ mixin _$InventoryDaoMixin on DatabaseAccessor<AppDatabase> {
   $InventoryItemsTable get inventoryItems => attachedDatabase.inventoryItems;
   $InventoryBalancesTable get inventoryBalances =>
       attachedDatabase.inventoryBalances;
-  $InventoryMovementsTable get inventoryMovements =>
-      attachedDatabase.inventoryMovements;
+  $SalesTable get sales => attachedDatabase.sales;
   $CategoriesTable get categories => attachedDatabase.categories;
   $ProductsTable get products => attachedDatabase.products;
   $ProductVariantsTable get productVariants => attachedDatabase.productVariants;
+  $SaleItemsTable get saleItems => attachedDatabase.saleItems;
+  $InventoryMovementsTable get inventoryMovements =>
+      attachedDatabase.inventoryMovements;
   $RecipeComponentsTable get recipeComponents =>
       attachedDatabase.recipeComponents;
   InventoryDaoManager get managers => InventoryDaoManager(this);
@@ -16858,11 +18431,8 @@ class InventoryDaoManager {
         _db.attachedDatabase,
         _db.inventoryBalances,
       );
-  $$InventoryMovementsTableTableManager get inventoryMovements =>
-      $$InventoryMovementsTableTableManager(
-        _db.attachedDatabase,
-        _db.inventoryMovements,
-      );
+  $$SalesTableTableManager get sales =>
+      $$SalesTableTableManager(_db.attachedDatabase, _db.sales);
   $$CategoriesTableTableManager get categories =>
       $$CategoriesTableTableManager(_db.attachedDatabase, _db.categories);
   $$ProductsTableTableManager get products =>
@@ -16871,6 +18441,13 @@ class InventoryDaoManager {
       $$ProductVariantsTableTableManager(
         _db.attachedDatabase,
         _db.productVariants,
+      );
+  $$SaleItemsTableTableManager get saleItems =>
+      $$SaleItemsTableTableManager(_db.attachedDatabase, _db.saleItems);
+  $$InventoryMovementsTableTableManager get inventoryMovements =>
+      $$InventoryMovementsTableTableManager(
+        _db.attachedDatabase,
+        _db.inventoryMovements,
       );
   $$RecipeComponentsTableTableManager get recipeComponents =>
       $$RecipeComponentsTableTableManager(

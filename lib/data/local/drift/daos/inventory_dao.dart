@@ -379,6 +379,42 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> eliminarCreacionPorEvento(String eventId) {
     return db.transaction(() async {
+      final resources = await (select(
+        inventoryItems,
+      )..where((i) => i.createdEventId.equals(eventId))).get();
+      for (final item in resources) {
+        final saleMovement =
+            await (select(inventoryMovements)
+                  ..where(
+                    (m) =>
+                        m.inventoryItemId.equals(item.id) &
+                        m.saleItemId.isNotNull(),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
+        final paidReferences =
+            await (select(db.eventRefs).join([
+                    innerJoin(
+                      db.events,
+                      db.events.eventId.equalsExp(db.eventRefs.eventId),
+                    ),
+                  ])
+                  ..where(
+                    db.eventRefs.refType.equals('inventory_item') &
+                        db.eventRefs.refId.equals(item.id) &
+                        db.events.eventType.equals(
+                          VentaConfirmadaPayload.eventType,
+                        ) &
+                        db.events.applicationStatus.equals('applied'),
+                  )
+                  ..limit(1))
+                .get();
+        if (saleMovement != null || paidReferences.isNotEmpty) {
+          await (update(inventoryItems)..where((i) => i.id.equals(item.id)))
+              .write(const InventoryItemsCompanion(active: Value(false)));
+          return;
+        }
+      }
       await (delete(
         inventoryMovements,
       )..where((movement) => movement.eventId.equals(eventId))).go();

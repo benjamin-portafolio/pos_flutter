@@ -2,6 +2,7 @@ enum TipoMovimientoInventario {
   initialBalance('initial_balance'),
   stockReceipt('stock_receipt'),
   manualAdjustment('manual_adjustment'),
+  saleConsumption('sale_consumption'),
   reversal('reversal');
 
   const TipoMovimientoInventario(this.code);

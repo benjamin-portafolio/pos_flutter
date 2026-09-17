@@ -1,3 +1,4 @@
+import 'drift_confirmed_sale_store.dart';
 import 'dart:convert';
 
 import '../../../application/sync/models/sync_event.dart';
@@ -94,6 +95,9 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
       rejectionReason: rejectionReason,
     );
     if (status == 'delivered') {
+      if (serverSequence != null) {
+        await DriftConfirmedSaleStore(_db).acknowledge(eventId, serverSequence);
+      }
       await (_db.delete(
         _db.productUpdateUndo,
       )..where((b) => b.eventId.equals(eventId))).go();

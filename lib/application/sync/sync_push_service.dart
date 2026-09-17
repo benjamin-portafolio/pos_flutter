@@ -1,3 +1,4 @@
+import 'payloads/venta_confirmada_payload.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -175,6 +176,10 @@ class SyncPushService {
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
     switch (event.eventType) {
+      case VentaConfirmadaPayload.eventType:
+        return VentaConfirmadaPayload.fromJson(
+          event.payload,
+        ).dependencyEventIds.any(eventIds.contains);
       case CategoriaActualizadaPayload.eventType:
         final payload = CategoriaActualizadaPayload.fromJson(event.payload);
         return eventIds.contains(payload.baseEventId);

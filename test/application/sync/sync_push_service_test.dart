@@ -401,7 +401,7 @@ void main() {
               'product',
             );
             if (deleting) {
-              expect(product, isNull);
+              expect(product?.active, isFalse);
               expect(await db.select(db.productUpdateUndo).get(), isEmpty);
             } else {
               expect(product!.nombre, 'Nuevo');

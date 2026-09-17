@@ -18,6 +18,9 @@ class SaleItems extends Table with CommonFields {
   TextColumn get variantId =>
       text().references(ProductVariants, #id, onDelete: KeyAction.restrict)();
 
+  /// Configuración conocida al capturar; exige revisión si cambia antes del cobro.
+  TextColumn get consumptionConfigurationKey => text().nullable()();
+
   /// Nombre del producto al agregar la línea.
   TextColumn get productNameSnapshot => text()();
 

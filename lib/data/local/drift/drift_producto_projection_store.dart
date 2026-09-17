@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../application/sync/projections/producto_projection_store.dart';
@@ -11,6 +12,20 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     : _productoDao = productoDao;
 
   final drift.ProductoDao _productoDao;
+
+  @override
+  Future<String> consumptionConfigurationKey(String variantId) async {
+    final v = await _productoDao.obtenerVariantePorId(variantId);
+    if (v == null) throw StateError('Variante inexistente.');
+    final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
+      variantId,
+    );
+    recipe.sort((a, b) => a.inventoryItemId.compareTo(b.inventoryItemId));
+    return jsonEncode([
+      v.inventoryItemId,
+      for (final c in recipe) [c.inventoryItemId, c.quantityAtomic],
+    ]);
+  }
 
   @override
   Future<ProductoCreadoPayload> snapshot(String productId) async {
@@ -98,9 +113,12 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       );
     }
     if (deleteProduct) {
-      // El catálogo incluye variantes inactivas y recetas; los recursos y su
-      // historial de inventario tienen un ciclo de vida independiente.
-      await _productoDao.eliminarProductoPorId(product.id);
+      await _productoDao.desactivarProductoHistorico(
+        product.id,
+        event.eventId,
+        event.baseVersion! + 1,
+        event.serverSequence,
+      );
       return;
     }
     final version = restore ? event.baseVersion! : event.baseVersion! + 1;
@@ -125,22 +143,15 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       await _productoDao.eliminarVariantesAgregadas(product.id, event.eventId);
     }
     for (final v in removed) {
-      final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
+      await _productoDao.actualizarVariante(
         v.id,
+        drift.ProductVariantsCompanion(
+          active: const Value(false),
+          version: Value(version),
+          lastEventId: Value(lastEventId),
+          lastServerSequence: Value(sequence),
+        ),
       );
-      if (v.inventoryItemId == null && recipe.isEmpty) {
-        await _productoDao.eliminarVarianteSinDependencias(v.id);
-      } else {
-        await _productoDao.actualizarVariante(
-          v.id,
-          drift.ProductVariantsCompanion(
-            active: const Value(false),
-            version: Value(version),
-            lastEventId: Value(lastEventId),
-            lastServerSequence: Value(sequence),
-          ),
-        );
-      }
     }
     await _productoDao.prepararActualizacionVariantes(product.id, keptIds);
     for (final v in state.variantes) {

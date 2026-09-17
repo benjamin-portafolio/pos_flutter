@@ -3,9 +3,15 @@ import 'package:flutter/material.dart';
 import 'cash_payment_screen.dart';
 
 class PaymentMethodScreen extends StatelessWidget {
-  const PaymentMethodScreen({required this.totalMinor, super.key});
+  const PaymentMethodScreen({
+    required this.totalMinor,
+    this.saleId,
+    this.expectedDraftEventId,
+    super.key,
+  });
 
   final int totalMinor;
+  final String? saleId, expectedDraftEventId;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -51,13 +57,22 @@ class PaymentMethodScreen extends StatelessWidget {
                         width: (constraints.maxWidth - 12) / 2,
                         child: OutlinedButton(
                           onPressed: method.$1 == 'Efectivo'
-                              ? () => Navigator.of(context).push<void>(
-                                  MaterialPageRoute(
-                                    builder: (_) => CashPaymentScreen(
-                                      totalMinor: totalMinor,
-                                    ),
-                                  ),
-                                )
+                              ? () async {
+                                  final confirmed = await Navigator.of(context)
+                                      .push<bool>(
+                                        MaterialPageRoute(
+                                          builder: (_) => CashPaymentScreen(
+                                            totalMinor: totalMinor,
+                                            saleId: saleId,
+                                            expectedDraftEventId:
+                                                expectedDraftEventId,
+                                          ),
+                                        ),
+                                      );
+                                  if (confirmed == true && context.mounted) {
+                                    Navigator.of(context).pop();
+                                  }
+                                }
                               : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(

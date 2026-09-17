@@ -1,9 +1,17 @@
 import 'package:drift/drift.dart';
 
 import 'inventory_items.dart';
+import 'sale_items.dart';
 
-/// Libro mayor inmutable de movimientos de inventario.
+/// Libro mayor inmutable de movimientos de inventario. No usa CommonFields:
+/// no tiene active/version; se compensa con otro movimiento y nunca se edita.
 @DataClassName('InventoryMovementRow')
+@TableIndex.sql(
+  "CREATE UNIQUE INDEX ux_sale_consumption ON inventory_movements(sale_item_id, inventory_item_id) WHERE movement_type = 'sale_consumption'",
+)
+@TableIndex.sql(
+  'CREATE INDEX ix_movements_event ON inventory_movements(event_id)',
+)
 class InventoryMovements extends Table {
   /// UUID global del movimiento generado en el dispositivo.
   TextColumn get movementId => text()();
@@ -13,7 +21,11 @@ class InventoryMovements extends Table {
       text().references(InventoryItems, #id, onDelete: KeyAction.restrict)();
 
   /// Renglón de venta causante, cuando el movimiento provenga de una venta.
-  TextColumn get saleItemId => text().nullable()();
+  TextColumn get saleItemId => text().nullable().references(
+    SaleItems,
+    #id,
+    onDelete: KeyAction.restrict,
+  )();
 
   /// Evento auditable que originó este movimiento.
   TextColumn get eventId => text()();
@@ -50,6 +62,7 @@ class InventoryMovements extends Table {
 
   @override
   List<String> get customConstraints => const [
+    "CHECK (movement_type <> 'sale_consumption' OR (sale_item_id IS NOT NULL AND quantity_delta_atomic < 0 AND total_cost_minor IS NULL))",
     "CHECK (reason IS NULL OR (reason = trim(reason) AND length(reason) BETWEEN 1 AND 500))",
     "CHECK (movement_type <> 'manual_adjustment' OR reason IS NOT NULL)",
     "CHECK (movement_type NOT IN ('initial_balance', 'stock_receipt') OR quantity_delta_atomic > 0)",

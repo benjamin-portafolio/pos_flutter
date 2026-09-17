@@ -445,14 +445,11 @@ ignorar silenciosamente la eliminación; todos los dispositivos deben actualizar
 El comando de eliminación declara referencias `affects` al producto, variantes
 y recetas retiradas. No requiere que los recursos históricos sigan activos.
 
-La decisión se calcula con las relaciones persistidas dentro de la transacción:
-
-- Sin recurso directo y sin componentes de receta: borrado físico de variante.
-- Con recurso directo o receta: `active = false`, preservando nombre, vínculo,
-  componentes e identidad; deja de ser predeterminada.
-- Producto sin variantes remanentes: borrado físico. Si quedan variantes
-  históricas inactivas, el producto también se desactiva para conservar el padre.
-- No se eliminan recursos de inventario, saldos ni movimientos.
+Desde la confirmación de efectivo, la eliminación de catálogo conserva producto y
+variantes con `active = false`, incluso sin inventario. Es necesario para aceptar
+ventas históricas de dispositivos todavía desconectados. Se preservan recetas,
+identidades y referencias de líneas cobradas; no se eliminan recursos, balances ni
+movimientos. La limpieza de creaciones en conflicto también protege esas referencias.
 
 Los índices de nombre y posición son únicos solo entre variantes activas. El
 recurso directo sigue siendo exclusivo incluso en una variante desactivada.
@@ -474,7 +471,7 @@ local se descarta al restaurar o confirmar su evento. Standalone no genera estos
 respaldos de sincronización ni `event_refs`, y conserva `not_required`.
 
 El esquema local mantiene la versión 7 según las reglas de desarrollo. Al abrir
-una base anterior sin `product_update_undo`, `_resetDatabaseOnStartup` la recrea
+una base anterior sin `sale_payments`, `_resetDatabaseOnStartup` la recrea
 una vez; una base actual se conserva. Un respaldo restaurado de esquema anterior
 se rechaza sin eliminarlo. PostgreSQL incluye la migración
 `1788912000000-AddActiveVariantUniqueness` para los índices parciales.
@@ -495,3 +492,10 @@ permanece local (`not_required`) en ambos modos; sólo `server_sync` persiste
 `event_refs`. El historial se conserva, y su registro de limpieza impide que
 reaplicar un evento antiguo de agregado restaure la venta. La siguiente captura
 crea un borrador con una identidad nueva.
+
+## Confirmación en efectivo
+
+Implementada mediante `venta_confirmada`; ver [contrato, decisiones, pruebas y límites](cash_sale_confirmation.md).
+La revisión del borrador viaja hasta el comando. La configuración de consumo conocida
+se compara antes de congelarla; el precio capturado se conserva. Un conflicto de
+entrega nunca deshace un cobro ni su consumo.

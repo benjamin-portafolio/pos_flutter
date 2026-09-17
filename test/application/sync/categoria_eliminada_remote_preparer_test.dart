@@ -96,7 +96,7 @@ void main() {
   tearDown(() => db.close());
 
   test(
-    'borrado físico local se restaura ante edición oficial; el eco del borrado no resucita filas',
+    'borrado lógico local se restaura ante edición oficial; el eco del borrado no resucita filas',
     () async {
       await remoteApplier.applySyncedEvents([
         _categoryCreated(),
@@ -126,7 +126,7 @@ void main() {
         LocalEventRef.affects(refType: 'product', refId: 'product_1'),
       ];
       await localStore.appendAndApply(deletion, refs: refs);
-      expect(await projection.findProductById(product.id), isNull);
+      expect((await projection.findProductById(product.id))?.active, isFalse);
       final edited = ProductoCreadoPayload.create(
         nombre: 'Oficial',
         categoriaId: before.categoriaId,
@@ -171,11 +171,11 @@ void main() {
       await remoteApplier.applySyncedEvents([
         nextDelete.copyWith(serverSequence: 4, deliveryStatus: 'delivered'),
       ]);
-      expect(await projection.findProductById(product.id), isNull);
+      expect((await projection.findProductById(product.id))?.active, isFalse);
       expect(await db.select(db.productUpdateUndo).get(), isEmpty);
       // A repeated creation in pull is an echo, not a new creation.
       await remoteApplier.applySyncedEvents([_productCreated()]);
-      expect(await projection.findProductById(product.id), isNull);
+      expect((await projection.findProductById(product.id))?.active, isFalse);
     },
   );
 

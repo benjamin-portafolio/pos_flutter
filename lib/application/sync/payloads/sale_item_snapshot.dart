@@ -2,6 +2,7 @@
 class SaleItemSnapshot {
   SaleItemSnapshot({
     required this.variantId,
+    this.consumptionConfigurationKey,
     required String productName,
     String? variantName,
     required this.saleMode,
@@ -55,6 +56,7 @@ class SaleItemSnapshot {
 
   static const maxInteger = 9007199254740991;
   final String variantId;
+  final String? consumptionConfigurationKey;
   final String productName;
   final String? variantName;
   final String saleMode;
@@ -82,6 +84,7 @@ class SaleItemSnapshot {
 
   bool sameConditions(SaleItemSnapshot other) =>
       variantId == other.variantId &&
+      consumptionConfigurationKey == other.consumptionConfigurationKey &&
       productName == other.productName &&
       variantName == other.variantName &&
       saleMode == other.saleMode &&
@@ -107,6 +110,7 @@ class SaleItemSnapshot {
 
   Map<String, Object?> toJson() => {
     'variant_id': variantId,
+    'consumption_configuration_key': consumptionConfigurationKey,
     'product_name_snapshot': productName,
     'variant_name_snapshot': variantName,
     'sale_mode_snapshot': saleMode,
@@ -139,6 +143,7 @@ class SaleItemSnapshot {
 
     return SaleItemSnapshot(
       variantId: text('variant_id', required: true)!,
+      consumptionConfigurationKey: text('consumption_configuration_key'),
       productName: text('product_name_snapshot', required: true)!,
       variantName: text('variant_name_snapshot'),
       saleMode: text('sale_mode_snapshot', required: true)!,

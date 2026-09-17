@@ -1,13 +1,25 @@
+import '../../../application/commands/ventas/confirmar_venta_command.dart';
+import '../../../application/commands/ventas/venta_command_service.dart';
+import '../../../core/di/injection.dart';
+import 'confirmed_sales_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'models/sale_draft_display.dart';
 
-/// Captura temporal para calcular cambio; todavía no registra un pago.
+/// Confirma efectivo después del commit local.
 class CashPaymentScreen extends StatefulWidget {
-  const CashPaymentScreen({required this.totalMinor, super.key});
+  const CashPaymentScreen({
+    required this.totalMinor,
+    this.saleId,
+    this.expectedDraftEventId,
+    this.commandService,
+    super.key,
+  });
 
   final int totalMinor;
+  final String? saleId, expectedDraftEventId;
+  final VentaCommandService? commandService;
 
   @override
   State<CashPaymentScreen> createState() => _CashPaymentScreenState();
@@ -15,6 +27,40 @@ class CashPaymentScreen extends StatefulWidget {
 
 class _CashPaymentScreenState extends State<CashPaymentScreen> {
   final _received = TextEditingController();
+  bool _processing = false;
+  Future<void> _confirm() async {
+    if (_processing) return;
+    setState(() => _processing = true);
+    try {
+      final received = _received.text.isEmpty ? null : _receivedMinor;
+      if (received != null && received > BigInt.from(9007199254740991)) {
+        throw const FormatException('Efectivo fuera de rango.');
+      }
+      await (widget.commandService ?? getIt<VentaCommandService>()).confirmar(
+        ConfirmarVentaCommand(
+          saleId: widget.saleId!,
+          expectedDraftEventId: widget.expectedDraftEventId!,
+          expectedTotalMinor: widget.totalMinor,
+          receivedMinor: received?.toInt(),
+        ),
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ConfirmedSalesScreen(saleId: widget.saleId),
+        ),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
 
   BigInt get _receivedMinor {
     final parts = _received.text.replaceAll(',', '.').split('.');
@@ -177,11 +223,20 @@ class _CashPaymentScreenState extends State<CashPaymentScreen> {
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.all(12),
+            Padding(
+              padding: const EdgeInsets.all(12),
               child: FilledButton(
-                onPressed: null,
-                child: Text('Recibido por efectivo'),
+                onPressed:
+                    _processing ||
+                        pending ||
+                        widget.saleId == null ||
+                        widget.expectedDraftEventId == null ||
+                        _receivedMinor > BigInt.from(9007199254740991)
+                    ? null
+                    : _confirm,
+                child: Text(
+                  _processing ? 'Registrando…' : 'Recibido por efectivo',
+                ),
               ),
             ),
           ],

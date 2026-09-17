@@ -22,6 +22,7 @@ import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../../../application/sync/payloads/sale_item_snapshot.dart';
+import '../../../application/sync/payloads/venta_confirmada_payload.dart';
 import '../../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../../application/sync/projections/sale_draft_projection_store.dart';
 import '../../../application/sync/projections/sale_item_projection.dart';
@@ -30,6 +31,7 @@ import '../../../domain/ventas/sale_status.dart';
 import 'tables/product_update_undo.dart';
 import 'tables/sale_items.dart';
 import 'tables/sales.dart';
+import 'tables/sale_payments.dart';
 
 part 'app_database.g.dart';
 part 'daos/sale_dao.dart';
@@ -64,6 +66,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     InventoryMovements,
     Sales,
     SaleItems,
+    SalePayments,
   ],
   daos: [
     CategoriaDao,
@@ -201,7 +204,7 @@ Future<void> _resetDatabaseOnStartup(File file) async {
             .isNotEmpty &&
         connection
             .select(
-              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sales'",
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sale_payments'",
             )
             .isNotEmpty &&
         connection

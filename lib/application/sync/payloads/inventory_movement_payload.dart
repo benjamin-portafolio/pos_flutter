@@ -37,6 +37,9 @@ class InventoryMovementPayload {
   }
 
   factory InventoryMovementPayload.fromJson(Map<String, Object?> json) {
+    if (json['total_cost_minor'] != null) {
+      throw const FormatException('Costo real no implementado.');
+    }
     final movementType = TipoMovimientoInventario.fromCode(
       _requiredString(json['movement_type'], 'movement.movement_type'),
     );
@@ -85,6 +88,10 @@ class InventoryMovementPayload {
           );
 
     switch (movementType) {
+      case TipoMovimientoInventario.saleConsumption:
+        if (quantityDeltaAtomic >= 0) {
+          throw const FormatException('Consumo requiere delta negativo.');
+        }
       case TipoMovimientoInventario.initialBalance:
       case TipoMovimientoInventario.stockReceipt:
         if (quantityDeltaAtomic <= 0) {

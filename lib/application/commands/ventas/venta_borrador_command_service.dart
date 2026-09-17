@@ -119,6 +119,9 @@ class VentaBorradorCommandService {
     final atomic = _readMeasuredQuantity(command, config, unit);
     final snapshot = SaleItemSnapshot(
       variantId: variant.id,
+      consumptionConfigurationKey: await products.consumptionConfigurationKey(
+        variant.id,
+      ),
       productName: product.nombre,
       variantName: variant.nombre,
       saleMode: config is MeasuredSaleConfiguration ? 'measured' : 'unit',

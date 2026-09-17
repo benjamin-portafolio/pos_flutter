@@ -115,6 +115,7 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
             sortOrder: r.sortOrder,
             snapshot: SaleItemSnapshot(
               variantId: r.variantId,
+              consumptionConfigurationKey: r.consumptionConfigurationKey,
               productName: r.productNameSnapshot,
               variantName: r.variantNameSnapshot,
               saleMode: r.saleModeSnapshot,
@@ -161,6 +162,7 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
         id: p.id,
         saleId: p.saleId,
         variantId: s.variantId,
+        consumptionConfigurationKey: Value(s.consumptionConfigurationKey),
         productNameSnapshot: s.productName,
         variantNameSnapshot: Value(s.variantName),
         saleModeSnapshot: s.saleMode,

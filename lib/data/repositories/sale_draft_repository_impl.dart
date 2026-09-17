@@ -21,6 +21,7 @@ class SaleDraftRepositoryImpl implements SaleDraftRepository {
         final sale = rows.first.sale;
         return SaleDraft(
           id: sale.id,
+          lastEventId: sale.lastEventId,
           totalMinor: sale.totalMinor,
           items: [
             for (final row in rows)

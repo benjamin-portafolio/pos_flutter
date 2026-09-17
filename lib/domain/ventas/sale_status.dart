@@ -1,2 +1,2 @@
-/// Ciclo local de la captura; la confirmación se implementará con el cobro.
-enum SaleStatus { borrador, descartada }
+/// Estado de negocio, independiente de la entrega del evento.
+enum SaleStatus { borrador, descartada, confirmada }

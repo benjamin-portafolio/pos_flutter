@@ -1,3 +1,5 @@
+import '../../../domain/repositories/confirmed_sale_repository.dart';
+import 'confirmed_sales_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../../application/commands/ventas/limpiar_venta_borrador_command.dart';
@@ -59,6 +61,14 @@ class _CajaScreenState extends State<CajaScreen> {
   Widget build(BuildContext context) => SafeArea(
     child: Column(
       children: [
+        if (getIt.isRegistered<ConfirmedSaleRepository>())
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const ConfirmedSalesScreen()),
+            ),
+            icon: const Icon(Icons.receipt_long),
+            label: const Text('Ventas cobradas'),
+          ),
         ArticleSearchBar(
           showQuickAdd: false,
           productoRepository: widget.productoRepository,
@@ -197,6 +207,8 @@ class _CajaScreenState extends State<CajaScreen> {
                                     MaterialPageRoute(
                                       builder: (_) => PaymentMethodScreen(
                                         totalMinor: sale.totalMinor,
+                                        saleId: sale.id,
+                                        expectedDraftEventId: sale.lastEventId,
                                       ),
                                     ),
                                   ),

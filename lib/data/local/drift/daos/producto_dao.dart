@@ -210,6 +210,31 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         .write(ProductsCompanion(lastServerSequence: Value(serverSequence)));
   }
 
+  /// Se conservan identidades para cobros offline aún desconocidos.
+  Future<void> desactivarProductoHistorico(
+    String id,
+    String eventId,
+    int version,
+    int? sequence,
+  ) async {
+    await (update(productVariants)..where((v) => v.productId.equals(id))).write(
+      ProductVariantsCompanion(
+        active: const Value(false),
+        version: Value(version),
+        lastEventId: Value(eventId),
+        lastServerSequence: Value(sequence),
+      ),
+    );
+    await (update(products)..where((p) => p.id.equals(id))).write(
+      ProductsCompanion(
+        active: const Value(false),
+        version: Value(version),
+        lastEventId: Value(eventId),
+        lastServerSequence: Value(sequence),
+      ),
+    );
+  }
+
   Future<void> eliminarProductoPorId(String id) async {
     await (delete(
       productVariants,
@@ -218,6 +243,29 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<void> eliminarProductoCreadoPorEvento(String eventId) async {
+    final variants = await (select(
+      productVariants,
+    )..where((v) => v.createdEventId.equals(eventId))).get();
+    for (final v in variants) {
+      if (await (select(db.saleItems)
+                ..where((l) => l.variantId.equals(v.id))
+                ..limit(1))
+              .getSingleOrNull() !=
+          null) {
+        await (update(
+          products,
+        )..where((p) => p.createdEventId.equals(eventId))).write(
+          const ProductsCompanion(
+            active: Value(false),
+            categoryId: Value(null),
+          ),
+        );
+        await (update(productVariants)
+              ..where((p) => p.createdEventId.equals(eventId)))
+            .write(const ProductVariantsCompanion(active: Value(false)));
+        return;
+      }
+    }
     await (delete(
       productVariants,
     )..where((variant) => variant.createdEventId.equals(eventId))).go();
@@ -258,11 +306,16 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     String productId,
     String eventId,
   ) async {
-    await (delete(productVariants)..where(
-          (v) =>
-              v.productId.equals(productId) & v.createdEventId.equals(eventId),
-        ))
-        .go();
+    final added =
+        await (select(productVariants)..where(
+              (v) =>
+                  v.productId.equals(productId) &
+                  v.createdEventId.equals(eventId),
+            ))
+            .get();
+    for (final variant in added) {
+      await _removeUnreferencedVariant(variant.id);
+    }
   }
 
   Future<void> actualizarVariante(
@@ -341,9 +394,9 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
       product.id,
       present.map((v) => v.id).toSet(),
     );
-    await (delete(
-      productVariants,
-    )..where((v) => v.productId.equals(product.id) & v.id.isNotIn(ids))).go();
+    for (final v in present.where((v) => !ids.contains(v.id))) {
+      await _removeUnreferencedVariant(v.id);
+    }
     for (final v in variants) {
       await into(
         productVariants,
@@ -360,8 +413,19 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     return true;
   }
 
-  Future<void> eliminarVarianteSinDependencias(String id) async {
-    await (delete(productVariants)..where((v) => v.id.equals(id))).go();
+  Future<void> _removeUnreferencedVariant(String id) async {
+    final referenced =
+        await (select(db.saleItems)
+              ..where((l) => l.variantId.equals(id))
+              ..limit(1))
+            .getSingleOrNull();
+    if (referenced != null) {
+      await (update(productVariants)..where((v) => v.id.equals(id))).write(
+        const ProductVariantsCompanion(active: Value(false)),
+      );
+    } else {
+      await (delete(productVariants)..where((v) => v.id.equals(id))).go();
+    }
   }
 
   Future<void> descartarRespaldosConfirmados(String productId) async {

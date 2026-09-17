@@ -1,3 +1,5 @@
+import 'payloads/venta_confirmada_payload.dart';
+import 'revalidation/sale_pending_event_validator.dart';
 import 'categoria_conflict_projection_restorer.dart';
 import 'categoria_eliminada_conflict_projection_restorer.dart';
 import 'categoria_movida_conflict_projection_restorer.dart';
@@ -71,6 +73,9 @@ class PendingEventRevalidator {
       dependencies: dependencies,
     );
     _validators = {
+      VentaConfirmadaPayload.eventType: SalePendingEventValidator(
+        syncedEventHistory,
+      ),
       EspacioCreadoPayload.eventType: space,
       CategoriaCreadaPayload.eventType: category,
       CategoriaActualizadaPayload.eventType: category,

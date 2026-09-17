@@ -4,6 +4,8 @@ import '../payloads/producto_creado_payload.dart';
 import '../models/sync_event.dart';
 
 abstract interface class ProductoProjectionStore {
+  Future<String> consumptionConfigurationKey(String variantId);
+
   Future<ProductoCreadoPayload> snapshot(String productId);
   Future<void> applyUpdate(
     SyncEvent event,

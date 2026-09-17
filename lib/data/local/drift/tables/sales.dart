@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'common_fields.dart';
 
-/// Borrador local de venta. CommonFields.id es la identidad de la venta;
+/// Venta local, en borrador o confirmada. CommonFields.id identifica la venta;
 /// active indica borrado lógico, mientras status describe su ciclo de negocio.
 @DataClassName('SaleRow')
 @TableIndex.sql(
@@ -14,7 +14,7 @@ class Sales extends Table with CommonFields {
   /// Dispositivo de origen del borrador.
   TextColumn get deviceId => text()();
 
-  /// Estado de captura: borrador o descartada.
+  /// Estado de negocio: borrador, descartada o confirmada; independiente de sync.
   TextColumn get status => text().withDefault(const Constant('borrador'))();
 
   /// Suma en centavos de líneas activas, recalculada en la misma transacción.
@@ -29,7 +29,7 @@ class Sales extends Table with CommonFields {
   Set<Column> get primaryKey => {id};
   @override
   List<String> get customConstraints => [
-    "CHECK(status IN ('borrador', 'descartada'))",
+    "CHECK(status IN ('borrador', 'descartada', 'confirmada'))",
     'CHECK(total_minor >= 0 AND total_minor <= 9007199254740991)',
   ];
 }

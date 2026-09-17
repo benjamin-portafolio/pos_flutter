@@ -16,6 +16,9 @@ class MovimientoInventarioRegistradoPayload {
     required String baseEventId,
     required InventoryMovementPayload movement,
   }) {
+    if (movement.movementType.code == 'sale_consumption') {
+      throw const FormatException('El consumo requiere venta_confirmada.');
+    }
     final normalizedBase = baseEventId.trim();
     if (normalizedBase.isEmpty) {
       throw const FormatException('base_event_id es obligatorio.');
