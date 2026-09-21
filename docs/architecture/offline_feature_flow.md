@@ -499,3 +499,37 @@ Implementada mediante `venta_confirmada`; ver [contrato, decisiones, pruebas y l
 La revisión del borrador viaja hasta el comando. La configuración de consumo conocida
 se compara antes de congelarla; el precio capturado se conserva. Un conflicto de
 entrega nunca deshace un cobro ni su consumo.
+
+## Alta de clientes
+
+`Gestión de clientes` abre una lista reactiva de clientes activos, inicialmente
+vacía, con `Agregar cliente` abajo a la izquierda. El formulario contiene
+`nombre` obligatorio y `telefono` opcional en un campo único. Guardar vuelve al
+listado únicamente después de completar la transacción local; un error conserva
+los datos para reintentar y el guardado en curso bloquea el doble toque.
+
+El flujo usa `ClienteCommandService`, `ClienteCreadoPayload`,
+`ClienteEventHandler`, `ClienteProjectionStore` y `ClienteRepository`. La tabla
+Drift `Clientes` hereda `CommonFields` y agrega `nombre` y `telefono`. El evento
+`cliente_creado` usa `aggregate_type = cliente`, versión inicial 1, sin base
+oficial, y payload `{nombre, telefono}`. Ambos textos se recortan; el teléfono
+vacío se normaliza a `null`. No hay unicidad de nombre ni teléfono.
+
+El comando declara una referencia `cliente / <UUID> / affects` en ambos modos.
+`DriftLocalEventStore` valida las referencias; en `server_sync` las persiste y
+el evento queda pendiente, mientras que en `standalone` aplica el evento con
+`delivery_status = not_required` sin persistir `event_refs`. Se mantienen las
+restricciones existentes que deshabilitan servicios de sincronización en local.
+
+Push, pull y preflight reutilizan los servicios existentes. El eco de servidor
+avanza `lastServerSequence` sin reaplicar campos de negocio. Una identidad
+ocupada genera conflicto; una creación oficial sustituye la proyección pendiente
+antes de revalidar y retirar el evento perdedor. La limpieza solo elimina la
+proyección cuyo `createdEventId` coincide, conservando el ganador oficial.
+
+El esquema local mantiene `schemaVersion = 7`: durante desarrollo, una base sin
+`clientes` se recrea en `_resetDatabaseOnStartup`. Una base actual se conserva
+en los siguientes arranques; un respaldo antiguo protegido falla explícitamente.
+
+Verificación específica: `test/application/sync/cliente_flow_test.dart` y
+`test/presentation/pages/gestion_clientes/clientes_screen_test.dart`.

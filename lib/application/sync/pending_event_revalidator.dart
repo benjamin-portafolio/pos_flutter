@@ -1,3 +1,6 @@
+import 'payloads/cliente_creado_payload.dart';
+import 'projections/cliente_projection_store.dart';
+import 'revalidation/cliente_pending_event_validator.dart';
 import 'payloads/venta_confirmada_payload.dart';
 import 'revalidation/sale_pending_event_validator.dart';
 import 'categoria_conflict_projection_restorer.dart';
@@ -31,6 +34,7 @@ import 'synced_event_history.dart';
 
 class PendingEventRevalidator {
   PendingEventRevalidator({
+    ClienteProjectionStore? clienteProjectionStore,
     required SyncPersistence syncPersistence,
     required SyncedEventHistory syncedEventHistory,
     required EspacioProjectionStore espacioProjectionStore,
@@ -73,6 +77,10 @@ class PendingEventRevalidator {
       dependencies: dependencies,
     );
     _validators = {
+      if (clienteProjectionStore != null)
+        ClienteCreadoPayload.eventType: ClientePendingEventValidator(
+          clienteProjectionStore,
+        ),
       VentaConfirmadaPayload.eventType: SalePendingEventValidator(
         syncedEventHistory,
       ),

@@ -1,3 +1,7 @@
+import '../../application/sync/projections/cliente_projection_store.dart';
+import '../../data/local/drift/drift_cliente_projection_store.dart';
+import '../../data/repositories/cliente_repository_impl.dart';
+import '../../domain/repositories/cliente_repository.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../application/config/app_config.dart';
@@ -85,6 +89,15 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => GoogleDriveBackupStore(authService: getIt<GoogleDriveAuthService>()),
   );
 
+  getIt.registerLazySingleton<ClienteDao>(
+    () => getIt<AppDatabase>().clienteDao,
+  );
+  getIt.registerLazySingleton<ClienteProjectionStore>(
+    () => DriftClienteProjectionStore(getIt<ClienteDao>()),
+  );
+  getIt.registerLazySingleton<ClienteRepository>(
+    () => ClienteRepositoryImpl(getIt<ClienteDao>()),
+  );
   getIt.registerLazySingleton<EspacioDao>(
     () => EspacioDao(getIt<AppDatabase>()),
   );

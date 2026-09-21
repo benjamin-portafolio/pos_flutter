@@ -1,3 +1,5 @@
+import 'payloads/cliente_creado_payload.dart';
+import 'projections/cliente_projection_store.dart';
 import 'projections/confirmed_sale_store.dart';
 import 'payloads/venta_confirmada_payload.dart';
 import 'models/sync_event.dart';
@@ -17,6 +19,7 @@ import 'projections/producto_projection_store.dart';
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
     this.confirmedSaleStore,
+    this.clienteProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
     InventoryProjectionStore? inventoryProjectionStore,
@@ -24,6 +27,7 @@ class ServerEchoAcknowledger {
        _productoProjectionStore = productoProjectionStore,
        _inventoryProjectionStore = inventoryProjectionStore;
 
+  final ClienteProjectionStore? clienteProjectionStore;
   final ConfirmedSaleStore? confirmedSaleStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
@@ -34,6 +38,13 @@ class ServerEchoAcknowledger {
     if (serverSequence == null) return;
 
     switch (event.eventType) {
+      case ClienteCreadoPayload.eventType:
+        await clienteProjectionStore?.advanceServerSequence(
+          event.aggregateId,
+          event.eventId,
+          serverSequence,
+        );
+        return;
       case VentaConfirmadaPayload.eventType:
         await confirmedSaleStore?.acknowledge(event.eventId, serverSequence);
         return;

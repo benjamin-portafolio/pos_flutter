@@ -1,3 +1,4 @@
+import 'tables/clientes.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -34,6 +35,7 @@ import 'tables/sales.dart';
 import 'tables/sale_payments.dart';
 
 part 'app_database.g.dart';
+part 'daos/cliente_dao.dart';
 part 'daos/sale_dao.dart';
 part 'daos/categoria_dao.dart';
 part 'daos/espacio_dao.dart';
@@ -51,6 +53,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
 /// Database class configuring connection, schema and registered tables/DAOs.
 @DriftDatabase(
   tables: [
+    Clientes,
     Categories,
     Products,
     ProductVariants,
@@ -69,6 +72,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     SalePayments,
   ],
   daos: [
+    ClienteDao,
     CategoriaDao,
     ProductoDao,
     EspacioDao,
@@ -186,7 +190,7 @@ LazyDatabase _openConnection() {
 }
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
-/// ni cambiar schemaVersion. Ventas debe existir y no puede conservarse la
+/// ni cambiar schemaVersion. Clientes y ventas deben existir y no puede conservarse la
 /// columna legada is_default; las bases actuales se conservan entre arranques.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
@@ -197,6 +201,11 @@ Future<void> _resetDatabaseOnStartup(File file) async {
       'PRAGMA table_info(product_variants)',
     );
     current =
+        connection
+            .select(
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'clientes'",
+            )
+            .isNotEmpty &&
         connection
             .select(
               "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'product_update_undo'",

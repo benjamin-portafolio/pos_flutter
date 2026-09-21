@@ -1,3 +1,4 @@
+import '../gestion_clientes/clientes_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
@@ -169,9 +170,16 @@ class MenuLateral extends StatelessWidget {
           ),
           ListTile(
             leading: Icon(Icons.people),
-            title: Text("Gestión de clientess"),
-            trailing: _buildBadge(35),
-            onTap: () {},
+            title: Text("Gestión de clientes"),
+            onTap: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                navigator.push(
+                  MaterialPageRoute(builder: (_) => const ClientesScreen()),
+                );
+              });
+            },
           ),
           ListTile(
             leading: Icon(Icons.table_chart),

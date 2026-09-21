@@ -1,3 +1,5 @@
+import 'payloads/cliente_creado_payload.dart';
+import 'projections/cliente_projection_store.dart';
 import 'categoria_conflict_projection_restorer.dart';
 import 'categoria_eliminada_conflict_projection_restorer.dart';
 import 'categoria_movida_conflict_projection_restorer.dart';
@@ -19,6 +21,7 @@ import 'projections/inventory_projection_store.dart';
 
 class SyncConflictProjectionCleaner {
   SyncConflictProjectionCleaner({
+    this.clienteProjectionStore,
     required EspacioProjectionStore espacioProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
@@ -40,6 +43,7 @@ class SyncConflictProjectionCleaner {
        _categoriaEliminadaConflictProjectionRestorer =
            categoriaEliminadaConflictProjectionRestorer;
 
+  final ClienteProjectionStore? clienteProjectionStore;
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
@@ -52,7 +56,9 @@ class SyncConflictProjectionCleaner {
   _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
-    if (event.eventType == EspacioCreadoPayload.eventType) {
+    if (event.eventType == ClienteCreadoPayload.eventType) {
+      await clienteProjectionStore?.deleteCreatedByEvent(event.eventId);
+    } else if (event.eventType == EspacioCreadoPayload.eventType) {
       await _espacioProjectionStore.deleteCreatedByEvent(event.eventId);
     } else if (event.eventType == CategoriaCreadaPayload.eventType) {
       await _categoriaProjectionStore.deleteCreatedByEvent(event.eventId);

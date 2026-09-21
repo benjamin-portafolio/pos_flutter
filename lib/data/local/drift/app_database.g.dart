@@ -3,6 +3,552 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $ClientesTable extends Clientes
+    with TableInfo<$ClientesTable, ClienteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ClientesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nombreMeta = const VerificationMeta('nombre');
+  @override
+  late final GeneratedColumn<String> nombre = GeneratedColumn<String>(
+    'nombre',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(trim(nombre)) > 0)',
+  );
+  static const VerificationMeta _telefonoMeta = const VerificationMeta(
+    'telefono',
+  );
+  @override
+  late final GeneratedColumn<String> telefono = GeneratedColumn<String>(
+    'telefono',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    nombre,
+    telefono,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'clientes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ClienteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nombre')) {
+      context.handle(
+        _nombreMeta,
+        nombre.isAcceptableOrUnknown(data['nombre']!, _nombreMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nombreMeta);
+    }
+    if (data.containsKey('telefono')) {
+      context.handle(
+        _telefonoMeta,
+        telefono.isAcceptableOrUnknown(data['telefono']!, _telefonoMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ClienteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ClienteRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      nombre: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nombre'],
+      )!,
+      telefono: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}telefono'],
+      ),
+    );
+  }
+
+  @override
+  $ClientesTable createAlias(String alias) {
+    return $ClientesTable(attachedDatabase, alias);
+  }
+}
+
+class ClienteRow extends DataClass implements Insertable<ClienteRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Nombre obligatorio del cliente, sin espacios al inicio ni al final.
+  final String nombre;
+
+  /// Teléfono opcional como texto para conservar prefijos y ceros iniciales.
+  final String? telefono;
+  const ClienteRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.nombre,
+    this.telefono,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['nombre'] = Variable<String>(nombre);
+    if (!nullToAbsent || telefono != null) {
+      map['telefono'] = Variable<String>(telefono);
+    }
+    return map;
+  }
+
+  ClientesCompanion toCompanion(bool nullToAbsent) {
+    return ClientesCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      nombre: Value(nombre),
+      telefono: telefono == null && nullToAbsent
+          ? const Value.absent()
+          : Value(telefono),
+    );
+  }
+
+  factory ClienteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ClienteRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      nombre: serializer.fromJson<String>(json['nombre']),
+      telefono: serializer.fromJson<String?>(json['telefono']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'nombre': serializer.toJson<String>(nombre),
+      'telefono': serializer.toJson<String?>(telefono),
+    };
+  }
+
+  ClienteRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? nombre,
+    Value<String?> telefono = const Value.absent(),
+  }) => ClienteRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    nombre: nombre ?? this.nombre,
+    telefono: telefono.present ? telefono.value : this.telefono,
+  );
+  ClienteRow copyWithCompanion(ClientesCompanion data) {
+    return ClienteRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      nombre: data.nombre.present ? data.nombre.value : this.nombre,
+      telefono: data.telefono.present ? data.telefono.value : this.telefono,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ClienteRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('nombre: $nombre, ')
+          ..write('telefono: $telefono')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    nombre,
+    telefono,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ClienteRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.nombre == this.nombre &&
+          other.telefono == this.telefono);
+}
+
+class ClientesCompanion extends UpdateCompanion<ClienteRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> nombre;
+  final Value<String?> telefono;
+  final Value<int> rowid;
+  const ClientesCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.nombre = const Value.absent(),
+    this.telefono = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ClientesCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String nombre,
+    this.telefono = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       nombre = Value(nombre);
+  static Insertable<ClienteRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? nombre,
+    Expression<String>? telefono,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (nombre != null) 'nombre': nombre,
+      if (telefono != null) 'telefono': telefono,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ClientesCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? nombre,
+    Value<String?>? telefono,
+    Value<int>? rowid,
+  }) {
+    return ClientesCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      nombre: nombre ?? this.nombre,
+      telefono: telefono ?? this.telefono,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (nombre.present) {
+      map['nombre'] = Variable<String>(nombre.value);
+    }
+    if (telefono.present) {
+      map['telefono'] = Variable<String>(telefono.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ClientesCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('nombre: $nombre, ')
+          ..write('telefono: $telefono, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CategoriesTable extends Categories
     with TableInfo<$CategoriesTable, CategoryRow> {
   @override
@@ -10485,6 +11031,7 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $ClientesTable clientes = $ClientesTable(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $UnitsTable units = $UnitsTable(this);
   late final $ProductsTable products = $ProductsTable(this);
@@ -10542,6 +11089,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'ux_sale_items_order',
     'CREATE UNIQUE INDEX ux_sale_items_order ON sale_items (sale_id, sort_order)',
   );
+  late final ClienteDao clienteDao = ClienteDao(this as AppDatabase);
   late final CategoriaDao categoriaDao = CategoriaDao(this as AppDatabase);
   late final ProductoDao productoDao = ProductoDao(this as AppDatabase);
   late final EspacioDao espacioDao = EspacioDao(this as AppDatabase);
@@ -10558,6 +11106,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    clientes,
     categories,
     units,
     products,
@@ -10609,6 +11158,266 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ]);
 }
 
+typedef $$ClientesTableCreateCompanionBuilder =
+    ClientesCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String nombre,
+      Value<String?> telefono,
+      Value<int> rowid,
+    });
+typedef $$ClientesTableUpdateCompanionBuilder =
+    ClientesCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> nombre,
+      Value<String?> telefono,
+      Value<int> rowid,
+    });
+
+class $$ClientesTableFilterComposer
+    extends Composer<_$AppDatabase, $ClientesTable> {
+  $$ClientesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nombre => $composableBuilder(
+    column: $table.nombre,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get telefono => $composableBuilder(
+    column: $table.telefono,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ClientesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ClientesTable> {
+  $$ClientesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nombre => $composableBuilder(
+    column: $table.nombre,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get telefono => $composableBuilder(
+    column: $table.telefono,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ClientesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ClientesTable> {
+  $$ClientesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nombre =>
+      $composableBuilder(column: $table.nombre, builder: (column) => column);
+
+  GeneratedColumn<String> get telefono =>
+      $composableBuilder(column: $table.telefono, builder: (column) => column);
+}
+
+class $$ClientesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ClientesTable,
+          ClienteRow,
+          $$ClientesTableFilterComposer,
+          $$ClientesTableOrderingComposer,
+          $$ClientesTableAnnotationComposer,
+          $$ClientesTableCreateCompanionBuilder,
+          $$ClientesTableUpdateCompanionBuilder,
+          (
+            ClienteRow,
+            BaseReferences<_$AppDatabase, $ClientesTable, ClienteRow>,
+          ),
+          ClienteRow,
+          PrefetchHooks Function()
+        > {
+  $$ClientesTableTableManager(_$AppDatabase db, $ClientesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ClientesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ClientesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ClientesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> nombre = const Value.absent(),
+                Value<String?> telefono = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ClientesCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                nombre: nombre,
+                telefono: telefono,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String nombre,
+                Value<String?> telefono = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ClientesCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                nombre: nombre,
+                telefono: telefono,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ClientesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ClientesTable,
+      ClienteRow,
+      $$ClientesTableFilterComposer,
+      $$ClientesTableOrderingComposer,
+      $$ClientesTableAnnotationComposer,
+      $$ClientesTableCreateCompanionBuilder,
+      $$ClientesTableUpdateCompanionBuilder,
+      (ClienteRow, BaseReferences<_$AppDatabase, $ClientesTable, ClienteRow>),
+      ClienteRow,
+      PrefetchHooks Function()
+    >;
 typedef $$CategoriesTableCreateCompanionBuilder =
     CategoriesCompanion Function({
       required String id,
@@ -18253,6 +19062,8 @@ typedef $$SalePaymentsTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$ClientesTableTableManager get clientes =>
+      $$ClientesTableTableManager(_db, _db.clientes);
   $$CategoriesTableTableManager get categories =>
       $$CategoriesTableTableManager(_db, _db.categories);
   $$UnitsTableTableManager get units =>
@@ -18285,6 +19096,18 @@ class $AppDatabaseManager {
       $$InventoryMovementsTableTableManager(_db, _db.inventoryMovements);
   $$SalePaymentsTableTableManager get salePayments =>
       $$SalePaymentsTableTableManager(_db, _db.salePayments);
+}
+
+mixin _$ClienteDaoMixin on DatabaseAccessor<AppDatabase> {
+  $ClientesTable get clientes => attachedDatabase.clientes;
+  ClienteDaoManager get managers => ClienteDaoManager(this);
+}
+
+class ClienteDaoManager {
+  final _$ClienteDaoMixin _db;
+  ClienteDaoManager(this._db);
+  $$ClientesTableTableManager get clientes =>
+      $$ClientesTableTableManager(_db.attachedDatabase, _db.clientes);
 }
 
 mixin _$CategoriaDaoMixin on DatabaseAccessor<AppDatabase> {

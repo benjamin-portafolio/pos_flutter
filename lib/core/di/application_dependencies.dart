@@ -1,3 +1,7 @@
+import '../../application/commands/clientes/cliente_command_service.dart';
+import '../../application/sync/handlers/cliente_event_handler.dart';
+import '../../application/sync/payloads/cliente_creado_payload.dart';
+import '../../application/sync/projections/cliente_projection_store.dart';
 import '../../domain/repositories/confirmed_sale_repository.dart';
 import '../../data/repositories/confirmed_sale_repository_impl.dart';
 import '../../application/commands/ventas/venta_command_service.dart';
@@ -89,6 +93,15 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<SyncHealthService>(
     () => SyncHealthService(endpointConfig: getIt<SyncEndpointConfig>()),
   );
+  getIt.registerLazySingleton<ClienteEventHandler>(
+    () => ClienteEventHandler(getIt<ClienteProjectionStore>()),
+  );
+  getIt.registerLazySingleton<ClienteCommandService>(
+    () => ClienteCommandService(
+      eventStore: getIt<LocalEventStore>(),
+      commandContext: getIt<LocalCommandContext>(),
+    ),
+  );
   getIt.registerLazySingleton<EspacioEventHandler>(
     () => EspacioEventHandler(getIt<EspacioProjectionStore>()),
   );
@@ -153,6 +166,7 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
         VentaConfirmadaPayload.eventType:
             getIt<VentaConfirmadaEventHandler>().apply,
         VentaBorradorLimpiadaPayload.eventType:
@@ -168,6 +182,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      clienteProjectionStore: getIt<ClienteProjectionStore>(),
       confirmedSaleStore: getIt<ConfirmedSaleStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
@@ -207,6 +222,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
+      clienteProjectionStore: getIt<ClienteProjectionStore>(),
       syncPersistence: getIt<SyncPersistence>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
@@ -223,6 +239,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
     () => SyncConflictProjectionCleaner(
+      clienteProjectionStore: getIt<ClienteProjectionStore>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
