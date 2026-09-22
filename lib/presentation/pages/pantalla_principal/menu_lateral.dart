@@ -40,7 +40,7 @@ class MenuLateral extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       backgroundColor: Colors.white,
-                      child: Text("CM", style: TextStyle(color: Colors.black)),
+                      child: Text("M", style: TextStyle(color: Colors.black)),
                     ),
                     SizedBox(width: 8),
                     Expanded(
@@ -48,7 +48,7 @@ class MenuLateral extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "CERVECERIA MAESTRA Y Taproom",
+                            "Miradent",
                             style: TextStyle(color: Colors.white),
                           ),
                           Text(

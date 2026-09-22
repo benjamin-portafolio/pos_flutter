@@ -533,3 +533,10 @@ en los siguientes arranques; un respaldo antiguo protegido falla explícitamente
 
 Verificación específica: `test/application/sync/cliente_flow_test.dart` y
 `test/presentation/pages/gestion_clientes/clientes_screen_test.dart`.
+
+## Créditos y cuenta del cliente
+
+La confirmación ahora admite crédito con cliente obligatorio y conserva efectivo
+con cliente opcional. Abonos/anticipos y FIFO están integrados en ambos modos.
+Ver [contratos, esquema y límites](customer_credit.md). La detección de esquema
+local ahora exige las tablas de crédito y sales.cliente_id, manteniendo versión 7.

@@ -6,6 +6,11 @@ import 'sale_item_snapshot.dart';
 class VentaConfirmadaPayload {
   VentaConfirmadaPayload({
     required this.paymentId,
+    this.paymentMethod = 'cash',
+    this.clienteId,
+    this.clienteEventId,
+    this.clienteNombre,
+    this.occurredAtMs,
     required this.totalMinor,
     required this.receivedMinor,
     required this.changeMinor,
@@ -14,7 +19,34 @@ class VentaConfirmadaPayload {
     required List<String> dependencyEventIds,
   }) : lines = List.unmodifiable(lines),
        dependencyEventIds = List.unmodifiable(dependencyEventIds) {
-    InventoryMovementPayload.requiredUuidV4(paymentId, 'payment_id');
+    if (paymentMethod == 'cash') {
+      InventoryMovementPayload.requiredUuidV4(paymentId ?? '', 'payment_id');
+    } else if (paymentMethod != 'credit' ||
+        paymentId != null ||
+        clienteId == null ||
+        totalMinor <= 0) {
+      throw const FormatException('Crédito inválido: selecciona un cliente.');
+    }
+    if (paymentMethod == 'credit' &&
+        (occurredAtMs == null ||
+            occurredAtMs! <= 0 ||
+            occurredAtMs! > 9007199254740991)) {
+      throw const FormatException('Fecha del crédito inválida.');
+    }
+    if (clienteId != null) {
+      InventoryMovementPayload.requiredUuidV4(clienteId!, 'cliente_id');
+      InventoryMovementPayload.requiredUuidV4(
+        clienteEventId ?? '',
+        'cliente_event_id',
+      );
+      if (clienteNombre == null ||
+          clienteNombre!.trim().isEmpty ||
+          !dependencyEventIds.contains(clienteEventId)) {
+        throw const FormatException('Falta la identidad del cliente.');
+      }
+    } else if (clienteEventId != null || clienteNombre != null) {
+      throw const FormatException('Cliente inconsistente.');
+    }
     for (final id in dependencyEventIds) {
       InventoryMovementPayload.requiredUuidV4(id, 'dependency');
     }
@@ -33,9 +65,13 @@ class VentaConfirmadaPayload {
         sum != BigInt.from(totalMinor) ||
         totalMinor < 0 ||
         totalMinor > SaleItemSnapshot.maxInteger ||
-        receivedMinor < totalMinor ||
+        receivedMinor < 0 ||
+        (paymentMethod == 'cash' && receivedMinor < totalMinor) ||
         receivedMinor > SaleItemSnapshot.maxInteger ||
-        changeMinor != receivedMinor - totalMinor ||
+        (paymentMethod == 'cash' &&
+            changeMinor != receivedMinor - totalMinor) ||
+        (paymentMethod == 'credit' &&
+            (receivedMinor != 0 || changeMinor != 0)) ||
         currency != 'MXN' ||
         !lines.every(
           (l) => dependencyEventIds.contains(l.configurationEventId),
@@ -45,13 +81,22 @@ class VentaConfirmadaPayload {
   }
   static const aggregateType = 'sale';
   static const eventType = 'venta_confirmada';
-  final String paymentId, currency;
+  final String? paymentId, clienteId, clienteEventId, clienteNombre;
+  final String currency, paymentMethod;
+  bool get isCredit => paymentMethod == 'credit';
   final int totalMinor, receivedMinor, changeMinor;
+  final int? occurredAtMs;
   final List<ConfirmedSaleLine> lines;
   final List<String> dependencyEventIds;
   Map<String, Object?> toJson() => {
     'payment_id': paymentId,
-    'payment_method': 'cash',
+    'payment_method': paymentMethod,
+    if (occurredAtMs != null) 'occurred_at_ms': occurredAtMs,
+    if (clienteId != null) ...{
+      'cliente_id': clienteId,
+      'cliente_event_id': clienteEventId,
+      'cliente_nombre': clienteNombre,
+    },
     'total_minor': totalMinor,
     'received_minor': receivedMinor,
     'change_minor': changeMinor,
@@ -60,11 +105,13 @@ class VentaConfirmadaPayload {
     'dependency_event_ids': dependencyEventIds,
   };
   factory VentaConfirmadaPayload.fromJson(Map<String, Object?> j) {
-    if (j['payment_method'] != 'cash') {
-      throw const FormatException('Solo efectivo.');
-    }
     return VentaConfirmadaPayload(
-      paymentId: j['payment_id'] as String,
+      paymentId: j['payment_id'] as String?,
+      paymentMethod: j['payment_method'] as String,
+      occurredAtMs: j['occurred_at_ms'] as int?,
+      clienteId: j['cliente_id'] as String?,
+      clienteEventId: j['cliente_event_id'] as String?,
+      clienteNombre: j['cliente_nombre'] as String?,
       totalMinor: j['total_minor'] as int,
       receivedMinor: j['received_minor'] as int,
       changeMinor: j['change_minor'] as int,
@@ -80,7 +127,13 @@ class VentaConfirmadaPayload {
   }
   List<LocalEventRef> refs(String saleId) => [
     LocalEventRef.affects(refType: 'sale', refId: saleId),
-    LocalEventRef.affects(refType: 'payment', refId: paymentId),
+    if (paymentId != null)
+      LocalEventRef.affects(refType: 'payment', refId: paymentId!),
+    if (isCredit) LocalEventRef.affects(refType: 'credit', refId: saleId),
+    if (clienteId != null)
+      LocalEventRef.uses(refType: 'cliente', refId: clienteId!),
+    if (isCredit)
+      LocalEventRef.affects(refType: 'customer_account', refId: clienteId!),
     for (final l in lines) ...[
       LocalEventRef.affects(refType: 'sale_item', refId: l.id),
       LocalEventRef.uses(refType: 'product', refId: l.productId),

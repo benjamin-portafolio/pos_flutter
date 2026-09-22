@@ -1,3 +1,5 @@
+import 'projections/customer_credit_store.dart';
+import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
 import 'projections/cliente_projection_store.dart';
 import 'projections/confirmed_sale_store.dart';
@@ -19,6 +21,7 @@ import 'projections/producto_projection_store.dart';
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
     this.confirmedSaleStore,
+    this.customerCreditStore,
     this.clienteProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
@@ -29,6 +32,7 @@ class ServerEchoAcknowledger {
 
   final ClienteProjectionStore? clienteProjectionStore;
   final ConfirmedSaleStore? confirmedSaleStore;
+  final CustomerCreditStore? customerCreditStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
   final InventoryProjectionStore? _inventoryProjectionStore;
@@ -38,6 +42,9 @@ class ServerEchoAcknowledger {
     if (serverSequence == null) return;
 
     switch (event.eventType) {
+      case AbonoClienteRegistradoPayload.eventType:
+        await customerCreditStore?.acknowledge(event.eventId, serverSequence);
+        return;
       case ClienteCreadoPayload.eventType:
         await clienteProjectionStore?.advanceServerSequence(
           event.aggregateId,

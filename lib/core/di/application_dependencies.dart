@@ -1,3 +1,10 @@
+import '../../application/commands/creditos/credito_command_service.dart';
+import '../../application/sync/handlers/abono_cliente_event_handler.dart';
+import '../../application/sync/payloads/abono_cliente_registrado_payload.dart';
+import '../../application/sync/projections/customer_credit_store.dart';
+import '../../data/local/drift/drift_customer_credit_store.dart';
+import '../../data/repositories/customer_account_repository_impl.dart';
+import '../../domain/repositories/customer_account_repository.dart';
 import '../../application/commands/clientes/cliente_command_service.dart';
 import '../../application/sync/handlers/cliente_event_handler.dart';
 import '../../application/sync/payloads/cliente_creado_payload.dart';
@@ -145,6 +152,23 @@ void registerApplicationDependencies(
       context: getIt<LocalCommandContext>(),
     ),
   );
+  getIt.registerLazySingleton<CustomerCreditStore>(
+    () => DriftCustomerCreditStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<CustomerAccountRepository>(
+    () => CustomerAccountRepositoryImpl(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<CreditoCommandService>(
+    () => CreditoCommandService(
+      store: getIt<CustomerCreditStore>(),
+      clientes: getIt<ClienteProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+    ),
+  );
+  getIt.registerLazySingleton<AbonoClienteEventHandler>(
+    () => AbonoClienteEventHandler(getIt<CustomerCreditStore>()),
+  );
   getIt.registerLazySingleton<ConfirmedSaleStore>(
     () => DriftConfirmedSaleStore(getIt<AppDatabase>()),
   );
@@ -156,6 +180,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<VentaCommandService>(
     () => VentaCommandService(
+      clientes: getIt<ClienteProjectionStore>(),
       drafts: getIt<SaleDraftProjectionStore>(),
       products: getIt<ProductoProjectionStore>(),
       inventory: getIt<InventoryProjectionStore>(),
@@ -166,6 +191,8 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        AbonoClienteRegistradoPayload.eventType:
+            getIt<AbonoClienteEventHandler>().apply,
         ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
         VentaConfirmadaPayload.eventType:
             getIt<VentaConfirmadaEventHandler>().apply,
@@ -182,6 +209,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      customerCreditStore: getIt<CustomerCreditStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       confirmedSaleStore: getIt<ConfirmedSaleStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),

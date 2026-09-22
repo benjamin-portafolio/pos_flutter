@@ -4,6 +4,9 @@ import 'sale_draft_item.dart';
 class ConfirmedSale {
   ConfirmedSale({
     required this.id,
+    this.paymentMethod = 'cash',
+    this.clienteId,
+    this.clienteNombre,
     required this.createdAt,
     required this.totalMinor,
     required this.receivedMinor,
@@ -13,7 +16,9 @@ class ConfirmedSale {
     required this.reason,
     required List<SaleDraftItem> items,
   }) : items = List.unmodifiable(items);
-  final String id, currency, deliveryStatus;
+  final String id, currency, deliveryStatus, paymentMethod;
+  final String? clienteId, clienteNombre;
+  bool get isCredit => paymentMethod == 'credit';
   final DateTime createdAt;
   final int totalMinor, receivedMinor, changeMinor;
   final String? reason;

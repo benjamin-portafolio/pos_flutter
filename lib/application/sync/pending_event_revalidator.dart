@@ -1,3 +1,4 @@
+import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
 import 'projections/cliente_projection_store.dart';
 import 'revalidation/cliente_pending_event_validator.dart';
@@ -77,6 +78,9 @@ class PendingEventRevalidator {
       dependencies: dependencies,
     );
     _validators = {
+      AbonoClienteRegistradoPayload.eventType: SalePendingEventValidator(
+        syncedEventHistory,
+      ),
       if (clienteProjectionStore != null)
         ClienteCreadoPayload.eventType: ClientePendingEventValidator(
           clienteProjectionStore,

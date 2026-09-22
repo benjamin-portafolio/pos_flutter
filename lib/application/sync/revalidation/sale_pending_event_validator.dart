@@ -1,3 +1,4 @@
+import '../payloads/abono_cliente_registrado_payload.dart';
 import '../models/sync_event.dart';
 import '../payloads/venta_confirmada_payload.dart';
 import '../synced_event_history.dart';
@@ -12,8 +13,13 @@ class SalePendingEventValidator implements PendingEventValidator {
     SyncEvent event,
     Set<String> conflictedEventIds,
   ) async {
-    final p = VentaConfirmadaPayload.fromJson(event.payload);
-    for (final id in p.dependencyEventIds) {
+    final dependencies =
+        event.eventType == AbonoClienteRegistradoPayload.eventType
+        ? AbonoClienteRegistradoPayload.fromJson(
+            event.payload,
+          ).dependencyEventIds
+        : VentaConfirmadaPayload.fromJson(event.payload).dependencyEventIds;
+    for (final id in dependencies) {
       final dependency = await history.eventById(id);
       if (dependency == null ||
           conflictedEventIds.contains(id) ||
@@ -21,7 +27,7 @@ class SalePendingEventValidator implements PendingEventValidator {
           dependency.deliveryStatus == 'rejected' ||
           dependency.deliveryStatus == 'not_required') {
         return const PendingConflict(
-          'Venta cobrada: una dependencia no se puede sincronizar. Requiere atención.',
+          'Operación registrada: una dependencia no se puede sincronizar. Requiere atención.',
         );
       }
     }

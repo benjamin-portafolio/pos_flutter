@@ -76,11 +76,14 @@ class SaleReceiptImageGenerator {
     text('Recibo # ${receipt.sale.id}', size: 13);
     text('Fecha: ${receipt.date}', size: 13);
     text('Moneda: ${receipt.sale.currency}', size: 13);
+    if (receipt.sale.clienteNombre != null) {
+      text('Cliente: ${receipt.sale.clienteNombre}', size: 13);
+    }
     y += 12;
     const paymentWidths = [0.24, 0.10, 0.40, 0.26];
     row(['Modo de pago', '#I', '#U', 'Monto'], paymentWidths, header: true);
     row([
-      'Efectivo',
+      receipt.paymentLabel,
       '${receipt.distinctItems}',
       receipt.quantities,
       SaleDraftDisplay.money(receipt.sale.totalMinor),

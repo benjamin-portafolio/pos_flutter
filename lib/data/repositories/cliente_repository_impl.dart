@@ -9,8 +9,12 @@ class ClienteRepositoryImpl implements ClienteRepository {
   Stream<List<Cliente>> watchClientes() => _dao.watchClientes().map(
     (rows) => rows
         .map(
-          (row) =>
-              Cliente(id: row.id, nombre: row.nombre, telefono: row.telefono),
+          (row) => Cliente(
+            id: row.id,
+            nombre: row.nombre,
+            telefono: row.telefono,
+            active: row.active,
+          ),
         )
         .toList(),
   );

@@ -71,8 +71,8 @@ void main() {
     await tester.tap(find.text(r'Cobrar: $109.00'));
     await tester.pumpAndSettle();
     expect(find.byType(PaymentMethodScreen), findsOneWidget);
-    expect(find.text('DETALLES DEL CLIENTE (OPCIONAL)'), findsOneWidget);
-    expect(find.text('Nombre del cliente'), findsOneWidget);
+    expect(find.text('CLIENTE · OBLIGATORIO PARA CRÉDITO'), findsOneWidget);
+    expect(find.text('Seleccionar cliente'), findsOneWidget);
     for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
       expect(field.enabled, isFalse);
     }
@@ -88,14 +88,17 @@ void main() {
         isNull,
       );
     }
-    for (final button in tester.widgetList<IconButton>(
-      find.byType(IconButton),
-    )) {
-      if (button.tooltip == 'Buscar cliente' ||
-          button.tooltip == 'Más datos del cliente') {
-        expect(button.onPressed, isNull);
-      }
-    }
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is IconButton && widget.tooltip == 'Buscar cliente',
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
     await tester.tap(find.text('Efectivo'));
     await tester.pumpAndSettle();
     expect(find.byType(CashPaymentScreen), findsOneWidget);

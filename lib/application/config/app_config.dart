@@ -67,7 +67,7 @@ class AppConfig {
     this.lastBackupLocalSequence,
   });
 
-  static const defaultBusinessName = 'CERVECERIA MAESTRA Y Taproom';
+  static const defaultBusinessName = 'Miradent';
   static const defaultUserId = 'user_active';
   static const defaultUserName = 'Benjamin Alvarado';
   static const defaultBackupHour = 3;

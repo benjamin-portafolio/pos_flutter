@@ -1,3 +1,5 @@
+import '../../../domain/repositories/customer_account_repository.dart';
+import 'widgets/collections_report_card.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -7,9 +9,15 @@ import 'models/report_period.dart';
 import 'report_date_filter_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key, this.repository, this.now});
+  const ReportsScreen({
+    super.key,
+    this.repository,
+    this.now,
+    this.accountRepository,
+  });
 
   final ConfirmedSaleRepository? repository;
+  final CustomerAccountRepository? accountRepository;
   final DateTime Function()? now;
 
   @override
@@ -20,6 +28,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   late final _repository =
       widget.repository ?? getIt<ConfirmedSaleRepository>();
   late Stream<List<ConfirmedSale>> _sales = _repository.watchSales();
+  late final _payments =
+      (widget.accountRepository ??
+              (getIt.isRegistered<CustomerAccountRepository>()
+                  ? getIt<CustomerAccountRepository>()
+                  : null))
+          ?.watchPayments();
   late ReportPeriod _period = ReportPeriod.day(_now());
 
   DateTime _now() => widget.now?.call() ?? DateTime.now();
@@ -112,14 +126,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
             final hundred = BigInt.from(100);
             final amount =
                 '\$${total ~/ hundred}.${(total % hundred).toString().padLeft(2, '0')} MXN';
-            return _ReportCard(
-              title: 'VENTAS TOTALES',
-              child: Text(
-                amount,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
+            return Column(
+              children: [
+                _ReportCard(
+                  title: 'VENTAS TOTALES',
+                  child: Text(
+                    amount,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                 ),
-              ),
+                if (_payments != null)
+                  CollectionsReportCard(
+                    payments: _payments,
+                    sales: snapshot.data!,
+                    period: _period,
+                  ),
+              ],
             );
           },
         ),

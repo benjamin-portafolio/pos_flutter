@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'common_fields.dart';
+import 'clientes.dart';
 
 /// Venta local, en borrador o confirmada. CommonFields.id identifica la venta;
 /// active indica borrado lógico, mientras status describe su ciclo de negocio.
@@ -8,6 +9,9 @@ import 'common_fields.dart';
   "CREATE UNIQUE INDEX ux_sales_local_draft ON sales(user_id, device_id) WHERE active = 1 AND status = 'borrador'",
 )
 class Sales extends Table with CommonFields {
+  /// Cliente opcional en efectivo y obligatorio al confirmar a crédito.
+  TextColumn get clienteId => text().nullable().references(Clientes, #id)();
+
   /// Usuario que inició la captura; se conserva en cada edición.
   TextColumn get userId => text()();
 

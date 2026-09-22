@@ -13,6 +13,9 @@ class ConfirmedSaleRepositoryImpl implements ConfirmedSaleRepository {
       final p = VentaConfirmadaPayload.fromJson(e.payload);
       return ConfirmedSale(
         id: e.aggregateId,
+        paymentMethod: p.paymentMethod,
+        clienteId: p.clienteId,
+        clienteNombre: p.clienteNombre,
         createdAt: e.createdAtLocal,
         totalMinor: p.totalMinor,
         receivedMinor: p.receivedMinor,

@@ -1,3 +1,4 @@
+import 'cliente_account_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../application/commands/clientes/cliente_command_service.dart';
 import '../../../application/commands/clientes/crear_cliente_command.dart';
@@ -69,9 +70,18 @@ class _ClientesScreenState extends State<ClientesScreen> {
             itemBuilder: (_, index) {
               final cliente = clientes[index];
               return ListTile(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => ClienteAccountScreen(cliente: cliente),
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right),
                 leading: const Icon(Icons.person_outline),
                 title: Text(cliente.nombre),
-                subtitle: cliente.telefono == null
+                subtitle: !cliente.active
+                    ? const Text('Cuenta con incidencia · consultar historial')
+                    : cliente.telefono == null
                     ? null
                     : Text(cliente.telefono!),
               );

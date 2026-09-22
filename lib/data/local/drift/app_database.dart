@@ -1,3 +1,6 @@
+import 'tables/credit_sales.dart';
+import 'tables/customer_payments.dart';
+import 'tables/credit_allocations.dart';
 import 'tables/clientes.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -70,6 +73,9 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     Sales,
     SaleItems,
     SalePayments,
+    CreditSales,
+    CustomerPayments,
+    CreditAllocations,
   ],
   daos: [
     ClienteDao,
@@ -190,7 +196,8 @@ LazyDatabase _openConnection() {
 }
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
-/// ni cambiar schemaVersion. Clientes y ventas deben existir y no puede conservarse la
+/// ni cambiar schemaVersion. Las tablas de crédito y clientes deben existir,
+/// sales debe incluir cliente_id y no puede conservarse la
 /// columna legada is_default; las bases actuales se conservan entre arranques.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
@@ -201,6 +208,15 @@ Future<void> _resetDatabaseOnStartup(File file) async {
       'PRAGMA table_info(product_variants)',
     );
     current =
+        connection
+                .select(
+                  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('credit_allocations', 'credit_sales', 'customer_payments')",
+                )
+                .length ==
+            3 &&
+        connection
+            .select('PRAGMA table_info(sales)')
+            .any((column) => column['name'] == 'cliente_id') &&
         connection
             .select(
               "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'clientes'",

@@ -6,6 +6,7 @@ class SaleReceiptDisplay {
   const SaleReceiptDisplay(this.sale);
 
   final ConfirmedSale sale;
+  String get paymentLabel => sale.isCredit ? 'Crédito' : 'Efectivo';
 
   int get distinctItems =>
       sale.items.map((item) => item.variantId).toSet().length;
@@ -35,14 +36,18 @@ class SaleReceiptDisplay {
   List<(String, String)> get totals => [
     ('Subtotal', SaleDraftDisplay.money(sale.totalMinor)),
     ('Total general', SaleDraftDisplay.money(sale.totalMinor)),
-    ('Efectivo recibido', SaleDraftDisplay.money(sale.receivedMinor)),
-    ('Cambio', SaleDraftDisplay.money(sale.changeMinor)),
+    if (sale.isCredit)
+      ('Cargo a la cuenta', SaleDraftDisplay.money(sale.totalMinor)),
+    if (!sale.isCredit)
+      ('Efectivo recibido', SaleDraftDisplay.money(sale.receivedMinor)),
+    if (!sale.isCredit) ('Cambio', SaleDraftDisplay.money(sale.changeMinor)),
   ];
 
   String get semanticLabel => [
     'Recibo ${sale.id}',
     'Fecha: $date',
-    'Efectivo. $distinctItems productos diferentes. $quantities.',
+    if (sale.clienteNombre != null) 'Cliente: ${sale.clienteNombre}',
+    '$paymentLabel. $distinctItems productos diferentes. $quantities.',
     'Monto: ${SaleDraftDisplay.money(sale.totalMinor)} ${sale.currency}',
     for (final row in itemRows)
       '${row[0]}, precio ${row[1]}, cantidad ${row[2]}, importe ${row[3]}',

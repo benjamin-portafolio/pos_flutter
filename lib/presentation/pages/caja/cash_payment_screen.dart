@@ -14,10 +14,12 @@ class CashPaymentScreen extends StatefulWidget {
     this.saleId,
     this.expectedDraftEventId,
     this.commandService,
+    this.clienteId,
     super.key,
   });
 
   final int totalMinor;
+  final String? clienteId;
   final String? saleId, expectedDraftEventId;
   final VentaCommandService? commandService;
 
@@ -39,6 +41,7 @@ class _CashPaymentScreenState extends State<CashPaymentScreen> {
       await (widget.commandService ?? getIt<VentaCommandService>()).confirmar(
         ConfirmarVentaCommand(
           saleId: widget.saleId!,
+          clienteId: widget.clienteId,
           expectedDraftEventId: widget.expectedDraftEventId!,
           expectedTotalMinor: widget.totalMinor,
           receivedMinor: received?.toInt(),

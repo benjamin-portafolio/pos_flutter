@@ -15,7 +15,7 @@ class _ConfirmedSalesScreenState extends State<ConfirmedSalesScreen> {
   late final _sales = getIt<ConfirmedSaleRepository>().watchSales();
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Ventas cobradas')),
+    appBar: AppBar(title: const Text('Ventas confirmadas')),
     body: StreamBuilder<List<ConfirmedSale>>(
       stream: _sales,
       builder: (context, snapshot) {
@@ -34,8 +34,8 @@ class _ConfirmedSalesScreenState extends State<ConfirmedSalesScreen> {
     final status = switch (e.deliveryStatus) {
       'delivered' => 'Sincronizada',
       'conflict' || 'rejected' => 'Requiere atención',
-      'not_required' => 'Cobrada (registro local)',
-      _ => 'Cobrada, pendiente de sincronizar',
+      'not_required' => 'Registro local',
+      _ => 'Pendiente de sincronizar',
     };
     return Card(
       child: Padding(
@@ -52,10 +52,13 @@ class _ConfirmedSalesScreenState extends State<ConfirmedSalesScreen> {
               ),
             const Divider(),
             Text(
-              'Pagado: ${SaleDraftDisplay.money(e.totalMinor)} ${e.currency}',
+              '${e.isCredit ? 'A crédito' : 'Pagado'}: ${SaleDraftDisplay.money(e.totalMinor)} ${e.currency}',
             ),
-            Text('Recibido: ${SaleDraftDisplay.money(e.receivedMinor)}'),
-            Text('Cambio: ${SaleDraftDisplay.money(e.changeMinor)}'),
+            if (e.clienteNombre != null) Text('Cliente: ${e.clienteNombre}'),
+            if (!e.isCredit)
+              Text('Recibido: ${SaleDraftDisplay.money(e.receivedMinor)}'),
+            if (!e.isCredit)
+              Text('Cambio: ${SaleDraftDisplay.money(e.changeMinor)}'),
             if (e.reason != null) Text(e.reason!),
           ],
         ),

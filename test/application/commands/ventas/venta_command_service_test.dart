@@ -1,3 +1,15 @@
+import 'package:uuid/uuid.dart';
+import 'package:pos_flutter/application/commands/clientes/cliente_command_service.dart';
+import 'package:pos_flutter/application/commands/clientes/crear_cliente_command.dart';
+import 'package:pos_flutter/application/commands/creditos/credito_command_service.dart';
+import 'package:pos_flutter/application/commands/creditos/registrar_abono_command.dart';
+import 'package:pos_flutter/application/sync/handlers/cliente_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/abono_cliente_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/cliente_creado_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/abono_cliente_registrado_payload.dart';
+import 'package:pos_flutter/data/local/drift/drift_cliente_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_customer_credit_store.dart';
+import 'package:pos_flutter/data/repositories/customer_account_repository_impl.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:http/http.dart' as http;
@@ -62,6 +74,12 @@ void main() {
     appConfigController: config,
     eventProcessor: EventProcessor(
       handlers: {
+        ClienteCreadoPayload.eventType: ClienteEventHandler(
+          DriftClienteProjectionStore(db.clienteDao),
+        ).apply,
+        AbonoClienteRegistradoPayload.eventType: AbonoClienteEventHandler(
+          DriftCustomerCreditStore(db),
+        ).apply,
         ProductoAgregadoBorradorPayload.eventType: VentaBorradorEventHandler(
           db.saleDao,
         ).apply,
@@ -108,6 +126,7 @@ void main() {
     context: context,
   );
   VentaCommandService service() => VentaCommandService(
+    clientes: DriftClienteProjectionStore(db.clienteDao),
     drafts: db.saleDao,
     products: DriftProductoProjectionStore(productoDao: db.productoDao),
     inventory: DriftInventoryProjectionStore(
@@ -694,6 +713,303 @@ void main() {
           ),
         ).lines,
         hasLength(1),
+      );
+    },
+  );
+  Future<void> createCustomer() => ClienteCommandService(
+    eventStore: events(),
+    commandContext: context,
+  ).crearCliente(const CrearClienteCommand(nombre: 'Ana', telefono: '555'));
+  CreditoCommandService creditService() => CreditoCommandService(
+    store: DriftCustomerCreditStore(db),
+    clientes: DriftClienteProjectionStore(db.clienteDao),
+    events: events(),
+    context: context,
+  );
+  Future<String> creditSale(String clienteId, int amount) async {
+    await db
+        .update(db.productVariants)
+        .write(ProductVariantsCompanion(salePriceMinor: Value(amount)));
+    await add();
+    final c = await command();
+    await service().confirmar(
+      ConfirmarVentaCommand(
+        saleId: c.saleId,
+        expectedDraftEventId: c.expectedDraftEventId,
+        expectedTotalMinor: c.expectedTotalMinor,
+        clienteId: clienteId,
+        paymentMethod: 'credit',
+      ),
+    );
+    return c.saleId;
+  }
+
+  for (final mode in AppMode.values) {
+    test('${mode.name}: crédito FIFO, anticipos, reinicio y refs', () async {
+      config.dispose();
+      config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+      await seed();
+      await createCustomer();
+      final clienteId = (await db.select(db.clientes).get()).single.id;
+      final first = await creditSale(clienteId, 2000);
+      Future<String> pay(int amount) async {
+        final id = const Uuid().v4();
+        await creditService().registrarAbono(
+          RegistrarAbonoCommand(
+            id: id,
+            clienteId: clienteId,
+            amountMinor: amount,
+            method: 'cash',
+          ),
+        );
+        return id;
+      }
+
+      await pay(1000);
+      final second = await creditSale(clienteId, 5000);
+      await pay(500);
+      var account = await CustomerAccountRepositoryImpl(
+        db,
+      ).watchAccount(clienteId).first;
+      expect(account.balanceMinor, BigInt.from(-5500));
+      expect(
+        account.pendingMinor(account.entries.singleWhere((e) => e.id == first)),
+        500,
+      );
+      final lastPayment = await pay(1000);
+      account = await CustomerAccountRepositoryImpl(
+        db,
+      ).watchAccount(clienteId).first;
+      expect(
+        account.pendingMinor(account.entries.singleWhere((e) => e.id == first)),
+        0,
+      );
+      expect(
+        account.pendingMinor(
+          account.entries.singleWhere((e) => e.id == second),
+        ),
+        4500,
+      );
+      final split = (await db.select(db.creditAllocations).get())
+          .where((a) => a.paymentId == lastPayment)
+          .toList();
+      expect(split.map((a) => a.amountMinor), [500, 500]);
+      expect(await db.select(db.salePayments).get(), isEmpty);
+      expect(
+        (await db.select(db.inventoryBalances).get())
+            .single
+            .quantityOnHandAtomic,
+        -2,
+      );
+      await pay(6000);
+      final third = await creditSale(clienteId, 1000);
+      account = await CustomerAccountRepositoryImpl(
+        db,
+      ).watchAccount(clienteId).first;
+      expect(account.balanceMinor, BigInt.from(500));
+      expect(
+        account.pendingMinor(account.entries.singleWhere((e) => e.id == third)),
+        0,
+      );
+      final paymentEvents =
+          await (db.select(db.events)..where(
+                (e) =>
+                    e.eventType.equals(AbonoClienteRegistradoPayload.eventType),
+              ))
+              .get();
+      expect(
+        paymentEvents.every(
+          (e) =>
+              e.deliveryStatus ==
+              (mode == AppMode.standalone ? 'not_required' : 'pending'),
+        ),
+        isTrue,
+      );
+      expect(
+        await db.select(db.eventRefs).get(),
+        mode == AppMode.standalone ? isEmpty : isNotEmpty,
+      );
+      await db.close();
+      db = AppDatabase.forTesting(
+        NativeDatabase(File('${directory.path}/test.sqlite')),
+      );
+      expect(
+        (await CustomerAccountRepositoryImpl(
+          db,
+        ).watchAccount(clienteId).first).balanceMinor,
+        BigInt.from(500),
+      );
+    });
+  }
+  test(
+    'abono: doble envío con mismo id es idempotente, otro importe se rechaza',
+    () async {
+      await createCustomer();
+      final cliente = (await db.select(db.clientes).get()).single;
+      final c = RegistrarAbonoCommand(
+        id: const Uuid().v4(),
+        clienteId: cliente.id,
+        amountMinor: 1000,
+        method: 'transfer',
+        reference: '  REF  ',
+      );
+      final result = await Future.wait([
+        creditService().registrarAbono(c),
+        creditService().registrarAbono(c),
+      ]);
+      expect(result.toSet(), hasLength(1));
+      expect(
+        (await db.select(db.customerPayments).get()).single.reference,
+        'REF',
+      );
+      await expectLater(
+        creditService().registrarAbono(
+          RegistrarAbonoCommand(
+            id: c.id,
+            clienteId: cliente.id,
+            amountMinor: 2000,
+            method: 'cash',
+          ),
+        ),
+        throwsStateError,
+      );
+      await persistence().updateEventSyncStatus(
+        result.first,
+        'delivered',
+        serverSequence: 90,
+      );
+      expect(
+        (await db.select(db.customerPayments).get()).single.lastServerSequence,
+        90,
+      );
+    },
+  );
+  test(
+    'crédito exige cliente y no acepta efectivo; transacción conserva borrador',
+    () async {
+      await seed();
+      await add();
+      final c = await command();
+      await expectLater(
+        service().confirmar(
+          ConfirmarVentaCommand(
+            saleId: c.saleId,
+            expectedDraftEventId: c.expectedDraftEventId,
+            expectedTotalMinor: c.expectedTotalMinor,
+            paymentMethod: 'credit',
+          ),
+        ),
+        throwsStateError,
+      );
+      await createCustomer();
+      final cliente = (await db.select(db.clientes).get()).single;
+      await expectLater(
+        service().confirmar(
+          ConfirmarVentaCommand(
+            saleId: c.saleId,
+            expectedDraftEventId: c.expectedDraftEventId,
+            expectedTotalMinor: c.expectedTotalMinor,
+            clienteId: cliente.id,
+            paymentMethod: 'credit',
+            receivedMinor: 1,
+          ),
+        ),
+        throwsFormatException,
+      );
+      failAfterApply = true;
+      await expectLater(
+        service().confirmar(
+          ConfirmarVentaCommand(
+            saleId: c.saleId,
+            expectedDraftEventId: c.expectedDraftEventId,
+            expectedTotalMinor: c.expectedTotalMinor,
+            clienteId: cliente.id,
+            paymentMethod: 'credit',
+          ),
+        ),
+        throwsStateError,
+      );
+      expect(await db.select(db.creditSales).get(), isEmpty);
+      expect(await db.select(db.inventoryMovements).get(), isEmpty);
+      expect((await db.select(db.sales).get()).single.status, 'borrador');
+    },
+  );
+  test(
+    'pull: abono recibido antes de venta converge y los ecos no duplican',
+    () async {
+      await seed();
+      await createCustomer();
+      final cliente = (await db.select(db.clientes).get()).single;
+      await creditSale(cliente.id, 2000);
+      final id = const Uuid().v4();
+      final paidEventId = await creditService().registrarAbono(
+        RegistrarAbonoCommand(
+          id: id,
+          clienteId: cliente.id,
+          amountMinor: 1000,
+          method: 'cash',
+        ),
+      );
+      final saleEvent = (await getStore().watchConfirmed().first).single
+          .copyWith(
+            baseVersion: 1,
+            serverSequence: 11,
+            deliveryStatus: 'delivered',
+          );
+      final paymentEvent = (await persistence().eventById(paidEventId))!
+          .copyWith(
+            baseVersion: 1,
+            serverSequence: 10,
+            deliveryStatus: 'delivered',
+          );
+      final customerEvent =
+          (await persistence().eventById(cliente.createdEventId!))!.copyWith(
+            baseVersion: 1,
+            serverSequence: 9,
+            deliveryStatus: 'delivered',
+          );
+      await db.close();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      await seed();
+      final creditStore = DriftCustomerCreditStore(db);
+      final processor = EventProcessor(
+        handlers: {
+          ClienteCreadoPayload.eventType: ClienteEventHandler(
+            DriftClienteProjectionStore(db.clienteDao),
+          ).apply,
+          AbonoClienteRegistradoPayload.eventType: AbonoClienteEventHandler(
+            creditStore,
+          ).apply,
+          VentaConfirmadaPayload.eventType: VentaConfirmadaEventHandler(
+            getStore(),
+          ).apply,
+        },
+      );
+      for (final page in [
+        [customerEvent, paymentEvent],
+        [saleEvent],
+        [paymentEvent, saleEvent],
+      ]) {
+        await DriftSyncedEventStore(db: db).applySyncedEvents(
+          page,
+          applyEvent: processor.apply,
+          acknowledgeEcho: (e) =>
+              getStore().acknowledge(e.eventId, e.serverSequence!),
+        );
+      }
+      final account = await CustomerAccountRepositoryImpl(
+        db,
+      ).watchAccount(cliente.id).first;
+      expect(account.balanceMinor, BigInt.from(-1000));
+      expect(
+        (await db.select(db.creditAllocations).get()).single.amountMinor,
+        1000,
+      );
+      expect(
+        (await db.select(db.inventoryBalances).get())
+            .single
+            .quantityOnHandAtomic,
+        -1,
       );
     },
   );

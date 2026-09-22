@@ -1,3 +1,4 @@
+import '../../sync/projections/cliente_projection_store.dart';
 import 'package:uuid/uuid.dart';
 import '../../../domain/articulos/sale_configuration.dart';
 import '../../../domain/ventas/sale_status.dart';
@@ -19,12 +20,14 @@ class VentaCommandService {
     required this.inventory,
     required this.events,
     required this.context,
+    this.clientes,
   });
   final SaleDraftProjectionStore drafts;
   final ProductoProjectionStore products;
   final InventoryProjectionStore inventory;
   final LocalEventStore events;
   final LocalCommandContext context;
+  final ClienteProjectionStore? clientes;
   final _uuid = const Uuid();
 
   Future<String> confirmar(
@@ -42,8 +45,20 @@ class VentaCommandService {
         'El borrador cambió o ya fue cobrado. Revísalo antes de cobrar.',
       );
     }
+    final cliente = command.clienteId == null
+        ? null
+        : await clientes?.findById(command.clienteId!);
+    if ((command.clienteId != null &&
+            (cliente == null ||
+                !cliente.active ||
+                cliente.createdEventId == null)) ||
+        (command.paymentMethod == 'credit' && cliente == null)) {
+      throw StateError('Selecciona un cliente activo para la venta.');
+    }
     final lines = <ConfirmedSaleLine>[];
-    final dependencies = <String>{};
+    final dependencies = <String>{
+      if (cliente?.createdEventId != null) cliente!.createdEventId!,
+    };
     for (final item in await drafts.items(sale.id)) {
       if (!item.active) continue;
       final variant = await products.findVariantById(item.snapshot.variantId);
@@ -138,12 +153,21 @@ class VentaCommandService {
         ),
       );
     }
-    final received = command.receivedMinor ?? sale.totalMinor;
+    final credit = command.paymentMethod == 'credit';
+    if (credit && command.receivedMinor != null && command.receivedMinor != 0) {
+      throw const FormatException('Una venta a crédito no recibe efectivo.');
+    }
+    final received = credit ? 0 : command.receivedMinor ?? sale.totalMinor;
     final payload = VentaConfirmadaPayload(
-      paymentId: _uuid.v4(),
+      paymentId: credit ? null : _uuid.v4(),
+      paymentMethod: command.paymentMethod,
+      occurredAtMs: credit ? DateTime.now().millisecondsSinceEpoch : null,
+      clienteId: cliente?.id,
+      clienteEventId: cliente?.createdEventId,
+      clienteNombre: cliente?.nombre,
       totalMinor: sale.totalMinor,
       receivedMinor: received,
-      changeMinor: received - sale.totalMinor,
+      changeMinor: credit ? 0 : received - sale.totalMinor,
       currency: 'MXN',
       lines: lines,
       dependencyEventIds: dependencies.toList(),
