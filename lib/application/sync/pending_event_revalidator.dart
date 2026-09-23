@@ -1,5 +1,6 @@
 import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
+import 'payloads/cliente_actualizado_payload.dart';
 import 'projections/cliente_projection_store.dart';
 import 'revalidation/cliente_pending_event_validator.dart';
 import 'payloads/venta_confirmada_payload.dart';
@@ -84,6 +85,12 @@ class PendingEventRevalidator {
       if (clienteProjectionStore != null)
         ClienteCreadoPayload.eventType: ClientePendingEventValidator(
           clienteProjectionStore,
+          syncedEventHistory,
+        ),
+      if (clienteProjectionStore != null)
+        ClienteActualizadoPayload.eventType: ClientePendingEventValidator(
+          clienteProjectionStore,
+          syncedEventHistory,
         ),
       VentaConfirmadaPayload.eventType: SalePendingEventValidator(
         syncedEventHistory,

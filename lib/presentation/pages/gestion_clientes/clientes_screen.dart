@@ -73,7 +73,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute<void>(
-                    builder: (_) => ClienteAccountScreen(cliente: cliente),
+                    builder: (_) => ClienteAccountScreen(
+                      cliente: cliente,
+                      clienteRepository: widget.repository,
+                      commandService: widget.commandService,
+                    ),
                   ),
                 ),
                 trailing: const Icon(Icons.chevron_right),

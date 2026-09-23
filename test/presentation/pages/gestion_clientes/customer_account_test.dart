@@ -1,5 +1,6 @@
 import 'package:pos_flutter/presentation/pages/gestion_clientes/customer_account_receipt_image_generator.dart';
 import 'dart:async';
+import 'package:pos_flutter/domain/repositories/cliente_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/clientes/cliente.dart';
@@ -11,6 +12,11 @@ import 'package:pos_flutter/application/commands/creditos/registrar_abono_comman
 import 'package:pos_flutter/presentation/pages/gestion_clientes/cliente_account_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/registrar_abono_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/customer_account_display.dart';
+
+class _Clientes implements ClienteRepository {
+  @override
+  Stream<List<Cliente>> watchClientes() => Stream.value([cliente]);
+}
 
 class _Account implements CustomerAccountRepository {
   @override
@@ -68,7 +74,11 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: ClienteAccountScreen(cliente: cliente, repository: _Account()),
+        home: ClienteAccountScreen(
+          cliente: cliente,
+          repository: _Account(),
+          clienteRepository: _Clientes(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

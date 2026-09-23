@@ -18,15 +18,10 @@ class ClienteDao extends DatabaseAccessor<AppDatabase> with _$ClienteDaoMixin {
     await into(clientes).insertOnConflictUpdate(row);
   }
 
-  Future<void> advanceServerSequence(
-    String id,
-    String eventId,
-    int sequence,
-  ) async {
+  Future<void> advanceServerSequence(String id, int sequence) async {
     await (update(clientes)..where(
           (t) =>
               t.id.equals(id) &
-              t.createdEventId.equals(eventId) &
               (t.lastServerSequence.isNull() |
                   t.lastServerSequence.isSmallerThanValue(sequence)),
         ))

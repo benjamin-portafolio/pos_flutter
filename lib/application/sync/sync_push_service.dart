@@ -1,3 +1,4 @@
+import 'payloads/cliente_actualizado_payload.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/venta_confirmada_payload.dart';
 import 'dart:convert';
@@ -177,6 +178,10 @@ class SyncPushService {
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
     switch (event.eventType) {
+      case ClienteActualizadoPayload.eventType:
+        return eventIds.contains(
+          ClienteActualizadoPayload.fromJson(event.payload).baseEventId,
+        );
       case AbonoClienteRegistradoPayload.eventType:
         return AbonoClienteRegistradoPayload.fromJson(
           event.payload,

@@ -717,6 +717,7 @@ void main() {
     },
   );
   Future<void> createCustomer() => ClienteCommandService(
+    clienteProjectionStore: DriftClienteProjectionStore(db.clienteDao),
     eventStore: events(),
     commandContext: context,
   ).crearCliente(const CrearClienteCommand(nombre: 'Ana', telefono: '555'));

@@ -9,14 +9,22 @@ import '../../../domain/repositories/customer_account_repository.dart';
 import '../caja/sale_receipt_screen.dart';
 import 'registrar_abono_screen.dart';
 import 'customer_account_display.dart';
+import 'cliente_form_screen.dart';
+import '../../../domain/repositories/cliente_repository.dart';
+import '../../../application/commands/clientes/cliente_command_service.dart';
+import '../../../application/commands/clientes/editar_cliente_command.dart';
 
 class ClienteAccountScreen extends StatefulWidget {
   const ClienteAccountScreen({
     required this.cliente,
     this.repository,
+    this.clienteRepository,
+    this.commandService,
     super.key,
   });
   final Cliente cliente;
+  final ClienteRepository? clienteRepository;
+  final ClienteCommandService? commandService;
   final CustomerAccountRepository? repository;
   @override
   State<ClienteAccountScreen> createState() => _ClienteAccountScreenState();
@@ -27,20 +35,51 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
       (widget.repository ?? getIt<CustomerAccountRepository>()).watchAccount(
         widget.cliente.id,
       );
+  late final Stream<List<Cliente>> _clientes =
+      (widget.clienteRepository ?? getIt<ClienteRepository>()).watchClientes();
   String? _lastOperation;
-  Future<void> _add() async {
-    final id = await Navigator.push<String>(
+  Future<void> _edit(Cliente cliente) async {
+    final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => RegistrarAbonoScreen(cliente: widget.cliente),
+        builder: (_) => ClienteFormScreen(
+          cliente: cliente,
+          onSave: (result) async {
+            final base = cliente.lastEventId;
+            if (base == null) {
+              throw StateError('El cliente no tiene evento base.');
+            }
+            await (widget.commandService ?? getIt<ClienteCommandService>())
+                .editarCliente(
+                  EditarClienteCommand(
+                    clienteId: cliente.id,
+                    baseEventId: base,
+                    nombre: result.nombre,
+                    telefono: result.telefono,
+                  ),
+                );
+          },
+        ),
       ),
+    );
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cliente actualizado.')));
+    }
+  }
+
+  Future<void> _add(Cliente cliente) async {
+    final id = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => RegistrarAbonoScreen(cliente: cliente)),
     );
     if (mounted && id != null) setState(() => _lastOperation = id);
   }
 
-  Future<void> _ticket(CustomerAccount account) async {
+  Future<void> _ticket(Cliente cliente, CustomerAccount account) async {
     final text = CustomerAccountDisplay.statement(
-      widget.cliente.nombre,
+      cliente.nombre,
       account,
       operationId: _lastOperation,
     );
@@ -64,7 +103,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
                   ShareParams(
                     files: [XFile.fromData(image, mimeType: 'image/png')],
                     fileNameOverrides: ['estado-cuenta.png'],
-                    title: 'Cuenta de ${widget.cliente.nombre}',
+                    title: 'Cuenta de ${cliente.nombre}',
                     sharePositionOrigin: box == null
                         ? null
                         : box.localToGlobal(Offset.zero) & box.size,
@@ -86,8 +125,27 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.cliente.nombre)),
+  Widget build(BuildContext context) => StreamBuilder<List<Cliente>>(
+    stream: _clientes,
+    builder: (context, snapshot) {
+      final cliente =
+          snapshot.data?.where((c) => c.id == widget.cliente.id).firstOrNull ??
+          widget.cliente;
+      return _detail(cliente);
+    },
+  );
+
+  Widget _detail(Cliente cliente) => Scaffold(
+    appBar: AppBar(
+      title: Text(cliente.nombre),
+      actions: [
+        TextButton.icon(
+          onPressed: cliente.active ? () => _edit(cliente) : null,
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Editar'),
+        ),
+      ],
+    ),
     body: StreamBuilder<CustomerAccount>(
       stream: _account,
       builder: (context, snapshot) {
@@ -111,7 +169,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           children: [
-            Text(widget.cliente.telefono ?? 'Sin teléfono registrado'),
+            Text(cliente.telefono ?? 'Sin teléfono registrado'),
             SelectableText(
               'Cliente: ${widget.cliente.id}',
               style: Theme.of(context).textTheme.bodySmall,
@@ -144,7 +202,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
               ),
             ),
             OutlinedButton.icon(
-              onPressed: () => _ticket(account),
+              onPressed: () => _ticket(cliente, account),
               icon: const Icon(Icons.receipt_long),
               label: const Text('Ver / compartir estado de cuenta'),
             ),
@@ -165,7 +223,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
       },
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: _add,
+      onPressed: () => _add(cliente),
       icon: const Icon(Icons.add),
       label: const Text('Registrar abono'),
     ),

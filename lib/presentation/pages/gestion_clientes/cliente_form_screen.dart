@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'cliente_form_result.dart';
+import '../../../domain/clientes/cliente.dart';
 
 class ClienteFormScreen extends StatefulWidget {
-  const ClienteFormScreen({required this.onSave, super.key});
+  const ClienteFormScreen({required this.onSave, this.cliente, super.key});
+  final Cliente? cliente;
   final Future<void> Function(ClienteFormResult result) onSave;
   @override
   State<ClienteFormScreen> createState() => _ClienteFormScreenState();
@@ -13,6 +15,13 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
   final _nombre = TextEditingController();
   final _telefono = TextEditingController();
   bool _saving = false;
+  @override
+  void initState() {
+    super.initState();
+    _nombre.text = widget.cliente?.nombre ?? '';
+    _telefono.text = widget.cliente?.telefono ?? '';
+  }
+
   @override
   void dispose() {
     _nombre.dispose();
@@ -51,7 +60,9 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
     canPop: !_saving,
     child: Scaffold(
       appBar: AppBar(
-        title: const Text('Agregar cliente'),
+        title: Text(
+          widget.cliente == null ? 'Agregar cliente' : 'Editar cliente',
+        ),
         leading: IconButton(
           tooltip: 'Cancelar',
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
@@ -121,6 +132,15 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                           onFieldSubmitted: (_) => _save(),
                         ),
                         const SizedBox(height: 16),
+                        if (widget.cliente != null)
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: null,
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Borrar'),
+                            ),
+                          ),
                       ],
                     ),
                   ),

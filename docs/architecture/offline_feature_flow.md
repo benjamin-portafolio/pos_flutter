@@ -540,3 +540,18 @@ La confirmación ahora admite crédito con cliente obligatorio y conserva efecti
 con cliente opcional. Abonos/anticipos y FIFO están integrados en ambos modos.
 Ver [contratos, esquema y límites](customer_credit.md). La detección de esquema
 local ahora exige las tablas de crédito y sales.cliente_id, manteniendo versión 7.
+
+## Edición de clientes
+
+El detalle abre el mismo formulario de alta, precargado, y conserva el evento
+base leído al abrir la edición. `cliente_actualizado` transporta
+`base_event_id`, `before` y `after` (nombre y teléfono); el sobre conserva
+`base_version` y la secuencia oficial conocida. El comando, el handler local
+y NestJS validan la base antes de actualizar. La identidad y el evento de alta
+se conservan para mantener créditos, abonos e historial vinculados.
+
+El push espera el alta o la edición base pendiente. Los ecos avanzan solo la
+secuencia oficial, sin sobrescribir ediciones posteriores. Una edición oficial
+concurrente restaura en orden inverso las ediciones locales pendientes antes
+de aplicar al ganador. Standalone conserva `not_required` y no persiste refs.
+El botón Borrar del formulario de edición permanece deshabilitado por alcance.

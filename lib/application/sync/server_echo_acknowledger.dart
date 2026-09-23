@@ -1,3 +1,4 @@
+import 'payloads/cliente_actualizado_payload.dart';
 import 'projections/customer_credit_store.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
@@ -45,10 +46,10 @@ class ServerEchoAcknowledger {
       case AbonoClienteRegistradoPayload.eventType:
         await customerCreditStore?.acknowledge(event.eventId, serverSequence);
         return;
+      case ClienteActualizadoPayload.eventType:
       case ClienteCreadoPayload.eventType:
         await clienteProjectionStore?.advanceServerSequence(
           event.aggregateId,
-          event.eventId,
           serverSequence,
         );
         return;

@@ -1,4 +1,6 @@
 import 'payloads/cliente_creado_payload.dart';
+import 'payloads/cliente_actualizado_payload.dart';
+import 'cliente_conflict_projection_restorer.dart';
 import 'projections/cliente_projection_store.dart';
 import 'categoria_conflict_projection_restorer.dart';
 import 'categoria_eliminada_conflict_projection_restorer.dart';
@@ -56,7 +58,12 @@ class SyncConflictProjectionCleaner {
   _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
-    if (event.eventType == ClienteCreadoPayload.eventType) {
+    if (event.eventType == ClienteActualizadoPayload.eventType) {
+      final store = clienteProjectionStore;
+      if (store != null) {
+        await ClienteConflictProjectionRestorer(store).restore(event);
+      }
+    } else if (event.eventType == ClienteCreadoPayload.eventType) {
       await clienteProjectionStore?.deleteCreatedByEvent(event.eventId);
     } else if (event.eventType == EspacioCreadoPayload.eventType) {
       await _espacioProjectionStore.deleteCreatedByEvent(event.eventId);

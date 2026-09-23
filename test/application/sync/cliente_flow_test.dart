@@ -1,3 +1,12 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:pos_flutter/application/commands/clientes/editar_cliente_command.dart';
+import 'package:pos_flutter/application/sync/payloads/cliente_actualizado_payload.dart';
+import 'package:pos_flutter/application/sync/remote_event_preparer.dart';
+import 'package:pos_flutter/application/sync/categoria_eliminada_conflict_projection_restorer.dart';
+import 'package:pos_flutter/application/sync/sync_push_service.dart';
+import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/clientes/cliente_command_service.dart';
@@ -49,6 +58,9 @@ void main() {
     final processor = EventProcessor(
       handlers: {
         ClienteCreadoPayload.eventType: ClienteEventHandler(projection).apply,
+        ClienteActualizadoPayload.eventType: ClienteEventHandler(
+          projection,
+        ).applyUpdate,
       },
     );
     local = DriftLocalEventStore(
@@ -59,6 +71,7 @@ void main() {
       appConfigController: config,
     );
     command = ClienteCommandService(
+      clienteProjectionStore: projection,
       eventStore: local,
       commandContext: const LocalCommandContext(
         deviceId: 'tablet',
@@ -88,6 +101,12 @@ void main() {
       categoriaMovidaConflictProjectionRestorer: moved,
     );
     remote = RemoteEventApplier(
+      remoteEventPreparer: RemoteEventPreparer(
+        syncPersistence: persistence,
+        categoriaEliminadaConflictProjectionRestorer:
+            CategoriaEliminadaConflictProjectionRestorer(categories),
+        conflictProjectionCleaner: cleaner,
+      ),
       eventStore: DriftSyncedEventStore(db: db),
       eventProcessor: processor,
       serverEchoAcknowledger: ServerEchoAcknowledger(
@@ -99,6 +118,202 @@ void main() {
   tearDown(() async {
     config.dispose();
     await db.close();
+  });
+
+  Future<SyncEvent> edit(String id, String name, {String? phone}) async {
+    final row = (await projection.findById(id))!;
+    await command.editarCliente(
+      EditarClienteCommand(
+        clienteId: id,
+        baseEventId: row.lastEventId!,
+        nombre: name,
+        telefono: phone,
+      ),
+    );
+    final saved = (await db.select(db.events).get()).last;
+    return SyncEvent(
+      eventId: saved.eventId,
+      aggregateType: saved.aggregateType,
+      aggregateId: saved.aggregateId,
+      eventType: saved.eventType,
+      deviceId: saved.deviceId,
+      userId: saved.userId,
+      createdAtLocal: saved.createdAtLocal,
+      baseVersion: saved.baseVersion,
+      baseServerSequence: saved.baseServerSequence,
+      payload: Map<String, Object?>.from(jsonDecode(saved.payload) as Map),
+    );
+  }
+
+  for (final mode in AppMode.values) {
+    test(
+      'edición normaliza, conserva identidad y valida base en ${mode.name}',
+      () async {
+        config.update(AppConfig.initial.copyWith(mode: mode));
+        await command.crearCliente(
+          const CrearClienteCommand(nombre: 'Ana', telefono: '555'),
+        );
+        final before = (await db.select(db.clientes).get()).single;
+        final update = await edit(before.id, ' Ana María ', phone: '  ');
+        await ClienteEventHandler(projection).applyUpdate(update);
+        final after = (await db.select(db.clientes).get()).single;
+        expect(after.nombre, 'Ana María');
+        expect(after.telefono, isNull);
+        expect(after.id, before.id);
+        expect(after.createdEventId, before.createdEventId);
+        expect(after.version, 2);
+        expect(after.lastEventId, update.eventId);
+        expect(
+          (await db.select(db.events).get()).last.deliveryStatus,
+          mode == AppMode.standalone ? 'not_required' : 'pending',
+        );
+        expect(
+          await db.select(db.eventRefs).get(),
+          hasLength(mode == AppMode.standalone ? 0 : 2),
+        );
+        await edit(before.id, 'Ana María');
+        expect(await db.select(db.events).get(), hasLength(2));
+        await expectLater(edit(before.id, '  '), throwsFormatException);
+        await expectLater(
+          command.editarCliente(
+            EditarClienteCommand(
+              clienteId: before.id,
+              baseEventId: before.lastEventId!,
+              nombre: 'Viejo',
+            ),
+          ),
+          throwsStateError,
+        );
+        expect(await db.select(db.events).get(), hasLength(2));
+      },
+    );
+  }
+  test(
+    'eco de alta y edición conserva la siguiente edición optimista',
+    () async {
+      final creation = _event('created', 'customer');
+      await local.appendAndApply(creation, refs: _refs(creation));
+      final first = await edit('customer', 'Primero');
+      final second = await edit('customer', 'Segundo');
+      await remote.applySyncedEvents([
+        creation.copyWith(serverSequence: 10),
+        first.copyWith(serverSequence: 11),
+      ]);
+      final current = (await projection.findById('customer'))!;
+      expect(current.nombre, 'Segundo');
+      expect(current.version, 3);
+      expect(current.lastEventId, second.eventId);
+      expect(current.lastServerSequence, 11);
+      expect((await revalidator.revalidatePendingEvents()).conflicts, 0);
+    },
+  );
+  test(
+    'pull concurrente restaura cadena local y aplica ganador oficial',
+    () async {
+      final creation = _event(
+        'created',
+        'customer',
+      ).copyWith(serverSequence: 10);
+      await remote.applySyncedEvents([creation]);
+      final first = await edit('customer', 'Primero');
+      final second = await edit('customer', 'Segundo');
+      final official = first.copyWith(
+        eventId: 'remote-edit',
+        serverSequence: 11,
+        payload: ClienteActualizadoPayload(
+          baseEventId: 'created',
+          before: const ClienteCreadoPayload(nombre: 'Ana'),
+          after: const ClienteCreadoPayload(nombre: 'Oficial', telefono: '001'),
+        ).toJson(),
+      );
+      await remote.applySyncedEvents([official]);
+      await remote.applySyncedEvents([official]);
+      final current = (await projection.findById('customer'))!;
+      expect(current.nombre, 'Oficial');
+      expect(current.telefono, '001');
+      expect(current.version, 2);
+      for (final event in [first, second]) {
+        expect(
+          (await db.eventDao.obtenerEventoPorId(event.eventId))!.deliveryStatus,
+          'conflict',
+        );
+        await cleaner.hideConflictProjection(event);
+      }
+      expect((await projection.findById('customer'))!.nombre, 'Oficial');
+    },
+  );
+  test(
+    'push espera alta y edición anterior; conflicto restaura toda la cadena',
+    () async {
+      final creation = _event('created', 'customer');
+      await local.appendAndApply(creation, refs: _refs(creation));
+      final first = await edit('customer', 'Primero');
+      await edit('customer', 'Segundo');
+      final requests = <List<dynamic>>[];
+      final push = SyncPushService(
+        syncPersistence: DriftSyncPersistence(
+          db: db,
+          eventDao: db.eventDao,
+          eventRefDao: db.eventRefDao,
+          syncCheckpointDao: db.syncCheckpointDao,
+        ),
+        endpointConfig: SyncEndpointConfig(
+          initialBaseUrl: 'http://localhost:3000',
+        ),
+        conflictProjectionCleaner: cleaner,
+        client: MockClient((request) async {
+          final events = (jsonDecode(request.body) as Map)['events'] as List;
+          requests.add(events);
+          return http.Response(
+            jsonEncode({
+              'results': events
+                  .map(
+                    (e) => {
+                      'event_id': e['event_id'],
+                      'status': requests.length == 1 ? 'accepted' : 'conflict',
+                      'server_sequence': requests.length,
+                      'created_at_server': DateTime(2026).toIso8601String(),
+                    },
+                  )
+                  .toList(),
+            }),
+            200,
+          );
+        }),
+      );
+      await push.pushPendingEvents();
+      expect(requests.single.single['event_id'], creation.eventId);
+      await push.pushPendingEvents();
+      expect(requests.last.single['event_id'], first.eventId);
+      expect((await projection.findById('customer'))!.nombre, 'Ana');
+      expect((await projection.findById('customer'))!.version, 1);
+    },
+  );
+  test('contrato edición normaliza y rechaza estructura inválida', () {
+    final json = {
+      'base_event_id': 'base',
+      'before': {'nombre': ' Ana ', 'telefono': ' 001 '},
+      'after': {'nombre': ' Nueva ', 'telefono': ' '},
+    };
+    final payload = ClienteActualizadoPayload.fromJson(json);
+    expect(
+      ClienteActualizadoPayload.fromJson(payload.toJson()).after.nombre,
+      'Nueva',
+    );
+    expect(payload.after.telefono, isNull);
+    for (final invalid in [
+      {...json, 'base_event_id': ''},
+      {...json, 'before': null},
+      {
+        ...json,
+        'after': {'nombre': ' '},
+      },
+    ]) {
+      expect(
+        () => ClienteActualizadoPayload.fromJson(invalid),
+        throwsFormatException,
+      );
+    }
   });
 
   for (final mode in AppMode.values) {

@@ -1,3 +1,4 @@
+import 'payloads/cliente_actualizado_payload.dart';
 import 'categoria_eliminada_conflict_projection_restorer.dart';
 import 'models/sync_event.dart';
 import 'payloads/categoria_eliminada_payload.dart';
@@ -29,6 +30,23 @@ class RemoteEventPreparer {
       pending.map((event) => event.eventId).toList(growable: false),
     );
 
+    if (officialEvent.aggregateType ==
+        ClienteActualizadoPayload.aggregateType) {
+      for (final local in pending.reversed) {
+        if (local.eventType != ClienteActualizadoPayload.eventType ||
+            local.aggregateId != officialEvent.aggregateId ||
+            local.eventId == officialEvent.eventId) {
+          continue;
+        }
+        await _conflictProjectionCleaner.hideConflictProjection(local);
+        await _syncPersistence.updateEventSyncStatus(
+          local.eventId,
+          'conflict',
+          rejectionReason:
+              'El cliente cambió oficialmente desde la base local.',
+        );
+      }
+    }
     final officialProducts = <String>{
       if (officialEvent.aggregateType == 'product') officialEvent.aggregateId,
       if (officialEvent.eventType == CategoriaEliminadaPayload.eventType)

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pos_flutter/application/sync/projections/cliente_projection_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/clientes/cliente_command_service.dart';
@@ -21,6 +22,7 @@ void main() {
           home: ClientesScreen(
             repository: store,
             commandService: ClienteCommandService(
+              clienteProjectionStore: store,
               eventStore: store,
               commandContext: const LocalCommandContext(
                 deviceId: 'tablet',
@@ -59,6 +61,7 @@ void main() {
         home: ClientesScreen(
           repository: store,
           commandService: ClienteCommandService(
+            clienteProjectionStore: store,
             eventStore: store,
             commandContext: const LocalCommandContext(
               deviceId: 'tablet',
@@ -134,7 +137,8 @@ void main() {
   });
 }
 
-class _Clients implements ClienteRepository, LocalEventStore {
+class _Clients
+    implements ClienteRepository, LocalEventStore, ClienteProjectionStore {
   final events = <SyncEvent>[];
   final _changes = StreamController<List<Cliente>>.broadcast();
   final _rows = <Cliente>[];
@@ -161,4 +165,6 @@ class _Clients implements ClienteRepository, LocalEventStore {
   }
 
   Future<void> close() => _changes.close();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

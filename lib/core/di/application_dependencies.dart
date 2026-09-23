@@ -8,6 +8,7 @@ import '../../domain/repositories/customer_account_repository.dart';
 import '../../application/commands/clientes/cliente_command_service.dart';
 import '../../application/sync/handlers/cliente_event_handler.dart';
 import '../../application/sync/payloads/cliente_creado_payload.dart';
+import '../../application/sync/payloads/cliente_actualizado_payload.dart';
 import '../../application/sync/projections/cliente_projection_store.dart';
 import '../../domain/repositories/confirmed_sale_repository.dart';
 import '../../data/repositories/confirmed_sale_repository_impl.dart';
@@ -105,6 +106,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ClienteCommandService>(
     () => ClienteCommandService(
+      clienteProjectionStore: getIt<ClienteProjectionStore>(),
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
     ),
@@ -194,6 +196,8 @@ void registerApplicationDependencies(
         AbonoClienteRegistradoPayload.eventType:
             getIt<AbonoClienteEventHandler>().apply,
         ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
+        ClienteActualizadoPayload.eventType:
+            getIt<ClienteEventHandler>().applyUpdate,
         VentaConfirmadaPayload.eventType:
             getIt<VentaConfirmadaEventHandler>().apply,
         VentaBorradorLimpiadaPayload.eventType:

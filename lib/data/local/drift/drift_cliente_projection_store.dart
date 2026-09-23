@@ -36,11 +36,8 @@ class DriftClienteProjectionStore implements ClienteProjectionStore {
     ),
   );
   @override
-  Future<void> advanceServerSequence(
-    String id,
-    String eventId,
-    int serverSequence,
-  ) => _dao.advanceServerSequence(id, eventId, serverSequence);
+  Future<void> advanceServerSequence(String id, int serverSequence) =>
+      _dao.advanceServerSequence(id, serverSequence);
   @override
   Future<void> deleteCreatedByEvent(String eventId) =>
       _dao.deleteCreatedByEvent(eventId);

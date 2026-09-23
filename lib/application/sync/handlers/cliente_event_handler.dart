@@ -1,4 +1,5 @@
 import '../models/sync_event.dart';
+import '../payloads/cliente_actualizado_payload.dart';
 import '../payloads/cliente_creado_payload.dart';
 import '../projections/cliente_projection.dart';
 import '../projections/cliente_projection_store.dart';
@@ -6,6 +7,45 @@ import '../projections/cliente_projection_store.dart';
 class ClienteEventHandler {
   ClienteEventHandler(this._store);
   final ClienteProjectionStore _store;
+
+  Future<void> applyUpdate(SyncEvent event) async {
+    if (event.aggregateType != ClienteActualizadoPayload.aggregateType ||
+        event.baseVersion == null ||
+        event.baseVersion! < 1) {
+      throw const FormatException('Base de cliente inválida.');
+    }
+    final payload = ClienteActualizadoPayload.fromJson(event.payload);
+    final current = await _store.findById(event.aggregateId);
+    if (current?.lastEventId == event.eventId) {
+      if (event.serverSequence != null) {
+        await _store.advanceServerSequence(
+          event.aggregateId,
+          event.serverSequence!,
+        );
+      }
+      return;
+    }
+    if (current == null ||
+        !current.active ||
+        current.lastEventId != payload.baseEventId ||
+        current.version != event.baseVersion ||
+        current.nombre != payload.before.nombre ||
+        current.telefono != payload.before.telefono) {
+      throw StateError('El cliente cambió desde que se abrió la edición.');
+    }
+    await _store.insert(
+      ClienteProjection(
+        id: current.id,
+        nombre: payload.after.nombre,
+        telefono: payload.after.telefono,
+        active: current.active,
+        version: current.version + 1,
+        createdEventId: current.createdEventId,
+        lastEventId: event.eventId,
+        lastServerSequence: event.serverSequence ?? current.lastServerSequence,
+      ),
+    );
+  }
 
   Future<void> apply(SyncEvent event) async {
     if (event.aggregateType != ClienteCreadoPayload.aggregateType ||
@@ -22,7 +62,6 @@ class ClienteEventHandler {
         if (event.serverSequence != null) {
           await _store.advanceServerSequence(
             event.aggregateId,
-            event.eventId,
             event.serverSequence!,
           );
         }

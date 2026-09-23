@@ -4,8 +4,10 @@ class Cliente {
     required this.nombre,
     required this.telefono,
     this.active = true,
+    this.lastEventId,
   });
   final String id;
+  final String? lastEventId;
   final bool active;
   final String nombre;
   final String? telefono;

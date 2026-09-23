@@ -14,6 +14,7 @@ class ClienteRepositoryImpl implements ClienteRepository {
             nombre: row.nombre,
             telefono: row.telefono,
             active: row.active,
+            lastEventId: row.lastEventId,
           ),
         )
         .toList(),
