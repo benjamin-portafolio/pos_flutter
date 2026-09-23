@@ -14,5 +14,8 @@ abstract interface class SaleDraftProjectionStore {
   /// Borra primero todas las líneas y luego la venta dentro de la transacción.
   Future<void> deleteDraft(String saleId);
   Future<void> saveSale(SaleProjection sale);
+
+  /// Elimina físicamente una línea del borrador; el total se recalcula aparte.
+  Future<void> deleteItem(String saleId, String saleItemId);
   Future<void> saveItem(SaleItemProjection item);
 }

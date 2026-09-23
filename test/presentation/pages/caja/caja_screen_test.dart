@@ -2,15 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_flutter/application/commands/ventas/actualizar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/ventas/eliminar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/draft_item_edit_sheet.dart';
 import 'package:pos_flutter/presentation/pages/caja/models/sale_draft_display.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
 
 import '../../../support/fake_sale_draft_repository.dart';
+import '../../../support/fake_unidad_inventario_repository.dart';
 import '../../../support/sale_draft_fixtures.dart';
 
 void main() {
@@ -28,7 +32,15 @@ void main() {
       expect(find.text(r'$109.00'), findsNWidgets(2));
       expect(find.text('3 artículos · 5 unidades'), findsOneWidget);
       expect(find.textContaining('mesa'), findsNothing);
-      expect(find.byIcon(Icons.edit), findsNothing);
+      for (final button in tester.widgetList<IconButton>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is IconButton && widget.tooltip == 'Editar artículo',
+        ),
+      )) {
+        expect(button.onPressed, isNotNull);
+      }
+      expect(find.byTooltip('Editar artículo'), findsNWidgets(3));
       expect(
         tester
             .widget<OutlinedButton>(
@@ -218,6 +230,33 @@ void main() {
   });
 
   testWidgets(
+    'el lápiz abre la edición y cerrar descarta los cambios sin comandar',
+    (tester) async {
+      _phone(tester);
+      final commands = _Commands();
+      await _pump(
+        tester,
+        sampleSale(),
+        commands: commands,
+        units: FakeUnidadInventarioRepository(),
+      );
+      await tester.tap(find.byTooltip('Editar artículo').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(DraftItemEditSheet), findsOneWidget);
+      expect(find.text('Editar Test Variantes'), findsOneWidget);
+      expect(find.text('Precio de venta'), findsOneWidget);
+      expect(find.text('Aplicar oferta'), findsOneWidget);
+      await tester.tap(find.byTooltip('Aumentar cantidad'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Cerrar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DraftItemEditSheet), findsNothing);
+      expect(commands.updated, isEmpty);
+      expect(commands.removed, isEmpty);
+    },
+  );
+
+  testWidgets(
     'presenta medidas separadas de piezas con texto ampliado en teléfono estrecho',
     (tester) async {
       _phone(tester, width: 320);
@@ -283,6 +322,7 @@ Future<void> _pump(
   WidgetTester tester,
   SaleDraft sale, {
   _Commands? commands,
+  FakeUnidadInventarioRepository? units,
   double textScale = 1,
 }) async {
   await tester.pumpWidget(
@@ -299,6 +339,7 @@ Future<void> _pump(
             () => Stream.value(sale),
           ),
           ventaBorradorCommandService: commands,
+          unidadInventarioRepository: units,
         ),
       ),
     ),
@@ -308,12 +349,32 @@ Future<void> _pump(
 
 class _Commands implements VentaBorradorCommandService {
   final cleared = <LimpiarVentaBorradorCommand>[];
+  final updated = <ActualizarProductoBorradorCommand>[];
+  final removed = <EliminarProductoBorradorCommand>[];
   Future<void>? gate;
   bool fail = false;
 
   @override
   Future<void> limpiar(LimpiarVentaBorradorCommand command) async {
     cleared.add(command);
+    if (fail) throw StateError('fallo');
+    await gate;
+  }
+
+  @override
+  Future<void> actualizarProducto(
+    ActualizarProductoBorradorCommand command,
+  ) async {
+    updated.add(command);
+    if (fail) throw StateError('fallo');
+    await gate;
+  }
+
+  @override
+  Future<void> eliminarProducto(
+    EliminarProductoBorradorCommand command,
+  ) async {
+    removed.add(command);
     if (fail) throw StateError('fallo');
     await gate;
   }

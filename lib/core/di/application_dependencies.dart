@@ -45,9 +45,13 @@ import '../../application/sync/handlers/inventory_event_registry.dart';
 import '../../application/sync/handlers/producto_event_handler.dart';
 import '../../application/sync/handlers/producto_event_registry.dart';
 import '../../application/sync/handlers/venta_borrador_event_handler.dart';
+import '../../application/sync/handlers/venta_borrador_actualizado_event_handler.dart';
+import '../../application/sync/handlers/venta_borrador_eliminado_event_handler.dart';
 import '../../application/sync/handlers/venta_borrador_limpiada_event_handler.dart';
 import '../../application/sync/local_event_store.dart';
 import '../../application/sync/payloads/producto_agregado_borrador_payload.dart';
+import '../../application/sync/payloads/producto_actualizado_borrador_payload.dart';
+import '../../application/sync/payloads/producto_eliminado_borrador_payload.dart';
 import '../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
@@ -145,6 +149,16 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<VentaBorradorEventHandler>(
     () => VentaBorradorEventHandler(getIt<SaleDraftProjectionStore>()),
   );
+  getIt.registerLazySingleton<VentaBorradorActualizadoEventHandler>(
+    () => VentaBorradorActualizadoEventHandler(
+      getIt<SaleDraftProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<VentaBorradorEliminadoEventHandler>(
+    () => VentaBorradorEliminadoEventHandler(
+      getIt<SaleDraftProjectionStore>(),
+    ),
+  );
   getIt.registerLazySingleton<VentaBorradorCommandService>(
     () => VentaBorradorCommandService(
       store: getIt<SaleDraftProjectionStore>(),
@@ -204,6 +218,10 @@ void registerApplicationDependencies(
             getIt<VentaBorradorLimpiadaEventHandler>().apply,
         ProductoAgregadoBorradorPayload.eventType:
             getIt<VentaBorradorEventHandler>().apply,
+        ProductoActualizadoBorradorPayload.eventType:
+            getIt<VentaBorradorActualizadoEventHandler>().apply,
+        ProductoEliminadoBorradorPayload.eventType:
+            getIt<VentaBorradorEliminadoEventHandler>().apply,
         ...espacioEventHandlers(getIt<EspacioEventHandler>()),
         ...categoriaEventHandlers(getIt<CategoriaEventHandler>()),
         ...productoEventHandlers(getIt<ProductoEventHandler>()),

@@ -4,6 +4,8 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/ventas/agregar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/ventas/actualizar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/ventas/eliminar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
@@ -11,11 +13,16 @@ import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/venta_borrador_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/venta_borrador_actualizado_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/venta_borrador_eliminado_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/venta_borrador_limpiada_event_handler.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_agregado_borrador_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_actualizado_borrador_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_eliminado_borrador_payload.dart';
 import 'package:pos_flutter/application/sync/payloads/sale_item_snapshot.dart';
 import 'package:pos_flutter/application/sync/payloads/venta_borrador_limpiada_payload.dart';
+import 'package:pos_flutter/application/sync/projections/sale_item_projection.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
@@ -42,6 +49,10 @@ void main() {
       eventProcessor: EventProcessor(
         handlers: {
           ProductoAgregadoBorradorPayload.eventType: handler.apply,
+          ProductoActualizadoBorradorPayload.eventType:
+              VentaBorradorActualizadoEventHandler(db.saleDao).apply,
+          ProductoEliminadoBorradorPayload.eventType:
+              VentaBorradorEliminadoEventHandler(db.saleDao).apply,
           VentaBorradorLimpiadaPayload.eventType:
               VentaBorradorLimpiadaEventHandler(db.saleDao).apply,
         },
@@ -464,4 +475,268 @@ void main() {
       );
     },
   );
+
+  Future<SaleItemProjection> onlyLine() async =>
+      (await db.saleDao.items((await db.select(db.sales).get()).single.id))
+          .single;
+
+  test(
+    'actualizar cantidad por piezas recalcula línea, totales y conserva precio',
+    () async {
+      await add(); // 1 × $35
+      await add('bread'); // 1 × $25
+      final sale = (await db.select(db.sales).get()).single;
+      final coffee = (await db.saleDao.items(sale.id))
+          .firstWhere((line) => line.sortOrder == 0);
+      await service().actualizarProducto(
+        ActualizarProductoBorradorCommand(
+          saleItemId: coffee.id,
+          quantity: 3,
+        ),
+      );
+      final after = (await db.select(db.sales).get()).single;
+      final lines = await db.saleDao.items(sale.id);
+      expect(after.version, 3);
+      expect(after.totalMinor, 13000); // 3 × 3500 + 2500
+      final updated = lines.firstWhere((line) => line.id == coffee.id);
+      expect(updated.snapshot.quantity, 3);
+      expect(updated.snapshot.unitPriceMinor, 3500);
+      expect(updated.snapshot.standardCostMinor, 1000);
+      expect(updated.sortOrder, 0);
+      expect(updated.version, 2);
+      expect(lines.firstWhere((line) => line.id != coffee.id).snapshot.quantity, 1);
+      final events = await db.select(db.events).get();
+      expect(events, hasLength(3));
+      final update = events.last;
+      expect(update.eventType, ProductoActualizadoBorradorPayload.eventType);
+      expect(update.deliveryStatus, 'not_required');
+      expect(await db.select(db.inventoryMovements).get(), isEmpty);
+    },
+  );
+
+  test('actualizar medida usa la unidad capturada y ajusta el importe', () async {
+    await measured();
+    await weigh('0.5'); // 500 g → $10000
+    final item = await onlyLine();
+    await service().actualizarProducto(
+      ActualizarProductoBorradorCommand(
+        saleItemId: item.id,
+        measuredQuantity: '1,750',
+      ),
+    );
+    final line = await onlyLine();
+    expect(line.snapshot.measuredQuantityAtomic, 1750);
+    expect(line.snapshot.unitPriceMinor, 20000);
+    expect(line.snapshot.priceReferenceQuantityAtomic, 1000);
+    expect(line.snapshot.unitCode, 'kg');
+    expect((await db.select(db.sales).get()).single.totalMinor, 35000);
+  });
+
+  test('rechaza cantidades inválidas sin cambiar el borrador', () async {
+    await add();
+    await add('bread');
+    final coffee = (await db.saleDao.items(
+      (await db.select(db.sales).get()).single.id,
+    )).first;
+    for (final quantity in <int?>[null, 0, -3]) {
+      await expectLater(
+        service().actualizarProducto(
+          ActualizarProductoBorradorCommand(
+            saleItemId: coffee.id,
+            quantity: quantity,
+          ),
+        ),
+        throwsFormatException,
+      );
+    }
+    await expectLater(
+      service().actualizarProducto(
+        const ActualizarProductoBorradorCommand(
+          saleItemId: '',
+          quantity: 2,
+        ),
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      service().actualizarProducto(
+        ActualizarProductoBorradorCommand(
+          saleItemId: coffee.id,
+          measuredQuantity: '2',
+        ),
+      ),
+      throwsStateError,
+    );
+    await expectLater(
+      service().actualizarProducto(
+        const ActualizarProductoBorradorCommand(
+          saleItemId: 'missing',
+          quantity: 2,
+        ),
+      ),
+      throwsStateError,
+    );
+    await expectLater(
+      service(
+        user: 'second',
+      ).actualizarProducto(
+        ActualizarProductoBorradorCommand(
+          saleItemId: coffee.id,
+          quantity: 2,
+        ),
+      ),
+      throwsStateError,
+    );
+    expect((await db.select(db.events).get()), hasLength(2));
+    expect((await db.select(db.sales).get()).single.totalMinor, 6000);
+  });
+
+  test('rechaza medidas inválidas, vacías o fuera de precisión', () async {
+    await measured();
+    await weigh('0.5');
+    final item = await onlyLine();
+    for (final value in ['', '0', '0.0001', '9007199254740992', '1kg']) {
+      await expectLater(
+        service().actualizarProducto(
+          ActualizarProductoBorradorCommand(
+            saleItemId: item.id,
+            measuredQuantity: value,
+          ),
+        ),
+        throwsFormatException,
+      );
+    }
+    await expectLater(
+      service().actualizarProducto(
+        ActualizarProductoBorradorCommand(
+          saleItemId: item.id,
+          quantity: 2,
+        ),
+      ),
+      throwsStateError,
+    );
+    expect(await db.select(db.events).get(), hasLength(1));
+    expect((await db.select(db.sales).get()).single.totalMinor, 10000);
+  });
+
+  test('actualizar sin cambios no registra un evento nuevo', () async {
+    await add();
+    final item = await onlyLine();
+    await service().actualizarProducto(
+      ActualizarProductoBorradorCommand(
+        saleItemId: item.id,
+        quantity: 1,
+      ),
+    );
+    expect((await db.select(db.sales).get()).single.version, 1);
+    expect(await db.select(db.events).get(), hasLength(1));
+  });
+
+  test('eliminar sólo la línea indicada recalcula el total', () async {
+    await add();
+    await add('bread');
+    final sale = (await db.select(db.sales).get()).single;
+    final lines = await db.saleDao.items(sale.id);
+    final coffee = lines.firstWhere((line) => line.sortOrder == 0);
+    await service().eliminarProducto(
+      EliminarProductoBorradorCommand(saleItemId: coffee.id),
+    );
+    final after = (await db.select(db.sales).get()).single;
+    expect(after.version, 3);
+    expect(after.totalMinor, 2500);
+    final remaining = await db.saleDao.items(sale.id);
+    expect(remaining, hasLength(1));
+    expect(remaining.single.id, isNot(coffee.id));
+    final events = await db.select(db.events).get();
+    expect(events.last.eventType, ProductoEliminadoBorradorPayload.eventType);
+    expect(await db.select(db.productVariants).get(), hasLength(2));
+    expect(await db.select(db.inventoryMovements).get(), isEmpty);
+  });
+
+  test('eliminar la última línea deja el borrador en cero', () async {
+    await add();
+    final sale = (await db.select(db.sales).get()).single;
+    final item = (await db.saleDao.items(sale.id)).single;
+    await service().eliminarProducto(
+      EliminarProductoBorradorCommand(saleItemId: item.id),
+    );
+    final after = (await db.select(db.sales).get()).single;
+    expect(after.totalMinor, 0);
+    expect(after.version, 2);
+    expect(await db.saleDao.items(sale.id), isEmpty);
+    expect(await db.saleDao.findById(sale.id), isNotNull);
+    final repository = SaleDraftRepositoryImpl(
+      saleDao: db.saleDao,
+      userId: 'user',
+      deviceId: 'device',
+    );
+    final draft = await repository.watchCurrentDraft().first;
+    expect(draft!.items, isEmpty);
+    expect(draft.totalMinor, 0);
+  });
+
+  test('eliminar valida propietario, línea y contexto', () async {
+    await add();
+    final item = await onlyLine();
+    await expectLater(
+      service(
+        user: 'second',
+      ).eliminarProducto(EliminarProductoBorradorCommand(saleItemId: item.id)),
+      throwsStateError,
+    );
+    await expectLater(
+      service().eliminarProducto(
+        const EliminarProductoBorradorCommand(saleItemId: 'missing'),
+      ),
+      throwsStateError,
+    );
+    await expectLater(
+      service().eliminarProducto(
+        const EliminarProductoBorradorCommand(saleItemId: '  '),
+      ),
+      throwsFormatException,
+    );
+    expect((await db.select(db.sales).get()).single.totalMinor, 3500);
+    expect(await db.select(db.events).get(), hasLength(1));
+  });
+
+  test('reaplicar edición o eliminación no modifica ni duplica', () async {
+    await add();
+    await add('bread');
+    final sale = (await db.select(db.sales).get()).single;
+    final lines = await db.saleDao.items(sale.id);
+    final coffee = lines.firstWhere((line) => line.sortOrder == 0);
+    await service().actualizarProducto(
+      ActualizarProductoBorradorCommand(
+        saleItemId: coffee.id,
+        quantity: 3,
+      ),
+    );
+    await service().eliminarProducto(
+      EliminarProductoBorradorCommand(
+        saleItemId: lines.firstWhere((line) => line.id != coffee.id).id,
+      ),
+    );
+    expect((await db.select(db.sales).get()).single.totalMinor, 10500);
+    final records = await db.select(db.events).get();
+    final update = records.firstWhere(
+      (event) => event.eventType == ProductoActualizadoBorradorPayload.eventType,
+    );
+    final remove = records.firstWhere(
+      (event) => event.eventType == ProductoEliminadoBorradorPayload.eventType,
+    );
+    final updateHandler = VentaBorradorActualizadoEventHandler(db.saleDao);
+    final removeHandler = VentaBorradorEliminadoEventHandler(db.saleDao);
+    for (var i = 0; i < 2; i++) {
+      await updateHandler.apply(eventFrom(update));
+      await removeHandler.apply(eventFrom(remove));
+    }
+    final after = (await db.select(db.sales).get()).single;
+    expect(after.version, 4);
+    expect(after.totalMinor, 10500);
+    final remaining = await db.saleDao.items(sale.id);
+    expect(remaining, hasLength(1));
+    expect(remaining.single.snapshot.quantity, 3);
+    expect(await db.select(db.events).get(), hasLength(4));
+  });
 }

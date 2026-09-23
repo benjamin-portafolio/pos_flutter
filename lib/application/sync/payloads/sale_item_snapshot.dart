@@ -108,6 +108,24 @@ class SaleItemSnapshot {
     });
   }
 
+  /// Copia sin condiciones, con una cantidad absoluta corregida según el modo.
+  /// Usado por la edición del borrador para conservar precio y unidad capturados.
+  SaleItemSnapshot withQuantity({int? pieces, int? atomic}) {
+    if (saleMode == 'unit') {
+      if (atomic != null) {
+        throw const FormatException('Una venta por piezas no admite medidas.');
+      }
+      return SaleItemSnapshot.fromJson({...toJson(), 'quantity': pieces});
+    }
+    if (pieces != null) {
+      throw const FormatException('Una venta medida no admite piezas.');
+    }
+    return SaleItemSnapshot.fromJson({
+      ...toJson(),
+      'measured_quantity_atomic': atomic,
+    });
+  }
+
   Map<String, Object?> toJson() => {
     'variant_id': variantId,
     'consumption_configuration_key': consumptionConfigurationKey,

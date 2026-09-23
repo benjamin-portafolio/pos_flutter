@@ -10,6 +10,16 @@ class SaleDraftDisplay {
       ? '${item.quantity}'
       : '${_measure(BigInt.from(item.measuredQuantityAtomic!), item.unitAtomicFactor!)} ${item.unitSymbol}';
 
+  /// Parte numérica de la cantidad, sin símbolo; usada para editar la línea.
+  static String quantityNumber(SaleDraftItem item) => item.quantity != null
+      ? '${item.quantity}'
+      : measureNumber(item.measuredQuantityAtomic!, item.unitAtomicFactor!);
+
+  /// Formatea una cantidad atómica en la unidad visible para mostrar el estado
+  /// provisional de la edición.
+  static String measureNumber(int atomic, int unitFactor) =>
+      _measure(BigInt.from(atomic), unitFactor);
+
   static String price(SaleDraftItem item) => item.quantity != null
       ? money(item.unitPriceMinor)
       : '${money(item.unitPriceMinor)} / ${_measure(BigInt.from(item.priceReferenceQuantityAtomic!), item.unitAtomicFactor!)} ${item.unitSymbol}';

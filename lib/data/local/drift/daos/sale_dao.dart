@@ -58,6 +58,15 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
   });
 
   @override
+  Future<void> deleteItem(String saleId, String saleItemId) async {
+    await (delete(saleItems)
+          ..where(
+            (t) => t.saleId.equals(saleId) & t.id.equals(saleItemId),
+          ))
+        .go();
+  }
+
+  @override
   Future<T> atomic<T>(Future<T> Function() action) => transaction(action);
   @override
   Future<SaleProjection?> findDraft(String userId, String deviceId) async {

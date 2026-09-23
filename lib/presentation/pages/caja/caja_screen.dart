@@ -7,9 +7,11 @@ import '../../../application/commands/ventas/venta_borrador_command_service.dart
 import '../../../core/di/injection.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
+import '../../../domain/repositories/unidad_inventario_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
 import '../../widgets/article_search_bar.dart';
+import 'draft_item_edit_sheet.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
 
@@ -18,6 +20,7 @@ class CajaScreen extends StatefulWidget {
     this.saleDraftRepository,
     this.ventaBorradorCommandService,
     this.productoRepository,
+    this.unidadInventarioRepository,
     this.onOpenCaja,
     super.key,
   });
@@ -25,6 +28,7 @@ class CajaScreen extends StatefulWidget {
   final SaleDraftRepository? saleDraftRepository;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final ProductoRepository? productoRepository;
+  final UnidadInventarioRepository? unidadInventarioRepository;
   final VoidCallback? onOpenCaja;
 
   @override
@@ -55,6 +59,20 @@ class _CajaScreenState extends State<CajaScreen> {
     } finally {
       if (mounted) setState(() => _clearing = false);
     }
+  }
+
+  Future<void> _openEditor(SaleDraftItem item) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraftItemEditSheet(
+        item: item,
+        ventaBorradorCommandService: widget.ventaBorradorCommandService,
+        unidadInventarioRepository:
+            widget.unidadInventarioRepository ??
+            getIt<UnidadInventarioRepository>(),
+      ),
+    );
   }
 
   @override
@@ -116,7 +134,10 @@ class _CajaScreenState extends State<CajaScreen> {
                                     i++
                                   ) ...[
                                     if (i > 0) const Divider(height: 1),
-                                    _SaleLine(item: sale.items[i]),
+                                    _SaleLine(
+                                      item: sale.items[i],
+                                      onEdit: () => _openEditor(sale.items[i]),
+                                    ),
                                   ],
                                 ],
                               ),
@@ -229,8 +250,9 @@ class _CajaScreenState extends State<CajaScreen> {
 }
 
 class _SaleLine extends StatelessWidget {
-  const _SaleLine({required this.item});
+  const _SaleLine({required this.item, required this.onEdit});
   final SaleDraftItem item;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -266,6 +288,12 @@ class _SaleLine extends StatelessWidget {
             textAlign: TextAlign.end,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
+        ),
+        IconButton(
+          onPressed: onEdit,
+          tooltip: 'Editar artículo',
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.edit, size: 18),
         ),
       ],
     ),
