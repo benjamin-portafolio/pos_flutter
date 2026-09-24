@@ -15,7 +15,9 @@ import 'package:pos_flutter/data/local/drift/drift_cliente_projection_store.dart
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/repositories/cliente_repository_impl.dart';
 import 'package:pos_flutter/domain/creditos/customer_account.dart';
+import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
 import 'package:pos_flutter/domain/repositories/customer_account_repository.dart';
+import 'package:pos_flutter/domain/ventas/confirmed_sale.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/cliente_account_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/cliente_form_screen.dart';
 
@@ -23,6 +25,11 @@ class _Account implements CustomerAccountRepository {
   @override
   Stream<CustomerAccount> watchAccount(String id) =>
       Stream.value(CustomerAccount([]));
+}
+
+class _Sales implements ConfirmedSaleRepository {
+  @override
+  Stream<List<ConfirmedSale>> watchSales() => Stream.value(const []);
 }
 
 void main() {
@@ -71,6 +78,7 @@ void main() {
             repository: _Account(),
             clienteRepository: repository,
             commandService: commands,
+            salesRepository: _Sales(),
           ),
         ),
       );

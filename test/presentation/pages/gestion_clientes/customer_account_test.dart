@@ -54,10 +54,10 @@ class _Account implements CustomerAccountRepository {
 }
 
 class _Sales implements ConfirmedSaleRepository {
-  _Sales(this.stream);
-  final Stream<List<ConfirmedSale>> stream;
+  _Sales(this.sales);
+  final List<ConfirmedSale> sales;
   @override
-  Stream<List<ConfirmedSale>> watchSales() => stream;
+  Stream<List<ConfirmedSale>> watchSales() => Stream.value(sales);
 }
 
 class _Service implements CreditoCommandService {
@@ -132,7 +132,7 @@ void main() {
           cliente: cliente,
           repository: _Account(),
           clienteRepository: _Clientes(),
-          salesRepository: _Sales(Stream.value(const [])),
+          salesRepository: _Sales(const []),
           businessName: 'Miradent',
         ),
       ),
@@ -168,7 +168,7 @@ void main() {
           cliente: cliente,
           repository: _Account(),
           clienteRepository: _Clientes(),
-          salesRepository: _Sales(Stream.value(const [])),
+          salesRepository: _Sales(const []),
           businessName: 'Miradent',
         ),
       ),
@@ -225,7 +225,7 @@ void main() {
           clienteId: 'ana',
           clienteNombre: 'Ana',
           repository: _Account(),
-          salesRepository: _Sales(Stream.value(const [])),
+          salesRepository: _Sales(const []),
           businessName: 'Miradent',
           shareReceipt: (params) {
             requests.add(params);

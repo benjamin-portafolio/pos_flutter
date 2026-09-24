@@ -11,6 +11,7 @@ import 'registrar_abono_screen.dart';
 import 'customer_account_display.dart';
 import 'customer_statement_screen.dart';
 import 'cliente_form_screen.dart';
+import 'widgets/cliente_compras_section.dart';
 import '../../../domain/repositories/cliente_repository.dart';
 import '../../../application/commands/clientes/cliente_command_service.dart';
 import '../../../application/commands/clientes/editar_cliente_command.dart';
@@ -195,7 +196,12 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
               icon: const Icon(Icons.receipt_long),
               label: const Text('Ver / compartir estado de cuenta'),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            ClienteComprasSection(
+              clienteId: cliente.id,
+              repository: widget.salesRepository,
+            ),
+            const Divider(height: 24),
             Text(
               'Historial de movimientos',
               style: Theme.of(context).textTheme.titleLarge,
