@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
+import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 
@@ -22,7 +23,12 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void _onTabTapped(int index) {
-    if (index == 4) return;
+    if (index == 4) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const ClientesScreen()),
+      );
+      return;
+    }
 
     setState(() {
       _currentIndex = index;
@@ -60,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Caja',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Artículos'),
-          BottomNavigationBarItem(icon: Icon(Icons.more_horiz), label: 'Más'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Clientes'),
         ],
       ),
     );

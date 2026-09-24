@@ -1,14 +1,15 @@
-import 'customer_account_receipt_image_generator.dart';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../../application/config/app_config_controller.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/clientes/cliente.dart';
 import '../../../domain/creditos/customer_account.dart';
 import '../../../domain/creditos/account_entry.dart';
 import '../../../domain/repositories/customer_account_repository.dart';
+import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../caja/sale_receipt_screen.dart';
 import 'registrar_abono_screen.dart';
 import 'customer_account_display.dart';
+import 'customer_statement_screen.dart';
 import 'cliente_form_screen.dart';
 import '../../../domain/repositories/cliente_repository.dart';
 import '../../../application/commands/clientes/cliente_command_service.dart';
@@ -20,12 +21,16 @@ class ClienteAccountScreen extends StatefulWidget {
     this.repository,
     this.clienteRepository,
     this.commandService,
+    this.salesRepository,
+    this.businessName,
     super.key,
   });
   final Cliente cliente;
   final ClienteRepository? clienteRepository;
   final ClienteCommandService? commandService;
   final CustomerAccountRepository? repository;
+  final ConfirmedSaleRepository? salesRepository;
+  final String? businessName;
   @override
   State<ClienteAccountScreen> createState() => _ClienteAccountScreenState();
 }
@@ -37,7 +42,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
       );
   late final Stream<List<Cliente>> _clientes =
       (widget.clienteRepository ?? getIt<ClienteRepository>()).watchClientes();
-  String? _lastOperation;
+
   Future<void> _edit(Cliente cliente) async {
     final saved = await Navigator.push<bool>(
       context,
@@ -74,52 +79,36 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
       context,
       MaterialPageRoute(builder: (_) => RegistrarAbonoScreen(cliente: cliente)),
     );
-    if (mounted && id != null) setState(() => _lastOperation = id);
+    // Tras guardar el abono, abrir el comprobante de ese abono: incluye los
+    // recibos liquidados en esta operación.
+    if (mounted && id != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _statementScreen(cliente, operationId: id),
+        ),
+      );
+    }
   }
 
-  Future<void> _ticket(Cliente cliente, CustomerAccount account) async {
-    final text = CustomerAccountDisplay.statement(
-      cliente.nombre,
-      account,
-      operationId: _lastOperation,
-    );
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Estado de cuenta'),
-        content: SingleChildScrollView(child: SelectableText(text)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cerrar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              try {
-                final box = dialogContext.findRenderObject() as RenderBox?;
-                final image = await CustomerAccountReceiptImageGenerator()
-                    .generate(text);
-                await SharePlus.instance.share(
-                  ShareParams(
-                    files: [XFile.fromData(image, mimeType: 'image/png')],
-                    fileNameOverrides: ['estado-cuenta.png'],
-                    title: 'Cuenta de ${cliente.nombre}',
-                    sharePositionOrigin: box == null
-                        ? null
-                        : box.localToGlobal(Offset.zero) & box.size,
-                  ),
-                );
-              } catch (error) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo compartir: $error')),
-                  );
-                }
-              }
-            },
-            child: const Text('Compartir'),
-          ),
-        ],
+  CustomerStatementScreen _statementScreen(
+    Cliente cliente, {
+    String? operationId,
+  }) => CustomerStatementScreen(
+    clienteId: widget.cliente.id,
+    clienteNombre: cliente.nombre,
+    operationId: operationId,
+    repository: widget.repository,
+    salesRepository: widget.salesRepository,
+    businessName:
+        widget.businessName ?? getIt<AppConfigController>().config.businessName,
+  );
+
+  void _statement(Cliente cliente) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => _statementScreen(cliente),
       ),
     );
   }
@@ -202,7 +191,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
               ),
             ),
             OutlinedButton.icon(
-              onPressed: () => _ticket(cliente, account),
+              onPressed: () => _statement(cliente),
               icon: const Icon(Icons.receipt_long),
               label: const Text('Ver / compartir estado de cuenta'),
             ),
