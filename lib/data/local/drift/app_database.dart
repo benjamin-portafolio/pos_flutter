@@ -207,7 +207,12 @@ Future<void> _resetDatabaseOnStartup(File file) async {
     final variantColumns = connection.select(
       'PRAGMA table_info(product_variants)',
     );
+    final paymentColumns = connection.select(
+      'PRAGMA table_info(sale_payments)',
+    );
     current =
+        paymentColumns.any((column) => column['name'] == 'method') &&
+        paymentColumns.any((column) => column['name'] == 'reference') &&
         connection
                 .select(
                   "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('credit_allocations', 'credit_sales', 'customer_payments')",

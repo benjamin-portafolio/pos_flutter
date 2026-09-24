@@ -1,7 +1,7 @@
 # Créditos de clientes
 
 Implementado el 2026-09-21 en Flutter y NestJS. Alcance: venta íntegra a crédito,
-cliente opcional en efectivo y obligatorio en crédito, abonos en efectivo o
+cliente opcional en efectivo/transferencia y obligatorio en crédito, abonos en efectivo o
 transferencia, anticipos, saldo y consulta de aplicaciones FIFO.
 
 ## Uso
@@ -22,12 +22,12 @@ transferencia, anticipos, saldo y consulta de aplicaciones FIFO.
 
 El saldo mostrado es abonos menos cargos: negativo = debe, cero = saldado,
 positivo = a favor. Las ventas a crédito suman a VENTAS TOTALES. COBROS RECIBIDOS
-suma efectivo aplicado a ventas y abonos/anticipos del período; no suma crédito
+suma pagos directos en efectivo/transferencia y abonos/anticipos del período; no suma crédito
 ni cambio entregado ni vuelve a contar un abono como venta.
 
 ## Datos
 
-`sales.cliente_id` es nullable para efectivo y obligatorio por contrato cuando
+`sales.cliente_id` es nullable para efectivo/transferencia y obligatorio por contrato cuando
 `payment_method = credit`. Se conserva el nombre del cliente en el evento y el
 recibo. El estado de venta sigue siendo `confirmada`, independiente de la deuda.
 
@@ -47,7 +47,7 @@ impiden borrar clientes, ventas, créditos y abonos referenciados.
 
 ## Eventos y sincronización
 
-`venta_confirmada` admite cash y credit, conservando lectura de los eventos de
+`venta_confirmada` admite cash, transfer y credit, conservando lectura de los eventos de
 efectivo anteriores. Crédito lleva payment_id=null, received_minor=0,
 change_minor=0, cliente_id, cliente_event_id, cliente_nombre y occurred_at_ms.
 La creación del cliente se agrega a dependency_event_ids. Los consumos y las
@@ -123,3 +123,13 @@ crédito: una versión anterior no conoce los nuevos contratos.
 - Casos: ejemplo 20/10/50/5/10, anticipos, reintentos, doble toque, cliente
   obligatorio, rollback, reinicio, standalone sin refs, push dependiente,
   pull fuera de orden/eco, preflight por cuenta, concurrencia y cobros sin cambio.
+
+## Ampliación del 2026-09-23
+
+Los cobros directos conservan `method` y `reference` en `sale_payments`.
+El reporte combina pagos directos y `customer_payments`, muestra efectivo,
+transferencia y total y permite consultar movimientos con trazabilidad.
+Aplicar después un anticipo no vuelve a sumar dinero. La migración PostgreSQL
+`AddTransferSales1790208000000` y la detección del esquema Drift amplían los
+requisitos anteriores de actualización. Ver la especificación de pagos por
+transferencia y reportes por método en el proyecto de análisis.

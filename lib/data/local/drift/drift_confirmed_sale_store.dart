@@ -105,6 +105,8 @@ class DriftConfirmedSaleStore implements ConfirmedSaleStore {
               id: p.paymentId!,
               saleId: event.aggregateId,
               amountMinor: p.totalMinor,
+              method: Value(p.paymentMethod),
+              reference: Value(p.paymentReference),
               receivedMinor: p.receivedMinor,
               changeMinor: p.changeMinor,
               currency: p.currency,

@@ -1,23 +1,27 @@
-import '../../../domain/repositories/customer_account_repository.dart';
-import 'widgets/collections_report_card.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../domain/repositories/collection_repository.dart';
 import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/ventas/confirmed_sale.dart';
+import 'models/beneficio_bruto_report.dart';
+import 'models/report_money.dart';
 import 'models/report_period.dart';
+import 'models/sales_reports_calculator.dart';
 import 'report_date_filter_screen.dart';
+import 'sales_by_method_screen.dart';
+import 'widgets/collections_report_card.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
     super.key,
     this.repository,
     this.now,
-    this.accountRepository,
+    this.collectionRepository,
   });
 
   final ConfirmedSaleRepository? repository;
-  final CustomerAccountRepository? accountRepository;
+  final CollectionRepository? collectionRepository;
   final DateTime Function()? now;
 
   @override
@@ -28,12 +32,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   late final _repository =
       widget.repository ?? getIt<ConfirmedSaleRepository>();
   late Stream<List<ConfirmedSale>> _sales = _repository.watchSales();
-  late final _payments =
-      (widget.accountRepository ??
-              (getIt.isRegistered<CustomerAccountRepository>()
-                  ? getIt<CustomerAccountRepository>()
+  late final _collections =
+      (widget.collectionRepository ??
+              (getIt.isRegistered<CollectionRepository>()
+                  ? getIt<CollectionRepository>()
                   : null))
-          ?.watchPayments();
+          ?.watchCollections();
   late ReportPeriod _period = ReportPeriod.day(_now());
 
   DateTime _now() => widget.now?.call() ?? DateTime.now();
@@ -48,6 +52,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (!mounted || selected == null) return;
     setState(() => _period = selected);
   }
+
+  Future<void> _openSalesByMethod() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => SalesByMethodScreen(
+        initialPeriod: _period,
+        repository: widget.repository,
+        now: widget.now,
+        sales: _sales,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -115,41 +130,113 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               );
             }
-            // El repositorio conserva fecha e importe del cobro, incluso si
-            // la entrega al servidor está pendiente o requiere atención.
-            final total = snapshot.data!
-                .where((sale) => _period.contains(sale.createdAt))
-                .fold(
-                  BigInt.zero,
-                  (sum, sale) => sum + BigInt.from(sale.totalMinor),
-                );
-            final hundred = BigInt.from(100);
-            final amount =
-                '\$${total ~/ hundred}.${(total % hundred).toString().padLeft(2, '0')} MXN';
-            return Column(
-              children: [
-                _ReportCard(
-                  title: 'VENTAS TOTALES',
-                  child: Text(
-                    amount,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-                if (_payments != null)
-                  CollectionsReportCard(
-                    payments: _payments,
-                    sales: snapshot.data!,
-                    period: _period,
-                  ),
-              ],
+            return _SalesIndicatorRow(
+              gross: SalesReportsCalculator.grossProfit(_period, snapshot.data!),
+              total: SalesReportsCalculator.ventasTotales(
+                _period,
+                snapshot.data!,
+              ),
             );
           },
         ),
+        Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: FilledButton.icon(
+              onPressed: _openSalesByMethod,
+              icon: const Icon(Icons.bar_chart),
+              label: const Text('Ver ventas por método'),
+            ),
+          ),
+        ),
+        if (_collections != null)
+          CollectionsReportCard(collections: _collections, period: _period),
       ],
     ),
   );
+}
+
+/// Beneficio bruto y ventas totales del mismo período, juntos: lado a lado en
+/// tablet y apilados en teléfono.
+class _SalesIndicatorRow extends StatelessWidget {
+  const _SalesIndicatorRow({required this.gross, required this.total});
+  final BeneficioBrutoReport gross;
+  final BigInt total;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final cards = <Widget>[
+        _BeneficioBrutoCard(report: gross),
+        _ReportCard(
+          title: 'VENTAS TOTALES',
+          child: Text(
+            ReportMoney.money(total),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+      ];
+      if (constraints.maxWidth < 560) {
+        return Column(
+          children: [for (final card in cards) card],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            Expanded(child: cards[i]),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+class _BeneficioBrutoCard extends StatelessWidget {
+  const _BeneficioBrutoCard({required this.report});
+  final BeneficioBrutoReport report;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (report.estado == BeneficioBrutoEstado.noDisponible) {
+      return _ReportCard(
+        title: report.titulo,
+        child: const Text(
+          'Las líneas de este período no registran el costo estándar.',
+        ),
+      );
+    }
+    final negative = report.profitMinor.isNegative;
+    return _ReportCard(
+      title: report.titulo,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            report.monto!,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: negative
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.primary,
+            ),
+          ),
+          if (report.detalleSinCosto != null) ...[
+            const SizedBox(height: 4),
+            Text(report.detalleSinCosto!),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'Calculado con el costo estándar registrado en la venta.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ReportCard extends StatelessWidget {

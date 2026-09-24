@@ -5,6 +5,7 @@ class ConfirmedSale {
   ConfirmedSale({
     required this.id,
     this.paymentMethod = 'cash',
+    this.paymentReference,
     this.clienteId,
     this.clienteNombre,
     required this.createdAt,
@@ -17,7 +18,7 @@ class ConfirmedSale {
     required List<SaleDraftItem> items,
   }) : items = List.unmodifiable(items);
   final String id, currency, deliveryStatus, paymentMethod;
-  final String? clienteId, clienteNombre;
+  final String? clienteId, clienteNombre, paymentReference;
   bool get isCredit => paymentMethod == 'credit';
   final DateTime createdAt;
   final int totalMinor, receivedMinor, changeMinor;

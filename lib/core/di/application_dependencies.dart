@@ -1,4 +1,6 @@
 import '../../application/commands/creditos/credito_command_service.dart';
+import '../../domain/repositories/collection_repository.dart';
+import '../../data/repositories/collection_repository_impl.dart';
 import '../../application/sync/handlers/abono_cliente_event_handler.dart';
 import '../../application/sync/payloads/abono_cliente_registrado_payload.dart';
 import '../../application/sync/projections/customer_credit_store.dart';
@@ -150,14 +152,11 @@ void registerApplicationDependencies(
     () => VentaBorradorEventHandler(getIt<SaleDraftProjectionStore>()),
   );
   getIt.registerLazySingleton<VentaBorradorActualizadoEventHandler>(
-    () => VentaBorradorActualizadoEventHandler(
-      getIt<SaleDraftProjectionStore>(),
-    ),
+    () =>
+        VentaBorradorActualizadoEventHandler(getIt<SaleDraftProjectionStore>()),
   );
   getIt.registerLazySingleton<VentaBorradorEliminadoEventHandler>(
-    () => VentaBorradorEliminadoEventHandler(
-      getIt<SaleDraftProjectionStore>(),
-    ),
+    () => VentaBorradorEliminadoEventHandler(getIt<SaleDraftProjectionStore>()),
   );
   getIt.registerLazySingleton<VentaBorradorCommandService>(
     () => VentaBorradorCommandService(
@@ -170,6 +169,9 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<CustomerCreditStore>(
     () => DriftCustomerCreditStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<CollectionRepository>(
+    () => CollectionRepositoryImpl(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<CustomerAccountRepository>(
     () => CustomerAccountRepositoryImpl(getIt<AppDatabase>()),

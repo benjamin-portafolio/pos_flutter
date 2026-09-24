@@ -14,7 +14,6 @@ import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_cliente_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/repositories/cliente_repository_impl.dart';
-import 'package:pos_flutter/domain/creditos/account_entry.dart';
 import 'package:pos_flutter/domain/creditos/customer_account.dart';
 import 'package:pos_flutter/domain/repositories/customer_account_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/cliente_account_screen.dart';
@@ -24,8 +23,6 @@ class _Account implements CustomerAccountRepository {
   @override
   Stream<CustomerAccount> watchAccount(String id) =>
       Stream.value(CustomerAccount([]));
-  @override
-  Stream<List<AccountEntry>> watchPayments() => Stream.value([]);
 }
 
 void main() {

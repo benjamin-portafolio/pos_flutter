@@ -14,6 +14,7 @@ class ConfirmedSaleRepositoryImpl implements ConfirmedSaleRepository {
       return ConfirmedSale(
         id: e.aggregateId,
         paymentMethod: p.paymentMethod,
+        paymentReference: p.paymentReference,
         clienteId: p.clienteId,
         clienteNombre: p.clienteNombre,
         createdAt: e.createdAtLocal,
@@ -33,6 +34,7 @@ class ConfirmedSaleRepositoryImpl implements ConfirmedSaleRepository {
               quantity: l.snapshot.quantity,
               measuredQuantityAtomic: l.snapshot.measuredQuantityAtomic,
               unitPriceMinor: l.snapshot.unitPriceMinor,
+              standardCostMinor: l.snapshot.standardCostMinor,
               priceReferenceQuantityAtomic:
                   l.snapshot.priceReferenceQuantityAtomic,
               unitCode: l.snapshot.unitCode,

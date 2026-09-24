@@ -14,7 +14,11 @@ import 'package:share_plus/share_plus.dart';
 import '../../../support/sale_draft_fixtures.dart';
 import '../../../support/pump_receipt_image.dart';
 
-ConfirmedSale _sale({List<SaleDraftItem>? items}) {
+ConfirmedSale _sale({
+  List<SaleDraftItem>? items,
+  String method = 'cash',
+  String? reference,
+}) {
   final lines = items ?? sampleSale().items;
   final total = lines.fold(0, (sum, item) => sum + item.totalMinor);
   return ConfirmedSale(
@@ -24,6 +28,8 @@ ConfirmedSale _sale({List<SaleDraftItem>? items}) {
     receivedMinor: total + 10000,
     changeMinor: 10000,
     currency: 'MXN',
+    paymentMethod: method,
+    paymentReference: reference,
     deliveryStatus: 'not_required',
     reason: null,
     items: lines,
@@ -47,6 +53,29 @@ Finder _shareButton() => find.byWidgetPredicate(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'recibo de transferencia conserva referencia y excluye efectivo y cambio',
+    () async {
+      final display = SaleReceiptDisplay(
+        _sale(method: 'transfer', reference: 'BANCO-42'),
+      );
+      expect(display.paymentLabel, 'Transferencia');
+      expect(display.semanticLabel, contains('Referencia: BANCO-42'));
+      expect(display.semanticLabel, isNot(contains('Efectivo recibido')));
+      expect(display.semanticLabel, isNot(contains('Cambio')));
+      expect(
+        display.totals.map((r) => r.$1),
+        contains('Transferencia recibida'),
+      );
+      final bytes = await SaleReceiptImageGenerator().generate(display);
+      expect(bytes.length, greaterThan(100));
+      expect(
+        SaleReceiptDisplay(_sale(method: 'transfer')).semanticLabel,
+        isNot(contains('Referencia:')),
+      );
+    },
+  );
 
   test('cuenta variantes distintas y separa piezas, kilos y litros', () {
     final receipt = SaleReceiptDisplay(

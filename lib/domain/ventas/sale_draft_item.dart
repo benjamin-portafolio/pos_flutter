@@ -8,6 +8,7 @@ class SaleDraftItem {
     required this.quantity,
     required this.measuredQuantityAtomic,
     required this.unitPriceMinor,
+    this.standardCostMinor,
     required this.priceReferenceQuantityAtomic,
     required this.unitCode,
     required this.unitSymbol,
@@ -27,4 +28,9 @@ class SaleDraftItem {
   final String? unitSymbol;
   final int? unitAtomicFactor;
   final int totalMinor;
+
+  /// Costo estándar capturado al agregar la línea, en centavos.
+  /// `null` significa costo desconocido; `0` es un costo conocido válido.
+  /// Los cambios posteriores del catálogo no reescriben este snapshot.
+  final int? standardCostMinor;
 }

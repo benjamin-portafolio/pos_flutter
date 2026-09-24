@@ -41,8 +41,6 @@ class _Account implements CustomerAccountRepository {
       ),
     ]),
   );
-  @override
-  Stream<List<AccountEntry>> watchPayments() => Stream.value([]);
 }
 
 class _Service implements CreditoCommandService {

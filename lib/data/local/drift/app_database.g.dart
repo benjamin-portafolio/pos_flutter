@@ -10465,6 +10465,27 @@ class $SalePaymentsTable extends SalePayments
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _methodMeta = const VerificationMeta('method');
+  @override
+  late final GeneratedColumn<String> method = GeneratedColumn<String>(
+    'method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cash'),
+  );
+  static const VerificationMeta _referenceMeta = const VerificationMeta(
+    'reference',
+  );
+  @override
+  late final GeneratedColumn<String> reference = GeneratedColumn<String>(
+    'reference',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _receivedMinorMeta = const VerificationMeta(
     'receivedMinor',
   );
@@ -10508,6 +10529,8 @@ class $SalePaymentsTable extends SalePayments
     lastServerSequence,
     saleId,
     amountMinor,
+    method,
+    reference,
     receivedMinor,
     changeMinor,
     currency,
@@ -10587,6 +10610,18 @@ class $SalePaymentsTable extends SalePayments
     } else if (isInserting) {
       context.missing(_amountMinorMeta);
     }
+    if (data.containsKey('method')) {
+      context.handle(
+        _methodMeta,
+        method.isAcceptableOrUnknown(data['method']!, _methodMeta),
+      );
+    }
+    if (data.containsKey('reference')) {
+      context.handle(
+        _referenceMeta,
+        reference.isAcceptableOrUnknown(data['reference']!, _referenceMeta),
+      );
+    }
     if (data.containsKey('received_minor')) {
       context.handle(
         _receivedMinorMeta,
@@ -10658,6 +10693,14 @@ class $SalePaymentsTable extends SalePayments
         DriftSqlType.int,
         data['${effectivePrefix}amount_minor'],
       )!,
+      method: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}method'],
+      )!,
+      reference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference'],
+      ),
       receivedMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}received_minor'],
@@ -10698,13 +10741,19 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
   /// Sync cursor representing the official server sequence
   final int? lastServerSequence;
 
-  /// Una sola confirmación de efectivo por venta, incluso con otro event_id.
+  /// Una sola confirmación de pago directo por venta, incluso con otro event_id.
   final String saleId;
 
   /// Importe aplicado al pago, excluyendo el cambio.
   final int amountMinor;
 
-  /// Efectivo entregado por el cliente.
+  /// Método real del pago directo; los pagos históricos son efectivo.
+  final String method;
+
+  /// Referencia descriptiva opcional, normalizada al confirmar.
+  final String? reference;
+
+  /// Importe recibido por el método indicado.
   final int receivedMinor;
 
   /// Efectivo que se devuelve al cliente.
@@ -10721,6 +10770,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
     this.lastServerSequence,
     required this.saleId,
     required this.amountMinor,
+    required this.method,
+    this.reference,
     required this.receivedMinor,
     required this.changeMinor,
     required this.currency,
@@ -10742,6 +10793,10 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
     }
     map['sale_id'] = Variable<String>(saleId);
     map['amount_minor'] = Variable<int>(amountMinor);
+    map['method'] = Variable<String>(method);
+    if (!nullToAbsent || reference != null) {
+      map['reference'] = Variable<String>(reference);
+    }
     map['received_minor'] = Variable<int>(receivedMinor);
     map['change_minor'] = Variable<int>(changeMinor);
     map['currency'] = Variable<String>(currency);
@@ -10764,6 +10819,10 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
           : Value(lastServerSequence),
       saleId: Value(saleId),
       amountMinor: Value(amountMinor),
+      method: Value(method),
+      reference: reference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reference),
       receivedMinor: Value(receivedMinor),
       changeMinor: Value(changeMinor),
       currency: Value(currency),
@@ -10784,6 +10843,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
       lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
       saleId: serializer.fromJson<String>(json['saleId']),
       amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      method: serializer.fromJson<String>(json['method']),
+      reference: serializer.fromJson<String?>(json['reference']),
       receivedMinor: serializer.fromJson<int>(json['receivedMinor']),
       changeMinor: serializer.fromJson<int>(json['changeMinor']),
       currency: serializer.fromJson<String>(json['currency']),
@@ -10801,6 +10862,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
       'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
       'saleId': serializer.toJson<String>(saleId),
       'amountMinor': serializer.toJson<int>(amountMinor),
+      'method': serializer.toJson<String>(method),
+      'reference': serializer.toJson<String?>(reference),
       'receivedMinor': serializer.toJson<int>(receivedMinor),
       'changeMinor': serializer.toJson<int>(changeMinor),
       'currency': serializer.toJson<String>(currency),
@@ -10816,6 +10879,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
     Value<int?> lastServerSequence = const Value.absent(),
     String? saleId,
     int? amountMinor,
+    String? method,
+    Value<String?> reference = const Value.absent(),
     int? receivedMinor,
     int? changeMinor,
     String? currency,
@@ -10832,6 +10897,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
         : this.lastServerSequence,
     saleId: saleId ?? this.saleId,
     amountMinor: amountMinor ?? this.amountMinor,
+    method: method ?? this.method,
+    reference: reference.present ? reference.value : this.reference,
     receivedMinor: receivedMinor ?? this.receivedMinor,
     changeMinor: changeMinor ?? this.changeMinor,
     currency: currency ?? this.currency,
@@ -10854,6 +10921,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
       amountMinor: data.amountMinor.present
           ? data.amountMinor.value
           : this.amountMinor,
+      method: data.method.present ? data.method.value : this.method,
+      reference: data.reference.present ? data.reference.value : this.reference,
       receivedMinor: data.receivedMinor.present
           ? data.receivedMinor.value
           : this.receivedMinor,
@@ -10875,6 +10944,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('saleId: $saleId, ')
           ..write('amountMinor: $amountMinor, ')
+          ..write('method: $method, ')
+          ..write('reference: $reference, ')
           ..write('receivedMinor: $receivedMinor, ')
           ..write('changeMinor: $changeMinor, ')
           ..write('currency: $currency')
@@ -10892,6 +10963,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
     lastServerSequence,
     saleId,
     amountMinor,
+    method,
+    reference,
     receivedMinor,
     changeMinor,
     currency,
@@ -10908,6 +10981,8 @@ class SalePaymentRow extends DataClass implements Insertable<SalePaymentRow> {
           other.lastServerSequence == this.lastServerSequence &&
           other.saleId == this.saleId &&
           other.amountMinor == this.amountMinor &&
+          other.method == this.method &&
+          other.reference == this.reference &&
           other.receivedMinor == this.receivedMinor &&
           other.changeMinor == this.changeMinor &&
           other.currency == this.currency);
@@ -10922,6 +10997,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
   final Value<int?> lastServerSequence;
   final Value<String> saleId;
   final Value<int> amountMinor;
+  final Value<String> method;
+  final Value<String?> reference;
   final Value<int> receivedMinor;
   final Value<int> changeMinor;
   final Value<String> currency;
@@ -10935,6 +11012,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
     this.lastServerSequence = const Value.absent(),
     this.saleId = const Value.absent(),
     this.amountMinor = const Value.absent(),
+    this.method = const Value.absent(),
+    this.reference = const Value.absent(),
     this.receivedMinor = const Value.absent(),
     this.changeMinor = const Value.absent(),
     this.currency = const Value.absent(),
@@ -10949,6 +11028,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
     this.lastServerSequence = const Value.absent(),
     required String saleId,
     required int amountMinor,
+    this.method = const Value.absent(),
+    this.reference = const Value.absent(),
     required int receivedMinor,
     required int changeMinor,
     required String currency,
@@ -10968,6 +11049,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
     Expression<int>? lastServerSequence,
     Expression<String>? saleId,
     Expression<int>? amountMinor,
+    Expression<String>? method,
+    Expression<String>? reference,
     Expression<int>? receivedMinor,
     Expression<int>? changeMinor,
     Expression<String>? currency,
@@ -10983,6 +11066,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
         'last_server_sequence': lastServerSequence,
       if (saleId != null) 'sale_id': saleId,
       if (amountMinor != null) 'amount_minor': amountMinor,
+      if (method != null) 'method': method,
+      if (reference != null) 'reference': reference,
       if (receivedMinor != null) 'received_minor': receivedMinor,
       if (changeMinor != null) 'change_minor': changeMinor,
       if (currency != null) 'currency': currency,
@@ -10999,6 +11084,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
     Value<int?>? lastServerSequence,
     Value<String>? saleId,
     Value<int>? amountMinor,
+    Value<String>? method,
+    Value<String?>? reference,
     Value<int>? receivedMinor,
     Value<int>? changeMinor,
     Value<String>? currency,
@@ -11013,6 +11100,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
       lastServerSequence: lastServerSequence ?? this.lastServerSequence,
       saleId: saleId ?? this.saleId,
       amountMinor: amountMinor ?? this.amountMinor,
+      method: method ?? this.method,
+      reference: reference ?? this.reference,
       receivedMinor: receivedMinor ?? this.receivedMinor,
       changeMinor: changeMinor ?? this.changeMinor,
       currency: currency ?? this.currency,
@@ -11047,6 +11136,12 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
     if (amountMinor.present) {
       map['amount_minor'] = Variable<int>(amountMinor.value);
     }
+    if (method.present) {
+      map['method'] = Variable<String>(method.value);
+    }
+    if (reference.present) {
+      map['reference'] = Variable<String>(reference.value);
+    }
     if (receivedMinor.present) {
       map['received_minor'] = Variable<int>(receivedMinor.value);
     }
@@ -11073,6 +11168,8 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
           ..write('lastServerSequence: $lastServerSequence, ')
           ..write('saleId: $saleId, ')
           ..write('amountMinor: $amountMinor, ')
+          ..write('method: $method, ')
+          ..write('reference: $reference, ')
           ..write('receivedMinor: $receivedMinor, ')
           ..write('changeMinor: $changeMinor, ')
           ..write('currency: $currency, ')
@@ -20892,6 +20989,8 @@ typedef $$SalePaymentsTableCreateCompanionBuilder =
       Value<int?> lastServerSequence,
       required String saleId,
       required int amountMinor,
+      Value<String> method,
+      Value<String?> reference,
       required int receivedMinor,
       required int changeMinor,
       required String currency,
@@ -20907,6 +21006,8 @@ typedef $$SalePaymentsTableUpdateCompanionBuilder =
       Value<int?> lastServerSequence,
       Value<String> saleId,
       Value<int> amountMinor,
+      Value<String> method,
+      Value<String?> reference,
       Value<int> receivedMinor,
       Value<int> changeMinor,
       Value<String> currency,
@@ -20976,6 +21077,16 @@ class $$SalePaymentsTableFilterComposer
 
   ColumnFilters<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reference => $composableBuilder(
+    column: $table.reference,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21062,6 +21173,16 @@ class $$SalePaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get receivedMinor => $composableBuilder(
     column: $table.receivedMinor,
     builder: (column) => ColumnOrderings(column),
@@ -21139,6 +21260,12 @@ class $$SalePaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get method =>
+      $composableBuilder(column: $table.method, builder: (column) => column);
+
+  GeneratedColumn<String> get reference =>
+      $composableBuilder(column: $table.reference, builder: (column) => column);
+
   GeneratedColumn<int> get receivedMinor => $composableBuilder(
     column: $table.receivedMinor,
     builder: (column) => column,
@@ -21212,6 +21339,8 @@ class $$SalePaymentsTableTableManager
                 Value<int?> lastServerSequence = const Value.absent(),
                 Value<String> saleId = const Value.absent(),
                 Value<int> amountMinor = const Value.absent(),
+                Value<String> method = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
                 Value<int> receivedMinor = const Value.absent(),
                 Value<int> changeMinor = const Value.absent(),
                 Value<String> currency = const Value.absent(),
@@ -21225,6 +21354,8 @@ class $$SalePaymentsTableTableManager
                 lastServerSequence: lastServerSequence,
                 saleId: saleId,
                 amountMinor: amountMinor,
+                method: method,
+                reference: reference,
                 receivedMinor: receivedMinor,
                 changeMinor: changeMinor,
                 currency: currency,
@@ -21240,6 +21371,8 @@ class $$SalePaymentsTableTableManager
                 Value<int?> lastServerSequence = const Value.absent(),
                 required String saleId,
                 required int amountMinor,
+                Value<String> method = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
                 required int receivedMinor,
                 required int changeMinor,
                 required String currency,
@@ -21253,6 +21386,8 @@ class $$SalePaymentsTableTableManager
                 lastServerSequence: lastServerSequence,
                 saleId: saleId,
                 amountMinor: amountMinor,
+                method: method,
+                reference: reference,
                 receivedMinor: receivedMinor,
                 changeMinor: changeMinor,
                 currency: currency,

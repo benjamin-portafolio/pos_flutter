@@ -64,7 +64,8 @@ void main() {
     'total reactivo por cobro; incluye incidencias, excluye cambio y otros días',
     (tester) async {
       await pump(tester);
-      expect(find.text(r'$0.00 MXN'), findsOneWidget);
+      // Ventas totales y beneficio bruto muestran cero sin ventas.
+      expect(find.text(r'$0.00 MXN'), findsNWidgets(2));
       final sales = [
         _sale(DateTime(2026, 9, 16, 23, 59, 59), 80000),
         _sale(DateTime(2026, 9, 17), 1010),

@@ -1,4 +1,6 @@
 import 'package:uuid/uuid.dart';
+import 'package:pos_flutter/data/repositories/collection_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/confirmed_sale_repository_impl.dart';
 import 'package:pos_flutter/application/commands/clientes/cliente_command_service.dart';
 import 'package:pos_flutter/application/commands/clientes/crear_cliente_command.dart';
 import 'package:pos_flutter/application/commands/creditos/credito_command_service.dart';
@@ -136,13 +138,19 @@ void main() {
     events: events(),
     context: context,
   );
-  Future<ConfirmarVentaCommand> command({int? received}) async {
+  Future<ConfirmarVentaCommand> command({
+    int? received,
+    String method = 'cash',
+    String? reference,
+  }) async {
     final d = (await db.saleDao.findDraft('user', 'tablet'))!;
     return ConfirmarVentaCommand(
       saleId: d.id,
       expectedDraftEventId: d.lastEventId!,
       expectedTotalMinor: d.totalMinor,
       receivedMinor: received,
+      paymentMethod: method,
+      paymentReference: reference,
     );
   }
 
@@ -345,252 +353,310 @@ void main() {
       expect(await db.select(db.salePayments).get(), isEmpty);
     },
   );
-  test('doble toque solo crea un pago', () async {
-    await seed();
-    await add();
-    final c = await command();
-    final results = await Future.wait([
-      service().confirmar(c).then((_) => true).catchError((_) => false),
-      service().confirmar(c).then((_) => true).catchError((_) => false),
-    ]);
-    expect(results.where((r) => r).length, 1);
-    expect(await db.select(db.salePayments).get(), hasLength(1));
-  });
-  test(
-    'fallo después de movimientos revierte evento, pago, saldo y conserva borrador',
-    () async {
-      await seed();
-      await add();
-      final before = await db.select(db.events).get();
-      failAfterApply = true;
-      await expectLater(service().confirmar(await command()), throwsStateError);
-      expect(await db.select(db.events).get(), hasLength(before.length));
-      expect(await db.select(db.salePayments).get(), isEmpty);
-      expect(await db.select(db.inventoryMovements).get(), isEmpty);
-      expect(
-        (await db.select(db.inventoryBalances).get())
-            .single
-            .quantityOnHandAtomic,
-        0,
-      );
-      expect((await db.select(db.sales).get()).single.status, 'borrador');
-    },
-  );
-  test(
-    'reinicio offline, reconocimiento de push y pull propio sin doble consumo',
-    () async {
-      await seed();
-      await add();
-      await service().confirmar(await command());
-      final original = (await getStore().watchConfirmed().first).single;
-      await db.close();
-      db = AppDatabase.forTesting(
-        NativeDatabase(File('${directory.path}/test.sqlite')),
-      );
-      expect(
-        (await persistence().pendingEvents()).single.eventId,
-        original.eventId,
-      );
-      final official = original.copyWith(
-        serverSequence: 30,
-        deliveryStatus: 'delivered',
-        baseVersion: 1,
-      );
-      await persistence().updateEventSyncStatus(
-        original.eventId,
-        'delivered',
-        serverSequence: 30,
-      );
-      var applied = 0;
-      await DriftSyncedEventStore(db: db).applySyncedEvents(
-        [official],
-        applyEvent: (e) async {
-          applied++;
-          await VentaConfirmadaEventHandler(getStore()).apply(e);
-        },
-        acknowledgeEcho: (e) =>
-            getStore().acknowledge(e.eventId, e.serverSequence!),
-      );
-      expect(applied, 0);
-      expect(
-        (await db.select(db.inventoryBalances).get())
-            .single
-            .quantityOnHandAtomic,
-        -1,
-      );
-      expect(
-        (await db.select(db.salePayments).get()).single.lastServerSequence,
-        30,
-      );
-      expect(
-        (await db.select(db.inventoryMovements).get()).single.serverSequence,
-        30,
-      );
-    },
-  );
-  test(
-    'pull otro dispositivo crea venta autocontenida y deduplica sale_id',
-    () async {
-      await seed();
-      await add();
-      await service().confirmar(await command());
-      final e = (await getStore().watchConfirmed().first).single.copyWith(
-        baseVersion: 1,
-        serverSequence: 12,
-        deliveryStatus: 'delivered',
-      );
-      await db.close();
-      db = AppDatabase.forTesting(NativeDatabase.memory());
-      await seed();
-      await DriftSyncedEventStore(db: db).applySyncedEvents(
-        [e],
-        applyEvent: VentaConfirmadaEventHandler(getStore()).apply,
-        acknowledgeEcho: (e) =>
-            getStore().acknowledge(e.eventId, e.serverSequence!),
-      );
-      expect((await db.select(db.sales).get()).single.status, 'confirmada');
-      await expectLater(
-        VentaConfirmadaEventHandler(
-          getStore(),
-        ).apply(e.copyWith(eventId: resourceId)),
-        throwsStateError,
-      );
-      expect(
-        (await db.select(db.inventoryBalances).get())
-            .single
-            .quantityOnHandAtomic,
-        -1,
-      );
-    },
-  );
-  test(
-    'standalone: cobro y arranque no instancian monitor ni producen tráfico sync',
-    () async {
-      config.dispose();
-      config = AppConfigController(
-        AppConfig.initial.copyWith(
-          mode: AppMode.standalone,
-          setupCompleted: true,
-          backupProvider: BackupProvider.none,
-        ),
-      );
-      var syncInstantiations = 0;
-      getIt.registerLazySingleton<SyncAvailabilityMonitor>(() {
-        syncInstantiations++;
-        throw StateError(
-          'No debe arrancar health, push, pull, preflight ni WebSocket.',
-        );
-      });
-      try {
-        await startConfiguredRuntimeServices(config.config);
+  for (final method in ['cash', 'transfer']) {
+    group('$method: atomicidad, reinicio y sincronización', () {
+      test('doble toque solo crea un pago', () async {
         await seed();
         await add();
-        await service().confirmar(await command());
-        expect(syncInstantiations, 0);
-        expect(await persistence().pendingEvents(), isEmpty);
-        expect(await db.select(db.eventRefs).get(), isEmpty);
-      } finally {
-        await getIt.unregister<SyncAvailabilityMonitor>();
-      }
-    },
-  );
-  test(
-    'push espera dependencia en otro lote y respuesta perdida reintenta IDs estables',
-    () async {
-      await seed();
-      await add();
-      await service().confirmar(await command());
-      final e = (await getStore().watchConfirmed().first).single;
-      final state = await DriftProductoProjectionStore(
-        productoDao: db.productoDao,
-      ).snapshot(productId);
-      await (db.update(
-        db.events,
-      )..where((e) => e.eventId.equals(configId))).write(
-        EventsCompanion(
-          payload: Value(jsonEncode(state.toJson())),
-          deliveryStatus: const Value('pending'),
-        ),
-      );
-      var calls = 0;
-      final client = MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final batch = body['events'] as List;
-        calls++;
-        expect(batch, hasLength(1));
-        final id = (batch.single as Map)['event_id'];
-        expect(id, calls == 1 ? configId : e.eventId);
-        if (calls == 2) throw const SocketException('Respuesta perdida');
-        return http.Response(
-          jsonEncode({
-            'results': [
-              {
-                'event_id': id,
-                'status': calls == 3 ? 'duplicate' : 'accepted',
-                'original_sync_status': 'synced',
-                'server_sequence': calls == 1 ? 1 : 2,
-              },
-            ],
-          }),
-          200,
+        final c = await command(
+          method: method,
+          reference: method == 'transfer' ? '  BANK-42  ' : null,
         );
+        final results = await Future.wait([
+          service().confirmar(c).then((_) => true).catchError((_) => false),
+          service().confirmar(c).then((_) => true).catchError((_) => false),
+        ]);
+        expect(results.where((r) => r).length, 1);
+        expect(await db.select(db.salePayments).get(), hasLength(1));
       });
-      final sender = push(client);
-      expect((await sender.pushPendingEvents()).pending, 1);
-      await expectLater(sender.pushPendingEvents(), throwsA(isA<Exception>()));
-      expect((await persistence().pendingEvents()).single.eventId, e.eventId);
-      expect((await sender.pushPendingEvents()).synced, 1);
-      expect(
-        (await db.select(db.inventoryBalances).get())
-            .single
-            .quantityOnHandAtomic,
-        -1,
+      test(
+        'fallo después de movimientos revierte evento, pago, saldo y conserva borrador',
+        () async {
+          await seed();
+          await add();
+          final before = await db.select(db.events).get();
+          failAfterApply = true;
+          await expectLater(
+            service().confirmar(
+              await command(
+                method: method,
+                reference: method == 'transfer' ? '  BANK-42  ' : null,
+              ),
+            ),
+            throwsStateError,
+          );
+          expect(await db.select(db.events).get(), hasLength(before.length));
+          expect(await db.select(db.salePayments).get(), isEmpty);
+          expect(await db.select(db.inventoryMovements).get(), isEmpty);
+          expect(
+            (await db.select(db.inventoryBalances).get())
+                .single
+                .quantityOnHandAtomic,
+            0,
+          );
+          expect((await db.select(db.sales).get()).single.status, 'borrador');
+        },
       );
-      expect(
-        (await db.select(db.salePayments).get()).single.lastServerSequence,
-        2,
+      test(
+        'reinicio offline, reconocimiento de push y pull propio sin doble consumo',
+        () async {
+          await seed();
+          await add();
+          await service().confirmar(
+            await command(
+              method: method,
+              reference: method == 'transfer' ? '  BANK-42  ' : null,
+            ),
+          );
+          final original = (await getStore().watchConfirmed().first).single;
+          await db.close();
+          db = AppDatabase.forTesting(
+            NativeDatabase(File('${directory.path}/test.sqlite')),
+          );
+          expect(
+            (await persistence().pendingEvents()).single.eventId,
+            original.eventId,
+          );
+          final official = original.copyWith(
+            serverSequence: 30,
+            deliveryStatus: 'delivered',
+            baseVersion: 1,
+          );
+          await persistence().updateEventSyncStatus(
+            original.eventId,
+            'delivered',
+            serverSequence: 30,
+          );
+          var applied = 0;
+          await DriftSyncedEventStore(db: db).applySyncedEvents(
+            [official],
+            applyEvent: (e) async {
+              applied++;
+              await VentaConfirmadaEventHandler(getStore()).apply(e);
+            },
+            acknowledgeEcho: (e) =>
+                getStore().acknowledge(e.eventId, e.serverSequence!),
+          );
+          expect(applied, 0);
+          expect(
+            (await db.select(db.inventoryBalances).get())
+                .single
+                .quantityOnHandAtomic,
+            -1,
+          );
+          expect(
+            (await db.select(db.salePayments).get()).single.lastServerSequence,
+            30,
+          );
+          expect(
+            (await db.select(db.inventoryMovements).get())
+                .single
+                .serverSequence,
+            30,
+          );
+        },
       );
-      client.close();
-    },
-  );
-  for (final status in ['conflict', 'rejected']) {
-    test('push $status deja visibles pago y consumo', () async {
-      await seed();
-      await add();
-      await service().confirmar(await command());
-      final e = (await getStore().watchConfirmed().first).single;
-      final client = MockClient(
-        (_) async => http.Response(
-          jsonEncode({
-            'results': [
-              {
-                'event_id': e.eventId,
-                'status': 'duplicate',
-                'original_sync_status': status,
-                'server_sequence': 9,
-                'reason': 'Incidencia',
-              },
-            ],
-          }),
-          200,
-        ),
+      test(
+        'pull otro dispositivo crea venta autocontenida y deduplica sale_id',
+        () async {
+          await seed();
+          await add();
+          await service().confirmar(
+            await command(
+              method: method,
+              reference: method == 'transfer' ? '  BANK-42  ' : null,
+            ),
+          );
+          final e = (await getStore().watchConfirmed().first).single.copyWith(
+            baseVersion: 1,
+            serverSequence: 12,
+            deliveryStatus: 'delivered',
+          );
+          await db.close();
+          db = AppDatabase.forTesting(NativeDatabase.memory());
+          await seed();
+          await DriftSyncedEventStore(db: db).applySyncedEvents(
+            [e],
+            applyEvent: VentaConfirmadaEventHandler(getStore()).apply,
+            acknowledgeEcho: (e) =>
+                getStore().acknowledge(e.eventId, e.serverSequence!),
+          );
+          expect((await db.select(db.sales).get()).single.status, 'confirmada');
+          await expectLater(
+            VentaConfirmadaEventHandler(
+              getStore(),
+            ).apply(e.copyWith(eventId: resourceId)),
+            throwsStateError,
+          );
+          expect(
+            (await db.select(db.inventoryBalances).get())
+                .single
+                .quantityOnHandAtomic,
+            -1,
+          );
+        },
       );
-      await push(client).pushPendingEvents();
-      expect(
-        (await getStore().watchConfirmed().first).single.deliveryStatus,
-        status,
+      test(
+        'standalone: cobro y arranque no instancian monitor ni producen tráfico sync',
+        () async {
+          config.dispose();
+          config = AppConfigController(
+            AppConfig.initial.copyWith(
+              mode: AppMode.standalone,
+              setupCompleted: true,
+              backupProvider: BackupProvider.none,
+            ),
+          );
+          var syncInstantiations = 0;
+          getIt.registerLazySingleton<SyncAvailabilityMonitor>(() {
+            syncInstantiations++;
+            throw StateError(
+              'No debe arrancar health, push, pull, preflight ni WebSocket.',
+            );
+          });
+          try {
+            await startConfiguredRuntimeServices(config.config);
+            await seed();
+            await add();
+            await service().confirmar(
+              await command(
+                method: method,
+                reference: method == 'transfer' ? '  BANK-42  ' : null,
+              ),
+            );
+            expect(syncInstantiations, 0);
+            expect(await persistence().pendingEvents(), isEmpty);
+            expect(await db.select(db.eventRefs).get(), isEmpty);
+          } finally {
+            await getIt.unregister<SyncAvailabilityMonitor>();
+          }
+        },
       );
-      expect(
-        (await db.select(db.salePayments).get()).single.amountMinor,
-        10000,
+      test(
+        'push espera dependencia en otro lote y respuesta perdida reintenta IDs estables',
+        () async {
+          await seed();
+          await add();
+          await service().confirmar(
+            await command(
+              method: method,
+              reference: method == 'transfer' ? '  BANK-42  ' : null,
+            ),
+          );
+          final e = (await getStore().watchConfirmed().first).single;
+          final state = await DriftProductoProjectionStore(
+            productoDao: db.productoDao,
+          ).snapshot(productId);
+          await (db.update(
+            db.events,
+          )..where((e) => e.eventId.equals(configId))).write(
+            EventsCompanion(
+              payload: Value(jsonEncode(state.toJson())),
+              deliveryStatus: const Value('pending'),
+            ),
+          );
+          var calls = 0;
+          final client = MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            final batch = body['events'] as List;
+            calls++;
+            expect(batch, hasLength(1));
+            final id = (batch.single as Map)['event_id'];
+            expect(id, calls == 1 ? configId : e.eventId);
+            if (calls > 1) {
+              expect(
+                (batch.single as Map)['payload']['payment_method'],
+                method,
+              );
+              expect(
+                (batch.single as Map)['payload']['payment_reference'],
+                method == 'transfer' ? 'BANK-42' : null,
+              );
+            }
+            if (calls == 2) throw const SocketException('Respuesta perdida');
+            return http.Response(
+              jsonEncode({
+                'results': [
+                  {
+                    'event_id': id,
+                    'status': calls == 3 ? 'duplicate' : 'accepted',
+                    'original_sync_status': 'synced',
+                    'server_sequence': calls == 1 ? 1 : 2,
+                  },
+                ],
+              }),
+              200,
+            );
+          });
+          final sender = push(client);
+          expect((await sender.pushPendingEvents()).pending, 1);
+          await expectLater(
+            sender.pushPendingEvents(),
+            throwsA(isA<Exception>()),
+          );
+          expect(
+            (await persistence().pendingEvents()).single.eventId,
+            e.eventId,
+          );
+          expect((await sender.pushPendingEvents()).synced, 1);
+          expect(
+            (await db.select(db.inventoryBalances).get())
+                .single
+                .quantityOnHandAtomic,
+            -1,
+          );
+          expect(
+            (await db.select(db.salePayments).get()).single.lastServerSequence,
+            2,
+          );
+          client.close();
+        },
       );
-      expect(
-        (await db.select(db.inventoryBalances).get())
-            .single
-            .quantityOnHandAtomic,
-        -1,
-      );
-      client.close();
+      for (final status in ['conflict', 'rejected']) {
+        test('push $status deja visibles pago y consumo', () async {
+          await seed();
+          await add();
+          await service().confirmar(
+            await command(
+              method: method,
+              reference: method == 'transfer' ? '  BANK-42  ' : null,
+            ),
+          );
+          final e = (await getStore().watchConfirmed().first).single;
+          final client = MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'results': [
+                  {
+                    'event_id': e.eventId,
+                    'status': 'duplicate',
+                    'original_sync_status': status,
+                    'server_sequence': 9,
+                    'reason': 'Incidencia',
+                  },
+                ],
+              }),
+              200,
+            ),
+          );
+          await push(client).pushPendingEvents();
+          expect(
+            (await getStore().watchConfirmed().first).single.deliveryStatus,
+            status,
+          );
+          expect(
+            (await db.select(db.salePayments).get()).single.amountMinor,
+            10000,
+          );
+          expect(
+            (await db.select(db.inventoryBalances).get())
+                .single
+                .quantityOnHandAtomic,
+            -1,
+          );
+          client.close();
+        });
+      }
     });
   }
   test(
@@ -1012,6 +1078,204 @@ void main() {
             .quantityOnHandAtomic,
         -1,
       );
+    },
+  );
+  for (final mode in AppMode.values) {
+    for (final reference in <String?>[
+      null,
+      '',
+      '   ',
+      '  ABC-123  ',
+      'x' * 500,
+    ]) {
+      test(
+        'transfer $mode referencia longitud ${reference?.length}: persiste, refs y reinicio',
+        () async {
+          config.dispose();
+          config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+          await seed();
+          await add();
+          await service().confirmar(
+            await command(method: 'transfer', reference: reference),
+          );
+          final e = (await getStore().watchConfirmed().first).single;
+          final p = VentaConfirmadaPayload.fromJson(e.payload);
+          final expected = reference?.trim();
+          expect(
+            p.paymentReference,
+            expected == null || expected.isEmpty ? null : expected,
+          );
+          expect(p.receivedMinor, 10000);
+          expect(p.changeMinor, 0);
+          expect(
+            p
+                .refs(e.aggregateId)
+                .where((r) => r.refType == 'payment')
+                .single
+                .refId,
+            p.paymentId,
+          );
+          expect(
+            await db.select(db.eventRefs).get(),
+            mode == AppMode.standalone ? isEmpty : isNotEmpty,
+          );
+          expect(
+            e.deliveryStatus,
+            mode == AppMode.standalone ? 'not_required' : 'pending',
+          );
+          await db.close();
+          db = AppDatabase.forTesting(
+            NativeDatabase(File('${directory.path}/test.sqlite')),
+          );
+          final sale = (await ConfirmedSaleRepositoryImpl(
+            getStore(),
+          ).watchSales().first).single;
+          expect(sale.paymentMethod, 'transfer');
+          expect(sale.paymentReference, p.paymentReference);
+          final row = (await CollectionRepositoryImpl(
+            db,
+          ).watchCollections().first).single;
+          expect(row.method, 'transfer');
+          expect(row.reference, p.paymentReference);
+          expect(row.amountMinor, 10000);
+          expect(row.userId, 'user');
+          expect(row.deviceId, 'tablet');
+          expect(row.eventId, e.eventId);
+          expect(row.saleId, e.aggregateId);
+        },
+      );
+    }
+  }
+  test(
+    'contrato de transferencia rechaza método, importe, cambio, referencia y admite legado',
+    () async {
+      await seed();
+      await add();
+      for (final c in [
+        await command(method: 'card'),
+        await command(method: 'transfer', received: 9999),
+        await command(method: 'transfer', received: 10001),
+        await command(method: 'transfer', reference: 'x' * 501),
+      ]) {
+        await expectLater(service().confirmar(c), throwsFormatException);
+      }
+      expect(await db.select(db.salePayments).get(), isEmpty);
+      await service().confirmar(await command());
+      final legacy = (await getStore().watchConfirmed().first).single.payload;
+      expect(VentaConfirmadaPayload.fromJson(legacy).paymentReference, isNull);
+      for (final patch in <Map<String, Object?>>[
+        {
+          'payment_method': 'transfer',
+          'received_minor': 10001,
+          'change_minor': 1,
+        },
+        {
+          'payment_method': 'transfer',
+          'received_minor': 10000,
+          'change_minor': -1,
+        },
+        {'payment_method': 'transfer', 'received_minor': 0, 'change_minor': 0},
+        {'payment_reference': 42},
+        {'payment_reference': 'x' * 501},
+        {'payment_method': 'card'},
+        {'total_minor': 1},
+      ]) {
+        expect(
+          () => VentaConfirmadaPayload.fromJson({...legacy, ...patch}),
+          throwsA(anything),
+        );
+      }
+      final valid = VentaConfirmadaPayload.fromJson({
+        ...legacy,
+        'payment_method': 'transfer',
+        'received_minor': 10000,
+        'change_minor': 0,
+        'payment_reference': '  OK  ',
+      });
+      expect(
+        VentaConfirmadaPayload.fromJson(valid.toJson()).paymentReference,
+        'OK',
+      );
+      await expectLater(
+        db.customStatement(
+          "UPDATE sale_payments SET method = 'transfer', received_minor = 10001, change_minor = 1",
+        ),
+        throwsA(anything),
+      );
+    },
+  );
+  test(
+    'lectura común: aplicado sin cambio, abonos una vez, anticipos y fechas propias',
+    () async {
+      await seed();
+      await createCustomer();
+      final cliente = (await db.select(db.clientes).get()).single;
+      final past = DateTime(2026, 9, 20).millisecondsSinceEpoch;
+      final abono = const Uuid().v4();
+      await creditService().registrarAbono(
+        RegistrarAbonoCommand(
+          id: abono,
+          clienteId: cliente.id,
+          amountMinor: 5000,
+          method: 'transfer',
+          reference: 'ANTICIPO',
+        ),
+      );
+      await db.customStatement(
+        'UPDATE customer_payments SET occurred_at_ms = ?',
+        [past],
+      );
+      final repo = CollectionRepositoryImpl(db);
+      expect((await repo.watchCollections().first).single.amountMinor, 5000);
+      await creditSale(cliente.id, 2000);
+      await creditSale(cliente.id, 2000);
+      expect(await db.select(db.creditAllocations).get(), hasLength(2));
+      await add();
+      await service().confirmar(await command(received: 20000));
+      await add();
+      await service().confirmar(
+        await command(method: 'transfer', reference: 'DIRECTO'),
+      );
+      await creditService().registrarAbono(
+        RegistrarAbonoCommand(
+          id: const Uuid().v4(),
+          clienteId: cliente.id,
+          amountMinor: 1000,
+          method: 'cash',
+        ),
+      );
+      final e = (await getStore().watchConfirmed().first).singleWhere(
+        (e) =>
+            VentaConfirmadaPayload.fromJson(e.payload).paymentMethod ==
+            'transfer',
+      );
+      await persistence().updateEventSyncStatus(
+        e.eventId,
+        'rejected',
+        rejectionReason: 'Incidencia',
+      );
+      final rows = await repo.watchCollections().first;
+      expect(rows, hasLength(4));
+      expect(
+        rows.fold(BigInt.zero, (n, r) => n + BigInt.from(r.amountMinor)),
+        BigInt.from(10000),
+      );
+      expect(
+        rows
+            .where((r) => r.method == 'cash')
+            .fold(0, (int n, r) => n + r.amountMinor),
+        3000,
+      );
+      expect(
+        rows
+            .where((r) => r.method == 'transfer')
+            .fold(0, (int n, r) => n + r.amountMinor),
+        7000,
+      );
+      final advance = rows.singleWhere((r) => r.id == abono);
+      expect(advance.date.millisecondsSinceEpoch, past);
+      expect(advance.clienteNombre, 'Ana');
+      expect(rows.where((r) => r.deliveryStatus == 'rejected'), hasLength(1));
     },
   );
 }

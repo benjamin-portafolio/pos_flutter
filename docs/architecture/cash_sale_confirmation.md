@@ -189,3 +189,19 @@ no sustituyen una prueba manual en tablets físicas.
 
 También se corrigió el aislamiento `search_path` de una prueba previa de migración
 PostgreSQL y su expectativa de código SQLSTATE RESTRICT; no se modificó esa migración.
+
+## Ampliación del 2026-09-23: transferencia directa
+
+`TransferPaymentScreen` usa la misma confirmación atómica y abre el recibo tras
+el commit. `venta_confirmada` admite `transfer` y `payment_reference` opcional
+(trim, vacío a null, hasta 500 caracteres). `received_minor = total_minor` y
+`change_minor = 0`. El cliente sigue siendo opcional. `sale_payments` mantiene
+un pago por venta y guarda método/referencia; la lectura del recibo usa el
+contrato tipado y muestra transferencia sin efectivo recibido ni cambio.
+
+Los informes suman el importe aplicado de pagos directos y abonos/anticipos por
+su fecha propia. Drift detecta ahora las columnas method/reference para recrear
+bases de desarrollo antiguas, manteniendo schemaVersion 7. PostgreSQL requiere
+`AddTransferSales1790208000000`. Actualizar servidor y todas las tablets antes de
+habilitar el contrato; no se promociona historial standalone a pendientes.
+Las verificaciones vigentes se documentan en la especificación de transferencias.

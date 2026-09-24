@@ -7,6 +7,7 @@ class VentaConfirmadaPayload {
   VentaConfirmadaPayload({
     required this.paymentId,
     this.paymentMethod = 'cash',
+    String? paymentReference,
     this.clienteId,
     this.clienteEventId,
     this.clienteNombre,
@@ -17,9 +18,10 @@ class VentaConfirmadaPayload {
     required this.currency,
     required List<ConfirmedSaleLine> lines,
     required List<String> dependencyEventIds,
-  }) : lines = List.unmodifiable(lines),
+  }) : paymentReference = normalizeReference(paymentReference),
+       lines = List.unmodifiable(lines),
        dependencyEventIds = List.unmodifiable(dependencyEventIds) {
-    if (paymentMethod == 'cash') {
+    if (paymentMethod == 'cash' || paymentMethod == 'transfer') {
       InventoryMovementPayload.requiredUuidV4(paymentId ?? '', 'payment_id');
     } else if (paymentMethod != 'credit' ||
         paymentId != null ||
@@ -72,6 +74,8 @@ class VentaConfirmadaPayload {
             changeMinor != receivedMinor - totalMinor) ||
         (paymentMethod == 'credit' &&
             (receivedMinor != 0 || changeMinor != 0)) ||
+        (paymentMethod == 'transfer' &&
+            (receivedMinor != totalMinor || changeMinor != 0)) ||
         currency != 'MXN' ||
         !lines.every(
           (l) => dependencyEventIds.contains(l.configurationEventId),
@@ -79,6 +83,16 @@ class VentaConfirmadaPayload {
       throw const FormatException('Venta, pago o total inválido.');
     }
   }
+  static String? normalizeReference(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    if (normalized.length > 500) {
+      throw const FormatException('La referencia admite hasta 500 caracteres.');
+    }
+    return normalized;
+  }
+
+  final String? paymentReference;
   static const aggregateType = 'sale';
   static const eventType = 'venta_confirmada';
   final String? paymentId, clienteId, clienteEventId, clienteNombre;
@@ -91,6 +105,7 @@ class VentaConfirmadaPayload {
   Map<String, Object?> toJson() => {
     'payment_id': paymentId,
     'payment_method': paymentMethod,
+    if (paymentReference != null) 'payment_reference': paymentReference,
     if (occurredAtMs != null) 'occurred_at_ms': occurredAtMs,
     if (clienteId != null) ...{
       'cliente_id': clienteId,
@@ -108,6 +123,7 @@ class VentaConfirmadaPayload {
     return VentaConfirmadaPayload(
       paymentId: j['payment_id'] as String?,
       paymentMethod: j['payment_method'] as String,
+      paymentReference: j['payment_reference'] as String?,
       occurredAtMs: j['occurred_at_ms'] as int?,
       clienteId: j['cliente_id'] as String?,
       clienteEventId: j['cliente_event_id'] as String?,

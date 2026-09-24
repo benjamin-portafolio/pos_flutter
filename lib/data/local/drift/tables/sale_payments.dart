@@ -5,14 +5,20 @@ import 'sales.dart';
 /// Pago íntegro e inmutable. CommonFields identifica y audita la confirmación.
 @DataClassName('SalePaymentRow')
 class SalePayments extends Table with CommonFields {
-  /// Una sola confirmación de efectivo por venta, incluso con otro event_id.
+  /// Una sola confirmación de pago directo por venta, incluso con otro event_id.
   TextColumn get saleId =>
       text().unique().references(Sales, #id, onDelete: KeyAction.restrict)();
 
   /// Importe aplicado al pago, excluyendo el cambio.
   IntColumn get amountMinor => integer()();
 
-  /// Efectivo entregado por el cliente.
+  /// Método real del pago directo; los pagos históricos son efectivo.
+  TextColumn get method => text().withDefault(const Constant('cash'))();
+
+  /// Referencia descriptiva opcional, normalizada al confirmar.
+  TextColumn get reference => text().nullable()();
+
+  /// Importe recibido por el método indicado.
   IntColumn get receivedMinor => integer()();
 
   /// Efectivo que se devuelve al cliente.
@@ -27,5 +33,8 @@ class SalePayments extends Table with CommonFields {
     'CHECK(amount_minor >= 0 AND received_minor >= amount_minor AND received_minor <= 9007199254740991)',
     'CHECK(change_minor = received_minor - amount_minor)',
     "CHECK(currency = 'MXN')",
+    "CHECK(method IN ('cash', 'transfer'))",
+    "CHECK(method <> 'transfer' OR (received_minor = amount_minor AND change_minor = 0))",
+    "CHECK(reference IS NULL OR length(reference) <= 500)",
   ];
 }

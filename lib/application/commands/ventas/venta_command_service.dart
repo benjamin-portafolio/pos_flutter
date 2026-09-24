@@ -161,6 +161,9 @@ class VentaCommandService {
     final payload = VentaConfirmadaPayload(
       paymentId: credit ? null : _uuid.v4(),
       paymentMethod: command.paymentMethod,
+      paymentReference: VentaConfirmadaPayload.normalizeReference(
+        command.paymentReference,
+      ),
       occurredAtMs: credit ? DateTime.now().millisecondsSinceEpoch : null,
       clienteId: cliente?.id,
       clienteEventId: cliente?.createdEventId,

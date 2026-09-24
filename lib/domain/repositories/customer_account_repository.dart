@@ -1,7 +1,5 @@
 import '../creditos/customer_account.dart';
-import '../creditos/account_entry.dart';
 
 abstract interface class CustomerAccountRepository {
   Stream<CustomerAccount> watchAccount(String clienteId);
-  Stream<List<AccountEntry>> watchPayments();
 }

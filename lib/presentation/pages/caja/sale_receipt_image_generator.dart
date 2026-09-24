@@ -76,6 +76,9 @@ class SaleReceiptImageGenerator {
     text('Recibo # ${receipt.sale.id}', size: 13);
     text('Fecha: ${receipt.date}', size: 13);
     text('Moneda: ${receipt.sale.currency}', size: 13);
+    if (receipt.sale.paymentReference != null) {
+      text('Referencia: ${receipt.sale.paymentReference}', size: 13);
+    }
     if (receipt.sale.clienteNombre != null) {
       text('Cliente: ${receipt.sale.clienteNombre}', size: 13);
     }

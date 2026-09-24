@@ -41,12 +41,4 @@ class CustomerAccountRepositoryImpl implements CustomerAccountRepository {
       )
       .watch()
       .map((rows) => CustomerAccount(rows.map(_entry)));
-  @override
-  Stream<List<AccountEntry>> watchPayments() => db
-      .customSelect(
-        'SELECT * FROM ($_query) WHERE is_payment = 1',
-        readsFrom: {db.creditSales, db.customerPayments, db.events},
-      )
-      .watch()
-      .map((rows) => rows.map(_entry).toList());
 }

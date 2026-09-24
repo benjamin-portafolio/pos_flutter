@@ -3,6 +3,7 @@ import '../../../core/di/injection.dart';
 import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/ventas/confirmed_sale.dart';
 import 'models/sale_draft_display.dart';
+import 'models/sale_receipt_display.dart';
 
 /// Consulta persistente del cobro, incluidas incidencias de entrega.
 class ConfirmedSalesScreen extends StatefulWidget {
@@ -45,6 +46,9 @@ class _ConfirmedSalesScreenState extends State<ConfirmedSalesScreen> {
           children: [
             Text(status, style: Theme.of(context).textTheme.titleLarge),
             Text('Venta: ${e.id}'),
+            Text('Método: ${SaleReceiptDisplay(e).paymentLabel}'),
+            if (e.paymentReference != null)
+              Text('Referencia: ${e.paymentReference}'),
             Text('${e.createdAt.toLocal()}'),
             for (final l in e.items)
               Text(
@@ -55,9 +59,9 @@ class _ConfirmedSalesScreenState extends State<ConfirmedSalesScreen> {
               '${e.isCredit ? 'A crédito' : 'Pagado'}: ${SaleDraftDisplay.money(e.totalMinor)} ${e.currency}',
             ),
             if (e.clienteNombre != null) Text('Cliente: ${e.clienteNombre}'),
-            if (!e.isCredit)
+            if (e.paymentMethod == 'cash')
               Text('Recibido: ${SaleDraftDisplay.money(e.receivedMinor)}'),
-            if (!e.isCredit)
+            if (e.paymentMethod == 'cash')
               Text('Cambio: ${SaleDraftDisplay.money(e.changeMinor)}'),
             if (e.reason != null) Text(e.reason!),
           ],

@@ -6,7 +6,12 @@ class SaleReceiptDisplay {
   const SaleReceiptDisplay(this.sale);
 
   final ConfirmedSale sale;
-  String get paymentLabel => sale.isCredit ? 'Crédito' : 'Efectivo';
+  String get paymentLabel => switch (sale.paymentMethod) {
+    'cash' => 'Efectivo',
+    'transfer' => 'Transferencia',
+    'credit' => 'Crédito',
+    _ => throw StateError('Método desconocido: ${sale.paymentMethod}'),
+  };
 
   int get distinctItems =>
       sale.items.map((item) => item.variantId).toSet().length;
@@ -36,16 +41,20 @@ class SaleReceiptDisplay {
   List<(String, String)> get totals => [
     ('Subtotal', SaleDraftDisplay.money(sale.totalMinor)),
     ('Total general', SaleDraftDisplay.money(sale.totalMinor)),
+    if (sale.paymentMethod == 'transfer')
+      ('Transferencia recibida', SaleDraftDisplay.money(sale.totalMinor)),
     if (sale.isCredit)
       ('Cargo a la cuenta', SaleDraftDisplay.money(sale.totalMinor)),
-    if (!sale.isCredit)
+    if (sale.paymentMethod == 'cash')
       ('Efectivo recibido', SaleDraftDisplay.money(sale.receivedMinor)),
-    if (!sale.isCredit) ('Cambio', SaleDraftDisplay.money(sale.changeMinor)),
+    if (sale.paymentMethod == 'cash')
+      ('Cambio', SaleDraftDisplay.money(sale.changeMinor)),
   ];
 
   String get semanticLabel => [
     'Recibo ${sale.id}',
     'Fecha: $date',
+    if (sale.paymentReference != null) 'Referencia: ${sale.paymentReference}',
     if (sale.clienteNombre != null) 'Cliente: ${sale.clienteNombre}',
     '$paymentLabel. $distinctItems productos diferentes. $quantities.',
     'Monto: ${SaleDraftDisplay.money(sale.totalMinor)} ${sale.currency}',

@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../../../domain/creditos/account_entry.dart';
-import '../../../../domain/ventas/confirmed_sale.dart';
+import '../../../../domain/cobros/collection_entry.dart';
 import '../models/report_period.dart';
+import '../collection_movements_screen.dart';
 
-/// Entradas reales: efectivo aplicado a ventas más abonos y anticipos,
-/// excluyendo crédito otorgado y cambio entregado.
 class CollectionsReportCard extends StatelessWidget {
   const CollectionsReportCard({
-    required this.payments,
-    required this.sales,
+    required this.collections,
     required this.period,
     super.key,
   });
-  final Stream<List<AccountEntry>> payments;
-  final List<ConfirmedSale> sales;
+  final Stream<List<CollectionEntry>> collections;
   final ReportPeriod period;
+  static String _money(BigInt n) =>
+      '\$${n ~/ BigInt.from(100)}.${(n % BigInt.from(100)).toString().padLeft(2, '0')} MXN';
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -26,25 +24,51 @@ class CollectionsReportCard extends StatelessWidget {
             'COBROS RECIBIDOS',
             style: Theme.of(context).textTheme.labelLarge,
           ),
-          const SizedBox(height: 12),
-          StreamBuilder<List<AccountEntry>>(
-            stream: payments,
+          StreamBuilder<List<CollectionEntry>>(
+            stream: collections,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return const Text('No se pudieron cargar los cobros.');
               }
               if (!snapshot.hasData) return const CircularProgressIndicator();
-              final cash = sales
-                  .where((s) => !s.isCredit && period.contains(s.createdAt))
-                  .fold(BigInt.zero, (n, s) => n + BigInt.from(s.totalMinor));
-              final abonos = snapshot.data!
-                  .where((p) => period.contains(p.date))
-                  .fold(BigInt.zero, (n, p) => n + BigInt.from(p.amountMinor));
-              final total = cash + abonos, h = BigInt.from(100);
-              return Text(
-                '\$${total ~/ h}.${(total % h).toString().padLeft(2, '0')} MXN',
-                key: const Key('cobros_recibidos'),
-                style: Theme.of(context).textTheme.headlineMedium,
+              final entries = snapshot.data!.where(
+                (e) => period.contains(e.date),
+              );
+              final cash = entries
+                  .where((e) => e.method == 'cash')
+                  .fold(BigInt.zero, (n, e) => n + BigInt.from(e.amountMinor));
+              final transfer = entries
+                  .where((e) => e.method == 'transfer')
+                  .fold(BigInt.zero, (n, e) => n + BigInt.from(e.amountMinor));
+              return Column(
+                children: [
+                  for (final row in <(String, String?, BigInt)>[
+                    ('Efectivo', 'cash', cash),
+                    ('Transferencia', 'transfer', transfer),
+                    ('Total recibido', null, cash + transfer),
+                  ])
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(row.$1),
+                      subtitle: Text(
+                        _money(row.$3),
+                        key: row.$2 == null
+                            ? const Key('cobros_recibidos')
+                            : ValueKey('cobros_${row.$2}'),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => CollectionMovementsScreen(
+                            collections: collections,
+                            initialEntries: snapshot.data!,
+                            period: period,
+                            method: row.$2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),

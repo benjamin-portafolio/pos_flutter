@@ -6,9 +6,10 @@ class ConfirmarVentaCommand {
     this.receivedMinor,
     this.clienteId,
     this.paymentMethod = 'cash',
+    this.paymentReference,
   });
   final String saleId, expectedDraftEventId, paymentMethod;
-  final String? clienteId;
+  final String? clienteId, paymentReference;
   final int expectedTotalMinor;
 
   /// null equivale al importe exacto; nunca incluye cambio en el pago aplicado.

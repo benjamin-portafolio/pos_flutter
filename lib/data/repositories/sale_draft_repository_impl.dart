@@ -34,6 +34,7 @@ class SaleDraftRepositoryImpl implements SaleDraftRepository {
                   quantity: item.quantity,
                   measuredQuantityAtomic: item.measuredQuantityAtomic,
                   unitPriceMinor: item.unitPriceMinor,
+                  standardCostMinor: item.standardCostMinorSnapshot,
                   priceReferenceQuantityAtomic:
                       item.priceReferenceQuantityAtomicSnapshot,
                   unitCode: item.saleUnitCodeSnapshot,

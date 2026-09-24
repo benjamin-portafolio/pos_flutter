@@ -6,6 +6,7 @@ import '../../../domain/clientes/cliente.dart';
 import '../../../domain/repositories/cliente_repository.dart';
 import '../gestion_clientes/cliente_picker_screen.dart';
 import 'cash_payment_screen.dart';
+import 'transfer_payment_screen.dart';
 import 'sale_receipt_screen.dart';
 import 'models/sale_draft_display.dart';
 
@@ -96,6 +97,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
   }
 
+  Future<void> _transfer() async {
+    final confirmed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TransferPaymentScreen(
+          totalMinor: widget.totalMinor,
+          saleId: widget.saleId!,
+          expectedDraftEventId: widget.expectedDraftEventId!,
+          clienteId: _cliente?.id,
+          commandService: widget.commandService,
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) Navigator.pop(context, true);
+  }
+
   Future<void> _cash() async {
     final confirmed = await Navigator.push<bool>(
       context,
@@ -155,7 +172,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(_cliente?.nombre ?? 'Seleccionar cliente'),
-                      subtitle: const Text('Opcional para efectivo'),
+                      subtitle: const Text(
+                        'Opcional para efectivo y transferencia',
+                      ),
                       onTap: _processing ? null : _selectCliente,
                       trailing: _cliente == null
                           ? const Icon(Icons.arrow_drop_down)
@@ -211,7 +230,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         (
                           'Transferencia bancaria',
                           Icons.account_balance_outlined,
-                          null,
+                          _processing ||
+                                  widget.saleId == null ||
+                                  widget.expectedDraftEventId == null
+                              ? null
+                              : _transfer,
                         ),
                       ])
                         SizedBox(
