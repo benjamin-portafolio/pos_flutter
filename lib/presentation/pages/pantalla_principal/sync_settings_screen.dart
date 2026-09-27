@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../application/commands/local_command_context.dart';
 import '../../../application/config/app_config.dart';
 import '../../../application/config/app_config_controller.dart';
+import '../../../application/config/app_config_store.dart';
+import '../../../application/sync/projections/cash_projection_store.dart';
 import '../../../application/sync/sync_availability_monitor.dart';
 import '../../../application/sync/sync_detection_settings_store.dart';
 import '../../../application/sync/sync_endpoint_config.dart';
@@ -39,6 +42,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   bool _isSavingServer = false;
   bool _isSavingWifiDetection = false;
   bool _requireWifiForServerDetection = false;
+  bool _isSavingCashEnabled = false;
+  late bool _cashEnabled;
   late final AppMode _mode;
 
   @override
@@ -54,6 +59,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     _serverController = TextEditingController(text: _endpointConfig.baseUrl);
     _requireWifiForServerDetection =
         _serverDetectionConfig.requireWifiForServerDetection;
+    _cashEnabled = _appConfigController.config.cashEnabled;
     _mode = _appConfigController.mode;
   }
 
@@ -125,6 +131,20 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                     );
                   }
                 : null,
+          ),
+          const SizedBox(height: 20),
+          Text('Caja', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.point_of_sale),
+            title: const Text('Corte de caja'),
+            subtitle: const Text(
+              'Si lo desactivas se puede vender en efectivo, pero esos importes '
+              'no suman a ninguna caja. Solo cambia en esta terminal.',
+            ),
+            value: _cashEnabled,
+            onChanged: _isSavingCashEnabled ? null : _actualizarCaja,
           ),
           const SizedBox(height: 16),
           if (_mode == AppMode.serverSync) ...[
@@ -212,6 +232,48 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       return 'Activo al conectar una cuenta Google.';
     }
     return 'Conectado: ${config.googleUserEmail}';
+  }
+
+  /// Cambia `cash_enabled` en la instalacion. Se rechaza mientras haya una
+  /// sesion de caja abierta: la sesion en curso quedaria descrita por un ajuste
+  /// que ya no la habilita.
+  Future<void> _actualizarCaja(bool value) async {
+    if (value == _cashEnabled) return;
+    setState(() => _isSavingCashEnabled = true);
+    try {
+      final deviceId = getIt<LocalCommandContext>().deviceId;
+      final session = await getIt<CashProjectionStore>().current(deviceId);
+      if (session != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Cierra la caja de esta terminal antes de cambiar el ajuste.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final next = _appConfigController.config.copyWith(cashEnabled: value);
+      await getIt<AppConfigStore>().saveConfig(next);
+      _appConfigController.update(next);
+      if (!mounted) return;
+      setState(() => _cashEnabled = value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? 'Corte de caja habilitado en esta terminal.'
+                : 'Corte de caja desactivado. El efectivo no sumara a ninguna caja.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingCashEnabled = false);
+      }
+    }
   }
 
   String? _validarServidor(String? value) {

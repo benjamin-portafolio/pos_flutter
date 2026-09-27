@@ -1,8 +1,19 @@
+import '../../application/commands/caja/caja_command_service.dart';
+import '../../application/sync/handlers/cash_event_handler.dart';
+import '../../application/sync/projections/cash_projection_store.dart';
+import '../../application/sync/payloads/caja_abierta_payload.dart';
+import '../../application/sync/payloads/caja_cerrada_payload.dart';
 import '../../application/commands/creditos/credito_command_service.dart';
+import '../../application/commands/finanzas/categoria_financiera_command_service.dart';
+import '../../application/commands/finanzas/movimiento_financiero_command_service.dart';
 import '../../domain/repositories/collection_repository.dart';
 import '../../data/repositories/collection_repository_impl.dart';
 import '../../application/sync/handlers/abono_cliente_event_handler.dart';
+import '../../application/sync/handlers/financial_category_event_handler.dart';
+import '../../application/sync/handlers/financial_entry_event_handler.dart';
 import '../../application/sync/payloads/abono_cliente_registrado_payload.dart';
+import '../../application/sync/payloads/categoria_financiera_creada_payload.dart';
+import '../../application/sync/payloads/movimiento_financiero_registrado_payload.dart';
 import '../../application/sync/projections/customer_credit_store.dart';
 import '../../data/local/drift/drift_customer_credit_store.dart';
 import '../../data/repositories/customer_account_repository_impl.dart';
@@ -58,6 +69,8 @@ import '../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../application/sync/pending_event_revalidator.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
+import '../../application/sync/projections/financial_category_projection_store.dart';
+import '../../application/sync/projections/financial_entry_projection_store.dart';
 import '../../application/sync/projections/inventory_projection_store.dart';
 import '../../application/sync/projections/producto_projection_store.dart';
 import '../../application/sync/projections/sale_draft_projection_store.dart';
@@ -176,8 +189,20 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<CustomerAccountRepository>(
     () => CustomerAccountRepositoryImpl(getIt<AppDatabase>()),
   );
+  getIt.registerLazySingleton<CashEventHandler>(
+    () => CashEventHandler(getIt<CashProjectionStore>()),
+  );
+  getIt.registerLazySingleton<CajaCommandService>(
+    () => CajaCommandService(
+      store: getIt<CashProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+      config: getIt<AppConfigController>(),
+    ),
+  );
   getIt.registerLazySingleton<CreditoCommandService>(
     () => CreditoCommandService(
+      cash: getIt<CajaCommandService>(),
       store: getIt<CustomerCreditStore>(),
       clientes: getIt<ClienteProjectionStore>(),
       events: getIt<LocalEventStore>(),
@@ -185,7 +210,10 @@ void registerApplicationDependencies(
     ),
   );
   getIt.registerLazySingleton<AbonoClienteEventHandler>(
-    () => AbonoClienteEventHandler(getIt<CustomerCreditStore>()),
+    () => AbonoClienteEventHandler(
+      getIt<CustomerCreditStore>(),
+      cash: getIt<CashEventHandler>(),
+    ),
   );
   getIt.registerLazySingleton<ConfirmedSaleStore>(
     () => DriftConfirmedSaleStore(getIt<AppDatabase>()),
@@ -194,10 +222,14 @@ void registerApplicationDependencies(
     () => ConfirmedSaleRepositoryImpl(getIt<ConfirmedSaleStore>()),
   );
   getIt.registerLazySingleton<VentaConfirmadaEventHandler>(
-    () => VentaConfirmadaEventHandler(getIt<ConfirmedSaleStore>()),
+    () => VentaConfirmadaEventHandler(
+      getIt<ConfirmedSaleStore>(),
+      cash: getIt<CashEventHandler>(),
+    ),
   );
   getIt.registerLazySingleton<VentaCommandService>(
     () => VentaCommandService(
+      cash: getIt<CajaCommandService>(),
       clientes: getIt<ClienteProjectionStore>(),
       drafts: getIt<SaleDraftProjectionStore>(),
       products: getIt<ProductoProjectionStore>(),
@@ -206,9 +238,39 @@ void registerApplicationDependencies(
       context: getIt<LocalCommandContext>(),
     ),
   );
+  getIt.registerLazySingleton<FinancialCategoryEventHandler>(
+    () => FinancialCategoryEventHandler(
+      getIt<FinancialCategoryProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<FinancialEntryEventHandler>(
+    () => FinancialEntryEventHandler(
+      cash: getIt<CashEventHandler>(),
+      getIt<FinancialEntryProjectionStore>(),
+      getIt<FinancialCategoryProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<CategoriaFinancieraCommandService>(
+    () => CategoriaFinancieraCommandService(
+      store: getIt<FinancialCategoryProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+    ),
+  );
+  getIt.registerLazySingleton<MovimientoFinancieroCommandService>(
+    () => MovimientoFinancieroCommandService(
+      cash: getIt<CajaCommandService>(),
+      store: getIt<FinancialEntryProjectionStore>(),
+      categories: getIt<FinancialCategoryProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+    ),
+  );
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        CajaAbiertaPayload.eventType: getIt<CashEventHandler>().apply,
+        CajaCerradaPayload.eventType: getIt<CashEventHandler>().apply,
         AbonoClienteRegistradoPayload.eventType:
             getIt<AbonoClienteEventHandler>().apply,
         ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
@@ -224,6 +286,10 @@ void registerApplicationDependencies(
             getIt<VentaBorradorActualizadoEventHandler>().apply,
         ProductoEliminadoBorradorPayload.eventType:
             getIt<VentaBorradorEliminadoEventHandler>().apply,
+        CategoriaFinancieraCreadaPayload.eventType:
+            getIt<FinancialCategoryEventHandler>().apply,
+        MovimientoFinancieroRegistradoPayload.eventType:
+            getIt<FinancialEntryEventHandler>().apply,
         ...espacioEventHandlers(getIt<EspacioEventHandler>()),
         ...categoriaEventHandlers(getIt<CategoriaEventHandler>()),
         ...productoEventHandlers(getIt<ProductoEventHandler>()),
@@ -233,12 +299,16 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      cashProjectionStore: getIt<CashProjectionStore>(),
       customerCreditStore: getIt<CustomerCreditStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       confirmedSaleStore: getIt<ConfirmedSaleStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
+      financialCategoryProjectionStore:
+          getIt<FinancialCategoryProjectionStore>(),
+      financialEntryProjectionStore: getIt<FinancialEntryProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<CategoriaConflictProjectionRestorer>(
@@ -274,6 +344,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
+      cashProjectionStore: getIt<CashProjectionStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       syncPersistence: getIt<SyncPersistence>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),
@@ -281,6 +352,8 @@ void registerApplicationDependencies(
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
+      financialCategoryProjectionStore:
+          getIt<FinancialCategoryProjectionStore>(),
       categoriaConflictProjectionRestorer:
           getIt<CategoriaConflictProjectionRestorer>(),
       categoriaMovidaConflictProjectionRestorer:

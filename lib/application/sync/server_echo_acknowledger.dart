@@ -1,3 +1,4 @@
+import 'projections/cash_projection_store.dart';
 import 'payloads/cliente_actualizado_payload.dart';
 import 'projections/customer_credit_store.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
@@ -15,32 +16,45 @@ import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
+import 'payloads/categoria_financiera_creada_payload.dart';
+import 'payloads/movimiento_financiero_registrado_payload.dart';
 import 'projections/categoria_projection_store.dart';
+import 'projections/financial_category_projection_store.dart';
+import 'projections/financial_entry_projection_store.dart';
 import 'projections/inventory_projection_store.dart';
 import 'projections/producto_projection_store.dart';
 
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
+    this.cashProjectionStore,
     this.confirmedSaleStore,
     this.customerCreditStore,
     this.clienteProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
     InventoryProjectionStore? inventoryProjectionStore,
+    FinancialCategoryProjectionStore? financialCategoryProjectionStore,
+    FinancialEntryProjectionStore? financialEntryProjectionStore,
   }) : _categoriaProjectionStore = categoriaProjectionStore,
        _productoProjectionStore = productoProjectionStore,
-       _inventoryProjectionStore = inventoryProjectionStore;
+       _inventoryProjectionStore = inventoryProjectionStore,
+       _financialCategoryProjectionStore = financialCategoryProjectionStore,
+       _financialEntryProjectionStore = financialEntryProjectionStore;
 
+  final CashProjectionStore? cashProjectionStore;
   final ClienteProjectionStore? clienteProjectionStore;
   final ConfirmedSaleStore? confirmedSaleStore;
   final CustomerCreditStore? customerCreditStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
   final InventoryProjectionStore? _inventoryProjectionStore;
+  final FinancialCategoryProjectionStore? _financialCategoryProjectionStore;
+  final FinancialEntryProjectionStore? _financialEntryProjectionStore;
 
   Future<void> acknowledge(SyncEvent event) async {
     final serverSequence = event.serverSequence;
     if (serverSequence == null) return;
+    await cashProjectionStore?.acknowledge(event.eventId, serverSequence);
 
     switch (event.eventType) {
       case AbonoClienteRegistradoPayload.eventType:
@@ -117,6 +131,18 @@ class ServerEchoAcknowledger {
           eventId: event.eventId,
           serverSequence: serverSequence,
           includesBalance: true,
+        );
+        return;
+      case CategoriaFinancieraCreadaPayload.eventType:
+        await _financialCategoryProjectionStore?.advanceServerSequence(
+          event.aggregateId,
+          serverSequence,
+        );
+        return;
+      case MovimientoFinancieroRegistradoPayload.eventType:
+        await _financialEntryProjectionStore?.advanceServerSequence(
+          event.eventId,
+          serverSequence,
         );
         return;
     }

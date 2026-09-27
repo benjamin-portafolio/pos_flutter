@@ -12841,6 +12841,3661 @@ class CreditAllocationsCompanion extends UpdateCompanion<CreditAllocation> {
   }
 }
 
+class $FinancialCategoriesTable extends FinancialCategories
+    with TableInfo<$FinancialCategoriesTable, FinancialCategoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinancialCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK(length(name) BETWEEN 1 AND 100)',
+  );
+  static const VerificationMeta _directionMeta = const VerificationMeta(
+    'direction',
+  );
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+    'direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK(direction IN (\'in\', \'out\'))',
+  );
+  static const VerificationMeta _natureMeta = const VerificationMeta('nature');
+  @override
+  late final GeneratedColumn<String> nature = GeneratedColumn<String>(
+    'nature',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK(nature IN (\'operating\', \'capital\', \'asset_purchase\', \'inventory_purchase\', \'financing\'))',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    name,
+    direction,
+    nature,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'financial_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinancialCategoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(
+        _directionMeta,
+        direction.isAcceptableOrUnknown(data['direction']!, _directionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('nature')) {
+      context.handle(
+        _natureMeta,
+        nature.isAcceptableOrUnknown(data['nature']!, _natureMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_natureMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FinancialCategoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinancialCategoryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      direction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction'],
+      )!,
+      nature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nature'],
+      )!,
+    );
+  }
+
+  @override
+  $FinancialCategoriesTable createAlias(String alias) {
+    return $FinancialCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class FinancialCategoryRow extends DataClass
+    implements Insertable<FinancialCategoryRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Nombre visible, normalizado NFKC+trim con 1..100 code points.
+  /// No hay unicidad por nombre: dos categorías pueden tener el mismo texto.
+  final String name;
+
+  /// Dirección inmutable desde el alta: 'in' (ingreso) u 'out' (gasto).
+  /// La UI la deriva del contexto del botón presionado.
+  final String direction;
+
+  /// Naturaleza/clasificación inmutable desde el alta (5 valores); no se
+  /// infiere del nombre. `operating` es el valor predeterminado operativo.
+  final String nature;
+  const FinancialCategoryRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.name,
+    required this.direction,
+    required this.nature,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['name'] = Variable<String>(name);
+    map['direction'] = Variable<String>(direction);
+    map['nature'] = Variable<String>(nature);
+    return map;
+  }
+
+  FinancialCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return FinancialCategoriesCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      name: Value(name),
+      direction: Value(direction),
+      nature: Value(nature),
+    );
+  }
+
+  factory FinancialCategoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinancialCategoryRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      name: serializer.fromJson<String>(json['name']),
+      direction: serializer.fromJson<String>(json['direction']),
+      nature: serializer.fromJson<String>(json['nature']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'name': serializer.toJson<String>(name),
+      'direction': serializer.toJson<String>(direction),
+      'nature': serializer.toJson<String>(nature),
+    };
+  }
+
+  FinancialCategoryRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? name,
+    String? direction,
+    String? nature,
+  }) => FinancialCategoryRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    name: name ?? this.name,
+    direction: direction ?? this.direction,
+    nature: nature ?? this.nature,
+  );
+  FinancialCategoryRow copyWithCompanion(FinancialCategoriesCompanion data) {
+    return FinancialCategoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      name: data.name.present ? data.name.value : this.name,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      nature: data.nature.present ? data.nature.value : this.nature,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinancialCategoryRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('name: $name, ')
+          ..write('direction: $direction, ')
+          ..write('nature: $nature')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    name,
+    direction,
+    nature,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinancialCategoryRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.name == this.name &&
+          other.direction == this.direction &&
+          other.nature == this.nature);
+}
+
+class FinancialCategoriesCompanion
+    extends UpdateCompanion<FinancialCategoryRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> name;
+  final Value<String> direction;
+  final Value<String> nature;
+  final Value<int> rowid;
+  const FinancialCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.name = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.nature = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinancialCategoriesCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String name,
+    required String direction,
+    required String nature,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       direction = Value(direction),
+       nature = Value(nature);
+  static Insertable<FinancialCategoryRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? name,
+    Expression<String>? direction,
+    Expression<String>? nature,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (name != null) 'name': name,
+      if (direction != null) 'direction': direction,
+      if (nature != null) 'nature': nature,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinancialCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? name,
+    Value<String>? direction,
+    Value<String>? nature,
+    Value<int>? rowid,
+  }) {
+    return FinancialCategoriesCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      name: name ?? this.name,
+      direction: direction ?? this.direction,
+      nature: nature ?? this.nature,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (nature.present) {
+      map['nature'] = Variable<String>(nature.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinancialCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('name: $name, ')
+          ..write('direction: $direction, ')
+          ..write('nature: $nature, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $FinancialEntriesTable extends FinancialEntries
+    with TableInfo<$FinancialEntriesTable, FinancialEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FinancialEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES financial_categories (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _categoryNameSnapshotMeta =
+      const VerificationMeta('categoryNameSnapshot');
+  @override
+  late final GeneratedColumn<String> categoryNameSnapshot =
+      GeneratedColumn<String>(
+        'category_name_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+        $customConstraints:
+            'NOT NULL CHECK(length(category_name_snapshot) BETWEEN 1 AND 100)',
+      );
+  static const VerificationMeta _directionMeta = const VerificationMeta(
+    'direction',
+  );
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+    'direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK(direction IN (\'in\', \'out\'))',
+  );
+  static const VerificationMeta _natureMeta = const VerificationMeta('nature');
+  @override
+  late final GeneratedColumn<String> nature = GeneratedColumn<String>(
+    'nature',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK(nature IN (\'operating\', \'capital\', \'asset_purchase\', \'inventory_purchase\', \'financing\'))',
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK(amount_minor > 0 AND amount_minor <= 9007199254740991)',
+  );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK(currency = \'MXN\')',
+  );
+  static const VerificationMeta _methodMeta = const VerificationMeta('method');
+  @override
+  late final GeneratedColumn<String> method = GeneratedColumn<String>(
+    'method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK(method IN (\'cash\', \'transfer\'))',
+  );
+  static const VerificationMeta _occurredAtMsMeta = const VerificationMeta(
+    'occurredAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> occurredAtMs = GeneratedColumn<int>(
+    'occurred_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK(occurred_at_ms > 0 AND occurred_at_ms <= 9007199254740991)',
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'CHECK(notes IS NULL OR length(notes) <= 500)',
+  );
+  static const VerificationMeta _referenceMeta = const VerificationMeta(
+    'reference',
+  );
+  @override
+  late final GeneratedColumn<String> reference = GeneratedColumn<String>(
+    'reference',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'CHECK(reference IS NULL OR length(reference) <= 500)',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    categoryId,
+    categoryNameSnapshot,
+    direction,
+    nature,
+    amountMinor,
+    currency,
+    method,
+    occurredAtMs,
+    notes,
+    reference,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'financial_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FinancialEntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('category_name_snapshot')) {
+      context.handle(
+        _categoryNameSnapshotMeta,
+        categoryNameSnapshot.isAcceptableOrUnknown(
+          data['category_name_snapshot']!,
+          _categoryNameSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryNameSnapshotMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(
+        _directionMeta,
+        direction.isAcceptableOrUnknown(data['direction']!, _directionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('nature')) {
+      context.handle(
+        _natureMeta,
+        nature.isAcceptableOrUnknown(data['nature']!, _natureMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_natureMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('currency')) {
+      context.handle(
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_currencyMeta);
+    }
+    if (data.containsKey('method')) {
+      context.handle(
+        _methodMeta,
+        method.isAcceptableOrUnknown(data['method']!, _methodMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_methodMeta);
+    }
+    if (data.containsKey('occurred_at_ms')) {
+      context.handle(
+        _occurredAtMsMeta,
+        occurredAtMs.isAcceptableOrUnknown(
+          data['occurred_at_ms']!,
+          _occurredAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_occurredAtMsMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('reference')) {
+      context.handle(
+        _referenceMeta,
+        reference.isAcceptableOrUnknown(data['reference']!, _referenceMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FinancialEntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FinancialEntryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+      categoryNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_name_snapshot'],
+      )!,
+      direction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction'],
+      )!,
+      nature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nature'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      currency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency'],
+      )!,
+      method: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}method'],
+      )!,
+      occurredAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}occurred_at_ms'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      reference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference'],
+      ),
+    );
+  }
+
+  @override
+  $FinancialEntriesTable createAlias(String alias) {
+    return $FinancialEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class FinancialEntryRow extends DataClass
+    implements Insertable<FinancialEntryRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Categoría financiera referenciada; `active` no participa. RESTRICT impide
+  /// borrar una categoría con registros.
+  final String categoryId;
+
+  /// Snapshot del nombre de la categoría al capturar (1..100 code points).
+  /// Permite consultar el registro aunque cambie la proyección de la categoría
+  /// o exista una incidencia de dependencia.
+  final String categoryNameSnapshot;
+
+  /// Snapshot de dirección validado contra la categoría al aplicar.
+  final String direction;
+
+  /// Snapshot de naturaleza validado contra la categoría al aplicar (5 valores).
+  final String nature;
+
+  /// Importe en centavos, positivo y dentro del entero seguro
+  /// (1..9007199254740991). Acumulación con BigInt en el repositorio.
+  final int amountMinor;
+
+  /// Moneda fija MXN.
+  final String currency;
+
+  /// Medio cash/transfer como strings, igual que los pagos actuales. Transfer
+  /// nunca implica saldo de un cajón: es solo el medio del registro.
+  final String method;
+
+  /// Instante efectivo UTC en ms, separado de la captura local y del cursor
+  /// `last_server_sequence`. Filtra períodos [from_ms, to_ms).
+  final int occurredAtMs;
+
+  /// Nota opcional, normalizada NFKC+trim y vacío->null (máx. 500 code points).
+  final String? notes;
+
+  /// Referencia opcional con la misma normalización que `notes`.
+  final String? reference;
+  const FinancialEntryRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.categoryId,
+    required this.categoryNameSnapshot,
+    required this.direction,
+    required this.nature,
+    required this.amountMinor,
+    required this.currency,
+    required this.method,
+    required this.occurredAtMs,
+    this.notes,
+    this.reference,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['category_id'] = Variable<String>(categoryId);
+    map['category_name_snapshot'] = Variable<String>(categoryNameSnapshot);
+    map['direction'] = Variable<String>(direction);
+    map['nature'] = Variable<String>(nature);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['currency'] = Variable<String>(currency);
+    map['method'] = Variable<String>(method);
+    map['occurred_at_ms'] = Variable<int>(occurredAtMs);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || reference != null) {
+      map['reference'] = Variable<String>(reference);
+    }
+    return map;
+  }
+
+  FinancialEntriesCompanion toCompanion(bool nullToAbsent) {
+    return FinancialEntriesCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      categoryId: Value(categoryId),
+      categoryNameSnapshot: Value(categoryNameSnapshot),
+      direction: Value(direction),
+      nature: Value(nature),
+      amountMinor: Value(amountMinor),
+      currency: Value(currency),
+      method: Value(method),
+      occurredAtMs: Value(occurredAtMs),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      reference: reference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reference),
+    );
+  }
+
+  factory FinancialEntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FinancialEntryRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      categoryNameSnapshot: serializer.fromJson<String>(
+        json['categoryNameSnapshot'],
+      ),
+      direction: serializer.fromJson<String>(json['direction']),
+      nature: serializer.fromJson<String>(json['nature']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      currency: serializer.fromJson<String>(json['currency']),
+      method: serializer.fromJson<String>(json['method']),
+      occurredAtMs: serializer.fromJson<int>(json['occurredAtMs']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      reference: serializer.fromJson<String?>(json['reference']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'categoryNameSnapshot': serializer.toJson<String>(categoryNameSnapshot),
+      'direction': serializer.toJson<String>(direction),
+      'nature': serializer.toJson<String>(nature),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'currency': serializer.toJson<String>(currency),
+      'method': serializer.toJson<String>(method),
+      'occurredAtMs': serializer.toJson<int>(occurredAtMs),
+      'notes': serializer.toJson<String?>(notes),
+      'reference': serializer.toJson<String?>(reference),
+    };
+  }
+
+  FinancialEntryRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? categoryId,
+    String? categoryNameSnapshot,
+    String? direction,
+    String? nature,
+    int? amountMinor,
+    String? currency,
+    String? method,
+    int? occurredAtMs,
+    Value<String?> notes = const Value.absent(),
+    Value<String?> reference = const Value.absent(),
+  }) => FinancialEntryRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    categoryId: categoryId ?? this.categoryId,
+    categoryNameSnapshot: categoryNameSnapshot ?? this.categoryNameSnapshot,
+    direction: direction ?? this.direction,
+    nature: nature ?? this.nature,
+    amountMinor: amountMinor ?? this.amountMinor,
+    currency: currency ?? this.currency,
+    method: method ?? this.method,
+    occurredAtMs: occurredAtMs ?? this.occurredAtMs,
+    notes: notes.present ? notes.value : this.notes,
+    reference: reference.present ? reference.value : this.reference,
+  );
+  FinancialEntryRow copyWithCompanion(FinancialEntriesCompanion data) {
+    return FinancialEntryRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      categoryNameSnapshot: data.categoryNameSnapshot.present
+          ? data.categoryNameSnapshot.value
+          : this.categoryNameSnapshot,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      nature: data.nature.present ? data.nature.value : this.nature,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      method: data.method.present ? data.method.value : this.method,
+      occurredAtMs: data.occurredAtMs.present
+          ? data.occurredAtMs.value
+          : this.occurredAtMs,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      reference: data.reference.present ? data.reference.value : this.reference,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinancialEntryRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('categoryNameSnapshot: $categoryNameSnapshot, ')
+          ..write('direction: $direction, ')
+          ..write('nature: $nature, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currency: $currency, ')
+          ..write('method: $method, ')
+          ..write('occurredAtMs: $occurredAtMs, ')
+          ..write('notes: $notes, ')
+          ..write('reference: $reference')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    categoryId,
+    categoryNameSnapshot,
+    direction,
+    nature,
+    amountMinor,
+    currency,
+    method,
+    occurredAtMs,
+    notes,
+    reference,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FinancialEntryRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.categoryId == this.categoryId &&
+          other.categoryNameSnapshot == this.categoryNameSnapshot &&
+          other.direction == this.direction &&
+          other.nature == this.nature &&
+          other.amountMinor == this.amountMinor &&
+          other.currency == this.currency &&
+          other.method == this.method &&
+          other.occurredAtMs == this.occurredAtMs &&
+          other.notes == this.notes &&
+          other.reference == this.reference);
+}
+
+class FinancialEntriesCompanion extends UpdateCompanion<FinancialEntryRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> categoryId;
+  final Value<String> categoryNameSnapshot;
+  final Value<String> direction;
+  final Value<String> nature;
+  final Value<int> amountMinor;
+  final Value<String> currency;
+  final Value<String> method;
+  final Value<int> occurredAtMs;
+  final Value<String?> notes;
+  final Value<String?> reference;
+  final Value<int> rowid;
+  const FinancialEntriesCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.categoryNameSnapshot = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.nature = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.method = const Value.absent(),
+    this.occurredAtMs = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reference = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FinancialEntriesCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String categoryId,
+    required String categoryNameSnapshot,
+    required String direction,
+    required String nature,
+    required int amountMinor,
+    required String currency,
+    required String method,
+    required int occurredAtMs,
+    this.notes = const Value.absent(),
+    this.reference = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       categoryId = Value(categoryId),
+       categoryNameSnapshot = Value(categoryNameSnapshot),
+       direction = Value(direction),
+       nature = Value(nature),
+       amountMinor = Value(amountMinor),
+       currency = Value(currency),
+       method = Value(method),
+       occurredAtMs = Value(occurredAtMs);
+  static Insertable<FinancialEntryRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? categoryId,
+    Expression<String>? categoryNameSnapshot,
+    Expression<String>? direction,
+    Expression<String>? nature,
+    Expression<int>? amountMinor,
+    Expression<String>? currency,
+    Expression<String>? method,
+    Expression<int>? occurredAtMs,
+    Expression<String>? notes,
+    Expression<String>? reference,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (categoryId != null) 'category_id': categoryId,
+      if (categoryNameSnapshot != null)
+        'category_name_snapshot': categoryNameSnapshot,
+      if (direction != null) 'direction': direction,
+      if (nature != null) 'nature': nature,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (currency != null) 'currency': currency,
+      if (method != null) 'method': method,
+      if (occurredAtMs != null) 'occurred_at_ms': occurredAtMs,
+      if (notes != null) 'notes': notes,
+      if (reference != null) 'reference': reference,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FinancialEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? categoryId,
+    Value<String>? categoryNameSnapshot,
+    Value<String>? direction,
+    Value<String>? nature,
+    Value<int>? amountMinor,
+    Value<String>? currency,
+    Value<String>? method,
+    Value<int>? occurredAtMs,
+    Value<String?>? notes,
+    Value<String?>? reference,
+    Value<int>? rowid,
+  }) {
+    return FinancialEntriesCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      categoryId: categoryId ?? this.categoryId,
+      categoryNameSnapshot: categoryNameSnapshot ?? this.categoryNameSnapshot,
+      direction: direction ?? this.direction,
+      nature: nature ?? this.nature,
+      amountMinor: amountMinor ?? this.amountMinor,
+      currency: currency ?? this.currency,
+      method: method ?? this.method,
+      occurredAtMs: occurredAtMs ?? this.occurredAtMs,
+      notes: notes ?? this.notes,
+      reference: reference ?? this.reference,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (categoryNameSnapshot.present) {
+      map['category_name_snapshot'] = Variable<String>(
+        categoryNameSnapshot.value,
+      );
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (nature.present) {
+      map['nature'] = Variable<String>(nature.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (method.present) {
+      map['method'] = Variable<String>(method.value);
+    }
+    if (occurredAtMs.present) {
+      map['occurred_at_ms'] = Variable<int>(occurredAtMs.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (reference.present) {
+      map['reference'] = Variable<String>(reference.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FinancialEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('categoryNameSnapshot: $categoryNameSnapshot, ')
+          ..write('direction: $direction, ')
+          ..write('nature: $nature, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currency: $currency, ')
+          ..write('method: $method, ')
+          ..write('occurredAtMs: $occurredAtMs, ')
+          ..write('notes: $notes, ')
+          ..write('reference: $reference, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CashSessionsTable extends CashSessions
+    with TableInfo<$CashSessionsTable, CashSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CashSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openedByUserIdMeta = const VerificationMeta(
+    'openedByUserId',
+  );
+  @override
+  late final GeneratedColumn<String> openedByUserId = GeneratedColumn<String>(
+    'opened_by_user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _closedByUserIdMeta = const VerificationMeta(
+    'closedByUserId',
+  );
+  @override
+  late final GeneratedColumn<String> closedByUserId = GeneratedColumn<String>(
+    'closed_by_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openedAtMsMeta = const VerificationMeta(
+    'openedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> openedAtMs = GeneratedColumn<int>(
+    'opened_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _closedAtMsMeta = const VerificationMeta(
+    'closedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> closedAtMs = GeneratedColumn<int>(
+    'closed_at_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _openingMinorMeta = const VerificationMeta(
+    'openingMinor',
+  );
+  @override
+  late final GeneratedColumn<int> openingMinor = GeneratedColumn<int>(
+    'opening_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countedMinorMeta = const VerificationMeta(
+    'countedMinor',
+  );
+  @override
+  late final GeneratedColumn<int> countedMinor = GeneratedColumn<int>(
+    'counted_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _incomeMinorMeta = const VerificationMeta(
+    'incomeMinor',
+  );
+  @override
+  late final GeneratedColumn<String> incomeMinor = GeneratedColumn<String>(
+    'income_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expenseMinorMeta = const VerificationMeta(
+    'expenseMinor',
+  );
+  @override
+  late final GeneratedColumn<String> expenseMinor = GeneratedColumn<String>(
+    'expense_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expectedMinorMeta = const VerificationMeta(
+    'expectedMinor',
+  );
+  @override
+  late final GeneratedColumn<String> expectedMinor = GeneratedColumn<String>(
+    'expected_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _differenceMinorMeta = const VerificationMeta(
+    'differenceMinor',
+  );
+  @override
+  late final GeneratedColumn<String> differenceMinor = GeneratedColumn<String>(
+    'difference_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _closeSnapshotMeta = const VerificationMeta(
+    'closeSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> closeSnapshot = GeneratedColumn<String>(
+    'close_snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _previousCloseEventIdMeta =
+      const VerificationMeta('previousCloseEventId');
+  @override
+  late final GeneratedColumn<String> previousCloseEventId =
+      GeneratedColumn<String>(
+        'previous_close_event_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    deviceId,
+    openedByUserId,
+    closedByUserId,
+    status,
+    openedAtMs,
+    closedAtMs,
+    openingMinor,
+    countedMinor,
+    incomeMinor,
+    expenseMinor,
+    expectedMinor,
+    differenceMinor,
+    closeSnapshot,
+    previousCloseEventId,
+    notes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cash_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CashSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('opened_by_user_id')) {
+      context.handle(
+        _openedByUserIdMeta,
+        openedByUserId.isAcceptableOrUnknown(
+          data['opened_by_user_id']!,
+          _openedByUserIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openedByUserIdMeta);
+    }
+    if (data.containsKey('closed_by_user_id')) {
+      context.handle(
+        _closedByUserIdMeta,
+        closedByUserId.isAcceptableOrUnknown(
+          data['closed_by_user_id']!,
+          _closedByUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('opened_at_ms')) {
+      context.handle(
+        _openedAtMsMeta,
+        openedAtMs.isAcceptableOrUnknown(
+          data['opened_at_ms']!,
+          _openedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openedAtMsMeta);
+    }
+    if (data.containsKey('closed_at_ms')) {
+      context.handle(
+        _closedAtMsMeta,
+        closedAtMs.isAcceptableOrUnknown(
+          data['closed_at_ms']!,
+          _closedAtMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opening_minor')) {
+      context.handle(
+        _openingMinorMeta,
+        openingMinor.isAcceptableOrUnknown(
+          data['opening_minor']!,
+          _openingMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openingMinorMeta);
+    }
+    if (data.containsKey('counted_minor')) {
+      context.handle(
+        _countedMinorMeta,
+        countedMinor.isAcceptableOrUnknown(
+          data['counted_minor']!,
+          _countedMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('income_minor')) {
+      context.handle(
+        _incomeMinorMeta,
+        incomeMinor.isAcceptableOrUnknown(
+          data['income_minor']!,
+          _incomeMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('expense_minor')) {
+      context.handle(
+        _expenseMinorMeta,
+        expenseMinor.isAcceptableOrUnknown(
+          data['expense_minor']!,
+          _expenseMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('expected_minor')) {
+      context.handle(
+        _expectedMinorMeta,
+        expectedMinor.isAcceptableOrUnknown(
+          data['expected_minor']!,
+          _expectedMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('difference_minor')) {
+      context.handle(
+        _differenceMinorMeta,
+        differenceMinor.isAcceptableOrUnknown(
+          data['difference_minor']!,
+          _differenceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('close_snapshot')) {
+      context.handle(
+        _closeSnapshotMeta,
+        closeSnapshot.isAcceptableOrUnknown(
+          data['close_snapshot']!,
+          _closeSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('previous_close_event_id')) {
+      context.handle(
+        _previousCloseEventIdMeta,
+        previousCloseEventId.isAcceptableOrUnknown(
+          data['previous_close_event_id']!,
+          _previousCloseEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CashSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CashSessionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      openedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opened_by_user_id'],
+      )!,
+      closedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}closed_by_user_id'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      openedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opened_at_ms'],
+      )!,
+      closedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}closed_at_ms'],
+      ),
+      openingMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opening_minor'],
+      )!,
+      countedMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}counted_minor'],
+      ),
+      incomeMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}income_minor'],
+      ),
+      expenseMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expense_minor'],
+      ),
+      expectedMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expected_minor'],
+      ),
+      differenceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}difference_minor'],
+      ),
+      closeSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}close_snapshot'],
+      ),
+      previousCloseEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}previous_close_event_id'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+    );
+  }
+
+  @override
+  $CashSessionsTable createAlias(String alias) {
+    return $CashSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class CashSessionRow extends DataClass implements Insertable<CashSessionRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Único dispositivo escritor autorizado por esta apertura.
+  final String deviceId;
+
+  /// Responsable que abrió el cajón.
+  final String openedByUserId;
+
+  /// Responsable del cierre, nulo mientras está abierto.
+  final String? closedByUserId;
+
+  /// Estado operativo open/closed, independiente de entrega.
+  final String status;
+
+  /// Apertura UTC ms; no decide pertenencia de movimientos.
+  final int openedAtMs;
+
+  /// Cierre UTC ms, nulo mientras está abierto.
+  final int? closedAtMs;
+
+  /// Fondo inicial en centavos; no genera movimiento adicional.
+  final int openingMinor;
+
+  /// Efectivo contado en centavos al cerrar.
+  final int? countedMinor;
+
+  /// Total exacto de entradas en decimal, evitando overflow acumulado.
+  final String? incomeMinor;
+
+  /// Total exacto de salidas en decimal.
+  final String? expenseMinor;
+
+  /// Fondo + entradas - salidas congelado al cerrar.
+  final String? expectedMinor;
+
+  /// Contado - esperado congelado al cerrar.
+  final String? differenceMinor;
+
+  /// Payload completo del corte y su conjunto verificable, JSON inmutable.
+  final String? closeSnapshot;
+
+  /// Dependencia causal con el cierre previo del mismo dispositivo.
+  final String? previousCloseEventId;
+
+  /// Nota opcional del cierre normalizada.
+  final String? notes;
+  const CashSessionRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.deviceId,
+    required this.openedByUserId,
+    this.closedByUserId,
+    required this.status,
+    required this.openedAtMs,
+    this.closedAtMs,
+    required this.openingMinor,
+    this.countedMinor,
+    this.incomeMinor,
+    this.expenseMinor,
+    this.expectedMinor,
+    this.differenceMinor,
+    this.closeSnapshot,
+    this.previousCloseEventId,
+    this.notes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['device_id'] = Variable<String>(deviceId);
+    map['opened_by_user_id'] = Variable<String>(openedByUserId);
+    if (!nullToAbsent || closedByUserId != null) {
+      map['closed_by_user_id'] = Variable<String>(closedByUserId);
+    }
+    map['status'] = Variable<String>(status);
+    map['opened_at_ms'] = Variable<int>(openedAtMs);
+    if (!nullToAbsent || closedAtMs != null) {
+      map['closed_at_ms'] = Variable<int>(closedAtMs);
+    }
+    map['opening_minor'] = Variable<int>(openingMinor);
+    if (!nullToAbsent || countedMinor != null) {
+      map['counted_minor'] = Variable<int>(countedMinor);
+    }
+    if (!nullToAbsent || incomeMinor != null) {
+      map['income_minor'] = Variable<String>(incomeMinor);
+    }
+    if (!nullToAbsent || expenseMinor != null) {
+      map['expense_minor'] = Variable<String>(expenseMinor);
+    }
+    if (!nullToAbsent || expectedMinor != null) {
+      map['expected_minor'] = Variable<String>(expectedMinor);
+    }
+    if (!nullToAbsent || differenceMinor != null) {
+      map['difference_minor'] = Variable<String>(differenceMinor);
+    }
+    if (!nullToAbsent || closeSnapshot != null) {
+      map['close_snapshot'] = Variable<String>(closeSnapshot);
+    }
+    if (!nullToAbsent || previousCloseEventId != null) {
+      map['previous_close_event_id'] = Variable<String>(previousCloseEventId);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  CashSessionsCompanion toCompanion(bool nullToAbsent) {
+    return CashSessionsCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      deviceId: Value(deviceId),
+      openedByUserId: Value(openedByUserId),
+      closedByUserId: closedByUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closedByUserId),
+      status: Value(status),
+      openedAtMs: Value(openedAtMs),
+      closedAtMs: closedAtMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closedAtMs),
+      openingMinor: Value(openingMinor),
+      countedMinor: countedMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(countedMinor),
+      incomeMinor: incomeMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(incomeMinor),
+      expenseMinor: expenseMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseMinor),
+      expectedMinor: expectedMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expectedMinor),
+      differenceMinor: differenceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(differenceMinor),
+      closeSnapshot: closeSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closeSnapshot),
+      previousCloseEventId: previousCloseEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(previousCloseEventId),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+    );
+  }
+
+  factory CashSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CashSessionRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      openedByUserId: serializer.fromJson<String>(json['openedByUserId']),
+      closedByUserId: serializer.fromJson<String?>(json['closedByUserId']),
+      status: serializer.fromJson<String>(json['status']),
+      openedAtMs: serializer.fromJson<int>(json['openedAtMs']),
+      closedAtMs: serializer.fromJson<int?>(json['closedAtMs']),
+      openingMinor: serializer.fromJson<int>(json['openingMinor']),
+      countedMinor: serializer.fromJson<int?>(json['countedMinor']),
+      incomeMinor: serializer.fromJson<String?>(json['incomeMinor']),
+      expenseMinor: serializer.fromJson<String?>(json['expenseMinor']),
+      expectedMinor: serializer.fromJson<String?>(json['expectedMinor']),
+      differenceMinor: serializer.fromJson<String?>(json['differenceMinor']),
+      closeSnapshot: serializer.fromJson<String?>(json['closeSnapshot']),
+      previousCloseEventId: serializer.fromJson<String?>(
+        json['previousCloseEventId'],
+      ),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'openedByUserId': serializer.toJson<String>(openedByUserId),
+      'closedByUserId': serializer.toJson<String?>(closedByUserId),
+      'status': serializer.toJson<String>(status),
+      'openedAtMs': serializer.toJson<int>(openedAtMs),
+      'closedAtMs': serializer.toJson<int?>(closedAtMs),
+      'openingMinor': serializer.toJson<int>(openingMinor),
+      'countedMinor': serializer.toJson<int?>(countedMinor),
+      'incomeMinor': serializer.toJson<String?>(incomeMinor),
+      'expenseMinor': serializer.toJson<String?>(expenseMinor),
+      'expectedMinor': serializer.toJson<String?>(expectedMinor),
+      'differenceMinor': serializer.toJson<String?>(differenceMinor),
+      'closeSnapshot': serializer.toJson<String?>(closeSnapshot),
+      'previousCloseEventId': serializer.toJson<String?>(previousCloseEventId),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  CashSessionRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? deviceId,
+    String? openedByUserId,
+    Value<String?> closedByUserId = const Value.absent(),
+    String? status,
+    int? openedAtMs,
+    Value<int?> closedAtMs = const Value.absent(),
+    int? openingMinor,
+    Value<int?> countedMinor = const Value.absent(),
+    Value<String?> incomeMinor = const Value.absent(),
+    Value<String?> expenseMinor = const Value.absent(),
+    Value<String?> expectedMinor = const Value.absent(),
+    Value<String?> differenceMinor = const Value.absent(),
+    Value<String?> closeSnapshot = const Value.absent(),
+    Value<String?> previousCloseEventId = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+  }) => CashSessionRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    deviceId: deviceId ?? this.deviceId,
+    openedByUserId: openedByUserId ?? this.openedByUserId,
+    closedByUserId: closedByUserId.present
+        ? closedByUserId.value
+        : this.closedByUserId,
+    status: status ?? this.status,
+    openedAtMs: openedAtMs ?? this.openedAtMs,
+    closedAtMs: closedAtMs.present ? closedAtMs.value : this.closedAtMs,
+    openingMinor: openingMinor ?? this.openingMinor,
+    countedMinor: countedMinor.present ? countedMinor.value : this.countedMinor,
+    incomeMinor: incomeMinor.present ? incomeMinor.value : this.incomeMinor,
+    expenseMinor: expenseMinor.present ? expenseMinor.value : this.expenseMinor,
+    expectedMinor: expectedMinor.present
+        ? expectedMinor.value
+        : this.expectedMinor,
+    differenceMinor: differenceMinor.present
+        ? differenceMinor.value
+        : this.differenceMinor,
+    closeSnapshot: closeSnapshot.present
+        ? closeSnapshot.value
+        : this.closeSnapshot,
+    previousCloseEventId: previousCloseEventId.present
+        ? previousCloseEventId.value
+        : this.previousCloseEventId,
+    notes: notes.present ? notes.value : this.notes,
+  );
+  CashSessionRow copyWithCompanion(CashSessionsCompanion data) {
+    return CashSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      openedByUserId: data.openedByUserId.present
+          ? data.openedByUserId.value
+          : this.openedByUserId,
+      closedByUserId: data.closedByUserId.present
+          ? data.closedByUserId.value
+          : this.closedByUserId,
+      status: data.status.present ? data.status.value : this.status,
+      openedAtMs: data.openedAtMs.present
+          ? data.openedAtMs.value
+          : this.openedAtMs,
+      closedAtMs: data.closedAtMs.present
+          ? data.closedAtMs.value
+          : this.closedAtMs,
+      openingMinor: data.openingMinor.present
+          ? data.openingMinor.value
+          : this.openingMinor,
+      countedMinor: data.countedMinor.present
+          ? data.countedMinor.value
+          : this.countedMinor,
+      incomeMinor: data.incomeMinor.present
+          ? data.incomeMinor.value
+          : this.incomeMinor,
+      expenseMinor: data.expenseMinor.present
+          ? data.expenseMinor.value
+          : this.expenseMinor,
+      expectedMinor: data.expectedMinor.present
+          ? data.expectedMinor.value
+          : this.expectedMinor,
+      differenceMinor: data.differenceMinor.present
+          ? data.differenceMinor.value
+          : this.differenceMinor,
+      closeSnapshot: data.closeSnapshot.present
+          ? data.closeSnapshot.value
+          : this.closeSnapshot,
+      previousCloseEventId: data.previousCloseEventId.present
+          ? data.previousCloseEventId.value
+          : this.previousCloseEventId,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashSessionRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('openedByUserId: $openedByUserId, ')
+          ..write('closedByUserId: $closedByUserId, ')
+          ..write('status: $status, ')
+          ..write('openedAtMs: $openedAtMs, ')
+          ..write('closedAtMs: $closedAtMs, ')
+          ..write('openingMinor: $openingMinor, ')
+          ..write('countedMinor: $countedMinor, ')
+          ..write('incomeMinor: $incomeMinor, ')
+          ..write('expenseMinor: $expenseMinor, ')
+          ..write('expectedMinor: $expectedMinor, ')
+          ..write('differenceMinor: $differenceMinor, ')
+          ..write('closeSnapshot: $closeSnapshot, ')
+          ..write('previousCloseEventId: $previousCloseEventId, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    deviceId,
+    openedByUserId,
+    closedByUserId,
+    status,
+    openedAtMs,
+    closedAtMs,
+    openingMinor,
+    countedMinor,
+    incomeMinor,
+    expenseMinor,
+    expectedMinor,
+    differenceMinor,
+    closeSnapshot,
+    previousCloseEventId,
+    notes,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CashSessionRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.deviceId == this.deviceId &&
+          other.openedByUserId == this.openedByUserId &&
+          other.closedByUserId == this.closedByUserId &&
+          other.status == this.status &&
+          other.openedAtMs == this.openedAtMs &&
+          other.closedAtMs == this.closedAtMs &&
+          other.openingMinor == this.openingMinor &&
+          other.countedMinor == this.countedMinor &&
+          other.incomeMinor == this.incomeMinor &&
+          other.expenseMinor == this.expenseMinor &&
+          other.expectedMinor == this.expectedMinor &&
+          other.differenceMinor == this.differenceMinor &&
+          other.closeSnapshot == this.closeSnapshot &&
+          other.previousCloseEventId == this.previousCloseEventId &&
+          other.notes == this.notes);
+}
+
+class CashSessionsCompanion extends UpdateCompanion<CashSessionRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> deviceId;
+  final Value<String> openedByUserId;
+  final Value<String?> closedByUserId;
+  final Value<String> status;
+  final Value<int> openedAtMs;
+  final Value<int?> closedAtMs;
+  final Value<int> openingMinor;
+  final Value<int?> countedMinor;
+  final Value<String?> incomeMinor;
+  final Value<String?> expenseMinor;
+  final Value<String?> expectedMinor;
+  final Value<String?> differenceMinor;
+  final Value<String?> closeSnapshot;
+  final Value<String?> previousCloseEventId;
+  final Value<String?> notes;
+  final Value<int> rowid;
+  const CashSessionsCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.openedByUserId = const Value.absent(),
+    this.closedByUserId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.openedAtMs = const Value.absent(),
+    this.closedAtMs = const Value.absent(),
+    this.openingMinor = const Value.absent(),
+    this.countedMinor = const Value.absent(),
+    this.incomeMinor = const Value.absent(),
+    this.expenseMinor = const Value.absent(),
+    this.expectedMinor = const Value.absent(),
+    this.differenceMinor = const Value.absent(),
+    this.closeSnapshot = const Value.absent(),
+    this.previousCloseEventId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CashSessionsCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String deviceId,
+    required String openedByUserId,
+    this.closedByUserId = const Value.absent(),
+    required String status,
+    required int openedAtMs,
+    this.closedAtMs = const Value.absent(),
+    required int openingMinor,
+    this.countedMinor = const Value.absent(),
+    this.incomeMinor = const Value.absent(),
+    this.expenseMinor = const Value.absent(),
+    this.expectedMinor = const Value.absent(),
+    this.differenceMinor = const Value.absent(),
+    this.closeSnapshot = const Value.absent(),
+    this.previousCloseEventId = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       deviceId = Value(deviceId),
+       openedByUserId = Value(openedByUserId),
+       status = Value(status),
+       openedAtMs = Value(openedAtMs),
+       openingMinor = Value(openingMinor);
+  static Insertable<CashSessionRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? deviceId,
+    Expression<String>? openedByUserId,
+    Expression<String>? closedByUserId,
+    Expression<String>? status,
+    Expression<int>? openedAtMs,
+    Expression<int>? closedAtMs,
+    Expression<int>? openingMinor,
+    Expression<int>? countedMinor,
+    Expression<String>? incomeMinor,
+    Expression<String>? expenseMinor,
+    Expression<String>? expectedMinor,
+    Expression<String>? differenceMinor,
+    Expression<String>? closeSnapshot,
+    Expression<String>? previousCloseEventId,
+    Expression<String>? notes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (deviceId != null) 'device_id': deviceId,
+      if (openedByUserId != null) 'opened_by_user_id': openedByUserId,
+      if (closedByUserId != null) 'closed_by_user_id': closedByUserId,
+      if (status != null) 'status': status,
+      if (openedAtMs != null) 'opened_at_ms': openedAtMs,
+      if (closedAtMs != null) 'closed_at_ms': closedAtMs,
+      if (openingMinor != null) 'opening_minor': openingMinor,
+      if (countedMinor != null) 'counted_minor': countedMinor,
+      if (incomeMinor != null) 'income_minor': incomeMinor,
+      if (expenseMinor != null) 'expense_minor': expenseMinor,
+      if (expectedMinor != null) 'expected_minor': expectedMinor,
+      if (differenceMinor != null) 'difference_minor': differenceMinor,
+      if (closeSnapshot != null) 'close_snapshot': closeSnapshot,
+      if (previousCloseEventId != null)
+        'previous_close_event_id': previousCloseEventId,
+      if (notes != null) 'notes': notes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CashSessionsCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? deviceId,
+    Value<String>? openedByUserId,
+    Value<String?>? closedByUserId,
+    Value<String>? status,
+    Value<int>? openedAtMs,
+    Value<int?>? closedAtMs,
+    Value<int>? openingMinor,
+    Value<int?>? countedMinor,
+    Value<String?>? incomeMinor,
+    Value<String?>? expenseMinor,
+    Value<String?>? expectedMinor,
+    Value<String?>? differenceMinor,
+    Value<String?>? closeSnapshot,
+    Value<String?>? previousCloseEventId,
+    Value<String?>? notes,
+    Value<int>? rowid,
+  }) {
+    return CashSessionsCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      deviceId: deviceId ?? this.deviceId,
+      openedByUserId: openedByUserId ?? this.openedByUserId,
+      closedByUserId: closedByUserId ?? this.closedByUserId,
+      status: status ?? this.status,
+      openedAtMs: openedAtMs ?? this.openedAtMs,
+      closedAtMs: closedAtMs ?? this.closedAtMs,
+      openingMinor: openingMinor ?? this.openingMinor,
+      countedMinor: countedMinor ?? this.countedMinor,
+      incomeMinor: incomeMinor ?? this.incomeMinor,
+      expenseMinor: expenseMinor ?? this.expenseMinor,
+      expectedMinor: expectedMinor ?? this.expectedMinor,
+      differenceMinor: differenceMinor ?? this.differenceMinor,
+      closeSnapshot: closeSnapshot ?? this.closeSnapshot,
+      previousCloseEventId: previousCloseEventId ?? this.previousCloseEventId,
+      notes: notes ?? this.notes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (openedByUserId.present) {
+      map['opened_by_user_id'] = Variable<String>(openedByUserId.value);
+    }
+    if (closedByUserId.present) {
+      map['closed_by_user_id'] = Variable<String>(closedByUserId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (openedAtMs.present) {
+      map['opened_at_ms'] = Variable<int>(openedAtMs.value);
+    }
+    if (closedAtMs.present) {
+      map['closed_at_ms'] = Variable<int>(closedAtMs.value);
+    }
+    if (openingMinor.present) {
+      map['opening_minor'] = Variable<int>(openingMinor.value);
+    }
+    if (countedMinor.present) {
+      map['counted_minor'] = Variable<int>(countedMinor.value);
+    }
+    if (incomeMinor.present) {
+      map['income_minor'] = Variable<String>(incomeMinor.value);
+    }
+    if (expenseMinor.present) {
+      map['expense_minor'] = Variable<String>(expenseMinor.value);
+    }
+    if (expectedMinor.present) {
+      map['expected_minor'] = Variable<String>(expectedMinor.value);
+    }
+    if (differenceMinor.present) {
+      map['difference_minor'] = Variable<String>(differenceMinor.value);
+    }
+    if (closeSnapshot.present) {
+      map['close_snapshot'] = Variable<String>(closeSnapshot.value);
+    }
+    if (previousCloseEventId.present) {
+      map['previous_close_event_id'] = Variable<String>(
+        previousCloseEventId.value,
+      );
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('openedByUserId: $openedByUserId, ')
+          ..write('closedByUserId: $closedByUserId, ')
+          ..write('status: $status, ')
+          ..write('openedAtMs: $openedAtMs, ')
+          ..write('closedAtMs: $closedAtMs, ')
+          ..write('openingMinor: $openingMinor, ')
+          ..write('countedMinor: $countedMinor, ')
+          ..write('incomeMinor: $incomeMinor, ')
+          ..write('expenseMinor: $expenseMinor, ')
+          ..write('expectedMinor: $expectedMinor, ')
+          ..write('differenceMinor: $differenceMinor, ')
+          ..write('closeSnapshot: $closeSnapshot, ')
+          ..write('previousCloseEventId: $previousCloseEventId, ')
+          ..write('notes: $notes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CashMovementsTable extends CashMovements
+    with TableInfo<$CashMovementsTable, CashMovementRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CashMovementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES cash_sessions (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _directionMeta = const VerificationMeta(
+    'direction',
+  );
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+    'direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _salePaymentIdMeta = const VerificationMeta(
+    'salePaymentId',
+  );
+  @override
+  late final GeneratedColumn<String> salePaymentId = GeneratedColumn<String>(
+    'sale_payment_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'UNIQUE REFERENCES sale_payments (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _customerPaymentIdMeta = const VerificationMeta(
+    'customerPaymentId',
+  );
+  @override
+  late final GeneratedColumn<String> customerPaymentId =
+      GeneratedColumn<String>(
+        'customer_payment_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'UNIQUE REFERENCES customer_payments (id) ON DELETE RESTRICT',
+        ),
+      );
+  static const VerificationMeta _financialEntryIdMeta = const VerificationMeta(
+    'financialEntryId',
+  );
+  @override
+  late final GeneratedColumn<String> financialEntryId = GeneratedColumn<String>(
+    'financial_entry_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'UNIQUE REFERENCES financial_entries (id) ON DELETE RESTRICT',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    sessionId,
+    direction,
+    amountMinor,
+    salePaymentId,
+    customerPaymentId,
+    financialEntryId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cash_movements';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CashMovementRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(
+        _directionMeta,
+        direction.isAcceptableOrUnknown(data['direction']!, _directionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('sale_payment_id')) {
+      context.handle(
+        _salePaymentIdMeta,
+        salePaymentId.isAcceptableOrUnknown(
+          data['sale_payment_id']!,
+          _salePaymentIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('customer_payment_id')) {
+      context.handle(
+        _customerPaymentIdMeta,
+        customerPaymentId.isAcceptableOrUnknown(
+          data['customer_payment_id']!,
+          _customerPaymentIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('financial_entry_id')) {
+      context.handle(
+        _financialEntryIdMeta,
+        financialEntryId.isAcceptableOrUnknown(
+          data['financial_entry_id']!,
+          _financialEntryIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CashMovementRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CashMovementRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      direction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}direction'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      salePaymentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_payment_id'],
+      ),
+      customerPaymentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_payment_id'],
+      ),
+      financialEntryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}financial_entry_id'],
+      ),
+    );
+  }
+
+  @override
+  $CashMovementsTable createAlias(String alias) {
+    return $CashMovementsTable(attachedDatabase, alias);
+  }
+}
+
+class CashMovementRow extends DataClass implements Insertable<CashMovementRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Apertura concreta; no se infiere por fechas.
+  final String sessionId;
+
+  /// Entrada in o salida out.
+  final String direction;
+
+  /// Importe aplicado, sin cambio, en centavos.
+  final int amountMinor;
+
+  /// Pago de venta real; único y excluyente con los demás orígenes.
+  final String? salePaymentId;
+
+  /// Abono real; único y excluyente con los demás orígenes.
+  final String? customerPaymentId;
+
+  /// Registro adicional explícitamente asignado a este cajón.
+  final String? financialEntryId;
+  const CashMovementRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.sessionId,
+    required this.direction,
+    required this.amountMinor,
+    this.salePaymentId,
+    this.customerPaymentId,
+    this.financialEntryId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['session_id'] = Variable<String>(sessionId);
+    map['direction'] = Variable<String>(direction);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    if (!nullToAbsent || salePaymentId != null) {
+      map['sale_payment_id'] = Variable<String>(salePaymentId);
+    }
+    if (!nullToAbsent || customerPaymentId != null) {
+      map['customer_payment_id'] = Variable<String>(customerPaymentId);
+    }
+    if (!nullToAbsent || financialEntryId != null) {
+      map['financial_entry_id'] = Variable<String>(financialEntryId);
+    }
+    return map;
+  }
+
+  CashMovementsCompanion toCompanion(bool nullToAbsent) {
+    return CashMovementsCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      sessionId: Value(sessionId),
+      direction: Value(direction),
+      amountMinor: Value(amountMinor),
+      salePaymentId: salePaymentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(salePaymentId),
+      customerPaymentId: customerPaymentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerPaymentId),
+      financialEntryId: financialEntryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financialEntryId),
+    );
+  }
+
+  factory CashMovementRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CashMovementRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      direction: serializer.fromJson<String>(json['direction']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      salePaymentId: serializer.fromJson<String?>(json['salePaymentId']),
+      customerPaymentId: serializer.fromJson<String?>(
+        json['customerPaymentId'],
+      ),
+      financialEntryId: serializer.fromJson<String?>(json['financialEntryId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'direction': serializer.toJson<String>(direction),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'salePaymentId': serializer.toJson<String?>(salePaymentId),
+      'customerPaymentId': serializer.toJson<String?>(customerPaymentId),
+      'financialEntryId': serializer.toJson<String?>(financialEntryId),
+    };
+  }
+
+  CashMovementRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? sessionId,
+    String? direction,
+    int? amountMinor,
+    Value<String?> salePaymentId = const Value.absent(),
+    Value<String?> customerPaymentId = const Value.absent(),
+    Value<String?> financialEntryId = const Value.absent(),
+  }) => CashMovementRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    sessionId: sessionId ?? this.sessionId,
+    direction: direction ?? this.direction,
+    amountMinor: amountMinor ?? this.amountMinor,
+    salePaymentId: salePaymentId.present
+        ? salePaymentId.value
+        : this.salePaymentId,
+    customerPaymentId: customerPaymentId.present
+        ? customerPaymentId.value
+        : this.customerPaymentId,
+    financialEntryId: financialEntryId.present
+        ? financialEntryId.value
+        : this.financialEntryId,
+  );
+  CashMovementRow copyWithCompanion(CashMovementsCompanion data) {
+    return CashMovementRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      salePaymentId: data.salePaymentId.present
+          ? data.salePaymentId.value
+          : this.salePaymentId,
+      customerPaymentId: data.customerPaymentId.present
+          ? data.customerPaymentId.value
+          : this.customerPaymentId,
+      financialEntryId: data.financialEntryId.present
+          ? data.financialEntryId.value
+          : this.financialEntryId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashMovementRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('direction: $direction, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('salePaymentId: $salePaymentId, ')
+          ..write('customerPaymentId: $customerPaymentId, ')
+          ..write('financialEntryId: $financialEntryId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    sessionId,
+    direction,
+    amountMinor,
+    salePaymentId,
+    customerPaymentId,
+    financialEntryId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CashMovementRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.sessionId == this.sessionId &&
+          other.direction == this.direction &&
+          other.amountMinor == this.amountMinor &&
+          other.salePaymentId == this.salePaymentId &&
+          other.customerPaymentId == this.customerPaymentId &&
+          other.financialEntryId == this.financialEntryId);
+}
+
+class CashMovementsCompanion extends UpdateCompanion<CashMovementRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> sessionId;
+  final Value<String> direction;
+  final Value<int> amountMinor;
+  final Value<String?> salePaymentId;
+  final Value<String?> customerPaymentId;
+  final Value<String?> financialEntryId;
+  final Value<int> rowid;
+  const CashMovementsCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.salePaymentId = const Value.absent(),
+    this.customerPaymentId = const Value.absent(),
+    this.financialEntryId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CashMovementsCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String sessionId,
+    required String direction,
+    required int amountMinor,
+    this.salePaymentId = const Value.absent(),
+    this.customerPaymentId = const Value.absent(),
+    this.financialEntryId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sessionId = Value(sessionId),
+       direction = Value(direction),
+       amountMinor = Value(amountMinor);
+  static Insertable<CashMovementRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? sessionId,
+    Expression<String>? direction,
+    Expression<int>? amountMinor,
+    Expression<String>? salePaymentId,
+    Expression<String>? customerPaymentId,
+    Expression<String>? financialEntryId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (sessionId != null) 'session_id': sessionId,
+      if (direction != null) 'direction': direction,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (salePaymentId != null) 'sale_payment_id': salePaymentId,
+      if (customerPaymentId != null) 'customer_payment_id': customerPaymentId,
+      if (financialEntryId != null) 'financial_entry_id': financialEntryId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CashMovementsCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? sessionId,
+    Value<String>? direction,
+    Value<int>? amountMinor,
+    Value<String?>? salePaymentId,
+    Value<String?>? customerPaymentId,
+    Value<String?>? financialEntryId,
+    Value<int>? rowid,
+  }) {
+    return CashMovementsCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      sessionId: sessionId ?? this.sessionId,
+      direction: direction ?? this.direction,
+      amountMinor: amountMinor ?? this.amountMinor,
+      salePaymentId: salePaymentId ?? this.salePaymentId,
+      customerPaymentId: customerPaymentId ?? this.customerPaymentId,
+      financialEntryId: financialEntryId ?? this.financialEntryId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (salePaymentId.present) {
+      map['sale_payment_id'] = Variable<String>(salePaymentId.value);
+    }
+    if (customerPaymentId.present) {
+      map['customer_payment_id'] = Variable<String>(customerPaymentId.value);
+    }
+    if (financialEntryId.present) {
+      map['financial_entry_id'] = Variable<String>(financialEntryId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashMovementsCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('direction: $direction, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('salePaymentId: $salePaymentId, ')
+          ..write('customerPaymentId: $customerPaymentId, ')
+          ..write('financialEntryId: $financialEntryId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12876,6 +16531,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $CreditAllocationsTable creditAllocations =
       $CreditAllocationsTable(this);
+  late final $FinancialCategoriesTable financialCategories =
+      $FinancialCategoriesTable(this);
+  late final $FinancialEntriesTable financialEntries = $FinancialEntriesTable(
+    this,
+  );
+  late final $CashSessionsTable cashSessions = $CashSessionsTable(this);
+  late final $CashMovementsTable cashMovements = $CashMovementsTable(this);
   late final Index uxProductVariantsProductSort = Index(
     'ux_product_variants_product_sort',
     'CREATE UNIQUE INDEX ux_product_variants_product_sort ON product_variants (product_id, sort_order) WHERE active = 1',
@@ -12916,6 +16578,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'ix_customer_payments_customer',
     'CREATE INDEX ix_customer_payments_customer ON customer_payments (cliente_id, occurred_at_ms, id)',
   );
+  late final Index ixFinancialEntriesPeriod = Index(
+    'ix_financial_entries_period',
+    'CREATE INDEX ix_financial_entries_period ON financial_entries (occurred_at_ms, id)',
+  );
+  late final Index ixFinancialEntriesCategory = Index(
+    'ix_financial_entries_category',
+    'CREATE INDEX ix_financial_entries_category ON financial_entries (category_id, occurred_at_ms, id)',
+  );
+  late final Index uqCashSessionOpenDevice = Index(
+    'uq_cash_session_open_device',
+    'CREATE UNIQUE INDEX uq_cash_session_open_device ON cash_sessions (device_id) WHERE status = \'open\'',
+  );
+  late final Index ixCashMovementsSession = Index(
+    'ix_cash_movements_session',
+    'CREATE INDEX ix_cash_movements_session ON cash_movements (session_id)',
+  );
   late final ClienteDao clienteDao = ClienteDao(this as AppDatabase);
   late final CategoriaDao categoriaDao = CategoriaDao(this as AppDatabase);
   late final ProductoDao productoDao = ProductoDao(this as AppDatabase);
@@ -12928,6 +16606,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final UnitDao unitDao = UnitDao(this as AppDatabase);
   late final InventoryDao inventoryDao = InventoryDao(this as AppDatabase);
   late final SaleDao saleDao = SaleDao(this as AppDatabase);
+  late final FinancialCategoryDao financialCategoryDao = FinancialCategoryDao(
+    this as AppDatabase,
+  );
+  late final FinancialEntryDao financialEntryDao = FinancialEntryDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -12953,6 +16637,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     creditSales,
     customerPayments,
     creditAllocations,
+    financialCategories,
+    financialEntries,
+    cashSessions,
+    cashMovements,
     uxProductVariantsProductSort,
     uxProductVariantsProductNameKey,
     ixRecipeComponentsInventoryItem,
@@ -12963,6 +16651,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     uxSaleItemsOrder,
     ixCreditSalesCustomer,
     ixCustomerPaymentsCustomer,
+    ixFinancialEntriesPeriod,
+    ixFinancialEntriesCategory,
+    uqCashSessionOpenDevice,
+    ixCashMovementsSession,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -21034,6 +24726,24 @@ final class $$SalePaymentsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<$CashMovementsTable, List<CashMovementRow>>
+  _cashMovementsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.cashMovements,
+    aliasName: 'sale_payments__id__cash_movements__sale_payment_id',
+  );
+
+  $$CashMovementsTableProcessedTableManager get cashMovementsRefs {
+    final manager = $$CashMovementsTableTableManager(
+      $_db,
+      $_db.cashMovements,
+    ).filter((f) => f.salePaymentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_cashMovementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SalePaymentsTableFilterComposer
@@ -21126,6 +24836,31 @@ class $$SalePaymentsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> cashMovementsRefs(
+    Expression<bool> Function($$CashMovementsTableFilterComposer f) f,
+  ) {
+    final $$CashMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.salePaymentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -21301,6 +25036,31 @@ class $$SalePaymentsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> cashMovementsRefs<T extends Object>(
+    Expression<T> Function($$CashMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$CashMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.salePaymentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SalePaymentsTableTableManager
@@ -21316,7 +25076,7 @@ class $$SalePaymentsTableTableManager
           $$SalePaymentsTableUpdateCompanionBuilder,
           (SalePaymentRow, $$SalePaymentsTableReferences),
           SalePaymentRow,
-          PrefetchHooks Function({bool saleId})
+          PrefetchHooks Function({bool saleId, bool cashMovementsRefs})
         > {
   $$SalePaymentsTableTableManager(_$AppDatabase db, $SalePaymentsTable table)
     : super(
@@ -21401,10 +25161,12 @@ class $$SalePaymentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({saleId = false}) {
+          prefetchHooksCallback: ({saleId = false, cashMovementsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [],
+              explicitlyWatchedTables: [
+                if (cashMovementsRefs) db.cashMovements,
+              ],
               addJoins:
                   <
                     T extends TableManagerState<
@@ -21438,7 +25200,29 @@ class $$SalePaymentsTableTableManager
                     return state;
                   },
               getPrefetchedDataCallback: (items) async {
-                return [];
+                return [
+                  if (cashMovementsRefs)
+                    await $_getPrefetchedData<
+                      SalePaymentRow,
+                      $SalePaymentsTable,
+                      CashMovementRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$SalePaymentsTableReferences
+                          ._cashMovementsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$SalePaymentsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).cashMovementsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.salePaymentId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
               },
             );
           },
@@ -21458,7 +25242,7 @@ typedef $$SalePaymentsTableProcessedTableManager =
       $$SalePaymentsTableUpdateCompanionBuilder,
       (SalePaymentRow, $$SalePaymentsTableReferences),
       SalePaymentRow,
-      PrefetchHooks Function({bool saleId})
+      PrefetchHooks Function({bool saleId, bool cashMovementsRefs})
     >;
 typedef $$CreditSalesTableCreateCompanionBuilder =
     CreditSalesCompanion Function({
@@ -22162,6 +25946,24 @@ final class $$CustomerPaymentsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$CashMovementsTable, List<CashMovementRow>>
+  _cashMovementsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.cashMovements,
+    aliasName: 'customer_payments__id__cash_movements__customer_payment_id',
+  );
+
+  $$CashMovementsTableProcessedTableManager get cashMovementsRefs {
+    final manager = $$CashMovementsTableTableManager($_db, $_db.cashMovements)
+        .filter(
+          (f) => f.customerPaymentId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_cashMovementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$CustomerPaymentsTableFilterComposer
@@ -22262,6 +26064,31 @@ class $$CustomerPaymentsTableFilterComposer
           }) => $$CreditAllocationsTableFilterComposer(
             $db: $db,
             $table: $db.creditAllocations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> cashMovementsRefs(
+    Expression<bool> Function($$CashMovementsTableFilterComposer f) f,
+  ) {
+    final $$CashMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.customerPaymentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.cashMovements,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -22452,6 +26279,31 @@ class $$CustomerPaymentsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> cashMovementsRefs<T extends Object>(
+    Expression<T> Function($$CashMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$CashMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.customerPaymentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$CustomerPaymentsTableTableManager
@@ -22467,7 +26319,11 @@ class $$CustomerPaymentsTableTableManager
           $$CustomerPaymentsTableUpdateCompanionBuilder,
           (CustomerPaymentRow, $$CustomerPaymentsTableReferences),
           CustomerPaymentRow,
-          PrefetchHooks Function({bool clienteId, bool creditAllocationsRefs})
+          PrefetchHooks Function({
+            bool clienteId,
+            bool creditAllocationsRefs,
+            bool cashMovementsRefs,
+          })
         > {
   $$CustomerPaymentsTableTableManager(
     _$AppDatabase db,
@@ -22547,11 +26403,16 @@ class $$CustomerPaymentsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({clienteId = false, creditAllocationsRefs = false}) {
+              ({
+                clienteId = false,
+                creditAllocationsRefs = false,
+                cashMovementsRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (creditAllocationsRefs) db.creditAllocations,
+                    if (cashMovementsRefs) db.cashMovements,
                   ],
                   addJoins:
                       <
@@ -22610,6 +26471,27 @@ class $$CustomerPaymentsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (cashMovementsRefs)
+                        await $_getPrefetchedData<
+                          CustomerPaymentRow,
+                          $CustomerPaymentsTable,
+                          CashMovementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CustomerPaymentsTableReferences
+                              ._cashMovementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CustomerPaymentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).cashMovementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.customerPaymentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -22630,7 +26512,11 @@ typedef $$CustomerPaymentsTableProcessedTableManager =
       $$CustomerPaymentsTableUpdateCompanionBuilder,
       (CustomerPaymentRow, $$CustomerPaymentsTableReferences),
       CustomerPaymentRow,
-      PrefetchHooks Function({bool clienteId, bool creditAllocationsRefs})
+      PrefetchHooks Function({
+        bool clienteId,
+        bool creditAllocationsRefs,
+        bool cashMovementsRefs,
+      })
     >;
 typedef $$CreditAllocationsTableCreateCompanionBuilder =
     CreditAllocationsCompanion Function({
@@ -23018,6 +26904,2443 @@ typedef $$CreditAllocationsTableProcessedTableManager =
       CreditAllocation,
       PrefetchHooks Function({bool paymentId, bool creditId})
     >;
+typedef $$FinancialCategoriesTableCreateCompanionBuilder =
+    FinancialCategoriesCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String name,
+      required String direction,
+      required String nature,
+      Value<int> rowid,
+    });
+typedef $$FinancialCategoriesTableUpdateCompanionBuilder =
+    FinancialCategoriesCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> name,
+      Value<String> direction,
+      Value<String> nature,
+      Value<int> rowid,
+    });
+
+final class $$FinancialCategoriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $FinancialCategoriesTable,
+          FinancialCategoryRow
+        > {
+  $$FinancialCategoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$FinancialEntriesTable, List<FinancialEntryRow>>
+  _financialEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.financialEntries,
+    aliasName: 'financial_categories__id__financial_entries__category_id',
+  );
+
+  $$FinancialEntriesTableProcessedTableManager get financialEntriesRefs {
+    final manager = $$FinancialEntriesTableTableManager(
+      $_db,
+      $_db.financialEntries,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _financialEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinancialCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $FinancialCategoriesTable> {
+  $$FinancialCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nature => $composableBuilder(
+    column: $table.nature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> financialEntriesRefs(
+    Expression<bool> Function($$FinancialEntriesTableFilterComposer f) f,
+  ) {
+    final $$FinancialEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.financialEntries,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinancialEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.financialEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinancialCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $FinancialCategoriesTable> {
+  $$FinancialCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nature => $composableBuilder(
+    column: $table.nature,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FinancialCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FinancialCategoriesTable> {
+  $$FinancialCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<String> get nature =>
+      $composableBuilder(column: $table.nature, builder: (column) => column);
+
+  Expression<T> financialEntriesRefs<T extends Object>(
+    Expression<T> Function($$FinancialEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$FinancialEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.financialEntries,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinancialEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.financialEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinancialCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FinancialCategoriesTable,
+          FinancialCategoryRow,
+          $$FinancialCategoriesTableFilterComposer,
+          $$FinancialCategoriesTableOrderingComposer,
+          $$FinancialCategoriesTableAnnotationComposer,
+          $$FinancialCategoriesTableCreateCompanionBuilder,
+          $$FinancialCategoriesTableUpdateCompanionBuilder,
+          (FinancialCategoryRow, $$FinancialCategoriesTableReferences),
+          FinancialCategoryRow,
+          PrefetchHooks Function({bool financialEntriesRefs})
+        > {
+  $$FinancialCategoriesTableTableManager(
+    _$AppDatabase db,
+    $FinancialCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinancialCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinancialCategoriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$FinancialCategoriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<String> nature = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinancialCategoriesCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                name: name,
+                direction: direction,
+                nature: nature,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String name,
+                required String direction,
+                required String nature,
+                Value<int> rowid = const Value.absent(),
+              }) => FinancialCategoriesCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                name: name,
+                direction: direction,
+                nature: nature,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinancialCategoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({financialEntriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (financialEntriesRefs) db.financialEntries,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (financialEntriesRefs)
+                    await $_getPrefetchedData<
+                      FinancialCategoryRow,
+                      $FinancialCategoriesTable,
+                      FinancialEntryRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$FinancialCategoriesTableReferences
+                          ._financialEntriesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$FinancialCategoriesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).financialEntriesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.categoryId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FinancialCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FinancialCategoriesTable,
+      FinancialCategoryRow,
+      $$FinancialCategoriesTableFilterComposer,
+      $$FinancialCategoriesTableOrderingComposer,
+      $$FinancialCategoriesTableAnnotationComposer,
+      $$FinancialCategoriesTableCreateCompanionBuilder,
+      $$FinancialCategoriesTableUpdateCompanionBuilder,
+      (FinancialCategoryRow, $$FinancialCategoriesTableReferences),
+      FinancialCategoryRow,
+      PrefetchHooks Function({bool financialEntriesRefs})
+    >;
+typedef $$FinancialEntriesTableCreateCompanionBuilder =
+    FinancialEntriesCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String categoryId,
+      required String categoryNameSnapshot,
+      required String direction,
+      required String nature,
+      required int amountMinor,
+      required String currency,
+      required String method,
+      required int occurredAtMs,
+      Value<String?> notes,
+      Value<String?> reference,
+      Value<int> rowid,
+    });
+typedef $$FinancialEntriesTableUpdateCompanionBuilder =
+    FinancialEntriesCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> categoryId,
+      Value<String> categoryNameSnapshot,
+      Value<String> direction,
+      Value<String> nature,
+      Value<int> amountMinor,
+      Value<String> currency,
+      Value<String> method,
+      Value<int> occurredAtMs,
+      Value<String?> notes,
+      Value<String?> reference,
+      Value<int> rowid,
+    });
+
+final class $$FinancialEntriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $FinancialEntriesTable,
+          FinancialEntryRow
+        > {
+  $$FinancialEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $FinancialCategoriesTable _categoryIdTable(_$AppDatabase db) => db
+      .financialCategories
+      .createAlias('financial_entries__category_id__financial_categories__id');
+
+  $$FinancialCategoriesTableProcessedTableManager get categoryId {
+    final $_column = $_itemColumn<String>('category_id')!;
+
+    final manager = $$FinancialCategoriesTableTableManager(
+      $_db,
+      $_db.financialCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$CashMovementsTable, List<CashMovementRow>>
+  _cashMovementsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.cashMovements,
+    aliasName: 'financial_entries__id__cash_movements__financial_entry_id',
+  );
+
+  $$CashMovementsTableProcessedTableManager get cashMovementsRefs {
+    final manager = $$CashMovementsTableTableManager($_db, $_db.cashMovements)
+        .filter(
+          (f) => f.financialEntryId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_cashMovementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$FinancialEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $FinancialEntriesTable> {
+  $$FinancialEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryNameSnapshot => $composableBuilder(
+    column: $table.categoryNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nature => $composableBuilder(
+    column: $table.nature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get occurredAtMs => $composableBuilder(
+    column: $table.occurredAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$FinancialCategoriesTableFilterComposer get categoryId {
+    final $$FinancialCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.financialCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinancialCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.financialCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> cashMovementsRefs(
+    Expression<bool> Function($$CashMovementsTableFilterComposer f) f,
+  ) {
+    final $$CashMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.financialEntryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinancialEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $FinancialEntriesTable> {
+  $$FinancialEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryNameSnapshot => $composableBuilder(
+    column: $table.categoryNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nature => $composableBuilder(
+    column: $table.nature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get occurredAtMs => $composableBuilder(
+    column: $table.occurredAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$FinancialCategoriesTableOrderingComposer get categoryId {
+    final $$FinancialCategoriesTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.categoryId,
+          referencedTable: $db.financialCategories,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinancialCategoriesTableOrderingComposer(
+                $db: $db,
+                $table: $db.financialCategories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$FinancialEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FinancialEntriesTable> {
+  $$FinancialEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoryNameSnapshot => $composableBuilder(
+    column: $table.categoryNameSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<String> get nature =>
+      $composableBuilder(column: $table.nature, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<String> get method =>
+      $composableBuilder(column: $table.method, builder: (column) => column);
+
+  GeneratedColumn<int> get occurredAtMs => $composableBuilder(
+    column: $table.occurredAtMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get reference =>
+      $composableBuilder(column: $table.reference, builder: (column) => column);
+
+  $$FinancialCategoriesTableAnnotationComposer get categoryId {
+    final $$FinancialCategoriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.categoryId,
+          referencedTable: $db.financialCategories,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$FinancialCategoriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.financialCategories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  Expression<T> cashMovementsRefs<T extends Object>(
+    Expression<T> Function($$CashMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$CashMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.financialEntryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$FinancialEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FinancialEntriesTable,
+          FinancialEntryRow,
+          $$FinancialEntriesTableFilterComposer,
+          $$FinancialEntriesTableOrderingComposer,
+          $$FinancialEntriesTableAnnotationComposer,
+          $$FinancialEntriesTableCreateCompanionBuilder,
+          $$FinancialEntriesTableUpdateCompanionBuilder,
+          (FinancialEntryRow, $$FinancialEntriesTableReferences),
+          FinancialEntryRow,
+          PrefetchHooks Function({bool categoryId, bool cashMovementsRefs})
+        > {
+  $$FinancialEntriesTableTableManager(
+    _$AppDatabase db,
+    $FinancialEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FinancialEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FinancialEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FinancialEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<String> categoryNameSnapshot = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<String> nature = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<String> method = const Value.absent(),
+                Value<int> occurredAtMs = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinancialEntriesCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                categoryId: categoryId,
+                categoryNameSnapshot: categoryNameSnapshot,
+                direction: direction,
+                nature: nature,
+                amountMinor: amountMinor,
+                currency: currency,
+                method: method,
+                occurredAtMs: occurredAtMs,
+                notes: notes,
+                reference: reference,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String categoryId,
+                required String categoryNameSnapshot,
+                required String direction,
+                required String nature,
+                required int amountMinor,
+                required String currency,
+                required String method,
+                required int occurredAtMs,
+                Value<String?> notes = const Value.absent(),
+                Value<String?> reference = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FinancialEntriesCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                categoryId: categoryId,
+                categoryNameSnapshot: categoryNameSnapshot,
+                direction: direction,
+                nature: nature,
+                amountMinor: amountMinor,
+                currency: currency,
+                method: method,
+                occurredAtMs: occurredAtMs,
+                notes: notes,
+                reference: reference,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$FinancialEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({categoryId = false, cashMovementsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (cashMovementsRefs) db.cashMovements,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryId,
+                                    referencedTable:
+                                        $$FinancialEntriesTableReferences
+                                            ._categoryIdTable(db),
+                                    referencedColumn:
+                                        $$FinancialEntriesTableReferences
+                                            ._categoryIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (cashMovementsRefs)
+                        await $_getPrefetchedData<
+                          FinancialEntryRow,
+                          $FinancialEntriesTable,
+                          CashMovementRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FinancialEntriesTableReferences
+                              ._cashMovementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FinancialEntriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).cashMovementsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.financialEntryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$FinancialEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FinancialEntriesTable,
+      FinancialEntryRow,
+      $$FinancialEntriesTableFilterComposer,
+      $$FinancialEntriesTableOrderingComposer,
+      $$FinancialEntriesTableAnnotationComposer,
+      $$FinancialEntriesTableCreateCompanionBuilder,
+      $$FinancialEntriesTableUpdateCompanionBuilder,
+      (FinancialEntryRow, $$FinancialEntriesTableReferences),
+      FinancialEntryRow,
+      PrefetchHooks Function({bool categoryId, bool cashMovementsRefs})
+    >;
+typedef $$CashSessionsTableCreateCompanionBuilder =
+    CashSessionsCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String deviceId,
+      required String openedByUserId,
+      Value<String?> closedByUserId,
+      required String status,
+      required int openedAtMs,
+      Value<int?> closedAtMs,
+      required int openingMinor,
+      Value<int?> countedMinor,
+      Value<String?> incomeMinor,
+      Value<String?> expenseMinor,
+      Value<String?> expectedMinor,
+      Value<String?> differenceMinor,
+      Value<String?> closeSnapshot,
+      Value<String?> previousCloseEventId,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+typedef $$CashSessionsTableUpdateCompanionBuilder =
+    CashSessionsCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> deviceId,
+      Value<String> openedByUserId,
+      Value<String?> closedByUserId,
+      Value<String> status,
+      Value<int> openedAtMs,
+      Value<int?> closedAtMs,
+      Value<int> openingMinor,
+      Value<int?> countedMinor,
+      Value<String?> incomeMinor,
+      Value<String?> expenseMinor,
+      Value<String?> expectedMinor,
+      Value<String?> differenceMinor,
+      Value<String?> closeSnapshot,
+      Value<String?> previousCloseEventId,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+
+final class $$CashSessionsTableReferences
+    extends BaseReferences<_$AppDatabase, $CashSessionsTable, CashSessionRow> {
+  $$CashSessionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$CashMovementsTable, List<CashMovementRow>>
+  _cashMovementsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.cashMovements,
+    aliasName: 'cash_sessions__id__cash_movements__session_id',
+  );
+
+  $$CashMovementsTableProcessedTableManager get cashMovementsRefs {
+    final manager = $$CashMovementsTableTableManager(
+      $_db,
+      $_db.cashMovements,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_cashMovementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$CashSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CashSessionsTable> {
+  $$CashSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get openedByUserId => $composableBuilder(
+    column: $table.openedByUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get closedByUserId => $composableBuilder(
+    column: $table.closedByUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openedAtMs => $composableBuilder(
+    column: $table.openedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get closedAtMs => $composableBuilder(
+    column: $table.closedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openingMinor => $composableBuilder(
+    column: $table.openingMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get countedMinor => $composableBuilder(
+    column: $table.countedMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get incomeMinor => $composableBuilder(
+    column: $table.incomeMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get expenseMinor => $composableBuilder(
+    column: $table.expenseMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get expectedMinor => $composableBuilder(
+    column: $table.expectedMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get differenceMinor => $composableBuilder(
+    column: $table.differenceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get closeSnapshot => $composableBuilder(
+    column: $table.closeSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get previousCloseEventId => $composableBuilder(
+    column: $table.previousCloseEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> cashMovementsRefs(
+    Expression<bool> Function($$CashMovementsTableFilterComposer f) f,
+  ) {
+    final $$CashMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CashSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CashSessionsTable> {
+  $$CashSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get openedByUserId => $composableBuilder(
+    column: $table.openedByUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get closedByUserId => $composableBuilder(
+    column: $table.closedByUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openedAtMs => $composableBuilder(
+    column: $table.openedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get closedAtMs => $composableBuilder(
+    column: $table.closedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openingMinor => $composableBuilder(
+    column: $table.openingMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get countedMinor => $composableBuilder(
+    column: $table.countedMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get incomeMinor => $composableBuilder(
+    column: $table.incomeMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get expenseMinor => $composableBuilder(
+    column: $table.expenseMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get expectedMinor => $composableBuilder(
+    column: $table.expectedMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get differenceMinor => $composableBuilder(
+    column: $table.differenceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get closeSnapshot => $composableBuilder(
+    column: $table.closeSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get previousCloseEventId => $composableBuilder(
+    column: $table.previousCloseEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CashSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CashSessionsTable> {
+  $$CashSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get openedByUserId => $composableBuilder(
+    column: $table.openedByUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get closedByUserId => $composableBuilder(
+    column: $table.closedByUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get openedAtMs => $composableBuilder(
+    column: $table.openedAtMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get closedAtMs => $composableBuilder(
+    column: $table.closedAtMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get openingMinor => $composableBuilder(
+    column: $table.openingMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get countedMinor => $composableBuilder(
+    column: $table.countedMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get incomeMinor => $composableBuilder(
+    column: $table.incomeMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get expenseMinor => $composableBuilder(
+    column: $table.expenseMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get expectedMinor => $composableBuilder(
+    column: $table.expectedMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get differenceMinor => $composableBuilder(
+    column: $table.differenceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get closeSnapshot => $composableBuilder(
+    column: $table.closeSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get previousCloseEventId => $composableBuilder(
+    column: $table.previousCloseEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  Expression<T> cashMovementsRefs<T extends Object>(
+    Expression<T> Function($$CashMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$CashMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.cashMovements,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cashMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$CashSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashSessionsTable,
+          CashSessionRow,
+          $$CashSessionsTableFilterComposer,
+          $$CashSessionsTableOrderingComposer,
+          $$CashSessionsTableAnnotationComposer,
+          $$CashSessionsTableCreateCompanionBuilder,
+          $$CashSessionsTableUpdateCompanionBuilder,
+          (CashSessionRow, $$CashSessionsTableReferences),
+          CashSessionRow,
+          PrefetchHooks Function({bool cashMovementsRefs})
+        > {
+  $$CashSessionsTableTableManager(_$AppDatabase db, $CashSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CashSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CashSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CashSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String> openedByUserId = const Value.absent(),
+                Value<String?> closedByUserId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> openedAtMs = const Value.absent(),
+                Value<int?> closedAtMs = const Value.absent(),
+                Value<int> openingMinor = const Value.absent(),
+                Value<int?> countedMinor = const Value.absent(),
+                Value<String?> incomeMinor = const Value.absent(),
+                Value<String?> expenseMinor = const Value.absent(),
+                Value<String?> expectedMinor = const Value.absent(),
+                Value<String?> differenceMinor = const Value.absent(),
+                Value<String?> closeSnapshot = const Value.absent(),
+                Value<String?> previousCloseEventId = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashSessionsCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                deviceId: deviceId,
+                openedByUserId: openedByUserId,
+                closedByUserId: closedByUserId,
+                status: status,
+                openedAtMs: openedAtMs,
+                closedAtMs: closedAtMs,
+                openingMinor: openingMinor,
+                countedMinor: countedMinor,
+                incomeMinor: incomeMinor,
+                expenseMinor: expenseMinor,
+                expectedMinor: expectedMinor,
+                differenceMinor: differenceMinor,
+                closeSnapshot: closeSnapshot,
+                previousCloseEventId: previousCloseEventId,
+                notes: notes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String deviceId,
+                required String openedByUserId,
+                Value<String?> closedByUserId = const Value.absent(),
+                required String status,
+                required int openedAtMs,
+                Value<int?> closedAtMs = const Value.absent(),
+                required int openingMinor,
+                Value<int?> countedMinor = const Value.absent(),
+                Value<String?> incomeMinor = const Value.absent(),
+                Value<String?> expenseMinor = const Value.absent(),
+                Value<String?> expectedMinor = const Value.absent(),
+                Value<String?> differenceMinor = const Value.absent(),
+                Value<String?> closeSnapshot = const Value.absent(),
+                Value<String?> previousCloseEventId = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashSessionsCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                deviceId: deviceId,
+                openedByUserId: openedByUserId,
+                closedByUserId: closedByUserId,
+                status: status,
+                openedAtMs: openedAtMs,
+                closedAtMs: closedAtMs,
+                openingMinor: openingMinor,
+                countedMinor: countedMinor,
+                incomeMinor: incomeMinor,
+                expenseMinor: expenseMinor,
+                expectedMinor: expectedMinor,
+                differenceMinor: differenceMinor,
+                closeSnapshot: closeSnapshot,
+                previousCloseEventId: previousCloseEventId,
+                notes: notes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CashSessionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({cashMovementsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (cashMovementsRefs) db.cashMovements,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (cashMovementsRefs)
+                    await $_getPrefetchedData<
+                      CashSessionRow,
+                      $CashSessionsTable,
+                      CashMovementRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$CashSessionsTableReferences
+                          ._cashMovementsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$CashSessionsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).cashMovementsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.sessionId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CashSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashSessionsTable,
+      CashSessionRow,
+      $$CashSessionsTableFilterComposer,
+      $$CashSessionsTableOrderingComposer,
+      $$CashSessionsTableAnnotationComposer,
+      $$CashSessionsTableCreateCompanionBuilder,
+      $$CashSessionsTableUpdateCompanionBuilder,
+      (CashSessionRow, $$CashSessionsTableReferences),
+      CashSessionRow,
+      PrefetchHooks Function({bool cashMovementsRefs})
+    >;
+typedef $$CashMovementsTableCreateCompanionBuilder =
+    CashMovementsCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String sessionId,
+      required String direction,
+      required int amountMinor,
+      Value<String?> salePaymentId,
+      Value<String?> customerPaymentId,
+      Value<String?> financialEntryId,
+      Value<int> rowid,
+    });
+typedef $$CashMovementsTableUpdateCompanionBuilder =
+    CashMovementsCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> sessionId,
+      Value<String> direction,
+      Value<int> amountMinor,
+      Value<String?> salePaymentId,
+      Value<String?> customerPaymentId,
+      Value<String?> financialEntryId,
+      Value<int> rowid,
+    });
+
+final class $$CashMovementsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $CashMovementsTable, CashMovementRow> {
+  $$CashMovementsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CashSessionsTable _sessionIdTable(_$AppDatabase db) => db.cashSessions
+      .createAlias('cash_movements__session_id__cash_sessions__id');
+
+  $$CashSessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<String>('session_id')!;
+
+    final manager = $$CashSessionsTableTableManager(
+      $_db,
+      $_db.cashSessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SalePaymentsTable _salePaymentIdTable(_$AppDatabase db) => db
+      .salePayments
+      .createAlias('cash_movements__sale_payment_id__sale_payments__id');
+
+  $$SalePaymentsTableProcessedTableManager? get salePaymentId {
+    final $_column = $_itemColumn<String>('sale_payment_id');
+    if ($_column == null) return null;
+    final manager = $$SalePaymentsTableTableManager(
+      $_db,
+      $_db.salePayments,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_salePaymentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $CustomerPaymentsTable _customerPaymentIdTable(_$AppDatabase db) =>
+      db.customerPayments.createAlias(
+        'cash_movements__customer_payment_id__customer_payments__id',
+      );
+
+  $$CustomerPaymentsTableProcessedTableManager? get customerPaymentId {
+    final $_column = $_itemColumn<String>('customer_payment_id');
+    if ($_column == null) return null;
+    final manager = $$CustomerPaymentsTableTableManager(
+      $_db,
+      $_db.customerPayments,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_customerPaymentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FinancialEntriesTable _financialEntryIdTable(_$AppDatabase db) => db
+      .financialEntries
+      .createAlias('cash_movements__financial_entry_id__financial_entries__id');
+
+  $$FinancialEntriesTableProcessedTableManager? get financialEntryId {
+    final $_column = $_itemColumn<String>('financial_entry_id');
+    if ($_column == null) return null;
+    final manager = $$FinancialEntriesTableTableManager(
+      $_db,
+      $_db.financialEntries,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_financialEntryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CashMovementsTableFilterComposer
+    extends Composer<_$AppDatabase, $CashMovementsTable> {
+  $$CashMovementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CashSessionsTableFilterComposer get sessionId {
+    final $$CashSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.cashSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.cashSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SalePaymentsTableFilterComposer get salePaymentId {
+    final $$SalePaymentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.salePaymentId,
+      referencedTable: $db.salePayments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalePaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.salePayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CustomerPaymentsTableFilterComposer get customerPaymentId {
+    final $$CustomerPaymentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customerPaymentId,
+      referencedTable: $db.customerPayments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomerPaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.customerPayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinancialEntriesTableFilterComposer get financialEntryId {
+    final $$FinancialEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.financialEntryId,
+      referencedTable: $db.financialEntries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinancialEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.financialEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CashMovementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CashMovementsTable> {
+  $$CashMovementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CashSessionsTableOrderingComposer get sessionId {
+    final $$CashSessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.cashSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashSessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.cashSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SalePaymentsTableOrderingComposer get salePaymentId {
+    final $$SalePaymentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.salePaymentId,
+      referencedTable: $db.salePayments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalePaymentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.salePayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CustomerPaymentsTableOrderingComposer get customerPaymentId {
+    final $$CustomerPaymentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customerPaymentId,
+      referencedTable: $db.customerPayments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomerPaymentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.customerPayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinancialEntriesTableOrderingComposer get financialEntryId {
+    final $$FinancialEntriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.financialEntryId,
+      referencedTable: $db.financialEntries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinancialEntriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.financialEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CashMovementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CashMovementsTable> {
+  $$CashMovementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  $$CashSessionsTableAnnotationComposer get sessionId {
+    final $$CashSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.cashSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CashSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.cashSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SalePaymentsTableAnnotationComposer get salePaymentId {
+    final $$SalePaymentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.salePaymentId,
+      referencedTable: $db.salePayments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalePaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.salePayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$CustomerPaymentsTableAnnotationComposer get customerPaymentId {
+    final $$CustomerPaymentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.customerPaymentId,
+      referencedTable: $db.customerPayments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CustomerPaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.customerPayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FinancialEntriesTableAnnotationComposer get financialEntryId {
+    final $$FinancialEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.financialEntryId,
+      referencedTable: $db.financialEntries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FinancialEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.financialEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CashMovementsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashMovementsTable,
+          CashMovementRow,
+          $$CashMovementsTableFilterComposer,
+          $$CashMovementsTableOrderingComposer,
+          $$CashMovementsTableAnnotationComposer,
+          $$CashMovementsTableCreateCompanionBuilder,
+          $$CashMovementsTableUpdateCompanionBuilder,
+          (CashMovementRow, $$CashMovementsTableReferences),
+          CashMovementRow,
+          PrefetchHooks Function({
+            bool sessionId,
+            bool salePaymentId,
+            bool customerPaymentId,
+            bool financialEntryId,
+          })
+        > {
+  $$CashMovementsTableTableManager(_$AppDatabase db, $CashMovementsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CashMovementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CashMovementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CashMovementsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> direction = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String?> salePaymentId = const Value.absent(),
+                Value<String?> customerPaymentId = const Value.absent(),
+                Value<String?> financialEntryId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashMovementsCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                sessionId: sessionId,
+                direction: direction,
+                amountMinor: amountMinor,
+                salePaymentId: salePaymentId,
+                customerPaymentId: customerPaymentId,
+                financialEntryId: financialEntryId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String sessionId,
+                required String direction,
+                required int amountMinor,
+                Value<String?> salePaymentId = const Value.absent(),
+                Value<String?> customerPaymentId = const Value.absent(),
+                Value<String?> financialEntryId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashMovementsCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                sessionId: sessionId,
+                direction: direction,
+                amountMinor: amountMinor,
+                salePaymentId: salePaymentId,
+                customerPaymentId: customerPaymentId,
+                financialEntryId: financialEntryId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CashMovementsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                sessionId = false,
+                salePaymentId = false,
+                customerPaymentId = false,
+                financialEntryId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (sessionId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.sessionId,
+                                    referencedTable:
+                                        $$CashMovementsTableReferences
+                                            ._sessionIdTable(db),
+                                    referencedColumn:
+                                        $$CashMovementsTableReferences
+                                            ._sessionIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (salePaymentId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.salePaymentId,
+                                    referencedTable:
+                                        $$CashMovementsTableReferences
+                                            ._salePaymentIdTable(db),
+                                    referencedColumn:
+                                        $$CashMovementsTableReferences
+                                            ._salePaymentIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (customerPaymentId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.customerPaymentId,
+                                    referencedTable:
+                                        $$CashMovementsTableReferences
+                                            ._customerPaymentIdTable(db),
+                                    referencedColumn:
+                                        $$CashMovementsTableReferences
+                                            ._customerPaymentIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (financialEntryId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.financialEntryId,
+                                    referencedTable:
+                                        $$CashMovementsTableReferences
+                                            ._financialEntryIdTable(db),
+                                    referencedColumn:
+                                        $$CashMovementsTableReferences
+                                            ._financialEntryIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$CashMovementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashMovementsTable,
+      CashMovementRow,
+      $$CashMovementsTableFilterComposer,
+      $$CashMovementsTableOrderingComposer,
+      $$CashMovementsTableAnnotationComposer,
+      $$CashMovementsTableCreateCompanionBuilder,
+      $$CashMovementsTableUpdateCompanionBuilder,
+      (CashMovementRow, $$CashMovementsTableReferences),
+      CashMovementRow,
+      PrefetchHooks Function({
+        bool sessionId,
+        bool salePaymentId,
+        bool customerPaymentId,
+        bool financialEntryId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -23062,6 +29385,14 @@ class $AppDatabaseManager {
       $$CustomerPaymentsTableTableManager(_db, _db.customerPayments);
   $$CreditAllocationsTableTableManager get creditAllocations =>
       $$CreditAllocationsTableTableManager(_db, _db.creditAllocations);
+  $$FinancialCategoriesTableTableManager get financialCategories =>
+      $$FinancialCategoriesTableTableManager(_db, _db.financialCategories);
+  $$FinancialEntriesTableTableManager get financialEntries =>
+      $$FinancialEntriesTableTableManager(_db, _db.financialEntries);
+  $$CashSessionsTableTableManager get cashSessions =>
+      $$CashSessionsTableTableManager(_db, _db.cashSessions);
+  $$CashMovementsTableTableManager get cashMovements =>
+      $$CashMovementsTableTableManager(_db, _db.cashMovements);
 }
 
 mixin _$ClienteDaoMixin on DatabaseAccessor<AppDatabase> {
@@ -23285,4 +29616,43 @@ class SaleDaoManager {
       );
   $$SaleItemsTableTableManager get saleItems =>
       $$SaleItemsTableTableManager(_db.attachedDatabase, _db.saleItems);
+}
+
+mixin _$FinancialCategoryDaoMixin on DatabaseAccessor<AppDatabase> {
+  $FinancialCategoriesTable get financialCategories =>
+      attachedDatabase.financialCategories;
+  FinancialCategoryDaoManager get managers => FinancialCategoryDaoManager(this);
+}
+
+class FinancialCategoryDaoManager {
+  final _$FinancialCategoryDaoMixin _db;
+  FinancialCategoryDaoManager(this._db);
+  $$FinancialCategoriesTableTableManager get financialCategories =>
+      $$FinancialCategoriesTableTableManager(
+        _db.attachedDatabase,
+        _db.financialCategories,
+      );
+}
+
+mixin _$FinancialEntryDaoMixin on DatabaseAccessor<AppDatabase> {
+  $FinancialCategoriesTable get financialCategories =>
+      attachedDatabase.financialCategories;
+  $FinancialEntriesTable get financialEntries =>
+      attachedDatabase.financialEntries;
+  FinancialEntryDaoManager get managers => FinancialEntryDaoManager(this);
+}
+
+class FinancialEntryDaoManager {
+  final _$FinancialEntryDaoMixin _db;
+  FinancialEntryDaoManager(this._db);
+  $$FinancialCategoriesTableTableManager get financialCategories =>
+      $$FinancialCategoriesTableTableManager(
+        _db.attachedDatabase,
+        _db.financialCategories,
+      );
+  $$FinancialEntriesTableTableManager get financialEntries =>
+      $$FinancialEntriesTableTableManager(
+        _db.attachedDatabase,
+        _db.financialEntries,
+      );
 }

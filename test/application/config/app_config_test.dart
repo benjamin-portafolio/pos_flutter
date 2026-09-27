@@ -63,4 +63,35 @@ void main() {
     expect(decoded.syncProvider, 'none');
     expect(decoded.backupProvider, BackupProvider.googleDrive);
   });
+
+  test('la captura de caja esta habilitada por defecto', () {
+    expect(AppConfig.initial.cashEnabled, isTrue);
+  });
+
+  test('serializa y lee la captura de caja', () {
+    final decoded = AppConfig.fromJson(
+      AppConfig.initial.copyWith(cashEnabled: false).toJson(),
+    );
+
+    expect(decoded.cashEnabled, isFalse);
+  });
+
+  test('una instalacion sin la clave conserva la captura habilitada', () {
+    final decoded = AppConfig.fromJson(const {
+      'mode': 'standalone',
+      'setup_completed': true,
+      'auth_provider': 'google',
+      'sync_provider': 'none',
+      'backup_provider': 'google_drive',
+    });
+
+    expect(decoded.cashEnabled, isTrue);
+  });
+
+  test('copyWith conserva la captura de caja al no indicarla', () {
+    final disabled = AppConfig.initial.copyWith(cashEnabled: false);
+
+    expect(disabled.copyWith(setupCompleted: true).cashEnabled, isFalse);
+    expect(disabled.copyWith(cashEnabled: true).cashEnabled, isTrue);
+  });
 }

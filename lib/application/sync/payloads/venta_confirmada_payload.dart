@@ -1,3 +1,4 @@
+import 'cash_binding_payload.dart';
 import '../local_event_store.dart';
 import 'confirmed_sale_line.dart';
 import 'inventory_movement_payload.dart';
@@ -6,6 +7,7 @@ import 'sale_item_snapshot.dart';
 class VentaConfirmadaPayload {
   VentaConfirmadaPayload({
     required this.paymentId,
+    this.cash,
     this.paymentMethod = 'cash',
     String? paymentReference,
     this.clienteId,
@@ -20,7 +22,11 @@ class VentaConfirmadaPayload {
     required List<String> dependencyEventIds,
   }) : paymentReference = normalizeReference(paymentReference),
        lines = List.unmodifiable(lines),
-       dependencyEventIds = List.unmodifiable(dependencyEventIds) {
+       dependencyEventIds = List.unmodifiable({
+         ...dependencyEventIds,
+         if (cash != null) cash.openingEventId,
+       }) {
+    CashBindingPayload.optional(cash?.toJson(), paymentMethod, totalMinor);
     if (paymentMethod == 'cash' || paymentMethod == 'transfer') {
       InventoryMovementPayload.requiredUuidV4(paymentId ?? '', 'payment_id');
     } else if (paymentMethod != 'credit' ||
@@ -92,6 +98,7 @@ class VentaConfirmadaPayload {
     return normalized;
   }
 
+  final CashBindingPayload? cash;
   final String? paymentReference;
   static const aggregateType = 'sale';
   static const eventType = 'venta_confirmada';
@@ -103,6 +110,7 @@ class VentaConfirmadaPayload {
   final List<ConfirmedSaleLine> lines;
   final List<String> dependencyEventIds;
   Map<String, Object?> toJson() => {
+    if (cash != null) 'cash': cash!.toJson(),
     'payment_id': paymentId,
     'payment_method': paymentMethod,
     if (paymentReference != null) 'payment_reference': paymentReference,
@@ -121,6 +129,11 @@ class VentaConfirmadaPayload {
   };
   factory VentaConfirmadaPayload.fromJson(Map<String, Object?> j) {
     return VentaConfirmadaPayload(
+      cash: CashBindingPayload.optional(
+        j['cash'],
+        j['payment_method'] as String,
+        j['total_minor'] as int,
+      ),
       paymentId: j['payment_id'] as String?,
       paymentMethod: j['payment_method'] as String,
       paymentReference: j['payment_reference'] as String?,
@@ -142,6 +155,7 @@ class VentaConfirmadaPayload {
     );
   }
   List<LocalEventRef> refs(String saleId) => [
+    ...?cash?.refs,
     LocalEventRef.affects(refType: 'sale', refId: saleId),
     if (paymentId != null)
       LocalEventRef.affects(refType: 'payment', refId: paymentId!),

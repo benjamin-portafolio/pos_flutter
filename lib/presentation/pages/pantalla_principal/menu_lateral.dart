@@ -1,5 +1,10 @@
+import '../caja/cash_management_screen.dart';
 import '../gestion_clientes/clientes_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:pos_flutter/application/config/app_config.dart';
+import 'package:pos_flutter/application/config/app_config_controller.dart';
+import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/presentation/pages/finanzas/ingresos_y_gastos_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
@@ -85,6 +90,7 @@ class MenuLateral extends StatelessWidget {
               ],
             ),
           ),
+          const _CashMenuTile(),
           // Usuario
           ListTile(
             title: Text("BENJAMÍN ALVARADO GONZÁLEZ (staff)"),
@@ -94,31 +100,6 @@ class MenuLateral extends StatelessWidget {
               style: TextStyle(color: Colors.blue, fontSize: 12),
             ),
           ),
-          // Botones
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    child: Text("CAMBIAR DE NEGOCIO"),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                    child: Text("CREAR NEGOCIO"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
@@ -159,14 +140,19 @@ class MenuLateral extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: Icon(Icons.money_off),
-            title: Text("Agregar gasto"),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: Icon(Icons.receipt_long),
-            title: Text("Recibos"),
-            onTap: () {},
+            leading: Icon(Icons.swap_horiz),
+            title: Text("Ingresos y gastos"),
+            onTap: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => const IngresosYGastosScreen(),
+                  ),
+                );
+              });
+            },
           ),
           ListTile(
             leading: Icon(Icons.people),
@@ -194,14 +180,38 @@ class MenuLateral extends StatelessWidget {
               );
             },
           ),
-          ListTile(
-            leading: Icon(Icons.shopping_bag),
-            title: Text("ShopFront"),
-            trailing: _buildBadge(0),
-            onTap: () {},
-          ),
         ],
       ),
+    );
+  }
+}
+
+/// La entrada de caja solo existe cuando la captura esta habilitada en la
+/// instalacion. Escucha el ajuste para reflejarse sin reiniciar la app.
+class _CashMenuTile extends StatelessWidget {
+  const _CashMenuTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = getIt<AppConfigController>();
+    return StreamBuilder<AppConfig>(
+      initialData: controller.config,
+      stream: controller.changes,
+      builder: (context, snapshot) {
+        if (snapshot.data?.cashEnabled != true) return const SizedBox.shrink();
+        return ListTile(
+          leading: const Icon(Icons.point_of_sale),
+          title: const Text('Apertura y corte de caja'),
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const CashManagementScreen(),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

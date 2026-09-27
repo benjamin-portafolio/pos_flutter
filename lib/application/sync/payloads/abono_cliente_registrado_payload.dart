@@ -1,9 +1,11 @@
+import 'cash_binding_payload.dart';
 import '../local_event_store.dart';
 import 'inventory_movement_payload.dart';
 
 class AbonoClienteRegistradoPayload {
   AbonoClienteRegistradoPayload({
     required this.clienteId,
+    this.cash,
     required this.clienteEventId,
     required this.amountMinor,
     required this.method,
@@ -12,6 +14,7 @@ class AbonoClienteRegistradoPayload {
   }) : reference = reference == null || reference.trim().isEmpty
            ? null
            : reference.trim() {
+    CashBindingPayload.optional(cash?.toJson(), method, amountMinor);
     InventoryMovementPayload.requiredUuidV4(clienteId, 'cliente_id');
     InventoryMovementPayload.requiredUuidV4(clienteEventId, 'cliente_event_id');
     if (occurredAtMs <= 0 ||
@@ -27,15 +30,24 @@ class AbonoClienteRegistradoPayload {
   }
   static const aggregateType = 'customer_payment';
   static const eventType = 'abono_cliente_registrado';
+  final CashBindingPayload? cash;
   final String clienteId, clienteEventId, method;
   final String? reference;
   final int amountMinor, occurredAtMs;
-  List<String> get dependencyEventIds => [clienteEventId];
+  List<String> get dependencyEventIds => [
+    clienteEventId,
+    if (cash != null) cash!.openingEventId,
+  ];
   factory AbonoClienteRegistradoPayload.fromJson(Map<String, Object?> json) {
     if (json['currency'] != 'MXN') {
       throw const FormatException('Moneda inválida.');
     }
     return AbonoClienteRegistradoPayload(
+      cash: CashBindingPayload.optional(
+        json['cash'],
+        json['method'] as String,
+        json['amount_minor'] as int,
+      ),
       clienteId: json['cliente_id'] as String,
       clienteEventId: json['cliente_event_id'] as String,
       amountMinor: json['amount_minor'] as int,
@@ -45,6 +57,7 @@ class AbonoClienteRegistradoPayload {
     );
   }
   Map<String, Object?> toJson() => {
+    if (cash != null) 'cash': cash!.toJson(),
     'cliente_id': clienteId,
     'cliente_event_id': clienteEventId,
     'amount_minor': amountMinor,
@@ -54,6 +67,7 @@ class AbonoClienteRegistradoPayload {
     'currency': 'MXN',
   };
   List<LocalEventRef> refs(String id) => [
+    ...?cash?.refs,
     LocalEventRef.affects(refType: aggregateType, refId: id),
     LocalEventRef.affects(refType: 'customer_account', refId: clienteId),
     LocalEventRef.uses(refType: 'cliente', refId: clienteId),

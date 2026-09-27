@@ -2,6 +2,10 @@ import 'tables/credit_sales.dart';
 import 'tables/customer_payments.dart';
 import 'tables/credit_allocations.dart';
 import 'tables/clientes.dart';
+import 'tables/financial_categories.dart';
+import 'tables/financial_entries.dart';
+import 'tables/cash_sessions.dart';
+import 'tables/cash_movements.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -44,6 +48,8 @@ part 'daos/categoria_dao.dart';
 part 'daos/espacio_dao.dart';
 part 'daos/event_dao.dart';
 part 'daos/event_ref_dao.dart';
+part 'daos/financial_category_dao.dart';
+part 'daos/financial_entry_dao.dart';
 part 'daos/inventory_dao.dart';
 part 'daos/producto_dao.dart';
 part 'daos/producto_listado_row.dart';
@@ -76,6 +82,10 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     CreditSales,
     CustomerPayments,
     CreditAllocations,
+    FinancialCategories,
+    FinancialEntries,
+    CashSessions,
+    CashMovements,
   ],
   daos: [
     ClienteDao,
@@ -88,6 +98,8 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     UnitDao,
     InventoryDao,
     SaleDao,
+    FinancialCategoryDao,
+    FinancialEntryDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -197,8 +209,10 @@ LazyDatabase _openConnection() {
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
 /// ni cambiar schemaVersion. Las tablas de crédito y clientes deben existir,
-/// sales debe incluir cliente_id y no puede conservarse la
-/// columna legada is_default; las bases actuales se conservan entre arranques.
+/// sales debe incluir cliente_id, no puede conservarse la
+/// columna legada is_default y el módulo de ingresos/gastos requiere
+/// financial_categories y financial_entries; las bases actuales se conservan
+/// entre arranques.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
   final connection = sqlite.sqlite3.open(file.path);
@@ -211,6 +225,12 @@ Future<void> _resetDatabaseOnStartup(File file) async {
       'PRAGMA table_info(sale_payments)',
     );
     current =
+        connection
+                .select(
+                  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('cash_sessions', 'cash_movements')",
+                )
+                .length ==
+            2 &&
         paymentColumns.any((column) => column['name'] == 'method') &&
         paymentColumns.any((column) => column['name'] == 'reference') &&
         connection
@@ -219,6 +239,12 @@ Future<void> _resetDatabaseOnStartup(File file) async {
                 )
                 .length ==
             3 &&
+        connection
+                .select(
+                  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('financial_categories', 'financial_entries')",
+                )
+                .length ==
+            2 &&
         connection
             .select('PRAGMA table_info(sales)')
             .any((column) => column['name'] == 'cliente_id') &&

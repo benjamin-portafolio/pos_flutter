@@ -1,3 +1,4 @@
+import '../caja/caja_command_service.dart';
 import '../../sync/projections/cliente_projection_store.dart';
 import 'package:uuid/uuid.dart';
 import '../../../domain/articulos/sale_configuration.dart';
@@ -20,6 +21,7 @@ class VentaCommandService {
     required this.inventory,
     required this.events,
     required this.context,
+    this.cash,
     this.clientes,
   });
   final SaleDraftProjectionStore drafts;
@@ -27,6 +29,7 @@ class VentaCommandService {
   final InventoryProjectionStore inventory;
   final LocalEventStore events;
   final LocalCommandContext context;
+  final CajaCommandService? cash;
   final ClienteProjectionStore? clientes;
   final _uuid = const Uuid();
 
@@ -159,6 +162,10 @@ class VentaCommandService {
     }
     final received = credit ? 0 : command.receivedMinor ?? sale.totalMinor;
     final payload = VentaConfirmadaPayload(
+      cash: await cash?.binding(
+        method: command.paymentMethod,
+        amountMinor: sale.totalMinor,
+      ),
       paymentId: credit ? null : _uuid.v4(),
       paymentMethod: command.paymentMethod,
       paymentReference: VentaConfirmadaPayload.normalizeReference(

@@ -32,7 +32,7 @@ class DriftSyncedEventStore implements SyncedEventStore {
         if (!alreadyAppliedLocally && prepareEvent != null) {
           await prepareEvent(event);
         }
-        await _upsertSyncedEvent(event);
+        await _upsertSyncedEvent(event, echo: alreadyAppliedLocally);
         await _markEventRefsSynced(event);
         if (alreadyAppliedLocally) {
           await acknowledgeEcho(event);
@@ -47,7 +47,20 @@ class DriftSyncedEventStore implements SyncedEventStore {
     });
   }
 
-  Future<void> _upsertSyncedEvent(SyncEvent event) async {
+  Future<void> _upsertSyncedEvent(SyncEvent event, {required bool echo}) async {
+    if (echo) {
+      await (_db.update(
+        _db.events,
+      )..where((t) => t.eventId.equals(event.eventId))).write(
+        EventsCompanion(
+          serverSequence: Value(event.serverSequence),
+          createdAtServer: Value(event.createdAtServer),
+          deliveryStatus: const Value('delivered'),
+          rejectionReason: Value(event.rejectionReason),
+        ),
+      );
+      return;
+    }
     final insert = EventsCompanion.insert(
       eventId: event.eventId,
       aggregateType: event.aggregateType,

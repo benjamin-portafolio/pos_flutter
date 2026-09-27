@@ -1,7 +1,13 @@
+import '../../domain/repositories/cash_repository.dart';
+import '../../data/repositories/cash_repository_impl.dart';
+import '../../application/sync/projections/cash_projection_store.dart';
+import '../../data/local/drift/drift_cash_projection_store.dart';
 import '../../application/sync/projections/cliente_projection_store.dart';
 import '../../data/local/drift/drift_cliente_projection_store.dart';
 import '../../data/repositories/cliente_repository_impl.dart';
+import '../../data/repositories/cliente_resumen_repository_impl.dart';
 import '../../domain/repositories/cliente_repository.dart';
+import '../../domain/repositories/cliente_resumen_repository.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../application/config/app_config.dart';
@@ -12,6 +18,8 @@ import '../../application/backup/backup_store.dart';
 import '../../application/sync/device_wifi_connectivity.dart';
 import '../../application/sync/projections/categoria_projection_store.dart';
 import '../../application/sync/projections/espacio_projection_store.dart';
+import '../../application/sync/projections/financial_category_projection_store.dart';
+import '../../application/sync/projections/financial_entry_projection_store.dart';
 import '../../application/sync/projections/inventory_projection_store.dart';
 import '../../application/sync/projections/producto_projection_store.dart';
 import '../../application/sync/sync_detection_settings_store.dart';
@@ -28,6 +36,8 @@ import '../../data/local/backup/database_state_reader.dart';
 import '../../data/local/drift/app_database.dart';
 import '../../data/local/drift/drift_categoria_projection_store.dart';
 import '../../data/local/drift/drift_espacio_projection_store.dart';
+import '../../data/local/drift/drift_financial_category_projection_store.dart';
+import '../../data/local/drift/drift_financial_entry_projection_store.dart';
 import '../../data/local/drift/drift_inventory_projection_store.dart';
 import '../../data/local/drift/drift_producto_projection_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
@@ -38,11 +48,15 @@ import '../../data/local/sync/sync_detection_settings_file_store.dart';
 import '../../data/local/sync/sync_endpoint_file_store.dart';
 import '../../data/repositories/categoria_repository_impl.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
+import '../../data/repositories/financial_category_repository_impl.dart';
+import '../../data/repositories/financial_entry_repository_impl.dart';
 import '../../data/repositories/recurso_inventario_repository_impl.dart';
 import '../../data/repositories/unidad_inventario_repository_impl.dart';
 import '../../data/repositories/producto_repository_impl.dart';
 import '../../domain/repositories/categoria_repository.dart';
 import '../../domain/repositories/espacio_repository.dart';
+import '../../domain/repositories/financial_category_repository.dart';
+import '../../domain/repositories/financial_entry_repository.dart';
 import '../../domain/repositories/recurso_inventario_repository.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
@@ -98,6 +112,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<ClienteRepository>(
     () => ClienteRepositoryImpl(getIt<ClienteDao>()),
   );
+  getIt.registerLazySingleton<ClienteResumenRepository>(
+    () => ClienteResumenRepositoryImpl(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<EspacioDao>(
     () => EspacioDao(getIt<AppDatabase>()),
   );
@@ -108,6 +125,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => ProductoDao(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<FinancialCategoryDao>(
+    () => getIt<AppDatabase>().financialCategoryDao,
+  );
+  getIt.registerLazySingleton<FinancialEntryDao>(
+    () => getIt<AppDatabase>().financialEntryDao,
+  );
   getIt.registerLazySingleton<UnitDao>(() => UnitDao(getIt<AppDatabase>()));
   getIt.registerLazySingleton<InventoryDao>(
     () => InventoryDao(getIt<AppDatabase>()),
@@ -162,6 +185,24 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
       unitDao: getIt<UnitDao>(),
     ),
   );
+  getIt.registerLazySingleton<CashRepository>(
+    () => CashRepositoryImpl(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<CashProjectionStore>(
+    () => DriftCashProjectionStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<FinancialCategoryProjectionStore>(
+    () => DriftFinancialCategoryProjectionStore(
+      db: getIt<AppDatabase>(),
+      dao: getIt<FinancialCategoryDao>(),
+    ),
+  );
+  getIt.registerLazySingleton<FinancialEntryProjectionStore>(
+    () => DriftFinancialEntryProjectionStore(
+      db: getIt<AppDatabase>(),
+      dao: getIt<FinancialEntryDao>(),
+    ),
+  );
 
   getIt.registerLazySingleton<EspacioRepository>(
     () => EspacioRepositoryImpl(espacioDao: getIt<EspacioDao>()),
@@ -177,6 +218,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<RecursoInventarioRepository>(
     () => RecursoInventarioRepositoryImpl(inventoryDao: getIt<InventoryDao>()),
+  );
+  getIt.registerLazySingleton<FinancialCategoryRepository>(
+    () => FinancialCategoryRepositoryImpl(getIt<FinancialCategoryDao>()),
+  );
+  getIt.registerLazySingleton<FinancialEntryRepository>(
+    () => FinancialEntryRepositoryImpl(getIt<AppDatabase>()),
   );
 
   return DataDependencyBootstrap(

@@ -1,3 +1,5 @@
+import 'payloads/caja_abierta_payload.dart';
+import 'payloads/caja_cerrada_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/venta_confirmada_payload.dart';
@@ -13,6 +15,7 @@ import 'payloads/categoria_eliminada_payload.dart';
 import 'payloads/categoria_movida_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/producto_actualizado_payload.dart';
+import 'payloads/movimiento_financiero_registrado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'sync_conflict_projection_cleaner.dart';
@@ -89,11 +92,19 @@ class SyncPushService {
     var rejected = 0;
     var pending = 0;
     final conflictEvents = <SyncEvent>[];
+    final rejectedIds = <String>{};
 
     for (final event in events) {
       final result = remoteResults[event.eventId];
       final status = _effectiveDeliveryStatus(result);
       if (status == 'pending') {
+        if (result?.status == 'pending') {
+          await _syncPersistence.updateEventSyncStatus(
+            event.eventId,
+            'pending',
+            rejectionReason: result?.reason,
+          );
+        }
         pending++;
         continue;
       }
@@ -103,6 +114,7 @@ class SyncPushService {
           synced++;
         case 'rejected':
           rejected++;
+          rejectedIds.add(event.eventId);
         case 'conflict':
           conflictEvents.add(event);
       }
@@ -111,6 +123,7 @@ class SyncPushService {
     final waitingConflicts = await _propagateWaitingConflicts(
       waitingEvents,
       conflictEvents,
+      rejectedIds,
     );
     for (final event in conflictEvents.reversed) {
       await _conflictProjectionCleaner.hideConflictProjection(event);
@@ -156,10 +169,12 @@ class SyncPushService {
   Future<int> _propagateWaitingConflicts(
     List<SyncEvent> waitingEvents,
     List<SyncEvent> conflictEvents,
+    Set<String> rejectedIds,
   ) async {
     final conflictedEventIds = conflictEvents
         .map((event) => event.eventId)
         .toSet();
+    conflictedEventIds.addAll(rejectedIds);
     var waitingConflicts = 0;
     for (final event in waitingEvents) {
       if (!_dependsOnEventIds(event, conflictedEventIds)) continue;
@@ -178,6 +193,14 @@ class SyncPushService {
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
     switch (event.eventType) {
+      case CajaAbiertaPayload.eventType:
+        return CajaAbiertaPayload.fromJson(
+          event.payload,
+        ).dependencyEventIds.any(eventIds.contains);
+      case CajaCerradaPayload.eventType:
+        return CajaCerradaPayload.fromJson(
+          event.payload,
+        ).dependencyEventIds.any(eventIds.contains);
       case ClienteActualizadoPayload.eventType:
         return eventIds.contains(
           ClienteActualizadoPayload.fromJson(event.payload).baseEventId,
@@ -228,6 +251,10 @@ class SyncPushService {
           event.payload,
         );
         return eventIds.contains(payload.baseEventId);
+      case MovimientoFinancieroRegistradoPayload.eventType:
+        return MovimientoFinancieroRegistradoPayload.fromJson(
+          event.payload,
+        ).dependencyEventIds.any(eventIds.contains);
       default:
         return false;
     }
@@ -347,7 +374,13 @@ class SyncPushService {
     if (value is! String) return null;
 
     final normalized = value.toLowerCase();
-    const knownStatuses = {'accepted', 'duplicate', 'rejected', 'conflict'};
+    const knownStatuses = {
+      'accepted',
+      'duplicate',
+      'rejected',
+      'conflict',
+      'pending',
+    };
     return knownStatuses.contains(normalized) ? normalized : null;
   }
 

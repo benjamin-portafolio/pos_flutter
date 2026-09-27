@@ -2,8 +2,12 @@ import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/backup/backup_service.dart';
+import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
+import 'package:pos_flutter/application/config/app_config_store.dart';
+import 'package:pos_flutter/application/sync/projections/cash_projection_store.dart';
+import 'package:pos_flutter/application/sync/projections/cash_session_projection.dart';
 import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
 import 'package:pos_flutter/application/sync/sync_detection_settings_store.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
@@ -70,7 +74,11 @@ void main() {
     scaffoldKey.currentState!.openDrawer();
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Configuracion'));
+    await tester.scrollUntilVisible(
+      find.text('Configuracion'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Configuracion'));
@@ -156,6 +164,144 @@ void main() {
     );
     expect(find.text('Guardar configuracion local'), findsNothing);
   });
+
+  testWidgets('el menu muestra caja solo con la captura habilitada', (
+    tester,
+  ) async {
+    final scaffoldKey = GlobalKey<ScaffoldState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: const MenuLateral(),
+          body: const SizedBox.shrink(),
+        ),
+      ),
+    );
+    scaffoldKey.currentState!.openDrawer();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Apertura y corte de caja'), findsOneWidget);
+
+    getIt<AppConfigController>().update(
+      getIt<AppConfigController>().config.copyWith(cashEnabled: false),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Apertura y corte de caja'), findsNothing);
+  });
+
+  testWidgets('Configuracion cambia la captura de caja de la instalacion', (
+    tester,
+  ) async {
+    final saved = <AppConfig>[];
+    getIt.registerSingleton<AppConfigStore>(_FakeAppConfigStore(saved));
+    getIt.registerSingleton<LocalCommandContext>(
+      const LocalCommandContext(deviceId: 'device-1', userId: 'user-1'),
+    );
+    getIt.registerSingleton<CashProjectionStore>(_FakeCashProjectionStore());
+    final controller = getIt<AppConfigController>();
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: SyncSettingsScreen())),
+    );
+
+    final tile = find.widgetWithText(SwitchListTile, 'Corte de caja');
+    await tester.scrollUntilVisible(
+      tile,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<SwitchListTile>(tile).value,
+      controller.config.cashEnabled,
+    );
+
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+
+    expect(controller.config.cashEnabled, isFalse);
+    expect(saved.single.cashEnabled, isFalse);
+  });
+
+  testWidgets('Configuracion no cambia la captura con caja abierta', (
+    tester,
+  ) async {
+    final saved = <AppConfig>[];
+    getIt.registerSingleton<AppConfigStore>(_FakeAppConfigStore(saved));
+    getIt.registerSingleton<LocalCommandContext>(
+      const LocalCommandContext(deviceId: 'device-1', userId: 'user-1'),
+    );
+    getIt.registerSingleton<CashProjectionStore>(
+      _FakeCashProjectionStore(openSession: true),
+    );
+    final controller = getIt<AppConfigController>();
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: SyncSettingsScreen())),
+    );
+
+    final tile = find.widgetWithText(SwitchListTile, 'Corte de caja');
+    await tester.scrollUntilVisible(
+      tile,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+
+    expect(controller.config.cashEnabled, isTrue);
+    expect(saved, isEmpty);
+    expect(
+      find.text('Cierra la caja de esta terminal antes de cambiar el ajuste.'),
+      findsOneWidget,
+    );
+  });
+}
+
+class _FakeAppConfigStore implements AppConfigStore {
+  _FakeAppConfigStore(this.saved);
+  final List<AppConfig> saved;
+
+  @override
+  Future<AppConfig> readConfig() async => AppConfig.initial;
+
+  @override
+  Future<void> saveConfig(AppConfig config) async => saved.add(config);
+}
+
+class _FakeCashProjectionStore implements CashProjectionStore {
+  _FakeCashProjectionStore({this.openSession = false});
+  final bool openSession;
+
+  @override
+  Future<CashSessionProjection?> current(String deviceId) async => openSession
+      ? CashSessionProjection(
+          id: 'session-1',
+          active: true,
+          version: 1,
+          createdEventId: 'event-1',
+          lastEventId: 'event-1',
+          lastServerSequence: null,
+          deviceId: deviceId,
+          openedByUserId: 'user-1',
+          status: 'open',
+          openedAtMs: 0,
+          openingMinor: 0,
+        )
+      : null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSyncEndpointStore implements SyncEndpointStore {

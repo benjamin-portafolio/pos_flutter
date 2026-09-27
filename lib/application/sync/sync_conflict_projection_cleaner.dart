@@ -1,3 +1,5 @@
+import 'payloads/caja_abierta_payload.dart';
+import 'payloads/caja_cerrada_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
 import 'cliente_conflict_projection_restorer.dart';
@@ -13,9 +15,11 @@ import 'payloads/categoria_movida_payload.dart';
 import 'payloads/espacio_creado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/producto_actualizado_payload.dart';
+import 'payloads/movimiento_financiero_registrado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
+import 'payloads/categoria_financiera_creada_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
 import 'projections/producto_projection_store.dart';
@@ -58,6 +62,10 @@ class SyncConflictProjectionCleaner {
   _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
+    if (event.eventType == CajaAbiertaPayload.eventType ||
+        event.eventType == CajaCerradaPayload.eventType) {
+      return; // Estado operativo y hechos conservados.
+    }
     if (event.eventType == ClienteActualizadoPayload.eventType) {
       final store = clienteProjectionStore;
       if (store != null) {
@@ -115,6 +123,14 @@ class SyncConflictProjectionCleaner {
         movementId: payload.movement.movementId,
         quantityDeltaAtomic: payload.movement.quantityDeltaAtomic,
       );
+    } else if (event.eventType == CategoriaFinancieraCreadaPayload.eventType) {
+      // No-op explícito: un conflicto/incidencia de entrega de una categoría
+      // financiera nunca la borra ni la revierte. Sus registros la referencian
+      // vía FK RESTRICT y el hecho financiero permanece visible (§6.5, §6.7).
+    } else if (event.eventType ==
+        MovimientoFinancieroRegistradoPayload.eventType) {
+      // No-op explícito: el registro (dinero ya aplicado) permanece y la
+      // incidencia se conserva como motivo del evento.
     }
   }
 }

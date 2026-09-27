@@ -21,6 +21,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
   late final TextEditingController _serverController;
   AppMode _mode = AppMode.standalone;
   bool _isSaving = false;
+  bool _cashEnabled = AppConfig.initial.cashEnabled;
 
   @override
   void initState() {
@@ -74,6 +75,23 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
               ),
               const SizedBox(height: 12),
               _ModeDescription(mode: _mode),
+              const SizedBox(height: 20),
+              Text('Caja', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _cashEnabled,
+                onChanged: _isSaving
+                    ? null
+                    : (value) => setState(() => _cashEnabled = value),
+                title: const Text('Corte de caja'),
+                subtitle: const Text(
+                  'Permite abrir y cerrar caja en esta terminal. Con la caja '
+                  'desactivada se puede vender en efectivo, pero esos importes '
+                  'no suman a ninguna caja.',
+                ),
+                secondary: const Icon(Icons.point_of_sale),
+              ),
               const SizedBox(height: 20),
               Text(
                 'Datos iniciales',
@@ -182,6 +200,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
         authProvider: AppConfig.defaultAuthProviderForMode(_mode),
         syncProvider: AppConfig.defaultSyncProviderForMode(_mode),
         backupProvider: AppConfig.defaultBackupProviderForMode(_mode),
+        cashEnabled: _cashEnabled,
       );
 
       if (_mode == AppMode.serverSync) {

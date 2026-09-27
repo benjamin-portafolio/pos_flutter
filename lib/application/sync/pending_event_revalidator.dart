@@ -1,3 +1,7 @@
+import 'revalidation/cash_pending_event_validator.dart';
+import 'payloads/caja_abierta_payload.dart';
+import 'payloads/caja_cerrada_payload.dart';
+import 'projections/cash_projection_store.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
@@ -18,14 +22,18 @@ import 'payloads/espacio_creado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
+import 'payloads/categoria_financiera_creada_payload.dart';
+import 'payloads/movimiento_financiero_registrado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/espacio_projection_store.dart';
+import 'projections/financial_category_projection_store.dart';
 import 'projections/inventory_projection_store.dart';
 import 'projections/producto_projection_store.dart';
 import 'revalidation/categoria_pending_event_validator.dart';
 import 'revalidation/espacio_pending_event_validator.dart';
+import 'revalidation/financial_pending_event_validator.dart';
 import 'revalidation/inventory_pending_event_validator.dart';
 import 'revalidation/pending_conflict.dart';
 import 'revalidation/pending_event_dependency_resolver.dart';
@@ -36,6 +44,7 @@ import 'synced_event_history.dart';
 
 class PendingEventRevalidator {
   PendingEventRevalidator({
+    CashProjectionStore? cashProjectionStore,
     ClienteProjectionStore? clienteProjectionStore,
     required SyncPersistence syncPersistence,
     required SyncedEventHistory syncedEventHistory,
@@ -43,6 +52,7 @@ class PendingEventRevalidator {
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
     InventoryProjectionStore? inventoryProjectionStore,
+    FinancialCategoryProjectionStore? financialCategoryProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
     required CategoriaMovidaConflictProjectionRestorer
@@ -78,7 +88,17 @@ class PendingEventRevalidator {
       syncedEventHistory: syncedEventHistory,
       dependencies: dependencies,
     );
+    final financial = FinancialPendingEventValidator(
+      financialCategoryProjectionStore: financialCategoryProjectionStore,
+      syncedEventHistory: syncedEventHistory,
+    );
+    final cash = CashPendingEventValidator(
+      syncedEventHistory,
+      cashProjectionStore,
+    );
     _validators = {
+      CajaAbiertaPayload.eventType: cash,
+      CajaCerradaPayload.eventType: cash,
       AbonoClienteRegistradoPayload.eventType: SalePendingEventValidator(
         syncedEventHistory,
       ),
@@ -105,6 +125,10 @@ class PendingEventRevalidator {
       RecursoInventarioCreadoPayload.eventType: inventory,
       RecursoInventarioActualizadoPayload.eventType: inventory,
       MovimientoInventarioRegistradoPayload.eventType: inventory,
+      if (financialCategoryProjectionStore != null)
+        CategoriaFinancieraCreadaPayload.eventType: financial,
+      if (financialCategoryProjectionStore != null)
+        MovimientoFinancieroRegistradoPayload.eventType: financial,
     };
   }
 

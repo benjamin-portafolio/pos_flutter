@@ -1,3 +1,10 @@
+import 'package:pos_flutter/application/commands/caja/abrir_caja_command.dart';
+import 'package:pos_flutter/application/commands/caja/cerrar_caja_command.dart';
+import 'package:pos_flutter/application/commands/caja/caja_command_service.dart';
+import 'package:pos_flutter/application/sync/handlers/cash_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/caja_abierta_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/caja_cerrada_payload.dart';
+import 'package:pos_flutter/data/local/drift/drift_cash_projection_store.dart';
 import 'package:uuid/uuid.dart';
 import 'package:pos_flutter/data/repositories/collection_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/confirmed_sale_repository_impl.dart';
@@ -61,6 +68,8 @@ void main() {
   late AppConfigController config;
   late Directory directory;
   bool failAfterApply = false;
+  CashEventHandler cashHandler() =>
+      CashEventHandler(DriftCashProjectionStore(db));
   final context = const LocalCommandContext(userId: 'user', deviceId: 'tablet');
   DriftConfirmedSaleStore getStore() => DriftConfirmedSaleStore(db);
   DriftSyncPersistence persistence() => DriftSyncPersistence(
@@ -76,22 +85,36 @@ void main() {
     appConfigController: config,
     eventProcessor: EventProcessor(
       handlers: {
+        CajaAbiertaPayload.eventType: cashHandler().apply,
+        CajaCerradaPayload.eventType: cashHandler().apply,
         ClienteCreadoPayload.eventType: ClienteEventHandler(
           DriftClienteProjectionStore(db.clienteDao),
         ).apply,
         AbonoClienteRegistradoPayload.eventType: AbonoClienteEventHandler(
           DriftCustomerCreditStore(db),
+          cash: cashHandler(),
         ).apply,
         ProductoAgregadoBorradorPayload.eventType: VentaBorradorEventHandler(
           db.saleDao,
         ).apply,
         VentaConfirmadaPayload.eventType: (e) async {
-          await VentaConfirmadaEventHandler(getStore()).apply(e);
+          await VentaConfirmadaEventHandler(
+            getStore(),
+            cash: cashHandler(),
+          ).apply(e);
           if (failAfterApply) throw StateError('injected');
         },
       },
     ),
   );
+  CajaCommandService cashService() => CajaCommandService(
+    store: DriftCashProjectionStore(db),
+    events: events(),
+    context: context,
+    config: config,
+  );
+  void setCashEnabled(bool value) =>
+      config.update(config.config.copyWith(cashEnabled: value));
   SyncPushService push(http.Client client) {
     final categories = DriftCategoriaProjectionStore(
       categoriaDao: db.categoriaDao,
@@ -128,6 +151,7 @@ void main() {
     context: context,
   );
   VentaCommandService service() => VentaCommandService(
+    cash: cashService(),
     clientes: DriftClienteProjectionStore(db.clienteDao),
     drafts: db.saleDao,
     products: DriftProductoProjectionStore(productoDao: db.productoDao),
@@ -250,7 +274,12 @@ void main() {
       NativeDatabase(File('${directory.path}/test.sqlite')),
     );
     config = AppConfigController(
-      AppConfig.initial.copyWith(mode: AppMode.serverSync),
+      AppConfig.initial.copyWith(
+        mode: AppMode.serverSync,
+        // La venta cash exige caja abierta cuando la captura esta habilitada;
+        // estos tests la activan uno a uno con setCashEnabled(true).
+        cashEnabled: false,
+      ),
     );
     failAfterApply = false;
   });
@@ -265,7 +294,9 @@ void main() {
         '${mode.name}: efectivo $received, commit completo y reintento persistente',
         () async {
           config.dispose();
-          config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+          config = AppConfigController(
+            AppConfig.initial.copyWith(mode: mode, cashEnabled: false),
+          );
           await seed();
           await add();
           final c = await command(received: received);
@@ -505,6 +536,7 @@ void main() {
               mode: AppMode.standalone,
               setupCompleted: true,
               backupProvider: BackupProvider.none,
+              cashEnabled: false,
             ),
           );
           var syncInstantiations = 0;
@@ -788,6 +820,7 @@ void main() {
     commandContext: context,
   ).crearCliente(const CrearClienteCommand(nombre: 'Ana', telefono: '555'));
   CreditoCommandService creditService() => CreditoCommandService(
+    cash: cashService(),
     store: DriftCustomerCreditStore(db),
     clientes: DriftClienteProjectionStore(db.clienteDao),
     events: events(),
@@ -811,10 +844,83 @@ void main() {
     return c.saleId;
   }
 
+  test('caja habilitada: cobro y cambio usan solo importe aplicado', () async {
+    setCashEnabled(true);
+    await seed();
+    await add();
+    await expectLater(service().confirmar(await command()), throwsStateError);
+    final id = const Uuid().v4();
+    await cashService().abrir(
+      AbrirCajaCommand(sessionId: id, openingMinor: 1000),
+    );
+    await service().confirmar(await command(received: 20000));
+    final m = (await db.select(db.cashMovements).get()).single;
+    expect(m.amountMinor, 10000);
+    expect(m.salePaymentId, (await db.select(db.salePayments).get()).single.id);
+    await cashService().cerrar(
+      CerrarCajaCommand(sessionId: id, countedMinor: 11000),
+    );
+    expect(
+      (await DriftCashProjectionStore(db).find(id))!.close!.expectedMinor,
+      '11000',
+    );
+  });
+  test(
+    'caja: crédito y transferencia excluidos; abono cash asociado una vez',
+    () async {
+      setCashEnabled(true);
+      await seed();
+      await createCustomer();
+      final customer = (await db.select(db.clientes).get()).single;
+      await creditSale(customer.id, 2000);
+      await add();
+      await service().confirmar(await command(method: 'transfer'));
+      expect(await db.select(db.cashMovements).get(), isEmpty);
+      final c = RegistrarAbonoCommand(
+        id: const Uuid().v4(),
+        clienteId: customer.id,
+        amountMinor: 2000,
+        method: 'cash',
+      );
+      await expectLater(creditService().registrarAbono(c), throwsStateError);
+      final id = const Uuid().v4();
+      await cashService().abrir(
+        AbrirCajaCommand(sessionId: id, openingMinor: 0),
+      );
+      final e = await creditService().registrarAbono(c);
+      await cashService().cerrar(
+        CerrarCajaCommand(sessionId: id, countedMinor: 2000),
+      );
+      expect(await creditService().registrarAbono(c), e);
+      final m = (await db.select(db.cashMovements).get()).single;
+      expect(m.customerPaymentId, c.id);
+      expect(m.amountMinor, 2000);
+    },
+  );
+  test(
+    'caja: fallo después del handler revierte cobro, movimiento y conserva borrador',
+    () async {
+      setCashEnabled(true);
+      await seed();
+      await add();
+      final id = const Uuid().v4();
+      await cashService().abrir(
+        AbrirCajaCommand(sessionId: id, openingMinor: 0),
+      );
+      failAfterApply = true;
+      await expectLater(service().confirmar(await command()), throwsStateError);
+      expect(await db.select(db.cashMovements).get(), isEmpty);
+      expect(await db.select(db.salePayments).get(), isEmpty);
+      expect((await db.select(db.sales).get()).single.status, 'borrador');
+    },
+  );
+
   for (final mode in AppMode.values) {
     test('${mode.name}: crédito FIFO, anticipos, reinicio y refs', () async {
       config.dispose();
-      config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+      config = AppConfigController(
+        AppConfig.initial.copyWith(mode: mode, cashEnabled: false),
+      );
       await seed();
       await createCustomer();
       final clienteId = (await db.select(db.clientes).get()).single.id;
@@ -1092,7 +1198,9 @@ void main() {
         'transfer $mode referencia longitud ${reference?.length}: persiste, refs y reinicio',
         () async {
           config.dispose();
-          config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+          config = AppConfigController(
+            AppConfig.initial.copyWith(mode: mode, cashEnabled: false),
+          );
           await seed();
           await add();
           await service().confirmar(

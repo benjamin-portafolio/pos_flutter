@@ -1,3 +1,4 @@
+import '../caja/caja_command_service.dart';
 import 'package:uuid/uuid.dart';
 import '../../sync/local_event_store.dart';
 import '../../sync/models/sync_event.dart';
@@ -14,11 +15,13 @@ class CreditoCommandService {
     required this.clientes,
     required this.events,
     required this.context,
+    this.cash,
   });
   final CustomerCreditStore store;
   final ClienteProjectionStore clientes;
   final LocalEventStore events;
   final LocalCommandContext context;
+  final CajaCommandService? cash;
   Future<String> registrarAbono(RegistrarAbonoCommand command) =>
       store.atomic(() async {
         InventoryMovementPayload.requiredUuidV4(command.id, 'abono_id');
@@ -28,7 +31,7 @@ class CreditoCommandService {
             cliente.createdEventId == null) {
           throw StateError('El cliente no está disponible.');
         }
-        final payload = AbonoClienteRegistradoPayload(
+        var payload = AbonoClienteRegistradoPayload(
           clienteId: cliente.id,
           clienteEventId: cliente.createdEventId!,
           amountMinor: command.amountMinor,
@@ -47,6 +50,14 @@ class CreditoCommandService {
           }
           return previous.eventId;
         }
+        final binding = await cash?.binding(
+          method: command.method,
+          amountMinor: command.amountMinor,
+        );
+        payload = AbonoClienteRegistradoPayload.fromJson({
+          ...payload.toJson(),
+          if (binding != null) 'cash': binding.toJson(),
+        });
         final refs = payload.refs(command.id);
         if (context.userId.trim().isEmpty ||
             context.deviceId.trim().isEmpty ||

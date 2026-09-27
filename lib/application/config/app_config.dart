@@ -65,6 +65,7 @@ class AppConfig {
     this.googleUserEmail,
     this.lastBackupAt,
     this.lastBackupLocalSequence,
+    this.cashEnabled = true,
   });
 
   static const defaultBusinessName = 'Miradent';
@@ -82,6 +83,7 @@ class AppConfig {
     syncProvider: 'none',
     backupProvider: BackupProvider.googleDrive,
     backupHour: defaultBackupHour,
+    cashEnabled: true,
   );
 
   final AppMode mode;
@@ -97,6 +99,10 @@ class AppConfig {
   final int backupHour;
   final DateTime? lastBackupAt;
   final int? lastBackupLocalSequence;
+
+  /// Habilita la captura de caja en esta instalacion. No es un evento: no se
+  /// sincroniza y el servidor no lo valida.
+  final bool cashEnabled;
 
   bool get isStandalone => mode == AppMode.standalone;
 
@@ -140,6 +146,7 @@ class AppConfig {
     int? backupHour,
     Object? lastBackupAt = _sentinel,
     Object? lastBackupLocalSequence = _sentinel,
+    bool? cashEnabled,
   }) {
     final nextMode = mode ?? this.mode;
     final modeChanged = mode != null && mode != this.mode;
@@ -185,6 +192,7 @@ class AppConfig {
               lastBackupLocalSequence,
               this.lastBackupLocalSequence,
             ),
+      cashEnabled: cashEnabled ?? this.cashEnabled,
     );
   }
 
@@ -203,6 +211,7 @@ class AppConfig {
       'backup_hour': backupHour,
       'last_backup_at': lastBackupAt?.toUtc().toIso8601String(),
       'last_backup_local_sequence': lastBackupLocalSequence,
+      'cash_enabled': cashEnabled,
     };
   }
 
@@ -239,6 +248,9 @@ class AppConfig {
       backupHour: backupHour.clamp(0, 23).toInt(),
       lastBackupAt: _readDateTime(json['last_backup_at']),
       lastBackupLocalSequence: _readInt(json['last_backup_local_sequence']),
+      // Una instalacion sin la clave se considera habilitada: el valor por
+      // defecto evita que una actualizacion apague la captura sin querer.
+      cashEnabled: json['cash_enabled'] != false,
     );
   }
 
