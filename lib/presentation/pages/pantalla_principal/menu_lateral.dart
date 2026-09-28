@@ -1,4 +1,5 @@
 import '../caja/cash_management_screen.dart';
+import '../cuenta/declarar_saldo_cuenta_screen.dart';
 import '../gestion_clientes/clientes_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
@@ -91,6 +92,7 @@ class MenuLateral extends StatelessWidget {
             ),
           ),
           const _CashMenuTile(),
+          const _BankMenuTile(),
           // Usuario
           ListTile(
             title: Text("BENJAMÍN ALVARADO GONZÁLEZ (staff)"),
@@ -182,6 +184,37 @@ class MenuLateral extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// La entrada de saldo en cuenta solo existe cuando la declaracion esta
+/// habilitada en la instalacion. Es una pantalla aparte de caja: el saldo
+/// bancario no es efectivo de cajon.
+class _BankMenuTile extends StatelessWidget {
+  const _BankMenuTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = getIt<AppConfigController>();
+    return StreamBuilder<AppConfig>(
+      initialData: controller.config,
+      stream: controller.changes,
+      builder: (context, snapshot) {
+        if (snapshot.data?.bankEnabled != true) return const SizedBox.shrink();
+        return ListTile(
+          leading: const Icon(Icons.account_balance),
+          title: const Text('Saldo en cuenta bancaria'),
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const DeclararSaldoCuentaScreen(),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

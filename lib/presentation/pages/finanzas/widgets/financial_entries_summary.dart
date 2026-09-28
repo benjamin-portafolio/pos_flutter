@@ -70,7 +70,8 @@ class FinancialEntriesSummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Estos totales son de registros adicionales. No son utilidad ni '
-              'saldo de caja.',
+              'saldo de caja. El saldo de la cuenta se declara aparte y se ve '
+              'en el bloque de saldo estimado.',
               style: theme.textTheme.bodySmall,
             ),
           ],

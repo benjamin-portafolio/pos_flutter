@@ -13,10 +13,12 @@ import 'package:pos_flutter/presentation/pages/caja/cash_form_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/cash_money.dart';
 import 'package:pos_flutter/presentation/pages/finanzas/forms/movimiento_financiero_form_screen.dart';
 import '../../../support/cash_harness.dart';
+import '../../../support/fake_account_balance_baseline_repository.dart';
+import '../../../support/fake_transfer_summary_repository.dart';
 
 void main() {
   Future<void> screen(WidgetTester t, CashHarness h) async {
-    t.view.physicalSize = const Size(1280, 1000);
+    t.view.physicalSize = const Size(1280, 1700);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.pumpWidget(
@@ -24,6 +26,12 @@ void main() {
         home: CashManagementScreen(
           repository: CashRepositoryImpl(h.db),
           commands: h.cash,
+          // El bloque de transferencias se inyecta vacío: estas pruebas son del
+          // corte de caja y no deben depender de la agregación de la Fase 1.
+          transfers: FakeTransferSummaryRepository(emptyTransferSummary),
+          // Sin saldo inicial declarado: el bloque de saldo queda en aviso y
+          // no introduce cifras que confundan al corte.
+          baselines: FakeAccountBalanceBaselineRepository(),
         ),
       ),
     );

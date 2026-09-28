@@ -2,29 +2,17 @@ import 'package:drift/drift.dart';
 import '../../domain/cobros/collection_entry.dart';
 import '../../domain/repositories/collection_repository.dart';
 import '../local/drift/app_database.dart';
+import '../local/drift/money_movements_sql.dart';
 
 class CollectionRepositoryImpl implements CollectionRepository {
   CollectionRepositoryImpl(this.db);
   final AppDatabase db;
-  // No se une credit_allocations: repartir o aplicar un anticipo no recibe dinero.
-  static const _query = """
-    SELECT p.id AS id, p.created_event_id AS event_id, p.amount_minor, p.method, p.reference,
-      e.created_at_local * 1000 AS occurred_at_ms, 'sale' AS origin,
-      p.sale_id, s.cliente_id, c.nombre AS cliente_nombre,
-      e.user_id, e.device_id, e.delivery_status, e.rejection_reason
-    FROM sale_payments p JOIN sales s ON s.id = p.sale_id
-    JOIN events e ON e.event_id = p.created_event_id
-    LEFT JOIN clientes c ON c.id = s.cliente_id
-    WHERE e.application_status = 'applied'
-    UNION ALL
-    SELECT p.id, p.created_event_id, p.amount_minor, p.method, p.reference,
-      p.occurred_at_ms, 'customer_payment', NULL, p.cliente_id, c.nombre,
-      e.user_id, e.device_id, e.delivery_status, e.rejection_reason
-    FROM customer_payments p JOIN events e ON e.event_id = p.created_event_id
-    JOIN clientes c ON c.id = p.cliente_id
-    WHERE e.application_status = 'applied'
-    ORDER BY occurred_at_ms DESC, origin, id
-  """;
+  // La forma normalizada vive en MoneyMovementsSql para que el agregado de
+  // transferencias la extienda en vez de duplicarla (R5). La columna `direction`
+  // se agregó para eso y este informe no la lee.
+  static const _query =
+      '${MoneyMovementsSql.appliedSalesAndCustomerPayments}'
+      'ORDER BY occurred_at_ms DESC, origin, id';
   @override
   Stream<List<CollectionEntry>> watchCollections() => db
       .customSelect(

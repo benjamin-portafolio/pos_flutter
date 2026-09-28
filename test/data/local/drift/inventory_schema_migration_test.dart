@@ -7,7 +7,7 @@ import 'package:pos_flutter/data/local/drift/app_database.dart';
 
 void main() {
   test(
-    'migra schema 4 a 7 y elimina campos de inventario del artículo',
+    'migra schema 4 a 8 y elimina campos de inventario del artículo',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v4-');
       addTearDown(() => directory.delete(recursive: true));
@@ -77,12 +77,12 @@ void main() {
       final versionRow = await migrated
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 7);
+      expect(versionRow.read<int>('user_version'), 8);
     },
   );
 
   test(
-    'migra schema 5 a 7 y permite varios movimientos del mismo evento',
+    'migra schema 5 a 8 y permite varios movimientos del mismo evento',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v5-');
       addTearDown(() => directory.delete(recursive: true));
@@ -196,12 +196,12 @@ void main() {
       final versionRow = await migrated
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 7);
+      expect(versionRow.read<int>('user_version'), 8);
     },
   );
 
   test(
-    'migra schema 6 a 7, conserva historial y permite reason null',
+    'migra schema 6 a 8, conserva historial y permite reason null',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v6-');
       addTearDown(() => directory.delete(recursive: true));
@@ -318,7 +318,7 @@ void main() {
       final versionRow = await migrated
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(versionRow.read<int>('user_version'), 7);
+      expect(versionRow.read<int>('user_version'), 8);
     },
   );
 }

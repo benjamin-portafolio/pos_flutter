@@ -6,6 +6,7 @@ import 'tables/financial_categories.dart';
 import 'tables/financial_entries.dart';
 import 'tables/cash_sessions.dart';
 import 'tables/cash_movements.dart';
+import 'tables/account_balance_baselines.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -86,6 +87,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     FinancialEntries,
     CashSessions,
     CashMovements,
+    AccountBalanceBaselines,
   ],
   daos: [
     ClienteDao,
@@ -108,7 +110,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -138,6 +140,11 @@ class AppDatabase extends _$AppDatabase {
       if (from >= 4 && from < 7) {
         await m.addColumn(inventoryBalances, inventoryBalances.version);
         await m.alterTable(TableMigration(inventoryMovements));
+      }
+      // Bloque propio y no dentro del `from < 7` de arriba: ese rango excluye
+      // el esquema 7, y una base en 7 tiene que pasar por aquí.
+      if (from < 8) {
+        await m.createTable(accountBalanceBaselines);
       }
     },
     beforeOpen: (_) async {

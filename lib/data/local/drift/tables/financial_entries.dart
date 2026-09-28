@@ -48,8 +48,17 @@ class FinancialEntries extends Table with CommonFields {
     "NOT NULL CHECK(currency = 'MXN')",
   )();
 
-  /// Medio cash/transfer como strings, igual que los pagos actuales. Transfer
-  /// nunca implica saldo de un cajón: es solo el medio del registro.
+  /// Medio cash/transfer como strings, igual que los pagos actuales.
+  ///
+  /// Dos consecuencias distintas, que no hay que confundir:
+  ///
+  /// - En el cajón, transfer no implica nada. Es solo el medio del registro, y
+  ///   por eso `cash_movements` sigue exigiendo `method='cash'` en el servidor
+  ///   y `CajaCommandService.binding()` descarta lo que no sea efectivo.
+  /// - En la cuenta bancaria, transfer sí tiene consecuencia: alimenta el
+  ///   saldo estimado, que es la foto del saldo inicial declarado más estos
+  ///   movimientos. Ese cálculo vive en `SaldoCuentaEstimado` (Fase 4), no
+  ///   aquí.
   TextColumn get method => text().customConstraint(
     "NOT NULL CHECK(method IN ('cash', 'transfer'))",
   )();

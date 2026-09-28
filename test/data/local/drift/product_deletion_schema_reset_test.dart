@@ -100,7 +100,7 @@ void main() {
               .get(),
           isEmpty,
         );
-        expect(reopened.schemaVersion, 7);
+        expect(reopened.schemaVersion, 8);
         await reopened.close();
       }
     });

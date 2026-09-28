@@ -1,4 +1,5 @@
 import 'projections/cash_projection_store.dart';
+import 'projections/account_balance_baseline_projection_store.dart';
 import 'payloads/cliente_actualizado_payload.dart';
 import 'projections/customer_credit_store.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
@@ -18,6 +19,7 @@ import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/movimiento_inventario_registrado_payload.dart';
 import 'payloads/categoria_financiera_creada_payload.dart';
 import 'payloads/movimiento_financiero_registrado_payload.dart';
+import 'payloads/saldo_cuenta_inicial_declarado_payload.dart';
 import 'projections/categoria_projection_store.dart';
 import 'projections/financial_category_projection_store.dart';
 import 'projections/financial_entry_projection_store.dart';
@@ -27,6 +29,7 @@ import 'projections/producto_projection_store.dart';
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
     this.cashProjectionStore,
+    this.accountBalanceBaselineProjectionStore,
     this.confirmedSaleStore,
     this.customerCreditStore,
     this.clienteProjectionStore,
@@ -42,6 +45,8 @@ class ServerEchoAcknowledger {
        _financialEntryProjectionStore = financialEntryProjectionStore;
 
   final CashProjectionStore? cashProjectionStore;
+  final AccountBalanceBaselineProjectionStore?
+  accountBalanceBaselineProjectionStore;
   final ClienteProjectionStore? clienteProjectionStore;
   final ConfirmedSaleStore? confirmedSaleStore;
   final CustomerCreditStore? customerCreditStore;
@@ -57,6 +62,12 @@ class ServerEchoAcknowledger {
     await cashProjectionStore?.acknowledge(event.eventId, serverSequence);
 
     switch (event.eventType) {
+      case SaldoCuentaInicialDeclaradoPayload.eventType:
+        await accountBalanceBaselineProjectionStore?.acknowledge(
+          event.eventId,
+          serverSequence,
+        );
+        return;
       case AbonoClienteRegistradoPayload.eventType:
         await customerCreditStore?.acknowledge(event.eventId, serverSequence);
         return;

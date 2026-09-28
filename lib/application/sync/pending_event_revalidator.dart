@@ -1,7 +1,9 @@
 import 'revalidation/cash_pending_event_validator.dart';
+import 'revalidation/account_balance_pending_event_validator.dart';
 import 'payloads/caja_abierta_payload.dart';
 import 'payloads/caja_cerrada_payload.dart';
 import 'projections/cash_projection_store.dart';
+import 'projections/account_balance_baseline_projection_store.dart';
 import 'payloads/abono_cliente_registrado_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
@@ -24,6 +26,7 @@ import 'payloads/producto_actualizado_payload.dart';
 import 'payloads/producto_creado_payload.dart';
 import 'payloads/categoria_financiera_creada_payload.dart';
 import 'payloads/movimiento_financiero_registrado_payload.dart';
+import 'payloads/saldo_cuenta_inicial_declarado_payload.dart';
 import 'payloads/recurso_inventario_actualizado_payload.dart';
 import 'payloads/recurso_inventario_creado_payload.dart';
 import 'projections/categoria_projection_store.dart';
@@ -45,6 +48,7 @@ import 'synced_event_history.dart';
 class PendingEventRevalidator {
   PendingEventRevalidator({
     CashProjectionStore? cashProjectionStore,
+    AccountBalanceBaselineProjectionStore? accountBalanceBaselineProjectionStore,
     ClienteProjectionStore? clienteProjectionStore,
     required SyncPersistence syncPersistence,
     required SyncedEventHistory syncedEventHistory,
@@ -99,6 +103,11 @@ class PendingEventRevalidator {
     _validators = {
       CajaAbiertaPayload.eventType: cash,
       CajaCerradaPayload.eventType: cash,
+      if (accountBalanceBaselineProjectionStore != null)
+        SaldoCuentaInicialDeclaradoPayload.eventType:
+            AccountBalancePendingEventValidator(
+              accountBalanceBaselineProjectionStore,
+            ),
       AbonoClienteRegistradoPayload.eventType: SalePendingEventValidator(
         syncedEventHistory,
       ),

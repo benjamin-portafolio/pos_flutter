@@ -1,8 +1,12 @@
 import '../../application/commands/caja/caja_command_service.dart';
+import '../../application/commands/cuenta/cuenta_command_service.dart';
 import '../../application/sync/handlers/cash_event_handler.dart';
+import '../../application/sync/handlers/account_balance_baseline_event_handler.dart';
 import '../../application/sync/projections/cash_projection_store.dart';
+import '../../application/sync/projections/account_balance_baseline_projection_store.dart';
 import '../../application/sync/payloads/caja_abierta_payload.dart';
 import '../../application/sync/payloads/caja_cerrada_payload.dart';
+import '../../application/sync/payloads/saldo_cuenta_inicial_declarado_payload.dart';
 import '../../application/commands/creditos/credito_command_service.dart';
 import '../../application/commands/finanzas/categoria_financiera_command_service.dart';
 import '../../application/commands/finanzas/movimiento_financiero_command_service.dart';
@@ -200,6 +204,19 @@ void registerApplicationDependencies(
       config: getIt<AppConfigController>(),
     ),
   );
+  getIt.registerLazySingleton<AccountBalanceBaselineEventHandler>(
+    () => AccountBalanceBaselineEventHandler(
+      getIt<AccountBalanceBaselineProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<CuentaCommandService>(
+    () => CuentaCommandService(
+      store: getIt<AccountBalanceBaselineProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+      config: getIt<AppConfigController>(),
+    ),
+  );
   getIt.registerLazySingleton<CreditoCommandService>(
     () => CreditoCommandService(
       cash: getIt<CajaCommandService>(),
@@ -271,6 +288,8 @@ void registerApplicationDependencies(
       handlers: {
         CajaAbiertaPayload.eventType: getIt<CashEventHandler>().apply,
         CajaCerradaPayload.eventType: getIt<CashEventHandler>().apply,
+        SaldoCuentaInicialDeclaradoPayload.eventType:
+            getIt<AccountBalanceBaselineEventHandler>().apply,
         AbonoClienteRegistradoPayload.eventType:
             getIt<AbonoClienteEventHandler>().apply,
         ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
@@ -300,6 +319,8 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
       cashProjectionStore: getIt<CashProjectionStore>(),
+      accountBalanceBaselineProjectionStore:
+          getIt<AccountBalanceBaselineProjectionStore>(),
       customerCreditStore: getIt<CustomerCreditStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       confirmedSaleStore: getIt<ConfirmedSaleStore>(),
@@ -345,6 +366,8 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
       cashProjectionStore: getIt<CashProjectionStore>(),
+      accountBalanceBaselineProjectionStore:
+          getIt<AccountBalanceBaselineProjectionStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       syncPersistence: getIt<SyncPersistence>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),

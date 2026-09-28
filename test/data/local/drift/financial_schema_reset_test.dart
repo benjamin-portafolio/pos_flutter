@@ -123,7 +123,7 @@ void main() {
             .get())
         .map((row) => row.read<String>('name'));
     expect(tables, ['financial_categories', 'financial_entries']);
-    expect(db.schemaVersion, 7);
+    expect(db.schemaVersion, 8);
     await db.close();
   });
 

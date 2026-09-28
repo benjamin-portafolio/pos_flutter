@@ -289,8 +289,9 @@ class _MovimientoFinancieroFormScreenState
                             ),
                           const SizedBox(height: 8),
                           Text(
-                            'Transferencia es solo el medio del registro; nunca '
-                            'implica saldo de un cajón.',
+                            'La transferencia no entra a ninguna caja ni suma al '
+                            'corte. Se refleja en el saldo de la cuenta, que se '
+                            'declara por separado.',
                             style: theme.textTheme.bodySmall,
                           ),
                           const SizedBox(height: 24),

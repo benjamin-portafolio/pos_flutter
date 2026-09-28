@@ -22,6 +22,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
   AppMode _mode = AppMode.standalone;
   bool _isSaving = false;
   bool _cashEnabled = AppConfig.initial.cashEnabled;
+  bool _bankEnabled = AppConfig.initial.bankEnabled;
 
   @override
   void initState() {
@@ -91,6 +92,19 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                   'no suman a ninguna caja.',
                 ),
                 secondary: const Icon(Icons.point_of_sale),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _bankEnabled,
+                onChanged: _isSaving
+                    ? null
+                    : (value) => setState(() => _bankEnabled = value),
+                title: const Text('Saldo en cuenta bancaria'),
+                subtitle: const Text(
+                  'Permite declarar el saldo que reporta el banco. No es '
+                  'efectivo de cajón y no se suma al corte de caja.',
+                ),
+                secondary: const Icon(Icons.account_balance),
               ),
               const SizedBox(height: 20),
               Text(
@@ -201,6 +215,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
         syncProvider: AppConfig.defaultSyncProviderForMode(_mode),
         backupProvider: AppConfig.defaultBackupProviderForMode(_mode),
         cashEnabled: _cashEnabled,
+        bankEnabled: _bankEnabled,
       );
 
       if (_mode == AppMode.serverSync) {

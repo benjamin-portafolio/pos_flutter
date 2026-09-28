@@ -2,6 +2,10 @@ import '../../domain/repositories/cash_repository.dart';
 import '../../data/repositories/cash_repository_impl.dart';
 import '../../application/sync/projections/cash_projection_store.dart';
 import '../../data/local/drift/drift_cash_projection_store.dart';
+import '../../application/sync/projections/account_balance_baseline_projection_store.dart';
+import '../../data/local/drift/drift_account_balance_baseline_projection_store.dart';
+import '../../data/repositories/account_balance_baseline_repository_impl.dart';
+import '../../domain/repositories/account_balance_baseline_repository.dart';
 import '../../application/sync/projections/cliente_projection_store.dart';
 import '../../data/local/drift/drift_cliente_projection_store.dart';
 import '../../data/repositories/cliente_repository_impl.dart';
@@ -50,6 +54,8 @@ import '../../data/repositories/categoria_repository_impl.dart';
 import '../../data/repositories/espacio_repository_impl.dart';
 import '../../data/repositories/financial_category_repository_impl.dart';
 import '../../data/repositories/financial_entry_repository_impl.dart';
+import '../../data/repositories/transfer_summary_repository_impl.dart';
+import '../../domain/repositories/transfer_summary_repository.dart';
 import '../../data/repositories/recurso_inventario_repository_impl.dart';
 import '../../data/repositories/unidad_inventario_repository_impl.dart';
 import '../../data/repositories/producto_repository_impl.dart';
@@ -191,6 +197,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<CashProjectionStore>(
     () => DriftCashProjectionStore(getIt<AppDatabase>()),
   );
+  getIt.registerLazySingleton<AccountBalanceBaselineProjectionStore>(
+    () => DriftAccountBalanceBaselineProjectionStore(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<FinancialCategoryProjectionStore>(
     () => DriftFinancialCategoryProjectionStore(
       db: getIt<AppDatabase>(),
@@ -224,6 +233,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<FinancialEntryRepository>(
     () => FinancialEntryRepositoryImpl(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<TransferSummaryRepository>(
+    () => TransferSummaryRepositoryImpl(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<AccountBalanceBaselineRepository>(
+    () => AccountBalanceBaselineRepositoryImpl(getIt<AppDatabase>()),
   );
 
   return DataDependencyBootstrap(

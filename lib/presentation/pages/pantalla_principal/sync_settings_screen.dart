@@ -44,6 +44,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   bool _requireWifiForServerDetection = false;
   bool _isSavingCashEnabled = false;
   late bool _cashEnabled;
+  bool _isSavingBankEnabled = false;
+  late bool _bankEnabled;
   late final AppMode _mode;
 
   @override
@@ -60,6 +62,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     _requireWifiForServerDetection =
         _serverDetectionConfig.requireWifiForServerDetection;
     _cashEnabled = _appConfigController.config.cashEnabled;
+    _bankEnabled = _appConfigController.config.bankEnabled;
     _mode = _appConfigController.mode;
   }
 
@@ -145,6 +148,18 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             ),
             value: _cashEnabled,
             onChanged: _isSavingCashEnabled ? null : _actualizarCaja,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.account_balance),
+            title: const Text('Saldo en cuenta bancaria'),
+            subtitle: const Text(
+              'Si lo desactivas no se puede declarar el saldo que reporta el '
+              'banco. Lo ya declarado no se borra. Solo cambia en esta '
+              'terminal.',
+            ),
+            value: _bankEnabled,
+            onChanged: _isSavingBankEnabled ? null : _actualizarBanco,
           ),
           const SizedBox(height: 16),
           if (_mode == AppMode.serverSync) ...[
@@ -272,6 +287,34 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     } finally {
       if (mounted) {
         setState(() => _isSavingCashEnabled = false);
+      }
+    }
+  }
+
+  /// Cambia `bank_enabled` en la instalacion. A diferencia del ajuste de caja
+  /// no hay estado en curso que incongruente: el hecho declarado es inmutable,
+  /// asi que desactivar solo esconde la declaracion, nunca borra el saldo.
+  Future<void> _actualizarBanco(bool value) async {
+    if (value == _bankEnabled) return;
+    setState(() => _isSavingBankEnabled = true);
+    try {
+      final next = _appConfigController.config.copyWith(bankEnabled: value);
+      await getIt<AppConfigStore>().saveConfig(next);
+      _appConfigController.update(next);
+      if (!mounted) return;
+      setState(() => _bankEnabled = value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? 'Saldo en cuenta habilitado en esta terminal.'
+                : 'Saldo en cuenta desactivado. Lo ya declarado se conserva.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingBankEnabled = false);
       }
     }
   }

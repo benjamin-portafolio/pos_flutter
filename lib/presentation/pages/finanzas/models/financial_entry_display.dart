@@ -14,7 +14,8 @@ class FinancialEntryDisplay {
       ReportMoney.money(BigInt.from(entry.amountMinor));
 
   /// Etiqueta visible del método (`cash` → Efectivo, `transfer` →
-  /// Transferencia). «Transfer» nunca implica saldo de un cajón.
+  /// Transferencia). El nombre no dice a dónde va el dinero: `transfer` no toca
+  /// el cajón pero sí alimenta el saldo estimado de la cuenta.
   static String methodLabel(String method) =>
       method == 'cash' ? 'Efectivo' : 'Transferencia';
 

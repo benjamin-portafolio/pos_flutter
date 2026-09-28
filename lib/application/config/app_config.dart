@@ -66,6 +66,7 @@ class AppConfig {
     this.lastBackupAt,
     this.lastBackupLocalSequence,
     this.cashEnabled = true,
+    this.bankEnabled = true,
   });
 
   static const defaultBusinessName = 'Miradent';
@@ -84,6 +85,7 @@ class AppConfig {
     backupProvider: BackupProvider.googleDrive,
     backupHour: defaultBackupHour,
     cashEnabled: true,
+    bankEnabled: true,
   );
 
   final AppMode mode;
@@ -103,6 +105,12 @@ class AppConfig {
   /// Habilita la captura de caja en esta instalacion. No es un evento: no se
   /// sincroniza y el servidor no lo valida.
   final bool cashEnabled;
+
+  /// Habilita la declaración del saldo en cuenta bancaria en esta
+  /// instalacion. Igual que `cashEnabled` es un ajuste local, no un evento: no
+  /// se sincroniza y el servidor no lo valida. Desactivarlo oculta la
+  /// declaración, no borra lo ya declarado.
+  final bool bankEnabled;
 
   bool get isStandalone => mode == AppMode.standalone;
 
@@ -147,6 +155,7 @@ class AppConfig {
     Object? lastBackupAt = _sentinel,
     Object? lastBackupLocalSequence = _sentinel,
     bool? cashEnabled,
+    bool? bankEnabled,
   }) {
     final nextMode = mode ?? this.mode;
     final modeChanged = mode != null && mode != this.mode;
@@ -193,6 +202,7 @@ class AppConfig {
               this.lastBackupLocalSequence,
             ),
       cashEnabled: cashEnabled ?? this.cashEnabled,
+      bankEnabled: bankEnabled ?? this.bankEnabled,
     );
   }
 
@@ -212,6 +222,7 @@ class AppConfig {
       'last_backup_at': lastBackupAt?.toUtc().toIso8601String(),
       'last_backup_local_sequence': lastBackupLocalSequence,
       'cash_enabled': cashEnabled,
+      'bank_enabled': bankEnabled,
     };
   }
 
@@ -251,6 +262,8 @@ class AppConfig {
       // Una instalacion sin la clave se considera habilitada: el valor por
       // defecto evita que una actualizacion apague la captura sin querer.
       cashEnabled: json['cash_enabled'] != false,
+      // Misma regla que `cash_enabled`: sin clave, habilitado.
+      bankEnabled: json['bank_enabled'] != false,
     );
   }
 

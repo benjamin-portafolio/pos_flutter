@@ -5,16 +5,34 @@ import '../../../application/commands/caja/cerrar_caja_command.dart';
 import '../../../application/commands/caja/caja_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/caja/cash_session.dart';
+import '../../../domain/repositories/account_balance_baseline_repository.dart';
 import '../../../domain/repositories/cash_repository.dart';
+import '../../../domain/repositories/transfer_summary_repository.dart';
 import 'cash_form_screen.dart';
 import 'cash_detail_screen.dart';
 import 'cash_session_content.dart';
 import 'cash_money.dart';
+import 'saldo_cuenta_estimado_card.dart';
+import 'transfer_summary_card.dart';
 
 class CashManagementScreen extends StatefulWidget {
-  const CashManagementScreen({super.key, this.repository, this.commands});
+  const CashManagementScreen({
+    super.key,
+    this.repository,
+    this.commands,
+    this.transfers,
+    this.baselines,
+  });
   final CashRepository? repository;
   final CajaCommandService? commands;
+
+  /// Agregado de transferencias de la Fase 1. Se inyecta para poder probarlo
+  /// sin levantar la base local; en la app sale del contenedor de DI.
+  final TransferSummaryRepository? transfers;
+
+  /// Lectura del saldo inicial declarado (Fase 3), para el bloque de saldo en
+  /// cuenta. Igual que [transfers], se inyecta para poder probarlo.
+  final AccountBalanceBaselineRepository? baselines;
   @override
   State<CashManagementScreen> createState() => _CashManagementScreenState();
 }
@@ -22,6 +40,10 @@ class CashManagementScreen extends StatefulWidget {
 class _CashManagementScreenState extends State<CashManagementScreen> {
   late final _repo = widget.repository ?? getIt<CashRepository>();
   late final _commands = widget.commands ?? getIt<CajaCommandService>();
+  late final _transfers =
+      widget.transfers ?? getIt<TransferSummaryRepository>();
+  late final _baselines =
+      widget.baselines ?? getIt<AccountBalanceBaselineRepository>();
   late final _sessions = _repo.watchSessions();
   bool _openingForm = false;
   Future<void> _form(CashSession? session) async {
@@ -121,6 +143,16 @@ class _CashManagementScreenState extends State<CashManagementScreen> {
                     )
                   else
                     CashSessionContent(session: own),
+                  // Bloque 2. Va junto al de efectivo pero nunca se suma con
+                  // él: uno es un stock y el otro un flujo (H7).
+                  TransferSummaryCard(repository: _transfers, session: own),
+                  // Bloque 3. El lado bancario como stock: saldo estimado y,
+                  // solo con el saldo inicial declarado, el total en fondos.
+                  SaldoCuentaEstimadoCard(
+                    transfers: _transfers,
+                    baselines: _baselines,
+                    expectedMinor: own?.expectedMinor,
+                  ),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: !_commands.enabled || _openingForm
