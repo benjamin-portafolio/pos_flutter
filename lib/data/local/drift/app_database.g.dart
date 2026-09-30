@@ -3086,6 +3086,17 @@ class $ProductVariantsTable extends ProductVariants
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _barcodeMeta = const VerificationMeta(
+    'barcode',
+  );
+  @override
+  late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
+    'barcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _salePriceMinorMeta = const VerificationMeta(
     'salePriceMinor',
   );
@@ -3144,6 +3155,7 @@ class $ProductVariantsTable extends ProductVariants
     productId,
     name,
     nameKey,
+    barcode,
     salePriceMinor,
     standardCostMinor,
     inventoryItemId,
@@ -3223,6 +3235,12 @@ class $ProductVariantsTable extends ProductVariants
       context.handle(
         _nameKeyMeta,
         nameKey.isAcceptableOrUnknown(data['name_key']!, _nameKeyMeta),
+      );
+    }
+    if (data.containsKey('barcode')) {
+      context.handle(
+        _barcodeMeta,
+        barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
       );
     }
     if (data.containsKey('sale_price_minor')) {
@@ -3307,6 +3325,10 @@ class $ProductVariantsTable extends ProductVariants
         DriftSqlType.string,
         data['${effectivePrefix}name_key'],
       ),
+      barcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode'],
+      ),
       salePriceMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sale_price_minor'],
@@ -3363,6 +3385,11 @@ class ProductVariantRow extends DataClass
   /// Clave NFKC en minúsculas derivada de [name] para unicidad por producto.
   final String? nameKey;
 
+  /// Código de barras opcional, solo dígitos de hasta 32 caracteres. Se guarda
+  /// como texto y no se interpreta numéricamente para conservar los ceros a la
+  /// izquierda de UPC-A y admitir GS1-128. Null significa variante sin código.
+  final String? barcode;
+
   /// Precio de venta entero expresado en la unidad monetaria menor. Siempre es
   /// positivo y es el único importe obligatorio de la variante.
   final int salePriceMinor;
@@ -3388,6 +3415,7 @@ class ProductVariantRow extends DataClass
     required this.productId,
     this.name,
     this.nameKey,
+    this.barcode,
     required this.salePriceMinor,
     this.standardCostMinor,
     this.inventoryItemId,
@@ -3414,6 +3442,9 @@ class ProductVariantRow extends DataClass
     }
     if (!nullToAbsent || nameKey != null) {
       map['name_key'] = Variable<String>(nameKey);
+    }
+    if (!nullToAbsent || barcode != null) {
+      map['barcode'] = Variable<String>(barcode);
     }
     map['sale_price_minor'] = Variable<int>(salePriceMinor);
     if (!nullToAbsent || standardCostMinor != null) {
@@ -3445,6 +3476,9 @@ class ProductVariantRow extends DataClass
       nameKey: nameKey == null && nullToAbsent
           ? const Value.absent()
           : Value(nameKey),
+      barcode: barcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(barcode),
       salePriceMinor: Value(salePriceMinor),
       standardCostMinor: standardCostMinor == null && nullToAbsent
           ? const Value.absent()
@@ -3471,6 +3505,7 @@ class ProductVariantRow extends DataClass
       productId: serializer.fromJson<String>(json['productId']),
       name: serializer.fromJson<String?>(json['name']),
       nameKey: serializer.fromJson<String?>(json['nameKey']),
+      barcode: serializer.fromJson<String?>(json['barcode']),
       salePriceMinor: serializer.fromJson<int>(json['salePriceMinor']),
       standardCostMinor: serializer.fromJson<int?>(json['standardCostMinor']),
       inventoryItemId: serializer.fromJson<String?>(json['inventoryItemId']),
@@ -3490,6 +3525,7 @@ class ProductVariantRow extends DataClass
       'productId': serializer.toJson<String>(productId),
       'name': serializer.toJson<String?>(name),
       'nameKey': serializer.toJson<String?>(nameKey),
+      'barcode': serializer.toJson<String?>(barcode),
       'salePriceMinor': serializer.toJson<int>(salePriceMinor),
       'standardCostMinor': serializer.toJson<int?>(standardCostMinor),
       'inventoryItemId': serializer.toJson<String?>(inventoryItemId),
@@ -3507,6 +3543,7 @@ class ProductVariantRow extends DataClass
     String? productId,
     Value<String?> name = const Value.absent(),
     Value<String?> nameKey = const Value.absent(),
+    Value<String?> barcode = const Value.absent(),
     int? salePriceMinor,
     Value<int?> standardCostMinor = const Value.absent(),
     Value<String?> inventoryItemId = const Value.absent(),
@@ -3525,6 +3562,7 @@ class ProductVariantRow extends DataClass
     productId: productId ?? this.productId,
     name: name.present ? name.value : this.name,
     nameKey: nameKey.present ? nameKey.value : this.nameKey,
+    barcode: barcode.present ? barcode.value : this.barcode,
     salePriceMinor: salePriceMinor ?? this.salePriceMinor,
     standardCostMinor: standardCostMinor.present
         ? standardCostMinor.value
@@ -3551,6 +3589,7 @@ class ProductVariantRow extends DataClass
       productId: data.productId.present ? data.productId.value : this.productId,
       name: data.name.present ? data.name.value : this.name,
       nameKey: data.nameKey.present ? data.nameKey.value : this.nameKey,
+      barcode: data.barcode.present ? data.barcode.value : this.barcode,
       salePriceMinor: data.salePriceMinor.present
           ? data.salePriceMinor.value
           : this.salePriceMinor,
@@ -3576,6 +3615,7 @@ class ProductVariantRow extends DataClass
           ..write('productId: $productId, ')
           ..write('name: $name, ')
           ..write('nameKey: $nameKey, ')
+          ..write('barcode: $barcode, ')
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
@@ -3595,6 +3635,7 @@ class ProductVariantRow extends DataClass
     productId,
     name,
     nameKey,
+    barcode,
     salePriceMinor,
     standardCostMinor,
     inventoryItemId,
@@ -3613,6 +3654,7 @@ class ProductVariantRow extends DataClass
           other.productId == this.productId &&
           other.name == this.name &&
           other.nameKey == this.nameKey &&
+          other.barcode == this.barcode &&
           other.salePriceMinor == this.salePriceMinor &&
           other.standardCostMinor == this.standardCostMinor &&
           other.inventoryItemId == this.inventoryItemId &&
@@ -3629,6 +3671,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
   final Value<String> productId;
   final Value<String?> name;
   final Value<String?> nameKey;
+  final Value<String?> barcode;
   final Value<int> salePriceMinor;
   final Value<int?> standardCostMinor;
   final Value<String?> inventoryItemId;
@@ -3644,6 +3687,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.productId = const Value.absent(),
     this.name = const Value.absent(),
     this.nameKey = const Value.absent(),
+    this.barcode = const Value.absent(),
     this.salePriceMinor = const Value.absent(),
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
@@ -3660,6 +3704,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     required String productId,
     this.name = const Value.absent(),
     this.nameKey = const Value.absent(),
+    this.barcode = const Value.absent(),
     required int salePriceMinor,
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
@@ -3679,6 +3724,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Expression<String>? productId,
     Expression<String>? name,
     Expression<String>? nameKey,
+    Expression<String>? barcode,
     Expression<int>? salePriceMinor,
     Expression<int>? standardCostMinor,
     Expression<String>? inventoryItemId,
@@ -3696,6 +3742,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       if (productId != null) 'product_id': productId,
       if (name != null) 'name': name,
       if (nameKey != null) 'name_key': nameKey,
+      if (barcode != null) 'barcode': barcode,
       if (salePriceMinor != null) 'sale_price_minor': salePriceMinor,
       if (standardCostMinor != null) 'standard_cost_minor': standardCostMinor,
       if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
@@ -3714,6 +3761,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Value<String>? productId,
     Value<String?>? name,
     Value<String?>? nameKey,
+    Value<String?>? barcode,
     Value<int>? salePriceMinor,
     Value<int?>? standardCostMinor,
     Value<String?>? inventoryItemId,
@@ -3730,6 +3778,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       productId: productId ?? this.productId,
       name: name ?? this.name,
       nameKey: nameKey ?? this.nameKey,
+      barcode: barcode ?? this.barcode,
       salePriceMinor: salePriceMinor ?? this.salePriceMinor,
       standardCostMinor: standardCostMinor ?? this.standardCostMinor,
       inventoryItemId: inventoryItemId ?? this.inventoryItemId,
@@ -3768,6 +3817,9 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     if (nameKey.present) {
       map['name_key'] = Variable<String>(nameKey.value);
     }
+    if (barcode.present) {
+      map['barcode'] = Variable<String>(barcode.value);
+    }
     if (salePriceMinor.present) {
       map['sale_price_minor'] = Variable<int>(salePriceMinor.value);
     }
@@ -3798,6 +3850,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('productId: $productId, ')
           ..write('name: $name, ')
           ..write('nameKey: $nameKey, ')
+          ..write('barcode: $barcode, ')
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
@@ -13918,8 +13971,17 @@ class FinancialEntryRow extends DataClass
   /// Moneda fija MXN.
   final String currency;
 
-  /// Medio cash/transfer como strings, igual que los pagos actuales. Transfer
-  /// nunca implica saldo de un cajón: es solo el medio del registro.
+  /// Medio cash/transfer como strings, igual que los pagos actuales.
+  ///
+  /// Dos consecuencias distintas, que no hay que confundir:
+  ///
+  /// - En el cajón, transfer no implica nada. Es solo el medio del registro, y
+  ///   por eso `cash_movements` sigue exigiendo `method='cash'` en el servidor
+  ///   y `CajaCommandService.binding()` descarta lo que no sea efectivo.
+  /// - En la cuenta bancaria, transfer sí tiene consecuencia: alimenta el
+  ///   saldo estimado, que es la foto del saldo inicial declarado más estos
+  ///   movimientos. Ese cálculo vive en `SaldoCuentaEstimado` (Fase 4), no
+  ///   aquí.
   final String method;
 
   /// Instante efectivo UTC en ms, separado de la captura local y del cursor
@@ -20190,6 +20252,7 @@ typedef $$ProductVariantsTableCreateCompanionBuilder =
       required String productId,
       Value<String?> name,
       Value<String?> nameKey,
+      Value<String?> barcode,
       required int salePriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
@@ -20207,6 +20270,7 @@ typedef $$ProductVariantsTableUpdateCompanionBuilder =
       Value<String> productId,
       Value<String?> name,
       Value<String?> nameKey,
+      Value<String?> barcode,
       Value<int> salePriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
@@ -20347,6 +20411,11 @@ class $$ProductVariantsTableFilterComposer
 
   ColumnFilters<String> get nameKey => $composableBuilder(
     column: $table.nameKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get barcode => $composableBuilder(
+    column: $table.barcode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20511,6 +20580,11 @@ class $$ProductVariantsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
     builder: (column) => ColumnOrderings(column),
@@ -20611,6 +20685,9 @@ class $$ProductVariantsTableAnnotationComposer
 
   GeneratedColumn<String> get nameKey =>
       $composableBuilder(column: $table.nameKey, builder: (column) => column);
+
+  GeneratedColumn<String> get barcode =>
+      $composableBuilder(column: $table.barcode, builder: (column) => column);
 
   GeneratedColumn<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
@@ -20766,6 +20843,7 @@ class $$ProductVariantsTableTableManager
                 Value<String> productId = const Value.absent(),
                 Value<String?> name = const Value.absent(),
                 Value<String?> nameKey = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
                 Value<int> salePriceMinor = const Value.absent(),
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
@@ -20781,6 +20859,7 @@ class $$ProductVariantsTableTableManager
                 productId: productId,
                 name: name,
                 nameKey: nameKey,
+                barcode: barcode,
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
@@ -20798,6 +20877,7 @@ class $$ProductVariantsTableTableManager
                 required String productId,
                 Value<String?> name = const Value.absent(),
                 Value<String?> nameKey = const Value.absent(),
+                Value<String?> barcode = const Value.absent(),
                 required int salePriceMinor,
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
@@ -20813,6 +20893,7 @@ class $$ProductVariantsTableTableManager
                 productId: productId,
                 name: name,
                 nameKey: nameKey,
+                barcode: barcode,
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,

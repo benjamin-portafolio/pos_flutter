@@ -84,6 +84,7 @@ class ProductoEventHandler {
           productoId: event.aggregateId,
           nombre: variant.nombre,
           nameKey: variant.nameKey,
+          codigoBarras: variant.codigoBarras,
           precioVentaMenor: variant.precioVentaMenor,
           costoEstandarMenor: variant.costoEstandarMenor,
           inventoryItemId: variant.inventoryItemId,

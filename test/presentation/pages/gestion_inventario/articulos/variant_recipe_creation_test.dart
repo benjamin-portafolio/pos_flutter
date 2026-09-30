@@ -55,6 +55,9 @@ void main() {
             .onPressed,
         isNull,
       );
+      await tester.ensureVisible(
+        find.byKey(const Key('variant_recipe_checkbox')),
+      );
       await tester.tap(find.byKey(const Key('variant_recipe_checkbox')));
       await tester.pumpAndSettle();
       expect(
@@ -66,6 +69,9 @@ void main() {
         isNotNull,
       );
 
+      await tester.ensureVisible(
+        find.byKey(const Key('manage_variant_recipe_button')),
+      );
       await tester.tap(find.byKey(const Key('manage_variant_recipe_button')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('recipe_editor_screen')), findsOneWidget);

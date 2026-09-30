@@ -216,10 +216,10 @@ LazyDatabase _openConnection() {
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
 /// ni cambiar schemaVersion. Las tablas de crédito y clientes deben existir,
-/// sales debe incluir cliente_id, no puede conservarse la
-/// columna legada is_default y el módulo de ingresos/gastos requiere
-/// financial_categories y financial_entries; las bases actuales se conservan
-/// entre arranques.
+/// sales debe incluir cliente_id, product_variants debe incluir barcode, no
+/// puede conservarse la columna legada is_default y el módulo de
+/// ingresos/gastos requiere financial_categories y financial_entries; las
+/// bases actuales se conservan entre arranques.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
   final connection = sqlite.sqlite3.open(file.path);
@@ -276,6 +276,7 @@ Future<void> _resetDatabaseOnStartup(File file) async {
             )
             .isNotEmpty &&
         variantColumns.isNotEmpty &&
+        variantColumns.any((column) => column['name'] == 'barcode') &&
         !variantColumns.any((column) => column['name'] == 'is_default');
   } finally {
     connection.close();

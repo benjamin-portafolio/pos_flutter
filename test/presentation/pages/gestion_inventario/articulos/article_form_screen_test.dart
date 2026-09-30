@@ -967,6 +967,209 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('captura el código de barras como texto y conserva los ceros', (
+    tester,
+  ) async {
+    ArticuloFormResult? result;
+    await _pumpForm(tester, onSave: (value) async => result = value);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
+    await _chooseAdvanced(tester);
+    await _editVariant(tester, 0, price: '10', barcode: '012345678905');
+
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    // Se conserva como texto: un int perdería el cero inicial de UPC-A.
+    expect(result?.variantes.single.codigoBarras, '012345678905');
+  });
+
+  testWidgets('el código de barras sobrevive al round-trip guardar y editar', (
+    tester,
+  ) async {
+    await _pumpForm(tester);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
+    await _chooseAdvanced(tester);
+    await _editVariant(tester, 0, price: '10', barcode: '750802876102');
+
+    // Reabrir la variante debe mostrar lo capturado, no un campo vacío.
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextFormField>(
+      find.byKey(const Key('variant_barcode_field')),
+    );
+    expect(field.controller!.text, '750802876102');
+  });
+
+  testWidgets('el código de barras vacío se guarda como null', (tester) async {
+    ArticuloFormResult? result;
+    await _pumpForm(tester, onSave: (value) async => result = value);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
+    await _chooseAdvanced(tester);
+    await _editVariant(tester, 0, price: '10', barcode: '   ');
+
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    expect(result?.variantes.single.codigoBarras, isNull);
+  });
+
+  testWidgets('el campo de código de barras no admite letras', (tester) async {
+    await _pumpForm(tester);
+    await _chooseAdvanced(tester);
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('variant_barcode_field')),
+      '7508AB0210',
+    );
+    await tester.pump();
+
+    // El formateador descarta lo que no es dígito: el texto queda limpio.
+    final field = tester.widget<TextFormField>(
+      find.byKey(const Key('variant_barcode_field')),
+    );
+    expect(field.controller!.text, '75080210');
+  });
+
+  testWidgets('un código de 33 dígitos muestra el error del value object', (
+    tester,
+  ) async {
+    await _pumpForm(tester);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
+    await _chooseAdvanced(tester);
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '10',
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_barcode_field')),
+      '1' * 33,
+    );
+    await tester.tap(find.byKey(const Key('save_variant_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Solo admite dígitos, hasta 32 caracteres.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('variant_editor_screen')), findsOneWidget);
+  });
+
+  testWidgets('TRAMPA 4: cambiar solo el código habilita guardar', (
+    tester,
+  ) async {
+    // Regresión: si `_variantsMatch` ignorara el código de barras, la edición
+    // se perdería en silencio y el botón de guardar quedaría muerto.
+    const initial = ArticuloFormResult(
+      nombre: 'Café',
+      categoriaId: null,
+      saleConfiguration: UnitSaleConfiguration(),
+      variantes: [
+        ArticuloFormVarianteResult(
+          id: 'first',
+          nombre: 'Grande',
+          precioVenta: '10',
+          costoEstandar: null,
+        ),
+      ],
+    );
+    ArticuloFormResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleFormScreen(
+          categorias: const [],
+          unidadesVenta: _units,
+          initialValue: initial,
+          onSave: (value) async => result = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final saveFinder = find.byKey(const Key('save_article_button'));
+    expect(saveFinder, findsNothing);
+
+    await _editVariant(tester, 0, price: '10', barcode: '750802876102');
+    expect(saveFinder, findsOneWidget);
+
+    await tester.tap(saveFinder);
+    await tester.pumpAndSettle();
+    expect(result?.variantes.single.codigoBarras, '750802876102');
+  });
+
+  testWidgets('TRAMPA 4: borrar solo el código también habilita guardar', (
+    tester,
+  ) async {
+    const initial = ArticuloFormResult(
+      nombre: 'Café',
+      categoriaId: null,
+      saleConfiguration: UnitSaleConfiguration(),
+      variantes: [
+        ArticuloFormVarianteResult(
+          id: 'first',
+          nombre: 'Grande',
+          precioVenta: '10',
+          costoEstandar: null,
+          codigoBarras: '750802876102',
+        ),
+      ],
+    );
+    ArticuloFormResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleFormScreen(
+          categorias: const [],
+          unidadesVenta: _units,
+          initialValue: initial,
+          onSave: (value) async => result = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final saveFinder = find.byKey(const Key('save_article_button'));
+    expect(saveFinder, findsNothing);
+
+    // Vaciar el campo es el cambio; el resto de la variante no se toca.
+    await _editVariant(tester, 0, price: '10', barcode: '');
+    expect(saveFinder, findsOneWidget);
+
+    await tester.tap(saveFinder);
+    await tester.pumpAndSettle();
+    expect(result?.variantes.single.codigoBarras, isNull);
+  });
+
+  testWidgets('el código de barras sobrevive al listado de variantes', (
+    tester,
+  ) async {
+    // `_isEmptyVariantDraft` no debe descartar un borrador que solo trae
+    // código de barras.
+    ArticuloFormResult? result;
+    await _pumpForm(tester, onSave: (value) async => result = value);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
+    await _chooseAdvanced(tester);
+    await _editVariant(tester, 0, price: '10', barcode: '750802876102');
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    expect(result?.variantes, hasLength(1));
+    expect(result?.variantes.single.codigoBarras, '750802876102');
+  });
+
+  testWidgets('ESCANEAR abre la pantalla de escaneo sin cámara', (
+    tester,
+  ) async {
+    await _pumpForm(tester);
+    await _chooseAdvanced(tester);
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('scan_barcode_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('barcode_scanner_screen')), findsOneWidget);
+  });
 }
 
 Future<void> _editVariant(
@@ -975,6 +1178,7 @@ Future<void> _editVariant(
   String? name,
   required String price,
   String? cost,
+  String? barcode,
 }) async {
   await tester.tap(find.byKey(Key('article_variant_card_$index')));
   await tester.pumpAndSettle();
@@ -989,6 +1193,12 @@ Future<void> _editVariant(
     await tester.enterText(
       find.byKey(const Key('variant_standard_cost_field')),
       cost,
+    );
+  }
+  if (barcode != null) {
+    await tester.enterText(
+      find.byKey(const Key('variant_barcode_field')),
+      barcode,
     );
   }
   await tester.tap(find.byKey(const Key('save_variant_button')));

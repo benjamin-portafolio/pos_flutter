@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
+import '../../../domain/articulos/codigo_barras.dart';
 import '../../../domain/articulos/costo_estandar.dart';
 import '../../../domain/articulos/nombre_producto.dart';
 import '../../../domain/articulos/nombre_variante.dart';
@@ -252,6 +253,7 @@ class ProductoCommandService {
           costoEstandarMenor: CostoEstandar.fromInput(
             captured.costoEstandar,
           )?.unidadMenor,
+          codigoBarras: CodigoBarras.fromInput(captured.codigoBarras).value,
           inventory: directInventory,
           recipeComponents: recipeComponents,
         ),
@@ -374,6 +376,7 @@ class ProductoCommandService {
           nombre: normalizedVariants[index].nombre,
           precioVentaMenor: normalizedVariants[index].precioVentaMenor,
           costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
+          codigoBarras: normalizedVariants[index].codigoBarras,
           inventoryItemId:
               inventoryByVariant[index]?.inventoryItemId ??
               (normalizedVariants[index].inventory == null
@@ -748,6 +751,7 @@ class _NormalizedVariant {
     required this.nombre,
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
+    required this.codigoBarras,
     required this.inventory,
     required this.recipeComponents,
   });
@@ -755,6 +759,7 @@ class _NormalizedVariant {
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+  final String? codigoBarras;
   final _NormalizedInventory? inventory;
   final List<_NormalizedRecipeComponent> recipeComponents;
 }

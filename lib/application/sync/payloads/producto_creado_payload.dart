@@ -1,3 +1,4 @@
+import '../../../domain/articulos/codigo_barras.dart';
 import '../../../domain/articulos/costo_estandar.dart';
 import '../../../domain/articulos/nombre_producto.dart';
 import '../../../domain/articulos/nombre_variante.dart';
@@ -222,6 +223,7 @@ class ProductoCreadoVariante {
     required this.id,
     required this.nombre,
     required this.nameKey,
+    required this.codigoBarras,
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
     required this.inventoryItemId,
@@ -234,6 +236,7 @@ class ProductoCreadoVariante {
     required String? nombre,
     required int precioVentaMenor,
     required int? costoEstandarMenor,
+    String? codigoBarras,
     String? inventoryItemId,
     List<ProductoCreadoComponenteReceta> componentesReceta = const [],
     required int orden,
@@ -253,6 +256,7 @@ class ProductoCreadoVariante {
       id: _requiredUuidV4(id, 'variant_id'),
       nombre: normalizedName.value,
       nameKey: normalizedName.nameKey,
+      codigoBarras: CodigoBarras.fromInput(codigoBarras).value,
       precioVentaMenor: PrecioVenta.fromUnidadMenor(
         precioVentaMenor,
       ).unidadMenor,
@@ -268,6 +272,10 @@ class ProductoCreadoVariante {
   final String id;
   final String? nombre;
   final String? nameKey;
+
+  /// Código de barras opcional, solo dígitos. Se mantiene como texto para
+  /// conservar los ceros a la izquierda.
+  final String? codigoBarras;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
   final String? inventoryItemId;
@@ -278,8 +286,12 @@ class ProductoCreadoVariante {
     Map<String, Object?> json, {
     required String fieldName,
   }) {
-    if (json['sku'] != null || json['barcode'] != null) {
-      throw FormatException('$fieldName no admite SKU ni código de barras.');
+    if (json['sku'] != null) {
+      throw FormatException('$fieldName no admite SKU.');
+    }
+    final rawBarcode = json['barcode'];
+    if (rawBarcode != null && rawBarcode is! String) {
+      throw FormatException('$fieldName.barcode debe ser string o null.');
     }
     final rawName = json['name'];
     if (rawName != null && rawName is! String) {
@@ -306,6 +318,7 @@ class ProductoCreadoVariante {
           '$fieldName.sale_price_minor',
         ),
         costoEstandarMenor: parsedCost,
+        codigoBarras: rawBarcode as String?,
         inventoryItemId: _optionalNonEmptyString(
           json['inventory_item_id'],
           '$fieldName.inventory_item_id',
@@ -324,7 +337,7 @@ class ProductoCreadoVariante {
     'variant_id': id,
     'name': nombre,
     'sku': null,
-    'barcode': null,
+    'barcode': codigoBarras,
     'sale_price_minor': precioVentaMenor,
     'standard_cost_minor': costoEstandarMenor,
     if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,

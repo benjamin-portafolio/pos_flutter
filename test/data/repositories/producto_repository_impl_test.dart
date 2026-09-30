@@ -101,6 +101,33 @@ void main() {
     },
   );
 
+  test('el detalle trae el código de barras como texto y null si no hay', () async {
+    await _insertProduct(db, id: 'selected', name: 'Café');
+    await _insertVariant(
+      db,
+      id: 'large',
+      productId: 'selected',
+      price: 6075,
+      sortOrder: 0,
+      // Cero inicial: llega desde SQLite, no se reconstruye como número.
+      barcode: '012345678905',
+    );
+    await _insertVariant(
+      db,
+      id: 'small',
+      productId: 'selected',
+      price: 4550,
+      sortOrder: 1,
+    );
+
+    final detail = await repository.obtenerDetalle('selected');
+
+    expect(
+      detail!.variantes.map((v) => v.codigoBarras),
+      ['012345678905', null],
+    );
+  });
+
   test(
     'agrupa un solo join, filtra activos y ordena productos y variantes',
     () async {
@@ -559,6 +586,7 @@ Future<void> _insertVariant(
   String? name,
   String? nameKey,
   int? standardCost,
+  String? barcode,
   required int sortOrder,
   bool active = true,
 }) {
@@ -570,6 +598,7 @@ Future<void> _insertVariant(
           productId: productId,
           name: Value(name),
           nameKey: Value(nameKey),
+          barcode: Value(barcode),
           salePriceMinor: price,
           standardCostMinor: Value(standardCost),
           sortOrder: sortOrder,

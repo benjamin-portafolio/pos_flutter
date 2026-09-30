@@ -528,6 +528,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                 nombre: variant.nombre,
                 precioVenta: variant.precioVenta,
                 costoEstandar: variant.costoEstandar,
+                codigoBarras: variant.codigoBarras,
                 inventoryUnitId: variant.inventoryUnitId,
                 initialStockQuantity: variant.existenciaInicial,
                 recipeComponents: variant.recipeComponents

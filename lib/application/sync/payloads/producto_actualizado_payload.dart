@@ -75,6 +75,7 @@ class ProductoActualizadoPayload {
       if (other == null ||
           v.nombre != other.nombre ||
           v.nameKey != other.nameKey ||
+          v.codigoBarras != other.codigoBarras ||
           v.precioVentaMenor != other.precioVentaMenor ||
           v.costoEstandarMenor != other.costoEstandarMenor ||
           v.inventoryItemId != other.inventoryItemId ||

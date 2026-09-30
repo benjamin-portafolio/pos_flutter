@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../../../domain/articulos/codigo_barras.dart';
 import '../../../../../domain/articulos/costo_estandar.dart';
 import '../../../../../domain/articulos/nombre_variante.dart';
 import '../../../../../domain/articulos/precio_venta.dart';
@@ -10,6 +12,7 @@ import '../../recursos/models/inventory_resource_form_result.dart';
 import '../../recursos/widgets/inventory_quantity_input_formatter.dart';
 import '../models/articulo_form_result.dart';
 import '../models/recipe_component_form_result.dart';
+import 'barcode_scanner_screen.dart';
 import 'currency_input_formatter.dart';
 import 'recipe_editor_screen.dart';
 
@@ -49,6 +52,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
 
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
+  late final TextEditingController _barcodeController;
   late final TextEditingController _priceController;
   late final TextEditingController _costController;
   late final TextEditingController _initialStockController;
@@ -56,12 +60,16 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late bool _recipeEnabled;
   late List<RecipeComponentFormResult> _recipeComponents;
   String? _recipeError;
+  String? _barcodeError;
 
   @override
   void initState() {
     super.initState();
     final initial = widget.initialValue;
     _nameController = TextEditingController(text: initial?.nombre ?? '');
+    _barcodeController = TextEditingController(
+      text: initial?.codigoBarras ?? '',
+    );
     _priceController = TextEditingController(text: initial?.precioVenta ?? '');
     _costController = TextEditingController(text: initial?.costoEstandar ?? '');
     _initialStockController = TextEditingController(
@@ -72,13 +80,16 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _recipeEnabled = _recipeComponents.isNotEmpty;
     _priceController.addListener(_refreshCalculatedValues);
     _costController.addListener(_refreshCalculatedValues);
+    _barcodeController.addListener(_clearBarcodeError);
   }
 
   @override
   void dispose() {
     _priceController.removeListener(_refreshCalculatedValues);
     _costController.removeListener(_refreshCalculatedValues);
+    _barcodeController.removeListener(_clearBarcodeError);
     _nameController.dispose();
+    _barcodeController.dispose();
     _priceController.dispose();
     _costController.dispose();
     _initialStockController.dispose();
@@ -165,6 +176,82 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                       border: InputBorder.none,
                     ),
                     validator: _validateName,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _EditorCard(
+                  child: Column(
+                    key: const Key('variant_barcode_card'),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(child: Text('¿Código de barras?')),
+                          Tooltip(
+                            message:
+                                'Solo dígitos, hasta '
+                                '${CodigoBarras.maxLength} caracteres. '
+                                'Se guarda como texto para conservar los ceros '
+                                'a la izquierda.',
+                            child: Icon(
+                              Icons.help_outline,
+                              key: const Key('variant_barcode_help_icon'),
+                              size: 20,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              key: const Key('variant_barcode_field'),
+                              controller: _barcodeController,
+                              readOnly: widget.preview,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                hintText: 'Ej. 750802876102',
+                                counterText: '',
+                                border: InputBorder.none,
+                              ),
+                              validator: _validateBarcode,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Flexible para que en pantallas angostas el botón
+                          // en vez de desbordar la fila con el campo.
+                          Flexible(
+                            child: FilledButton.tonal(
+                              key: const Key('scan_barcode_button'),
+                              onPressed: widget.preview
+                                  ? null
+                                  : _openBarcodeScanner,
+                              child: const Text(
+                                'ESCANEAR',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_barcodeError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _barcodeError!,
+                          key: const Key('variant_barcode_error'),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.error),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -389,6 +476,15 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     }
   }
 
+  String? _validateBarcode(String? value) {
+    try {
+      CodigoBarras.fromInput(value);
+      return null;
+    } on ArgumentError catch (error) {
+      return error.message?.toString() ?? 'Código de barras inválido.';
+    }
+  }
+
   String? _validatePrice(String? value) {
     try {
       PrecioVenta.fromInput(value ?? '');
@@ -441,6 +537,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
           costoEstandar: CostoEstandar.fromInput(_costController.text) == null
               ? null
               : _costController.text.trim().replaceAll(',', '.'),
+          codigoBarras: CodigoBarras.fromInput(_barcodeController.text).value,
           inventoryUnitId: _trackingInventory ? widget.inventoryUnit.id : null,
           existenciaInicial:
               _trackingInventory &&
@@ -479,6 +576,39 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   }
 
   void _refreshCalculatedValues() => setState(() {});
+
+  void _clearBarcodeError() {
+    if (_barcodeError == null) return;
+    setState(() => _barcodeError = null);
+  }
+
+  /// Abre la pantalla de escaneo y aplica el valor devuelto al campo.
+  ///
+  /// El valor NO se persiste acá: solo se setea el controller y lo guarda
+  /// `_save()`, igual que una captura manual, para que el camino de guardado
+  /// sea uno solo. `null` significa que el usuario canceló con el `X`.
+  Future<void> _openBarcodeScanner() async {
+    final barcode = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const BarcodeScannerScreen(),
+      ),
+    );
+    if (barcode == null || !mounted) return;
+    // El value object decide ANTES de aceptar el valor: un lector puede
+    // devolver algo que no es dígito, y ese error tiene que verse en el
+    // formulario en vez de tragarse el código en silencio.
+    try {
+      CodigoBarras.fromInput(barcode);
+    } on ArgumentError catch (error) {
+      setState(() {
+        _barcodeError =
+            error.message?.toString() ?? 'Código de barras inválido.';
+      });
+      return;
+    }
+    _barcodeController.text = barcode;
+  }
 
   String get _estimatedMargin {
     try {

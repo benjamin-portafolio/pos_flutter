@@ -32,6 +32,7 @@ class ArticuloPreviewForm {
               costoEstandar: variant.costoEstandarMenor == null
                   ? null
                   : money(variant.costoEstandarMenor!),
+              codigoBarras: variant.codigoBarras,
               inventoryUnitId: variant.inventoryItemId == null
                   ? null
                   : resource(variant.inventoryItemId!).unidadPredeterminada.id,

@@ -27,6 +27,7 @@ class ArticuloFormVarianteResult {
     required this.nombre,
     required this.precioVenta,
     required this.costoEstandar,
+    this.codigoBarras,
     this.inventoryUnitId,
     this.existenciaInicial,
     this.recipeComponents = const [],
@@ -36,6 +37,10 @@ class ArticuloFormVarianteResult {
   final String? nombre;
   final String precioVenta;
   final String? costoEstandar;
+
+  /// Código de barras capturado. Dato de entrada del comando, no un campo de
+  /// pantalla: la captura se agrega en la sesión de UI.
+  final String? codigoBarras;
   final String? inventoryUnitId;
   final String? existenciaInicial;
   final List<RecipeComponentFormResult> recipeComponents;
@@ -49,6 +54,8 @@ class ArticuloFormVarianteResult {
     String? precioVenta,
     String? costoEstandar,
     bool clearCostoEstandar = false,
+    String? codigoBarras,
+    bool clearCodigoBarras = false,
     String? inventoryUnitId,
     bool clearInventoryUnitId = false,
     String? existenciaInicial,
@@ -63,6 +70,9 @@ class ArticuloFormVarianteResult {
       costoEstandar: clearCostoEstandar
           ? null
           : costoEstandar ?? this.costoEstandar,
+      codigoBarras: clearCodigoBarras
+          ? null
+          : codigoBarras ?? this.codigoBarras,
       inventoryUnitId: clearInventoryUnitId
           ? null
           : inventoryUnitId ?? this.inventoryUnitId,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../domain/articulos/nombre_producto.dart';
 import '../../../../domain/articulos/nombre_variante.dart';
+import '../../../../domain/articulos/codigo_barras.dart';
 import '../../../../domain/articulos/costo_estandar.dart';
 import '../../../../domain/articulos/precio_venta.dart';
 import '../../../../domain/articulos/sale_configuration.dart';
@@ -348,6 +349,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             (variant) =>
                 NombreVariante.fromInput(variant.nombre).value != null ||
                 CostoEstandar.fromInput(variant.costoEstandar) != null ||
+                CodigoBarras.fromInput(variant.codigoBarras).value != null ||
                 variant.seguimientoExistencias,
           );
       if (cannotRepresent) {
@@ -488,6 +490,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     return (variant.nombre?.trim().isEmpty ?? true) &&
         variant.precioVenta.trim().isEmpty &&
         (variant.costoEstandar?.trim().isEmpty ?? true) &&
+        (variant.codigoBarras?.trim().isEmpty ?? true) &&
         !variant.seguimientoExistencias &&
         !variant.usaReceta &&
         (variant.existenciaInicial?.trim().isEmpty ?? true);
@@ -635,6 +638,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
               nombre: null,
               precioVenta: _priceController.text,
               costoEstandar: null,
+              // El modo Sencillo no captura código de barras; el bloqueo de
+              // `_selectCreationMode` impide llegar aquí con uno puesto.
+              codigoBarras: null,
             ),
           ]
         : List<ArticuloFormVarianteResult>.of(_advancedVariants ?? const []);
@@ -684,6 +690,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         final name = NombreVariante.fromInput(variant.nombre);
         PrecioVenta.fromInput(variant.precioVenta);
         CostoEstandar.fromInput(variant.costoEstandar);
+        CodigoBarras.fromInput(variant.codigoBarras);
         if (variant.seguimientoExistencias) {
           final expectedUnit = _directInventoryUnit;
           if (expectedUnit == null ||
@@ -755,6 +762,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                   variant.nombre != null ||
                   variant.precioVenta.isNotEmpty ||
                   variant.costoEstandar != null ||
+                  variant.codigoBarras != null ||
                   variant.seguimientoExistencias ||
                   variant.usaReceta ||
                   variant.existenciaInicial != null,
@@ -774,6 +782,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           a.nombre != b.nombre ||
           a.precioVenta != b.precioVenta ||
           a.costoEstandar != b.costoEstandar ||
+          a.codigoBarras != b.codigoBarras ||
           a.inventoryUnitId != b.inventoryUnitId ||
           a.existenciaInicial != b.existenciaInicial ||
           !listEquals(

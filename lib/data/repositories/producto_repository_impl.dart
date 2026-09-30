@@ -33,6 +33,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
           nombre: row.name,
           precioVentaMenor: row.salePriceMinor,
           costoEstandarMenor: row.standardCostMinor,
+          codigoBarras: row.barcode,
           inventoryItemId: row.inventoryItemId,
           componentesReceta: Map.unmodifiable({
             for (final component in recipe)
