@@ -959,6 +959,9 @@ class _FakeProductoRepository implements ProductoRepository {
           .toList(growable: false),
     );
   }
+
+  @override
+  Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
 }
 
 class _FakeInventoryResourceRepository implements RecursoInventarioRepository {

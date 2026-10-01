@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/presentation/pages/finanzas/ingresos_y_gastos_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
@@ -12,22 +13,6 @@ import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_
 
 class MenuLateral extends StatelessWidget {
   const MenuLateral({super.key});
-
-  Widget _buildBadge(int count) {
-    return count > 0
-        ? Container(
-            padding: EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              count.toString(),
-              style: TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          )
-        : SizedBox.shrink();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,22 +110,7 @@ class MenuLateral extends StatelessWidget {
               });
             },
           ),
-          ListTile(
-            leading: Icon(Icons.inventory),
-            title: Text("Gestión de inventarios"),
-            trailing: _buildBadge(329),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => const InventoryManagementScreen(),
-                  ),
-                );
-              });
-            },
-          ),
+          const _InventoryMenuTile(),
           ListTile(
             leading: Icon(Icons.swap_horiz),
             title: Text("Ingresos y gastos"),
@@ -186,6 +156,59 @@ class MenuLateral extends StatelessWidget {
       ),
     );
   }
+}
+
+/// La entrada de inventarios muestra cuantas variantes estan dadas de alta.
+/// El conteo viene del catalogo local y se actualiza solo cuando cambia. La
+/// consulta se abre una vez: el drawer se reconstruye con frecuencia.
+class _InventoryMenuTile extends StatefulWidget {
+  const _InventoryMenuTile();
+
+  @override
+  State<_InventoryMenuTile> createState() => _InventoryMenuTileState();
+}
+
+class _InventoryMenuTileState extends State<_InventoryMenuTile> {
+  late final Stream<int> _variantCount = getIt<ProductoRepository>()
+      .watchVariantesActivasCount();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: _variantCount,
+      builder: (context, snapshot) {
+        return ListTile(
+          leading: const Icon(Icons.inventory),
+          title: const Text("Gestión de inventarios"),
+          trailing: _buildBadge(snapshot.data ?? 0),
+          onTap: () {
+            final navigator = Navigator.of(context);
+            navigator.pop();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              navigator.push(
+                MaterialPageRoute(
+                  builder: (context) => const InventoryManagementScreen(),
+                ),
+              );
+            });
+          },
+        );
+      },
+    );
+  }
+}
+
+Widget _buildBadge(int count) {
+  return count > 0
+      ? Container(
+          padding: EdgeInsets.all(6),
+          decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+          child: Text(
+            count.toString(),
+            style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        )
+      : SizedBox.shrink();
 }
 
 /// La entrada de saldo en cuenta solo existe cuando la declaracion esta

@@ -87,6 +87,11 @@ class ProductoRepositoryImpl implements ProductoRepository {
         .map(_toDomain);
   }
 
+  @override
+  Stream<int> watchVariantesActivasCount() {
+    return _productoDao.watchVariantesActivasCount();
+  }
+
   List<ArticuloListado> _toDomain(List<drift.ProductoListadoRow> rows) {
     final grouped = <String, _ArticuloBuilder>{};
     for (final row in rows) {

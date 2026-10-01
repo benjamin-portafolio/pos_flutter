@@ -539,6 +539,67 @@ void main() {
       emitsError(isA<StateError>()),
     );
   });
+
+  test('cuenta solo variantes activas de productos activos', () async {
+    await _insertProduct(db, id: 'coffee', name: 'Café');
+    await _insertVariant(
+      db,
+      id: 'coffee-small',
+      productId: 'coffee',
+      price: 4550,
+      sortOrder: 0,
+    );
+    await _insertVariant(
+      db,
+      id: 'coffee-large',
+      productId: 'coffee',
+      price: 6075,
+      sortOrder: 1,
+    );
+    await _insertVariant(
+      db,
+      id: 'coffee-hidden',
+      productId: 'coffee',
+      price: 1000,
+      sortOrder: 2,
+      active: false,
+    );
+    await _insertProduct(db, id: 'retired', name: 'Retirado', active: false);
+    await _insertVariant(
+      db,
+      id: 'retired-variant',
+      productId: 'retired',
+      price: 1000,
+      sortOrder: 0,
+    );
+
+    expect(await repository.watchVariantesActivasCount().first, 2);
+  });
+
+  test('el conteo de variantes emite cuando el catalogo cambia', () async {
+    final expectation = expectLater(
+      repository.watchVariantesActivasCount(),
+      emitsInOrder([0, 1, 0]),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await db.transaction(() async {
+      await _insertProduct(db, id: 'coffee', name: 'Café');
+      await _insertVariant(
+        db,
+        id: 'coffee-small',
+        productId: 'coffee',
+        price: 4550,
+        sortOrder: 0,
+      );
+    });
+
+    await (db.delete(
+      db.productVariants,
+    )..where((v) => v.id.equals('coffee-small'))).go();
+
+    await expectation;
+  });
 }
 
 Future<void> _insertCategory(

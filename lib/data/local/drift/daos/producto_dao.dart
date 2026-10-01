@@ -96,6 +96,22 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Variantes activas que pertenecen a productos activos. Alimenta el contador
+  /// del menú lateral, que solo debe reflejar el catálogo vendible.
+  Stream<int> watchVariantesActivasCount() {
+    final count = productVariants.id.count();
+    final activeProducts = selectOnly(products)
+      ..addColumns([products.id])
+      ..where(products.active.equals(true));
+    final query = selectOnly(productVariants)
+      ..addColumns([count])
+      ..where(
+        productVariants.active.equals(true) &
+            productVariants.productId.isInQuery(activeProducts),
+      );
+    return query.watchSingle().map((row) => row.read(count) ?? 0);
+  }
+
   Future<ProductRow?> obtenerProductoPorId(String id) {
     return (select(
       products,

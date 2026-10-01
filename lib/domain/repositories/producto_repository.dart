@@ -14,4 +14,8 @@ abstract interface class ProductoRepository {
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
   });
+
+  /// Variantes activas de productos activos. Emite el conteo cada vez que el
+  /// catálogo cambia, para badges que solo necesitan el total.
+  Stream<int> watchVariantesActivasCount();
 }

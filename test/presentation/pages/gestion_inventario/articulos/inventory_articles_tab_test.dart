@@ -294,6 +294,9 @@ class _FakeProductoRepository implements ProductoRepository {
           .toList(growable: false),
     );
   }
+
+  @override
+  Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
 }
 
 class _SequencedProductoRepository implements ProductoRepository {
@@ -320,6 +323,9 @@ class _SequencedProductoRepository implements ProductoRepository {
     subscriptions++;
     return streams[index];
   }
+
+  @override
+  Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
 }
 
 class _Query {

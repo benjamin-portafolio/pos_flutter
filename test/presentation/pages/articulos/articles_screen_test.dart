@@ -187,6 +187,9 @@ class _Products implements ProductoRepository {
   Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
     String categoriaId,
   ) => throw UnimplementedError();
+
+  @override
+  Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
 }
 
 const _categories = [

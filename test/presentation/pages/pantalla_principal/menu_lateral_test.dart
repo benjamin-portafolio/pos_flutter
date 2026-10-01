@@ -24,15 +24,19 @@ import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_mana
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
+import 'dart:async';
 
 void main() {
   late _FakeSyncDetectionSettingsStore detectionSettingsStore;
   late SyncServerDetectionConfig serverDetectionConfig;
+  late _FakeProductoRepository productoRepository;
 
   setUp(() async {
     await getIt.reset();
     detectionSettingsStore = _FakeSyncDetectionSettingsStore();
     serverDetectionConfig = SyncServerDetectionConfig();
+    productoRepository = _FakeProductoRepository();
+    addTearDown(productoRepository.varianteCounts.close);
     final appConfig = AppConfig.initial.copyWith(
       mode: AppMode.serverSync,
       setupCompleted: true,
@@ -51,7 +55,7 @@ void main() {
     getIt.registerSingleton<SyncOrchestrator>(_FakeSyncOrchestrator());
     getIt.registerSingleton<DatabaseStateReader>(_FakeDatabaseStateReader());
     getIt.registerSingleton<CategoriaRepository>(_FakeCategoriaRepository());
-    getIt.registerSingleton<ProductoRepository>(_FakeProductoRepository());
+    getIt.registerSingleton<ProductoRepository>(productoRepository);
   });
 
   tearDown(() async {
@@ -120,6 +124,59 @@ void main() {
     expect(find.byType(InventoryManagementScreen), findsOneWidget);
     expect(
       find.widgetWithText(AppBar, 'GESTIÓN DEL INVENTARIO'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('el badge de inventarios muestra las variantes dadas de alta', (
+    tester,
+  ) async {
+    final counts = productoRepository.varianteCounts;
+    final scaffoldKey = GlobalKey<ScaffoldState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: const MenuLateral(),
+          body: const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    scaffoldKey.currentState!.openDrawer();
+    await tester.pumpAndSettle();
+
+    // El ListView del drawer es lazy: la entrada se construye al hacer scroll.
+    await tester.scrollUntilVisible(
+      find.text('Gestión de inventarios'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    final inventoryTile = find.widgetWithText(
+      ListTile,
+      'Gestión de inventarios',
+    );
+    expect(
+      find.descendant(of: inventoryTile, matching: find.text('0')),
+      findsNothing,
+    );
+
+    counts.add(7);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: inventoryTile, matching: find.text('7')),
+      findsOneWidget,
+    );
+
+    counts.add(1);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: inventoryTile, matching: find.text('1')),
       findsOneWidget,
     );
   });
@@ -350,6 +407,11 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
+  _FakeProductoRepository() : varianteCounts = StreamController<int>();
+
+  /// Emisiones sucesivas del conteo de variantes; cada una rebuilds el badge.
+  final StreamController<int> varianteCounts;
+
   @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
 
@@ -366,4 +428,7 @@ class _FakeProductoRepository implements ProductoRepository {
   }) {
     return Stream.value(const []);
   }
+
+  @override
+  Stream<int> watchVariantesActivasCount() => varianteCounts.stream;
 }
