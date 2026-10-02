@@ -145,7 +145,40 @@ class ProductoCommandService {
 
   Future<void> crearArticulo(CrearArticuloCommand command) async {
     final article = await _prepareArticulo(command);
-    final event = SyncEvent(
+    final event = _creationEvent(article);
+    await _appendArticulo(article, event);
+  }
+
+  /// Prepara todo antes de escribir. Recursos de todo el lote preceden a los
+  /// productos y el adaptador debe garantizar una sola transacción local.
+  Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) async {
+    if (commands.isEmpty) return;
+    if (_eventStore is! LocalAtomicEventBatchStore) {
+      throw StateError(
+        'La carga por lotes requiere un almacén de eventos transaccional.',
+      );
+    }
+    final articles = <_PreparedArticulo>[];
+    for (final command in commands) {
+      articles.add(await _prepareArticulo(command));
+    }
+    final entries = [
+      for (final article in articles)
+        ..._articleAppends(article, _creationEvent(article)),
+    ];
+    await _eventStore.appendAndApplyAll([
+      ...entries.where(
+        (entry) =>
+            entry.event.eventType == RecursoInventarioCreadoPayload.eventType,
+      ),
+      ...entries.where(
+        (entry) => entry.event.eventType == ProductoCreadoPayload.eventType,
+      ),
+    ]);
+  }
+
+  SyncEvent _creationEvent(_PreparedArticulo article) {
+    return SyncEvent(
       eventId: article.eventId,
       aggregateType: ProductoCreadoPayload.aggregateType,
       aggregateId: article.productId,
@@ -156,7 +189,6 @@ class ProductoCommandService {
       createdAtLocal: DateTime.now(),
       payload: article.payload.toJson(),
     );
-    await _appendArticulo(article, event);
   }
 
   Future<_PreparedArticulo> _prepareArticulo(
@@ -453,7 +485,17 @@ class ProductoCommandService {
     SyncEvent event, {
     ProductoActualizadoPayload? updatePayload,
   }) {
-    final entries = [
+    return _eventStore.appendAndApplyAll(
+      _articleAppends(article, event, updatePayload: updatePayload),
+    );
+  }
+
+  List<LocalEventAppend> _articleAppends(
+    _PreparedArticulo article,
+    SyncEvent event, {
+    ProductoActualizadoPayload? updatePayload,
+  }) {
+    return [
       for (final binding in article.inventoryBindings)
         _inventoryCreationAppend(
           binding: binding,
@@ -470,7 +512,6 @@ class ProductoCommandService {
         ),
       ),
     ];
-    return _eventStore.appendAndApplyAll(entries);
   }
 
   Future<_NormalizedInventory?> _normalizeInventoryTracking(

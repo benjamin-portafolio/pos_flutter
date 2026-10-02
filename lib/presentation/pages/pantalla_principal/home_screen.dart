@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _currentIndex == 3 ? 'Artículos' : 'Miradent',
+          _currentIndex == 3 ? 'Artículos' : 'PASTOR',
         ),
         actions: [
           IconButton(icon: Icon(Icons.person_add), onPressed: () {}),

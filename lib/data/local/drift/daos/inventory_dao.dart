@@ -17,9 +17,28 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     String busqueda = '',
     String filtro = 'all',
   }) {
+    return _watchListing(busqueda: busqueda, filtro: filtro);
+  }
+
+  /// Listado de un solo recurso por su identificador. Emite `null` mientras no
+  /// exista una fila activa que coincida.
+  Stream<InventoryListingRow?> watchRecursoPorId(String id) {
+    return _watchListing(inventoryItemId: id).map((rows) => rows.firstOrNull);
+  }
+
+  Stream<List<InventoryListingRow>> _watchListing({
+    String busqueda = '',
+    String filtro = 'all',
+    String? inventoryItemId,
+  }) {
     final normalizedSearch = busqueda.trim().toLowerCase();
     final predicates = <String>[];
     final variables = <Variable<Object>>[];
+
+    if (inventoryItemId != null) {
+      predicates.add('ii.id = ?');
+      variables.add(Variable<String>(inventoryItemId));
+    }
 
     if (normalizedSearch.isNotEmpty) {
       predicates.add("LOWER(ii.name) LIKE ? ESCAPE '\\'");

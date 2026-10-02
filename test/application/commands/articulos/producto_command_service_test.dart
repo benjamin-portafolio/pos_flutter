@@ -44,6 +44,42 @@ void main() {
     );
   });
 
+  test('el lote exige un almacén atómico antes de escribir', () async {
+    await expectLater(
+      service.crearArticulosLote([
+        const CrearArticuloCommand(nombre: 'Café', precioVenta: '10'),
+      ]),
+      throwsStateError,
+    );
+    expect(eventStore.events, isEmpty);
+  });
+
+  test(
+    'preparar un producto inválido no escribe ningún evento del lote',
+    () async {
+      final atomic = _AtomicCapturingLocalEventStore();
+      final loteService = ProductoCommandService(
+        eventStore: atomic,
+        commandContext: const LocalCommandContext(
+          deviceId: 'test_device',
+          userId: 'test_user',
+        ),
+        categoriaProjectionStore: categoryStore,
+        syncedEventHistory: eventHistory,
+        unidadInventarioRepository: unitRepository,
+      );
+      await expectLater(
+        loteService.crearArticulosLote([
+          const CrearArticuloCommand(nombre: 'Café', precioVenta: '10'),
+          const CrearArticuloCommand(nombre: ' ', precioVenta: '20'),
+        ]),
+        throwsArgumentError,
+      );
+      expect(atomic.events, isEmpty);
+      expect(atomic.batches, 0);
+    },
+  );
+
   test('crea un producto sencillo canónico sin categoría', () async {
     await service.crearArticulo(
       const CrearArticuloCommand(
@@ -509,4 +545,18 @@ class _FakeInventoryProjectionStore implements InventoryProjectionStore {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _AtomicCapturingLocalEventStore extends _CapturingLocalEventStore
+    implements LocalAtomicEventBatchStore {
+  int batches = 0;
+  @override
+  Future<void> appendAndApplyBatchAtomically(
+    List<LocalEventAppend> entries,
+  ) async {
+    batches++;
+    for (final entry in entries) {
+      await appendAndApply(entry.event, refs: entry.refs);
+    }
+  }
 }

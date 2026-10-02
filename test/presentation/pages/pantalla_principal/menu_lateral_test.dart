@@ -407,7 +407,8 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
-  _FakeProductoRepository() : varianteCounts = StreamController<int>();
+  // Un controlador sin oyentes también debe poder cerrarse en tearDown.
+  _FakeProductoRepository() : varianteCounts = StreamController<int>.broadcast();
 
   /// Emisiones sucesivas del conteo de variantes; cada una rebuilds el badge.
   final StreamController<int> varianteCounts;

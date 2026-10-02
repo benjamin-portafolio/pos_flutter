@@ -118,6 +118,12 @@ void main() {
 
 class _FakeInventoryResourceRepository implements RecursoInventarioRepository {
   @override
+  Stream<RecursoInventarioListado?> watchRecursoPorId(String id) =>
+      Stream.value(
+        _resources.where((resource) => resource.id == id).firstOrNull,
+      );
+
+  @override
   Stream<List<RecursoInventarioListado>> watchRecursos({
     String busqueda = '',
     InventoryResourceFilter filtro = InventoryResourceFilter.all,

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../../../../application/export/articulo_catalog_export_service.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../domain/articulos/articulo_listado.dart';
 import '../../../../domain/repositories/categoria_repository.dart';
 import '../../../../domain/repositories/producto_repository.dart';
@@ -15,6 +18,8 @@ class InventoryArticlesTab extends StatefulWidget {
     required this.onClearSearch,
     required this.onAddArticle,
     this.onOpenArticle,
+    this.exportService,
+    this.shareFile,
     super.key,
   });
 
@@ -25,6 +30,12 @@ class InventoryArticlesTab extends StatefulWidget {
   final VoidCallback onAddArticle;
   final ValueChanged<ArticuloListado>? onOpenArticle;
 
+  /// Servicio de descarga. Null lo resuelve el contenedor de dependencias.
+  final ArticuloCatalogExportService? exportService;
+
+  /// Inyectable para las pruebas; en producción delega en `share_plus`.
+  final Future<ShareResult> Function(ShareParams)? shareFile;
+
   @override
   State<InventoryArticlesTab> createState() => _InventoryArticlesTabState();
 }
@@ -33,6 +44,7 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
     with AutomaticKeepAliveClientMixin {
   FiltroArticulos _appliedFilter = const FiltroArticulos();
   late Stream<List<ArticuloListado>> _articlesStream;
+  _FormatoExportacion? _exportando;
 
   @override
   void initState() {
@@ -63,6 +75,9 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
               appliedFilter: _appliedFilter,
               onShowAll: _clearFilters,
               onOpenFilters: _openFilters,
+              exportando: _exportando,
+              onExportCsv: () => _exportar(_FormatoExportacion.csv),
+              onExportPdf: () => _exportar(_FormatoExportacion.pdf),
             ),
             Expanded(
               child: StreamBuilder<List<ArticuloListado>>(
@@ -187,18 +202,90 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
   void _retry() {
     setState(() => _articlesStream = _watchArticles());
   }
+
+  /// El archivo sale de una lectura filtrada con el mismo DAO del listado, sin
+  /// escribir nada. El botón avisa cuántos de cuántos se van porque el archivo
+  /// filtrado sorprende a quien lo abre después.
+  ///
+  /// CSV y PDF comparten el flujo y el aviso: son dos presentaciones del mismo
+  /// catálogo (D8) y divergir en los mensajes solo confunde.
+  Future<void> _exportar(_FormatoExportacion formato) async {
+    // Los dos botones se bloquean juntos: dos exportaciones a la vez compete por
+    // el mismo directorio temporal y abre dos diálogos de compartir.
+    if (_exportando != null) return;
+    setState(() => _exportando = formato);
+    try {
+      final servicio =
+          widget.exportService ?? getIt<ArticuloCatalogExportService>();
+      final filtro = ArticuloExportFiltro(
+        busqueda: widget.busqueda,
+        categoryIds: _appliedFilter.categoryIds,
+        incluirSinCategoria: _appliedFilter.includeUncategorized,
+      );
+      final archivo = switch (formato) {
+        _FormatoExportacion.csv => await servicio.exportarCatalogo(filtro),
+        _FormatoExportacion.pdf => await servicio.exportarCatalogoPdf(filtro),
+      };
+      await _compartir(archivo.ruta);
+      if (!mounted) return;
+      _avisar(
+        archivo.productosTotales == null
+            ? 'Se exportó el catálogo: ${archivo.productos} artículos.'
+            : 'Se exportan ${archivo.productos} de '
+                  '${archivo.productosTotales} artículos con los filtros '
+                  'aplicados.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _avisar('No se pudo exportar el catálogo. Inténtalo de nuevo.');
+    } finally {
+      if (mounted) setState(() => _exportando = null);
+    }
+  }
+
+  Future<void> _compartir(String ruta) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origen = box == null
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
+    await (widget.shareFile ?? SharePlus.instance.share)(
+      ShareParams(
+        files: [XFile(ruta)],
+        fileNameOverrides: [ruta.split(RegExp(r'[/\\]')).last],
+        title: 'Compartir catálogo',
+        sharePositionOrigin: origen,
+        downloadFallbackEnabled: false,
+      ),
+    );
+  }
+
+  void _avisar(String mensaje) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(mensaje)));
+  }
 }
+
+/// Formato del archivo que se está generando. Los dos botones comparten el
+/// estado para que no se puedan lanzar dos exportaciones a la vez.
+enum _FormatoExportacion { csv, pdf }
 
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
     required this.appliedFilter,
     required this.onShowAll,
     required this.onOpenFilters,
+    required this.exportando,
+    required this.onExportCsv,
+    required this.onExportPdf,
   });
 
   final FiltroArticulos appliedFilter;
   final VoidCallback onShowAll;
   final VoidCallback onOpenFilters;
+  final _FormatoExportacion? exportando;
+  final VoidCallback onExportCsv;
+  final VoidCallback onExportPdf;
 
   @override
   Widget build(BuildContext context) {
@@ -238,9 +325,39 @@ class _FilterBar extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              key: const Key('export_articles_csv_button'),
+              onPressed: exportando == null ? onExportCsv : null,
+              icon: _iconoExportando(
+                _FormatoExportacion.csv,
+                Icons.download_outlined,
+              ),
+              label: const Text('CSV'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              key: const Key('export_articles_pdf_button'),
+              onPressed: exportando == null ? onExportPdf : null,
+              icon: _iconoExportando(
+                _FormatoExportacion.pdf,
+                Icons.picture_as_pdf_outlined,
+              ),
+              label: const Text('PDF'),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  /// El spinner va solo en el botón que está trabajando, para que se vea cuál
+  /// de los dos está generando.
+  Widget _iconoExportando(_FormatoExportacion formato, IconData icono) {
+    if (exportando != formato) return Icon(icono);
+    return const SizedBox.square(
+      dimension: 16,
+      child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
 }

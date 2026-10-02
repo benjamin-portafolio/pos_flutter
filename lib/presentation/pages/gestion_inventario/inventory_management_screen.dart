@@ -1,3 +1,4 @@
+import '../../../application/import/articulo_import_batch_service.dart';
 import '../../../domain/articulos/articulo_listado.dart';
 import 'articulos/models/articulo_preview_form.dart';
 import 'dart:async';
@@ -11,6 +12,7 @@ import '../../../application/commands/articulos/crear_articulo_recipe_component_
 import '../../../application/commands/categorias/crear_categoria_command.dart';
 import '../../../application/commands/inventario/crear_recurso_inventario_command.dart';
 import '../../../application/commands/inventario/editar_recurso_inventario_command.dart';
+import '../../../application/commands/inventario/registrar_movimiento_inventario_command.dart';
 import '../../../application/commands/categorias/editar_categoria_command.dart';
 import '../../../application/commands/categorias/eliminar_categoria_command.dart';
 import '../../../application/commands/categorias/mover_categoria_command.dart';
@@ -37,9 +39,11 @@ import 'categorias/widgets/category_destination_picker_dialog.dart';
 import 'categorias/widgets/delete_category_dialog.dart';
 import 'categorias/widgets/delete_category_options_dialog.dart';
 import 'categorias/widgets/delete_category_products_confirmation_dialog.dart';
+import 'carga_masiva/bulk_import_screen.dart';
 import 'recursos/inventory_resource_form_screen.dart';
 import 'recursos/inventory_resources_tab.dart';
 import 'recursos/models/inventory_resource_form_result.dart';
+import 'recursos/models/inventory_movement_draft.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
@@ -296,6 +300,31 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       onAddArticle: () => _openArticleForm(context),
       onAddCategory: () => _openCategoryForm(context),
       onAddInventoryResource: () => _openInventoryResourceForm(context),
+      onBulkImport: () => _openBulkImport(context),
+    );
+  }
+
+  /// La carga masiva abre su propia pantalla (D11): allí se baja la plantilla
+  /// y se elige el archivo.
+  void _openBulkImport(BuildContext context) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => BulkImportScreen(
+          batchService: widget.productoCommandService == null
+              ? null
+              : ArticuloImportBatchService(
+                  productoCommandService: widget.productoCommandService!,
+                  unidadInventarioRepository:
+                      widget.unidadInventarioRepository ??
+                      getIt<UnidadInventarioRepository>(),
+                ),
+          categoriaRepository: widget.categoriaRepository,
+          productoRepository: widget.productoRepository,
+          unidadInventarioRepository:
+              widget.unidadInventarioRepository ??
+              getIt<UnidadInventarioRepository>(),
+        ),
+      ),
     );
   }
 
@@ -342,6 +371,22 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         defaultUnitId: result.unidad.id,
         quantityDeltaAtomic: result.quantityDeltaAtomic,
         movementReason: result.movementReason,
+      ),
+    );
+  }
+
+  Future<void> _registerInventoryMovement(
+    String inventoryItemId,
+    InventoryMovementDraft movement,
+  ) {
+    final service =
+        widget.inventoryCommandService ?? getIt<InventoryCommandService>();
+    return service.registrarMovimiento(
+      RegistrarMovimientoInventarioCommand(
+        inventoryItemId: inventoryItemId,
+        movementType: movement.movementType,
+        quantityDeltaAtomic: movement.quantityDeltaAtomic,
+        movementReason: movement.reason,
       ),
     );
   }
@@ -435,6 +480,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                     ? getIt<RecursoInventarioRepository>()
                     : null),
             onCreateInventoryResource: _createInventoryResource,
+            onRegisterInventoryMovement: _registerInventoryMovement,
             onSave: detail.lastEventId == null
                 ? null
                 : (result) {
@@ -495,6 +541,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             unidadesVenta: unidades,
             inventoryResourceRepository: widget.recursoInventarioRepository,
             onCreateInventoryResource: _createInventoryResource,
+            onRegisterInventoryMovement: _registerInventoryMovement,
             onSave: _createArticle,
           ),
         ),

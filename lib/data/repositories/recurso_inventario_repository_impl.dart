@@ -28,27 +28,32 @@ class RecursoInventarioRepositoryImpl implements RecursoInventarioRepository {
             InventoryResourceFilter.withoutStock => 'without_stock',
           },
         )
-        .map(
-          (rows) => rows
-              .map(
-                (row) => RecursoInventarioListado(
-                  id: row.id,
-                  nombre: row.name,
-                  activo: row.active,
-                  existenciaAtomica: row.quantityOnHandAtomic,
-                  unidadPredeterminada: UnidadInventario(
-                    id: row.unitId,
-                    code: row.unitCode,
-                    nombre: row.unitName,
-                    simbolo: row.symbol,
-                    dimension: DimensionUnidad.fromCode(row.dimension),
-                    factorAtomico: row.atomicFactor,
-                    maximosDecimales: row.maxFractionDigits,
-                    activa: row.unitActive,
-                  ),
-                ),
-              )
-              .toList(growable: false),
-        );
+        .map((rows) => rows.map(_map).toList(growable: false));
+  }
+
+  @override
+  Stream<RecursoInventarioListado?> watchRecursoPorId(String id) {
+    return _inventoryDao
+        .watchRecursoPorId(id)
+        .map((row) => row == null ? null : _map(row));
+  }
+
+  RecursoInventarioListado _map(InventoryListingRow row) {
+    return RecursoInventarioListado(
+      id: row.id,
+      nombre: row.name,
+      activo: row.active,
+      existenciaAtomica: row.quantityOnHandAtomic,
+      unidadPredeterminada: UnidadInventario(
+        id: row.unitId,
+        code: row.unitCode,
+        nombre: row.unitName,
+        simbolo: row.symbol,
+        dimension: DimensionUnidad.fromCode(row.dimension),
+        factorAtomico: row.atomicFactor,
+        maximosDecimales: row.maxFractionDigits,
+        activa: row.unitActive,
+      ),
+    );
   }
 }

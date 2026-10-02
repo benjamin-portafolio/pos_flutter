@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/inventario/crear_recurso_inventario_command.dart';
 import 'package:pos_flutter/application/commands/inventario/editar_recurso_inventario_command.dart';
 import 'package:pos_flutter/application/commands/inventario/inventory_command_service.dart';
+import 'package:pos_flutter/application/commands/inventario/registrar_movimiento_inventario_command.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
@@ -16,6 +17,7 @@ import 'package:pos_flutter/application/sync/handlers/inventory_event_registry.d
 import 'package:pos_flutter/application/sync/local_event_store.dart';
 import 'package:pos_flutter/application/sync/models/sync_event.dart';
 import 'package:pos_flutter/application/sync/payloads/recurso_inventario_creado_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/movimiento_inventario_registrado_payload.dart';
 import 'package:pos_flutter/application/sync/remote_event_applier.dart';
 import 'package:pos_flutter/application/sync/server_echo_acknowledger.dart';
 import 'package:pos_flutter/application/sync/sync_conflict_projection_cleaner.dart';
@@ -88,6 +90,133 @@ void main() {
       },
     );
   }
+
+  for (final mode in [AppMode.standalone, AppMode.serverSync]) {
+    test(
+      '${mode.name} registra solo movimiento con refs e idempotencia',
+      () async {
+        final service = InventoryCommandService(
+          eventStore: _eventStore(db, projectionStore, mode),
+          commandContext: const LocalCommandContext(
+            deviceId: 'device',
+            userId: 'user',
+          ),
+          inventoryProjectionStore: projectionStore,
+        );
+        await service.crearRecurso(
+          const CrearRecursoInventarioCommand(
+            nombre: 'Harina',
+            defaultUnitId: InventoryUnitIds.kilogram,
+          ),
+        );
+        final original = (await db.select(db.inventoryItems).get()).single;
+        await service.registrarMovimiento(
+          RegistrarMovimientoInventarioCommand(
+            inventoryItemId: ' ${original.id} ',
+            movementType: TipoMovimientoInventario.manualAdjustment,
+            quantityDeltaAtomic: -250,
+            movementReason: ' Conteo físico ',
+          ),
+        );
+        final events = await db.select(db.events).get();
+        final row = events.singleWhere(
+          (e) => e.eventType == MovimientoInventarioRegistradoPayload.eventType,
+        );
+        final payload = MovimientoInventarioRegistradoPayload.fromJson(
+          (jsonDecode(row.payload) as Map).cast<String, Object?>(),
+        );
+        expect(events, hasLength(2));
+        expect(payload.baseEventId, original.lastEventId);
+        expect(payload.movement.reason, 'Conteo físico');
+        expect(payload.movement.quantityDeltaAtomic, -250);
+        expect(row.baseVersion, original.version);
+        expect(
+          row.deliveryStatus,
+          mode == AppMode.standalone ? 'not_required' : 'pending',
+        );
+        final refs = await (db.select(
+          db.eventRefs,
+        )..where((ref) => ref.eventId.equals(row.eventId))).get();
+        expect(
+          refs.map((ref) => ref.refType),
+          mode == AppMode.standalone
+              ? isEmpty
+              : unorderedEquals(['inventory_item', 'inventory_movement']),
+        );
+        // Reaplicar el mismo evento conserva una sola fila y no suma otra vez.
+        await EventProcessor(
+          handlers: inventoryEventHandlers(
+            InventoryEventHandler(projectionStore),
+          ),
+        ).apply(
+          SyncEvent(
+            eventId: row.eventId,
+            aggregateType: row.aggregateType,
+            aggregateId: row.aggregateId,
+            eventType: row.eventType,
+            deviceId: row.deviceId,
+            userId: row.userId,
+            baseVersion: row.baseVersion,
+            createdAtLocal: row.createdAtLocal,
+            payload: payload.toJson(),
+          ),
+        );
+        final item = (await db.select(db.inventoryItems).get()).single;
+        expect(item.name, original.name);
+        expect(item.defaultUnitId, original.defaultUnitId);
+        expect(
+          (await db.select(db.inventoryBalances).get())
+              .single
+              .quantityOnHandAtomic,
+          -250,
+        );
+        expect(await db.select(db.inventoryMovements).get(), hasLength(1));
+      },
+    );
+  }
+
+  test('movimiento independiente inválido no genera eventos', () async {
+    final service = InventoryCommandService(
+      eventStore: _eventStore(db, projectionStore, AppMode.standalone),
+      commandContext: const LocalCommandContext(
+        deviceId: 'device',
+        userId: 'user',
+      ),
+      inventoryProjectionStore: projectionStore,
+    );
+    await service.crearRecurso(
+      const CrearRecursoInventarioCommand(
+        nombre: 'Harina',
+        defaultUnitId: InventoryUnitIds.kilogram,
+      ),
+    );
+    final itemId = (await db.select(db.inventoryItems).get()).single.id;
+    for (final invalid in [
+      (TipoMovimientoInventario.stockReceipt, 0, null),
+      (TipoMovimientoInventario.stockReceipt, -1, null),
+      (TipoMovimientoInventario.manualAdjustment, -1, '  '),
+      (TipoMovimientoInventario.initialBalance, 1, null),
+      (TipoMovimientoInventario.reversal, 1, null),
+    ]) {
+      await expectLater(
+        service.registrarMovimiento(
+          RegistrarMovimientoInventarioCommand(
+            inventoryItemId: itemId,
+            movementType: invalid.$1,
+            quantityDeltaAtomic: invalid.$2,
+            movementReason: invalid.$3,
+          ),
+        ),
+        throwsA(anyOf(isA<FormatException>(), isA<ArgumentError>())),
+      );
+    }
+    expect(await db.select(db.events).get(), hasLength(1));
+    expect(await db.select(db.inventoryMovements).get(), isEmpty);
+    expect(
+      (await db.select(db.inventoryBalances).get()).single.quantityOnHandAtomic,
+      0,
+    );
+  });
 
   test('sin cantidad crea saldo cero y no crea movimiento', () async {
     final service = InventoryCommandService(

@@ -16,6 +16,8 @@ import 'package:get_it/get_it.dart';
 
 import '../../application/config/app_config.dart';
 import '../../application/config/app_config_store.dart';
+import '../../application/export/articulo_catalog_export_service.dart';
+import '../../application/import/articulo_catalog_import_service.dart';
 import '../../application/identity/device_identity_provider.dart';
 import '../../application/backup/backup_service.dart';
 import '../../application/backup/backup_store.dart';
@@ -32,6 +34,8 @@ import '../../application/sync/sync_persistence.dart';
 import '../../application/sync/synced_event_history.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/config/app_config_file_store.dart';
+import '../../data/local/export/drift_articulo_catalog_export_service.dart';
+import '../../data/local/import/articulo_import_csv.dart';
 import '../../data/google_drive/google_drive_auth_service.dart';
 import '../../data/google_drive/google_drive_backup_store.dart';
 import '../../data/local/backup/database_restore_service.dart';
@@ -239,6 +243,17 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<AccountBalanceBaselineRepository>(
     () => AccountBalanceBaselineRepositoryImpl(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<ArticuloCatalogExportService>(
+    () => DriftArticuloCatalogExportService(
+      productoDao: getIt<ProductoDao>(),
+      configStore: getIt<AppConfigStore>(),
+    ),
+  );
+  // El servicio de validación no lee la base: recibe el catálogo ya resuelto
+  // desde la pantalla, así que es una implementación pura, sin Drift.
+  getIt.registerLazySingleton<ArticuloCatalogImportService>(
+    () => const ArticuloImportCsv(),
   );
 
   return DataDependencyBootstrap(

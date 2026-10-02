@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:pos_flutter/application/export/articulo_catalog_export_service.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
@@ -202,6 +206,329 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('el botón de CSV va después de Filtros en la misma fila', (
+    tester,
+  ) async {
+    await _pumpTab(tester, repository: _FakeProductoRepository(_articles));
+
+    final filtros = tester.getTopLeft(
+      find.byKey(const Key('open_article_filters_button')),
+    );
+    final exportar = tester.getTopLeft(
+      find.byKey(const Key('export_articles_csv_button')),
+    );
+
+    expect(exportar.dx, greaterThan(filtros.dx));
+    // La barra es una fila horizontal con scroll: los controles comparten dy.
+    expect(exportar.dy, filtros.dy);
+  });
+
+  testWidgets('el botón exporta con los filtros aplicados y avisa el conteo', (
+    tester,
+  ) async {
+    final exportService = _FakeExportService();
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: exportService,
+    );
+
+    await _applyCategory(tester, 'category-1');
+    await tester.tap(find.byKey(const Key('export_articles_csv_button')));
+    await tester.pumpAndSettle();
+
+    // La presentación pasa el filtro; el servicio no lee estado de la UI.
+    expect(exportService.filtros, hasLength(1));
+    expect(exportService.filtros.single.categoryIds, {'category-1'});
+    expect(exportService.filtros.single.incluirSinCategoria, isFalse);
+    expect(exportService.filtros.single.busqueda, '');
+    expect(
+      find.text('Se exportan 2 de 4 artículos con los filtros aplicados.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('la búsqueda también viaja como parámetro del filtro', (
+    tester,
+  ) async {
+    final exportService = _FakeExportService();
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: exportService,
+      search: 'café',
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_csv_button')));
+    await tester.pumpAndSettle();
+
+    expect(exportService.filtros.single.busqueda, 'café');
+    expect(exportService.filtros.single.categoryIds, isEmpty);
+  });
+
+  testWidgets('Sin categoría viaja como parte del filtro aplicado', (
+    tester,
+  ) async {
+    final exportService = _FakeExportService();
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: exportService,
+    );
+
+    await tester.tap(find.byKey(const Key('open_article_filters_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('article_filter_without_category')));
+    await tester.tap(find.byKey(const Key('apply_article_filters_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('export_articles_csv_button')));
+    await tester.pumpAndSettle();
+
+    expect(exportService.filtros.single.incluirSinCategoria, isTrue);
+  });
+
+  testWidgets('sin filtros el archivo es el catálogo completo y lo dice', (
+    tester,
+  ) async {
+    final exportService = _FakeExportService();
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: exportService,
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_csv_button')));
+    await tester.pumpAndSettle();
+
+    expect(exportService.filtros.single.hayFiltros, isFalse);
+    expect(find.text('Se exportó el catálogo: 4 artículos.'), findsOneWidget);
+  });
+
+  testWidgets('el archivo del servicio se comparte con su nombre', (
+    tester,
+  ) async {
+    ShareParams? compartida;
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      shareFile: (params) async {
+        compartida = params;
+        return const ShareResult('', ShareResultStatus.success);
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_csv_button')));
+    await tester.pumpAndSettle();
+
+    expect(compartida, isNotNull);
+    final params = compartida!;
+    expect(params.files!.single.path, '/tmp/catalogo_2026-09-30.csv');
+    expect(params.fileNameOverrides, ['catalogo_2026-09-30.csv']);
+  });
+
+  testWidgets('una falla al exportar avisa y rehabilita el botón', (
+    tester,
+  ) async {
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: _FakeExportService(falla: true),
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_csv_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No se pudo exportar el catálogo. Inténtalo de nuevo.'),
+      findsOneWidget,
+    );
+    final boton = tester.widget<OutlinedButton>(
+      find.byKey(const Key('export_articles_csv_button')),
+    );
+    expect(boton.onPressed, isNotNull);
+  });
+
+  testWidgets('el botón de PDF va al lado del de CSV en la misma fila', (
+    tester,
+  ) async {
+    await _pumpTab(tester, repository: _FakeProductoRepository(_articles));
+
+    final csv = tester.getTopLeft(
+      find.byKey(const Key('export_articles_csv_button')),
+    );
+    final pdf = tester.getTopLeft(
+      find.byKey(const Key('export_articles_pdf_button')),
+    );
+
+    expect(pdf.dx, greaterThan(csv.dx));
+    // La barra es una fila horizontal con scroll: los controles comparten dy.
+    expect(pdf.dy, csv.dy);
+  });
+
+  testWidgets(
+    'el botón de PDF exporta con los filtros aplicados y avisa el conteo',
+    (tester) async {
+      final exportService = _FakeExportService();
+      await _pumpTab(
+        tester,
+        repository: _FakeProductoRepository(_articles),
+        exportService: exportService,
+      );
+
+      await _applyCategory(tester, 'category-1');
+      await tester.tap(find.byKey(const Key('export_articles_pdf_button')));
+      await tester.pumpAndSettle();
+
+      // El PDF usa el método de PDF, no el de CSV: son dos artefactos (D8).
+      expect(exportService.formatos, ['pdf']);
+      expect(exportService.filtros.single.categoryIds, {'category-1'});
+      expect(
+        find.text('Se exportan 2 de 4 artículos con los filtros aplicados.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('el PDF se comparte con su nombre y con su extensión', (
+    tester,
+  ) async {
+    ShareParams? compartida;
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: _FakeExportService(),
+      shareFile: (params) async {
+        compartida = params;
+        return const ShareResult('', ShareResultStatus.success);
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_pdf_button')));
+    await tester.pumpAndSettle();
+
+    expect(compartida!.files!.single.path, '/tmp/catalogo_2026-09-30.pdf');
+    expect(compartida!.fileNameOverrides, ['catalogo_2026-09-30.pdf']);
+  });
+
+  testWidgets('mientras se genera un formato, el otro botón queda bloqueado', (
+    tester,
+  ) async {
+    final exportService = _LentaExportService();
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: exportService,
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_pdf_button')));
+    await tester.pump();
+
+    // Los dos se bloquean juntos: dos archivos compitiendo por el directorio
+    // temporal y dos diálogos de compartir no son un estado que el usuario quiera.
+    final csv = tester.widget<OutlinedButton>(
+      find.byKey(const Key('export_articles_csv_button')),
+    );
+    final pdf = tester.widget<OutlinedButton>(
+      find.byKey(const Key('export_articles_pdf_button')),
+    );
+    expect(pdf.onPressed, isNull);
+    expect(csv.onPressed, isNull);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // Se suelta la exportación y el spinner desaparece: por eso no se puede
+    // usar `pumpAndSettle` mientras está generando, el indicador no para nunca.
+    exportService.permiso.complete();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const Key('export_articles_csv_button')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const Key('export_articles_pdf_button')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(exportService.formatos, ['pdf']);
+  });
+
+  testWidgets('una falla al generar el PDF avisa lo mismo que el CSV', (
+    tester,
+  ) async {
+    await _pumpTab(
+      tester,
+      repository: _FakeProductoRepository(_articles),
+      exportService: _FakeExportService(falla: true),
+    );
+
+    await tester.tap(find.byKey(const Key('export_articles_pdf_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No se pudo exportar el catálogo. Inténtalo de nuevo.'),
+      findsOneWidget,
+    );
+  });
+}
+
+/// Exportación que no termina hasta que el test la suelta, para poder mirar los
+/// botones mientras el archivo se está generando.
+class _LentaExportService implements ArticuloCatalogExportService {
+  final List<String> formatos = [];
+  final Completer<void> permiso = Completer<void>();
+
+  @override
+  Future<ArticuloExportArchivo> exportarCatalogo(
+    ArticuloExportFiltro filtro,
+  ) async {
+    formatos.add('csv');
+    await permiso.future;
+    return _archivo(filtro, '/tmp/catalogo_2026-09-30.csv');
+  }
+
+  @override
+  Future<ArticuloExportArchivo> exportarCatalogoPdf(
+    ArticuloExportFiltro filtro,
+  ) async {
+    formatos.add('pdf');
+    await permiso.future;
+    return _archivo(filtro, '/tmp/catalogo_2026-09-30.pdf');
+  }
+
+  ArticuloExportArchivo _archivo(ArticuloExportFiltro filtro, String ruta) {
+    return ArticuloExportArchivo(
+      ruta: ruta,
+      productos: 4,
+      filas: 4,
+      productosTotales: filtro.hayFiltros ? 4 : null,
+    );
+  }
+
+  @override
+  Future<ArticuloExportArchivo> exportarPlantilla() async =>
+      const ArticuloExportArchivo(
+        ruta: '/tmp/plantilla.csv',
+        productos: 0,
+        filas: 0,
+      );
+
+  @override
+  Future<ArticuloExportArchivo> exportarNotasColumnas() async =>
+      const ArticuloExportArchivo(
+        ruta: '/tmp/notas.csv',
+        productos: 0,
+        filas: 0,
+      );
 }
 
 Future<void> _pumpTab(
@@ -212,6 +539,8 @@ Future<void> _pumpTab(
   ),
   String search = '',
   VoidCallback? onClearSearch,
+  ArticuloCatalogExportService? exportService,
+  Future<ShareResult> Function(ShareParams)? shareFile,
   bool settle = true,
 }) async {
   await tester.pumpWidget(
@@ -223,6 +552,13 @@ Future<void> _pumpTab(
           busqueda: search,
           onClearSearch: onClearSearch ?? () {},
           onAddArticle: () {},
+          exportService: exportService ?? _FakeExportService(),
+          // Por defecto no se comparte de verdad: `share_plus` necesita una
+          // plataforma detrás y en pruebas no resuelve.
+          shareFile:
+              shareFile ??
+              (params) async =>
+                  const ShareResult('', ShareResultStatus.success),
         ),
       ),
     ),
@@ -326,6 +662,66 @@ class _SequencedProductoRepository implements ProductoRepository {
 
   @override
   Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
+}
+
+class _FakeExportService implements ArticuloCatalogExportService {
+  _FakeExportService({this.falla = false});
+
+  final bool falla;
+  final List<ArticuloExportFiltro> filtros = [];
+  final List<String> formatos = [];
+
+  @override
+  Future<ArticuloExportArchivo> exportarCatalogo(
+    ArticuloExportFiltro filtro,
+  ) async {
+    formatos.add('csv');
+    return _archivo(filtro, '/tmp/catalogo_2026-09-30.csv');
+  }
+
+  @override
+  Future<ArticuloExportArchivo> exportarCatalogoPdf(
+    ArticuloExportFiltro filtro,
+  ) async {
+    formatos.add('pdf');
+    return _archivo(filtro, '/tmp/catalogo_2026-09-30.pdf');
+  }
+
+  Future<ArticuloExportArchivo> _archivo(
+    ArticuloExportFiltro filtro,
+    String ruta,
+  ) async {
+    filtros.add(filtro);
+    if (falla) {
+      throw StateError('export error');
+    }
+    final productos = filtro.hayFiltros ? 2 : 4;
+    final productosTotales = filtro.hayFiltros ? 4 : null;
+    return ArticuloExportArchivo(
+      ruta: ruta,
+      productos: productos,
+      filas: productos,
+      productosTotales: productosTotales,
+    );
+  }
+
+  @override
+  Future<ArticuloExportArchivo> exportarPlantilla() async {
+    return const ArticuloExportArchivo(
+      ruta: '/tmp/plantilla.csv',
+      productos: 0,
+      filas: 0,
+    );
+  }
+
+  @override
+  Future<ArticuloExportArchivo> exportarNotasColumnas() async {
+    return const ArticuloExportArchivo(
+      ruta: '/tmp/notas.csv',
+      productos: 0,
+      filas: 0,
+    );
+  }
 }
 
 class _Query {

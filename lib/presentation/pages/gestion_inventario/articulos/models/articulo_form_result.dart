@@ -31,6 +31,7 @@ class ArticuloFormVarianteResult {
     this.inventoryUnitId,
     this.existenciaInicial,
     this.recipeComponents = const [],
+    this.linkedInventoryItemId,
   });
 
   final String? id;
@@ -44,6 +45,13 @@ class ArticuloFormVarianteResult {
   final String? inventoryUnitId;
   final String? existenciaInicial;
   final List<RecipeComponentFormResult> recipeComponents;
+
+  /// Recurso de inventario ya vinculado y persistido para esta variante.
+  ///
+  /// Solo identifica el recurso: no es un campo capturable ni una intención de
+  /// cambio del artículo. Su presencia decide si la variante muestra la captura
+  /// de existencia inicial o el acceso a movimientos de inventario.
+  final String? linkedInventoryItemId;
 
   bool get seguimientoExistencias => inventoryUnitId != null;
   bool get usaReceta => recipeComponents.isNotEmpty;
@@ -82,6 +90,7 @@ class ArticuloFormVarianteResult {
       recipeComponents: clearRecipeComponents
           ? const []
           : recipeComponents ?? this.recipeComponents,
+      linkedInventoryItemId: linkedInventoryItemId,
     );
   }
 }

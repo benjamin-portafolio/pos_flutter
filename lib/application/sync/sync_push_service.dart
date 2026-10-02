@@ -33,6 +33,9 @@ class SyncPushService {
        _conflictProjectionCleaner = conflictProjectionCleaner,
        _client = client ?? http.Client();
 
+  /// Los eventos restantes siguen pendientes para la siguiente vuelta del monitor.
+  static const maxEventsPerPush = 150;
+
   final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
   final SyncConflictProjectionCleaner _conflictProjectionCleaner;
@@ -44,7 +47,9 @@ class SyncPushService {
     final eligibleEvents = <SyncEvent>[];
     final waitingEvents = <SyncEvent>[];
     for (final event in events) {
-      final target = _dependsOnEventIds(event, pendingEventIds)
+      final target =
+          (eligibleEvents.length >= maxEventsPerPush ||
+              _dependsOnEventIds(event, pendingEventIds))
           ? waitingEvents
           : eligibleEvents;
       target.add(event);

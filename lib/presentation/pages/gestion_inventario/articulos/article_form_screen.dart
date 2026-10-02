@@ -12,6 +12,7 @@ import '../../../../domain/categorias/categoria.dart';
 import '../../../../domain/inventario/dimension_unidad.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
 import '../../../../domain/repositories/recurso_inventario_repository.dart';
+import '../recursos/models/inventory_movement_draft.dart';
 import '../recursos/models/inventory_resource_form_result.dart';
 import 'models/articulo_form_result.dart';
 import 'widgets/advanced_variants_section.dart';
@@ -26,6 +27,7 @@ class ArticleFormScreen extends StatefulWidget {
     this.initialValue,
     this.inventoryResourceRepository,
     this.onCreateInventoryResource,
+    this.onRegisterInventoryMovement,
     super.key,
   });
 
@@ -38,6 +40,11 @@ class ArticleFormScreen extends StatefulWidget {
   final RecursoInventarioRepository? inventoryResourceRepository;
   final Future<void> Function(InventoryResourceFormResult result)?
   onCreateInventoryResource;
+
+  /// Registra un movimiento sobre el recurso ya vinculado de una variante. Se
+  /// guarda por separado del artículo y no transporta nombre ni unidad.
+  final Future<void> Function(String inventoryItemId, InventoryMovementDraft)?
+  onRegisterInventoryMovement;
 
   @override
   State<ArticleFormScreen> createState() => _ArticleFormScreenState();
@@ -407,11 +414,12 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         builder: (context) => VariantEditorScreen(
           initialValue: variants[index],
           preview: widget.preview,
-          editing: widget.editing && variants[index].id != null,
           inventoryUnit: inventoryUnit,
           inventoryUnits: widget.unidadesVenta,
           inventoryResourceRepository: widget.inventoryResourceRepository,
           onCreateInventoryResource: widget.onCreateInventoryResource,
+          onRegisterInventoryMovement: widget.onRegisterInventoryMovement,
+          productName: _nameController.text.trim(),
           canDelete: true,
           isLastVariant: variants.length == 1,
           existingNameKeys: _variantNameKeys(excludingIndex: index),
@@ -454,6 +462,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           inventoryUnits: widget.unidadesVenta,
           inventoryResourceRepository: widget.inventoryResourceRepository,
           onCreateInventoryResource: widget.onCreateInventoryResource,
+          onRegisterInventoryMovement: widget.onRegisterInventoryMovement,
+          productName: _nameController.text.trim(),
           canDelete: false,
           existingNameKeys: _variantNameKeys(),
         ),

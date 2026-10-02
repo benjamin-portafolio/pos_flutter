@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -28,6 +28,45 @@ void main() {
     final flour = resources.first;
     expect(flour.existenciaAtomica, 2500);
     expect(flour.unidadPredeterminada.simbolo, 'kg');
+  });
+
+  test(
+    'consulta por identidad incluye saldo cero y omite inexistentes o inactivos',
+    () async {
+      await _insertResource(db, id: 'item-empty', name: 'Vacío', quantity: 0);
+      final resource = await repository.watchRecursoPorId('item-empty').first;
+      expect(resource?.id, 'item-empty');
+      expect(resource?.existenciaAtomica, 0);
+      expect(resource?.unidadPredeterminada.id, InventoryUnitIds.gram);
+      expect(await repository.watchRecursoPorId('missing').first, isNull);
+      expect(await repository.watchRecursoPorId('item-yeast').first, isNull);
+    },
+  );
+
+  test('observa cambios del saldo vigente y la desactivación', () async {
+    final emitted = <int?>[];
+    final negativeBalance = repository
+        .watchRecursoPorId('item-flour')
+        .firstWhere((resource) => resource?.existenciaAtomica == -500);
+    final subscription = repository
+        .watchRecursoPorId('item-flour')
+        .listen((resource) => emitted.add(resource?.existenciaAtomica));
+    await repository.watchRecursoPorId('item-flour').first;
+    await (db.update(
+      db.inventoryBalances,
+    )..where((balance) => balance.inventoryItemId.equals('item-flour'))).write(
+      const InventoryBalancesCompanion(quantityOnHandAtomic: Value(-500)),
+    );
+    expect((await negativeBalance)?.existenciaAtomica, -500);
+    final inactive = repository
+        .watchRecursoPorId('item-flour')
+        .firstWhere((resource) => resource == null);
+    await (db.update(db.inventoryItems)
+          ..where((item) => item.id.equals('item-flour')))
+        .write(const InventoryItemsCompanion(active: Value(false)));
+    expect(await inactive, isNull);
+    expect(emitted, containsAllInOrder([2500, -500]));
+    await subscription.cancel();
   });
 
   test('aplica búsqueda solo sobre recursos activos', () async {

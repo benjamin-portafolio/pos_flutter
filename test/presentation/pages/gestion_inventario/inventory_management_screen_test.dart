@@ -383,6 +383,33 @@ void main() {
     },
   );
 
+  testWidgets('Carga masiva abre su propia pantalla y no toca el catálogo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          unidadInventarioRepository: _PreviewUnitRepository(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Agregar'));
+    await tester.pumpAndSettle();
+
+    final lecturasAntes = productoRepository.queries.length;
+    await tester.tap(find.byKey(const Key('bulk_import_option')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bulk_import_screen')), findsOneWidget);
+    expect(find.text('Descargar plantilla'), findsOneWidget);
+    expect(find.text('Elegir archivo CSV'), findsOneWidget);
+    // Abrir la pantalla no da de alta nada: ni una lectura del catálogo de más.
+    expect(productoRepository.queries, hasLength(lecturasAntes));
+  });
+
   testWidgets('abre el menú completo y crea una categoría con color', (
     tester,
   ) async {
@@ -405,6 +432,7 @@ void main() {
     expect(find.text('Añadir modificador'), findsOneWidget);
     expect(find.text('Añadir recurso de inventario'), findsOneWidget);
     expect(find.text('Edición masiva'), findsOneWidget);
+    expect(find.text('Carga masiva'), findsOneWidget);
 
     await tester.tap(find.text('Añadir categoría'));
     await tester.pumpAndSettle();
@@ -970,6 +998,12 @@ class _FakeInventoryResourceRepository implements RecursoInventarioRepository {
   final List<RecursoInventarioListado> resources;
 
   @override
+  Stream<RecursoInventarioListado?> watchRecursoPorId(String id) =>
+      Stream.value(
+        resources.where((resource) => resource.id == id).firstOrNull,
+      );
+
+  @override
   Stream<List<RecursoInventarioListado>> watchRecursos({
     String busqueda = '',
     InventoryResourceFilter filtro = InventoryResourceFilter.all,
@@ -1019,6 +1053,9 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
 }
 
 class _FakeProductoCommandService implements ProductoCommandService {
+  @override
+  Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) async {}
+
   @override
   Future<void> eliminarArticulo({
     required String productId,

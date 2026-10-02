@@ -1,3 +1,4 @@
+import '../../application/import/articulo_import_batch_service.dart';
 import '../../application/commands/caja/caja_command_service.dart';
 import '../../application/commands/cuenta/cuenta_command_service.dart';
 import '../../application/sync/handlers/cash_event_handler.dart';
@@ -506,6 +507,12 @@ void registerApplicationDependencies(
       syncedEventHistory: getIt<SyncedEventHistory>(),
       unidadInventarioRepository: getIt<UnidadInventarioRepository>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<ArticuloImportBatchService>(
+    () => ArticuloImportBatchService(
+      productoCommandService: getIt<ProductoCommandService>(),
+      unidadInventarioRepository: getIt<UnidadInventarioRepository>(),
     ),
   );
   getIt.registerLazySingleton<InventoryCommandService>(

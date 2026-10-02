@@ -36,6 +36,9 @@ class ArticuloPreviewForm {
               inventoryUnitId: variant.inventoryItemId == null
                   ? null
                   : resource(variant.inventoryItemId!).unidadPredeterminada.id,
+              // Identidad del recurso ya vinculado. No es un campo capturable:
+              // solo habilita el acceso a movimientos en el editor de variante.
+              linkedInventoryItemId: variant.inventoryItemId,
               recipeComponents: variant.componentesReceta.entries
                   .map((entry) {
                     final recurso = resource(entry.key);
