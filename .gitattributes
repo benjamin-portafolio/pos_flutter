@@ -1,0 +1,3 @@
+# Normaliza finales de linea en el repositorio para evitar diferencias
+# falsas entre Windows (CRLF) y macOS/Linux (LF).
+* text=auto
