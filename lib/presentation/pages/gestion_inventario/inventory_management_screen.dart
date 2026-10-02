@@ -211,21 +211,9 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       autofocus: true,
       textInputAction: TextInputAction.search,
       onChanged: _onSearchChanged,
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         hintText: 'Buscar artículos',
         border: InputBorder.none,
-        suffixIcon: ValueListenableBuilder<TextEditingValue>(
-          valueListenable: _searchController,
-          builder: (context, value, _) {
-            if (value.text.isEmpty) return const SizedBox.shrink();
-            return IconButton(
-              key: const Key('clear_article_search_button'),
-              onPressed: _clearSearch,
-              tooltip: 'Limpiar búsqueda',
-              icon: const Icon(Icons.clear),
-            );
-          },
-        ),
       ),
     );
   }
