@@ -8,21 +8,34 @@ class RecursoInventarioCreadoPayload {
     required this.name,
     required this.defaultUnitId,
     required this.initialMovement,
+    this.originVariantId,
   });
 
   static const aggregateType = 'inventory_item';
   static const eventType = 'recurso_inventario_creado';
+
+  /// Clave del origen dentro de `inventory_item`. La comparten este contrato y
+  /// los registros, revalidadores y pruebas: no se repite el literal.
+  static const originVariantIdField = 'origin_variant_id';
 
   final String inventoryItemId;
   final String name;
   final String defaultUnitId;
   final InventoryMovementPayload? initialMovement;
 
+  /// Procedencia: variante que originó el recurso. Solo este evento la
+  /// establece; editar el nombre o mover stock no la modifica. Es una
+  /// identidad, no una FK: el recurso se aplica antes de que exista la
+  /// variante. Null significa desconocido (recursos independientes, eventos
+  /// legados y `null` explícito).
+  final String? originVariantId;
+
   factory RecursoInventarioCreadoPayload.create({
     required String inventoryItemId,
     required String name,
     required String defaultUnitId,
     InventoryMovementPayload? initialMovement,
+    String? originVariantId,
   }) {
     if (initialMovement != null &&
         initialMovement.movementType !=
@@ -42,6 +55,7 @@ class RecursoInventarioCreadoPayload {
         'inventory_item.default_unit_id',
       ),
       initialMovement: initialMovement,
+      originVariantId: _optionalOriginVariantId(originVariantId),
     );
   }
 
@@ -79,6 +93,7 @@ class RecursoInventarioCreadoPayload {
         'inventory_item.default_unit_id',
       ),
       initialMovement: movement,
+      originVariantId: _readOriginVariantId(item),
     );
   }
 
@@ -87,12 +102,41 @@ class RecursoInventarioCreadoPayload {
       'inventory_item_id': inventoryItemId,
       'name': name,
       'default_unit_id': defaultUnitId,
+      // Se omite cuando no hay procedencia: la forma canónica de un recurso
+      // independiente o legado no cambia y no se inventa un origen.
+      if (originVariantId != null) originVariantIdField: originVariantId,
     },
     'initial_movement': initialMovement?.toJson(),
   };
 }
 
 typedef InitialInventoryMovementPayload = InventoryMovementPayload;
+
+String? _optionalOriginVariantId(String? value) {
+  if (value == null) return null;
+  return InventoryMovementPayload.requiredUuidV4(
+    value,
+    'inventory_item.'
+    '${RecursoInventarioCreadoPayload.originVariantIdField}',
+  );
+}
+
+/// Ausencia y `null` se leen como desconocido. Un valor presente debe ser un
+/// UUID v4; cualquier otra cosa se rechaza en lugar de convertirse en `null`.
+String? _readOriginVariantId(Map<String, Object?> item) {
+  final raw = item[RecursoInventarioCreadoPayload.originVariantIdField];
+  if (raw == null) return null;
+  if (raw is! String) {
+    throw FormatException(
+      'inventory_item.${RecursoInventarioCreadoPayload.originVariantIdField} '
+      'debe ser un UUID v4 o null.',
+    );
+  }
+  return InventoryMovementPayload.requiredUuidV4(
+    raw,
+    'inventory_item.${RecursoInventarioCreadoPayload.originVariantIdField}',
+  );
+}
 
 Map<String, Object?> _requiredMap(Object? value, String fieldName) {
   if (value is Map<String, Object?>) return value;

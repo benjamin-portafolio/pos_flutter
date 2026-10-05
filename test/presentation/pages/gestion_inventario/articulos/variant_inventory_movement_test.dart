@@ -1,3 +1,5 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_tracking_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -472,6 +474,9 @@ class _Fixture {
           ...productoEventHandlers(
             ProductoEventHandler(
               productProjection,
+              variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+                dao: VariantInventoryMemoryDao(db),
+              ),
               inventoryProjectionStore: inventoryProjection,
             ),
           ),
@@ -491,6 +496,13 @@ class _Fixture {
       inventoryProjectionStore: inventoryProjection,
     );
     productCommands = ProductoCommandService(
+      variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+        dao: VariantInventoryMemoryDao(db),
+      ),
+      variantInventoryTrackingStore: DriftVariantInventoryTrackingStore(
+        inventoryDao: InventoryDao(db),
+        productoDao: ProductoDao(db),
+      ),
       eventStore: eventStore,
       commandContext: context,
       categoriaProjectionStore: DriftCategoriaProjectionStore(

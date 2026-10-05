@@ -97,6 +97,9 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
     if (status == 'delivered') {
       if (serverSequence != null) {
         await DriftConfirmedSaleStore(_db).acknowledge(eventId, serverSequence);
+        await VariantInventoryMemoryDao(
+          _db,
+        ).avanzarSecuenciaEvento(eventId, serverSequence);
       }
       await (_db.delete(
         _db.productUpdateUndo,

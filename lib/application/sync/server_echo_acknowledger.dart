@@ -1,3 +1,4 @@
+import 'projections/variant_inventory_memory_store.dart';
 import 'projections/cash_projection_store.dart';
 import 'projections/account_balance_baseline_projection_store.dart';
 import 'payloads/cliente_actualizado_payload.dart';
@@ -28,6 +29,7 @@ import 'projections/producto_projection_store.dart';
 
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
+    this.variantInventoryMemoryStore,
     this.cashProjectionStore,
     this.accountBalanceBaselineProjectionStore,
     this.confirmedSaleStore,
@@ -44,6 +46,7 @@ class ServerEchoAcknowledger {
        _financialCategoryProjectionStore = financialCategoryProjectionStore,
        _financialEntryProjectionStore = financialEntryProjectionStore;
 
+  final VariantInventoryMemoryStore? variantInventoryMemoryStore;
   final CashProjectionStore? cashProjectionStore;
   final AccountBalanceBaselineProjectionStore?
   accountBalanceBaselineProjectionStore;
@@ -116,6 +119,10 @@ class ServerEchoAcknowledger {
         return;
       case ProductoActualizadoPayload.eventType:
       case ProductoCreadoPayload.eventType:
+        await variantInventoryMemoryStore?.advanceEventServerSequence(
+          event.eventId,
+          serverSequence,
+        );
         await _productoProjectionStore?.advanceLastServerSequence(
           event.aggregateId,
           serverSequence,

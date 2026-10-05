@@ -48,6 +48,10 @@ import '../../data/local/drift/drift_financial_category_projection_store.dart';
 import '../../data/local/drift/drift_financial_entry_projection_store.dart';
 import '../../data/local/drift/drift_inventory_projection_store.dart';
 import '../../data/local/drift/drift_producto_projection_store.dart';
+import '../../application/sync/projections/variant_inventory_memory_store.dart';
+import '../../data/local/drift/drift_variant_inventory_memory_store.dart';
+import '../../application/sync/projections/variant_inventory_tracking_store.dart';
+import '../../data/local/drift/drift_variant_inventory_tracking_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
 import '../../data/local/drift/drift_synced_event_store.dart';
 import '../../data/local/identity/device_identity_file_store.dart';
@@ -193,6 +197,20 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => DriftInventoryProjectionStore(
       inventoryDao: getIt<InventoryDao>(),
       unitDao: getIt<UnitDao>(),
+    ),
+  );
+  getIt.registerLazySingleton<VariantInventoryMemoryDao>(
+    () => VariantInventoryMemoryDao(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<VariantInventoryMemoryStore>(
+    () => DriftVariantInventoryMemoryStore(
+      dao: getIt<VariantInventoryMemoryDao>(),
+    ),
+  );
+  getIt.registerLazySingleton<VariantInventoryTrackingStore>(
+    () => DriftVariantInventoryTrackingStore(
+      inventoryDao: getIt<InventoryDao>(),
+      productoDao: getIt<ProductoDao>(),
     ),
   );
   getIt.registerLazySingleton<CashRepository>(

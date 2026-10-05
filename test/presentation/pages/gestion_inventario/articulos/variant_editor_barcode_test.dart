@@ -1,12 +1,34 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
 import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/models/articulo_form_result.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/widgets/variant_editor_screen.dart';
 
+import '../../../../support/fake_mobile_scanner_platform.dart';
+
 /// Anatomía y contrato del campo de código de barras del editor de variante.
 void main() {
+  late MobileScannerPlatform originalPlatform;
+  late FakeMobileScannerPlatform camera;
+
+  setUp(() {
+    originalPlatform = MobileScannerPlatform.instance;
+    camera = FakeMobileScannerPlatform();
+    MobileScannerPlatform.instance = camera;
+    MobileScannerController.resetPlatformSessionOwner();
+  });
+
+  tearDown(() async {
+    await camera.captures.close();
+    MobileScannerPlatform.instance = originalPlatform;
+    MobileScannerController.resetPlatformSessionOwner();
+  });
+
   testWidgets('el campo muestra la etiqueta, la ayuda y la pista del video', (
     tester,
   ) async {
@@ -50,6 +72,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('barcode_scanner_screen')), findsOneWidget);
+    expect(find.byKey(const Key('fake_camera_preview')), findsOneWidget);
+    expect(camera.lastStartOptions?.cameraDirection, CameraFacing.back);
     expect(
       find.text(
         'Escanee el código de barras aquí para actualizar artículos o '
@@ -57,6 +81,8 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const Key('close_barcode_scanner_button')));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('el X cierra la pantalla, devuelve null y no toca el campo', (
@@ -81,6 +107,8 @@ void main() {
 
     expect(find.byKey(const Key('barcode_scanner_screen')), findsNothing);
     expect(_field(tester).controller!.text, '750802876102');
+    expect(camera.stops, 1);
+    expect(camera.disposals, 1);
 
     // Cancelar devuelve null: lo que se guarda sigue siendo el valor previo.
     await tester.tap(find.byKey(const Key('save_variant_button')));
@@ -101,10 +129,14 @@ void main() {
 
     await tester.tap(find.byKey(const Key('scan_barcode_button')));
     await tester.pumpAndSettle();
-    _popScanner(tester, '012345678905');
+    camera.captures.add(
+      const BarcodeCapture(barcodes: [Barcode(rawValue: '012345678905')]),
+    );
     await tester.pumpAndSettle();
 
     expect(_field(tester).controller!.text, '012345678905');
+    expect(camera.stops, 1);
+    expect(camera.disposals, 1);
 
     await tester.tap(find.byKey(const Key('save_variant_button')));
     await tester.pumpAndSettle();
@@ -120,7 +152,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('scan_barcode_button')));
     await tester.pumpAndSettle();
-    _popScanner(tester, '7508-0287');
+    camera.captures.add(
+      const BarcodeCapture(barcodes: [Barcode(rawValue: '7508-0287')]),
+    );
     await tester.pumpAndSettle();
 
     // El mensaje del value object aparece en el formulario, no se traga.
@@ -139,6 +173,161 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(result?.value?.codigoBarras, isNull);
+  });
+
+  testWidgets('ignora lecturas vacías y acepta solo la primera lectura', (
+    tester,
+  ) async {
+    await _pumpEditor(tester);
+    await tester.tap(find.byKey(const Key('scan_barcode_button')));
+    await tester.pumpAndSettle();
+
+    camera.captures.add(const BarcodeCapture());
+    camera.captures.add(
+      const BarcodeCapture(
+        barcodes: [
+          Barcode(),
+          Barcode(rawValue: '  '),
+        ],
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('barcode_scanner_screen')), findsOneWidget);
+
+    final detect = tester
+        .widget<MobileScanner>(find.byType(MobileScanner))
+        .onDetect!;
+    detect(const BarcodeCapture(barcodes: [Barcode(rawValue: '012345678905')]));
+    detect(const BarcodeCapture(barcodes: [Barcode(rawValue: '99999999')]));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VariantEditorScreen), findsOneWidget);
+    expect(_field(tester).controller!.text, '012345678905');
+  });
+
+  testWidgets('volver conserva el campo e ignora lecturas durante la salida', (
+    tester,
+  ) async {
+    await _pumpEditor(
+      tester,
+      initial: const ArticuloFormVarianteResult(
+        nombre: 'Grande',
+        precioVenta: '10.00',
+        costoEstandar: null,
+        codigoBarras: '750802876102',
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scan_barcode_button')));
+    await tester.pumpAndSettle();
+    final detect = tester
+        .widget<MobileScanner>(find.byType(MobileScanner))
+        .onDetect!;
+
+    await tester.binding.handlePopRoute();
+    detect(const BarcodeCapture(barcodes: [Barcode(rawValue: '99999999')]));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VariantEditorScreen), findsOneWidget);
+    expect(_field(tester).controller!.text, '750802876102');
+    expect(camera.stops, 1);
+    expect(camera.disposals, 1);
+  });
+
+  testWidgets('pausa la cámara en segundo plano y reanuda la lectura', (
+    tester,
+  ) async {
+    await _pumpEditor(tester);
+    await tester.tap(find.byKey(const Key('scan_barcode_button')));
+    await tester.pumpAndSettle();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    camera.captures.add(
+      const BarcodeCapture(barcodes: [Barcode(rawValue: '99999999')]),
+    );
+    await tester.pump();
+    expect(camera.stops, 1);
+    expect(find.byKey(const Key('barcode_scanner_screen')), findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(camera.starts, 2);
+
+    camera.captures.add(
+      const BarcodeCapture(barcodes: [Barcode(rawValue: '012345678905')]),
+    );
+    await tester.pumpAndSettle();
+    expect(_field(tester).controller!.text, '012345678905');
+  });
+
+  for (final errorCode in [
+    MobileScannerErrorCode.permissionDenied,
+    MobileScannerErrorCode.unsupported,
+    MobileScannerErrorCode.genericError,
+  ]) {
+    testWidgets('muestra un mensaje y permite cancelar con $errorCode', (
+      tester,
+    ) async {
+      camera.startError = MobileScannerException(errorCode: errorCode);
+      await _pumpEditor(tester);
+      await tester.tap(find.byKey(const Key('scan_barcode_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('barcode_scanner_error')), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('barcode_scanner_error')))
+            .data,
+        contains(switch (errorCode) {
+          MobileScannerErrorCode.permissionDenied => 'ajustes del dispositivo',
+          MobileScannerErrorCode.unsupported => 'No hay una cámara disponible',
+          _ => 'No se pudo iniciar la cámara',
+        }),
+      );
+      await tester.tap(find.byKey(const Key('close_barcode_scanner_button')));
+      await tester.pumpAndSettle();
+      expect(_field(tester).controller!.text, isEmpty);
+    });
+  }
+
+  testWidgets(
+    'un fallo del plugin muestra el error sin dejar la carga activa',
+    (tester) async {
+      camera.startError = MissingPluginException('Cámara no disponible');
+      await _pumpEditor(tester);
+      await tester.tap(find.byKey(const Key('scan_barcode_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('barcode_scanner_error')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await tester.tap(find.byKey(const Key('close_barcode_scanner_button')));
+      await tester.pumpAndSettle();
+      expect(_field(tester).controller!.text, isEmpty);
+    },
+  );
+
+  testWidgets('libera la cámara si se cierra mientras solicita permiso', (
+    tester,
+  ) async {
+    camera.startGate = Completer<void>();
+    await _pumpEditor(tester);
+    await tester.tap(find.byKey(const Key('scan_barcode_button')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(camera.starts, 1);
+
+    await tester.tap(find.byKey(const Key('close_barcode_scanner_button')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byKey(const Key('barcode_scanner_screen')), findsNothing);
+
+    camera.startGate!.complete();
+    await tester.pumpAndSettle();
+    expect(camera.stops, 1);
+    expect(camera.disposals, 1);
+    expect(_field(tester).controller!.text, isEmpty);
   });
 
   testWidgets('rechaza 33 dígitos con el mensaje del value object', (
@@ -311,12 +500,4 @@ Future<void> _pumpEditor(
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('open_editor')));
   await tester.pumpAndSettle();
-}
-
-/// Simula la lectura de un lector: la pantalla stub no tiene cámara, así que el
-/// valor se devuelve por el mismo `Navigator.pop` que usará `mobile_scanner`.
-void _popScanner(WidgetTester tester, String barcode) {
-  Navigator.of(
-    tester.element(find.byKey(const Key('barcode_scanner_screen'))),
-  ).pop(barcode);
 }

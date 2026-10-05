@@ -26,6 +26,8 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Usamos la cámara para capturar el código de barras de tus artículos.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

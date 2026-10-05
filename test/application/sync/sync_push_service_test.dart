@@ -1,3 +1,4 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'package:pos_flutter/application/sync/projections/categoria_projection_store.dart';
 import 'package:pos_flutter/application/sync/pending_event_revalidator.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
@@ -92,7 +93,12 @@ void main() {
             CategoriaEventHandler(categoriaProjectionStore),
           ),
           ...productoEventHandlers(
-            ProductoEventHandler(productoProjectionStore),
+            ProductoEventHandler(
+              productoProjectionStore,
+              variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+                dao: VariantInventoryMemoryDao(db),
+              ),
+            ),
           ),
           ...inventoryEventHandlers(
             InventoryEventHandler(inventoryProjectionStore),

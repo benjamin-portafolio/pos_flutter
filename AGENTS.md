@@ -163,11 +163,13 @@ flutter test
 
 El flujo completo implementado como referencia es `espacio_creado`.
 El boton `Agregar mesa` existe visualmente, pero no tiene flujo funcional por decision de alcance.
-El boton `ESCANEAR` del editor de variantes navega a `BarcodeScannerScreen`, una
-pantalla stub sin camara que fija el contrato de retorno: `String` con el codigo
-leido, o `null` si el usuario cancela con el `X`. La lectura real llega en una
-sesion posterior, con `mobile_scanner`; hasta entonces la captura disponible es
-manual, en el campo de texto. Al agregar ese paquete, el trabajo se limita al
-interior de la pantalla: el consumidor no cambia.
+El boton `ESCANEAR` del editor de variantes navega a `BarcodeScannerScreen`, que
+usa la camara con `mobile_scanner` y devuelve un `String` con el codigo leido,
+o `null` si el usuario cancela. El editor valida y llena el campo; el guardado
+conserva el mismo flujo que la captura manual. La pantalla acepta una sola
+lectura y libera la camara al cerrar o pasar la app a segundo plano, incluso
+si habia una solicitud de permiso pendiente. Android usa el detector incluido
+para funcionar offline; iOS y macOS declaran el uso de camara y macOS incluye
+el entitlement correspondiente.
 La busqueda por codigo de barras de `caja_screen.dart` y
 `article_search_bar.dart` sigue deshabilitada, a la espera de una sesion propia.

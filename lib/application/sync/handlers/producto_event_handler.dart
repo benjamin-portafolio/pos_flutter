@@ -1,3 +1,4 @@
+import '../projections/variant_inventory_memory_store.dart';
 import '../payloads/producto_actualizado_payload.dart';
 import '../models/sync_event.dart';
 import '../payloads/producto_creado_payload.dart';
@@ -7,14 +8,20 @@ import '../projections/producto_projection_store.dart';
 class ProductoEventHandler {
   ProductoEventHandler(
     this._productoProjectionStore, {
+    required VariantInventoryMemoryStore variantInventoryMemoryStore,
     InventoryProjectionStore? inventoryProjectionStore,
-  }) : _inventoryProjectionStore = inventoryProjectionStore;
+  }) : _memoryStore = variantInventoryMemoryStore,
+       _inventoryProjectionStore = inventoryProjectionStore;
 
   final ProductoProjectionStore _productoProjectionStore;
+  final VariantInventoryMemoryStore _memoryStore;
   final InventoryProjectionStore? _inventoryProjectionStore;
 
   Future<void> applyProductoCreado(SyncEvent event) async {
     final payload = ProductoCreadoPayload.fromJson(event.payload);
+    if (event.serverSequence case final sequence?) {
+      await _memoryStore.advanceEventServerSequence(event.eventId, sequence);
+    }
     final existing = await _productoProjectionStore.findProductById(
       event.aggregateId,
     );
@@ -106,9 +113,13 @@ class ProductoEventHandler {
         );
       }
     }
+    await _maintainMemory(event, null, payload);
   }
 
   Future<void> applyProductoActualizado(SyncEvent event) async {
+    if (event.serverSequence case final sequence?) {
+      await _memoryStore.advanceEventServerSequence(event.eventId, sequence);
+    }
     final payload = ProductoActualizadoPayload.fromJson(event.payload);
     final product = await _productoProjectionStore.findProductById(
       event.aggregateId,
@@ -153,6 +164,31 @@ class ProductoEventHandler {
       payload.after,
       deleteProduct: payload.deleteProduct,
     );
+    if (!payload.deleteProduct) {
+      await _maintainMemory(event, payload.before, payload.after);
+    }
+  }
+
+  Future<void> _maintainMemory(
+    SyncEvent event,
+    ProductoCreadoPayload? before,
+    ProductoCreadoPayload after,
+  ) async {
+    final links = <String, String?>{
+      for (final v in before?.variantes ?? <ProductoCreadoVariante>[])
+        v.id: v.inventoryItemId,
+    };
+    for (final v in after.variantes) {
+      links[v.id] = v.inventoryItemId ?? links[v.id];
+    }
+    for (final entry in links.entries) {
+      final itemId = entry.value;
+      if (itemId == null) continue;
+      final memory = await _memoryStore.findByVariantId(entry.key);
+      if (memory?.inventoryItemId != itemId) {
+        await _memoryStore.upsert(entry.key, itemId, event);
+      }
+    }
   }
 
   Future<void> _validateInventory(ProductoCreadoPayload payload) async {
@@ -200,6 +236,9 @@ class ProductoEventHandler {
         throw StateError(
           'No existe el recurso de inventario activo $inventoryItemId.',
         );
+      }
+      if (item.originVariantId != null && item.originVariantId != variant.id) {
+        throw StateError('El recurso fue generado para otra variante.');
       }
       final inventoryUnit = await inventoryStore.findUnitById(
         item.defaultUnitId,

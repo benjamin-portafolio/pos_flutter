@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/commands/articulos/producto_inventory_update_result.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 import 'package:pos_flutter/domain/articulos/variante_detalle.dart';
 import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
@@ -1063,13 +1064,14 @@ class _FakeProductoCommandService implements ProductoCommandService {
   }) async {}
 
   @override
-  Future<void> actualizarArticulo({
+  Future<ProductoInventoryUpdateResult> actualizarArticulo({
     required String productId,
     required String baseEventId,
     required CrearArticuloCommand command,
     required List<String?> variantIds,
   }) async {
     this.command = command;
+    return ProductoInventoryUpdateResult();
   }
 
   CrearArticuloCommand? command;

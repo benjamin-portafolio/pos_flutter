@@ -1,4 +1,4 @@
-import 'dart:convert';
+import '../../../domain/inventario/inventory_consumption_configuration.dart';
 import 'package:drift/drift.dart';
 
 import '../../../application/sync/projections/producto_projection_store.dart';
@@ -21,10 +21,13 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       variantId,
     );
     recipe.sort((a, b) => a.inventoryItemId.compareTo(b.inventoryItemId));
-    return jsonEncode([
-      v.inventoryItemId,
-      for (final c in recipe) [c.inventoryItemId, c.quantityAtomic],
-    ]);
+    return InventoryConsumptionConfiguration(
+      directItemId: v.inventoryItemId,
+      components: [
+        for (final c in recipe)
+          (itemId: c.inventoryItemId, quantityAtomic: c.quantityAtomic),
+      ],
+    ).toKey();
   }
 
   @override
@@ -105,7 +108,6 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         .where((v) => v.active && !keptIds.contains(v.id))
         .toList();
     if (!restore &&
-        (deleteProduct || removed.isNotEmpty) &&
         event.deliveryStatus == 'pending' &&
         event.serverSequence == null) {
       await _productoDao.guardarRespaldoActualizacion(

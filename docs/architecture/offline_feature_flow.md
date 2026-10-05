@@ -178,13 +178,15 @@ de modo que editar solo el barcode sí produce un cambio de estado. `sku` sigue
 cerrado: el contrato lo emite siempre como `null` y el servidor rechaza
 cualquier otro valor.
 
-La captura del código de barras es **manual** en esta entrega. El editor de
-variantes (`variant_editor_screen.dart`) ofrece un campo de texto con
-`FilteringTextInputFormatter.digitsOnly` y un botón `ESCANEAR` visible pero
-deshabilitado (`onPressed: null`): la pantalla en blanco de captura por lector
-se construye en una sesión posterior, así que hoy el botón no navega a ninguna
-parte. La captura por lector, y con ella el autocompletado desde la cámara,
-queda para esa sesión. El botón `GENERAR` no se implementa: no fue solicitado.
+El editor de variantes (`variant_editor_screen.dart`) ofrece captura manual
+con `FilteringTextInputFormatter.digitsOnly` y captura por cámara con el botón
+`ESCANEAR`. `BarcodeScannerScreen` usa `mobile_scanner`, acepta una sola lectura
+y devuelve el código como `String`; cancelar devuelve `null` y conserva el
+campo. El editor valida y llena el formulario, sin persistir hasta guardar por
+el flujo habitual. La cámara se libera al cerrar o pasar a segundo plano,
+incluido el cierre con un permiso pendiente. Android conserva el detector
+incluido para leer sin conexión. El botón `GENERAR` no se implementa: no fue
+solicitado.
 La normalización es responsabilidad del value object `CodigoBarras`
 (`domain/articulos/codigo_barras.dart`), que recorta, aplica NFKC y rechaza
 todo lo que no sean dígitos; la UI no reimplementa esa regla ni convierte el
@@ -442,10 +444,24 @@ concurrente revierte las ediciones locales dependientes en orden inverso antes
 de aplicarse; un eco solo avanza metadatos. Standalone conserva
 `delivery_status = not_required` y no persiste `event_refs`.
 
-Cambiar recetas o desactivar seguimiento no modifica saldos ni borra recursos
-o movimientos anteriores. Activar seguimiento sin un vínculo existente crea
-un recurso mediante el flujo habitual, en el mismo lote local. Los saldos de
-un recurso ya vinculado se corrigen mediante movimientos de inventario.
+Cambiar recetas o desactivar seguimiento conserva cualquier recurso con historial.
+El handler de producto mantiene memoria durable del último recurso directo; al
+reactivar, el command valida y recupera ese mismo UUID, incluso con saldo cero,
+sin otro balance ni movimiento inicial. Una historia incompleta requiere selección
+explícita. Los saldos de un recurso existente se corrigen mediante movimientos.
+
+En standalone, la actualización y el descarte de un autogenerado vacío elegible
+comparten una transacción exterior que incluye preparación y comprobación. El
+handler revalida base, disparador y dependencias antes de borrar; las cascadas
+retiran balance/memoria y la prueba aplicada protege contra resurrección/replay.
+En server_sync siempre se conserva el recurso/balance y se rechaza el descarte
+externo. Undo restaura memoria exacta o ausencia; push/eco avanzan únicamente la
+fuente correspondiente, incluidos respaldos de cadenas pendientes.
+
+Core y transporte verificados el 2026-10-04: 43 pruebas nuevas SQLite y una HTTP
+con Nest/PG aislados, incluidas venta tardía A/B y reconstrucción por pull. La UI
+de recuperación y resultados del commit continúa pendiente en fase 4. Evidencia
+completa en el vault, Seguimiento de existencias/Evidencia/2026-10-04-correccion-fase3.
 
 
 ## Eliminación de variantes y del último producto

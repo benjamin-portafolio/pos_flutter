@@ -87,10 +87,12 @@ class InventoryItemProjection extends SyncProjection {
     required super.createdEventId,
     required super.lastEventId,
     required super.lastServerSequence,
+    this.originVariantId,
   });
 
   final String defaultUnitId;
   final String name;
+  final String? originVariantId;
 }
 
 class InventoryBalanceProjection {

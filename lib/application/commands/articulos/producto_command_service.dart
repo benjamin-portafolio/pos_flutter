@@ -1,3 +1,6 @@
+import 'producto_inventory_update_result.dart';
+import '../../sync/inventory_discard_policy.dart';
+import '../../sync/payloads/recurso_inventario_descartado_payload.dart';
 import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
@@ -25,7 +28,11 @@ import 'crear_articulo_command.dart';
 import 'crear_articulo_variante_command.dart';
 import '../../sync/payloads/producto_actualizado_payload.dart';
 import '../../sync/projections/producto_projection_store.dart';
+import '../../sync/projections/variant_inventory_memory_store.dart';
+import '../../sync/projections/variant_inventory_tracking_store.dart';
 import '../local_command_context.dart';
+import 'inventory_resource_resolver.dart';
+import 'recurso_recuperacion_resultado.dart';
 
 class ProductoCommandService {
   ProductoCommandService({
@@ -36,13 +43,17 @@ class ProductoCommandService {
     required UnidadInventarioRepository unidadInventarioRepository,
     InventoryProjectionStore? inventoryProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
+    VariantInventoryMemoryStore? variantInventoryMemoryStore,
+    VariantInventoryTrackingStore? variantInventoryTrackingStore,
   }) : _productoProjectionStore = productoProjectionStore,
        _eventStore = eventStore,
        _commandContext = commandContext,
        _categoriaProjectionStore = categoriaProjectionStore,
        _syncedEventHistory = syncedEventHistory,
        _unidadInventarioRepository = unidadInventarioRepository,
-       _inventoryProjectionStore = inventoryProjectionStore;
+       _inventoryProjectionStore = inventoryProjectionStore,
+       _variantInventoryMemoryStore = variantInventoryMemoryStore,
+       _variantInventoryTrackingStore = variantInventoryTrackingStore;
 
   final ProductoProjectionStore? _productoProjectionStore;
   final LocalEventStore _eventStore;
@@ -51,6 +62,9 @@ class ProductoCommandService {
   final SyncedEventHistory _syncedEventHistory;
   final UnidadInventarioRepository _unidadInventarioRepository;
   final InventoryProjectionStore? _inventoryProjectionStore;
+  final VariantInventoryMemoryStore? _variantInventoryMemoryStore;
+  final VariantInventoryTrackingStore? _variantInventoryTrackingStore;
+
   final Uuid _uuid = const Uuid();
   static const _quantityCodec = InventoryQuantityCodec();
 
@@ -62,7 +76,28 @@ class ProductoCommandService {
     return product;
   }
 
-  Future<void> actualizarArticulo({
+  Future<ProductoInventoryUpdateResult> actualizarArticulo({
+    required String productId,
+    required String baseEventId,
+    required CrearArticuloCommand command,
+    required List<String?> variantIds,
+  }) => _runInTransaction(
+    () => _actualizarArticulo(
+      productId: productId,
+      baseEventId: baseEventId,
+      command: command,
+      variantIds: variantIds,
+    ),
+  );
+
+  Future<T> _runInTransaction<T>(Future<T> Function() action) {
+    final store = _eventStore;
+    return store is LocalTransactionalEventStore
+        ? (store as LocalTransactionalEventStore).runInTransaction(action)
+        : action();
+  }
+
+  Future<ProductoInventoryUpdateResult> _actualizarArticulo({
     required String productId,
     required String baseEventId,
     required CrearArticuloCommand command,
@@ -100,6 +135,70 @@ class ProductoCommandService {
       payload: payload.toJson(),
     );
     await _appendArticulo(article, event, updatePayload: payload);
+    final store = _eventStore;
+    if (store is! LocalTransactionalEventStore ||
+        !(store as LocalTransactionalEventStore).isStandalone) {
+      return ProductoInventoryUpdateResult();
+    }
+    final discarded = <String>[];
+    final reasons = <String, String>{};
+    final tracking = _variantInventoryTrackingStore;
+    final memory = _variantInventoryMemoryStore;
+    final inventory = _inventoryProjectionStore;
+    final candidates = before.variantes
+        .where(
+          (v) =>
+              v.inventoryItemId != null &&
+              payload.after.variantes.any(
+                (a) => a.id == v.id && a.inventoryItemId == null,
+              ),
+        )
+        .toList();
+    if (candidates.isNotEmpty &&
+        (tracking == null || memory == null || inventory == null)) {
+      throw StateError('No se configuró el seguimiento seguro de inventario.');
+    }
+    for (final variant in candidates) {
+      final item = await inventory!.findItemById(variant.inventoryItemId!);
+      if (item == null) {
+        throw StateError('Falta el recurso que acaba de desvincularse.');
+      }
+      final reason = await InventoryDiscardPolicy(
+        trackingStore: tracking!,
+        memoryStore: memory!,
+      ).preservationReason(item, variant.id);
+      if (reason != null) {
+        reasons[item.id] = reason;
+        continue;
+      }
+      final discardPayload = RecursoInventarioDescartadoPayload.create(
+        baseEventId: item.lastEventId!,
+        triggerProductId: productId,
+        triggerProductEventId: event.eventId,
+        originVariantId: variant.id,
+      );
+      await _eventStore.appendAndApply(
+        SyncEvent(
+          eventId: _uuid.v4(),
+          aggregateType: RecursoInventarioDescartadoPayload.aggregateType,
+          aggregateId: item.id,
+          eventType: RecursoInventarioDescartadoPayload.eventType,
+          deviceId: _commandContext.deviceId,
+          userId: _commandContext.userId,
+          baseVersion: item.version,
+          baseServerSequence: item.lastServerSequence,
+          createdAtLocal: event.createdAtLocal,
+          deliveryStatus: RecursoInventarioDescartadoPayload.deliveryStatus,
+          payload: discardPayload.toJson(),
+        ),
+        refs: discardPayload.refs(item.id),
+      );
+      discarded.add(item.id);
+    }
+    return ProductoInventoryUpdateResult(
+      discardedInventoryItemIds: discarded,
+      preservationReasons: reasons,
+    );
   }
 
   Future<void> eliminarArticulo({
@@ -209,10 +308,11 @@ class ProductoCommandService {
     final productId = existingProductId ?? _uuid.v4();
     final variantIds = _resolveVariantIds(variants.length, existingVariantIds);
     final eventId = _uuid.v4();
-    final inventoryBindings = _prepareInventoryBindings(
+    final inventoryBindings = await _prepareInventoryBindings(
       variants,
       variantIds,
       before,
+      saleConfiguration,
     );
     final inventoryDependencies = await _resolveInventoryDependencies(
       variants,
@@ -288,6 +388,9 @@ class ProductoCommandService {
           codigoBarras: CodigoBarras.fromInput(captured.codigoBarras).value,
           inventory: directInventory,
           recipeComponents: recipeComponents,
+          existingInventoryItemId: _normalizeOptional(
+            captured.existingInventoryItemId,
+          ),
         ),
       );
     }
@@ -310,40 +413,120 @@ class ProductoCommandService {
     return variantIds;
   }
 
-  List<_InventoryBinding> _prepareInventoryBindings(
+  Future<List<_InventoryBinding>> _prepareInventoryBindings(
     List<_NormalizedVariant> normalizedVariants,
     List<String> variantIds,
     ProductoCreadoPayload? before,
-  ) {
+    SaleConfiguration saleConfiguration,
+  ) async {
     final inventoryBindings = <_InventoryBinding>[];
     for (var index = 0; index < normalizedVariants.length; index++) {
       final inventory = normalizedVariants[index].inventory;
       if (inventory == null) continue;
+      final variantId = variantIds[index];
       final previous = before?.variantes
-          .where((v) => v.id == variantIds[index])
+          .where((v) => v.id == variantId)
           .firstOrNull;
-      if (previous?.inventoryItemId != null) {
-        if (inventory.initialQuantityAtomic != null) {
-          throw const FormatException(
-            'La existencia se modifica mediante movimientos de inventario.',
+
+      final resolution =
+          previous == null &&
+              normalizedVariants[index].existingInventoryItemId == null
+          ? const RecursoNuevoResultado()
+          : await _resolveResource(
+              variantId: variantId,
+              currentInventoryItemId: previous?.inventoryItemId,
+              inventory: inventory,
+              saleConfiguration: saleConfiguration,
+              selectedInventoryItemId:
+                  normalizedVariants[index].existingInventoryItemId,
+            );
+
+      switch (resolution) {
+        case RecursoRecuperableResultado(:final inventoryItemId):
+          // Recuperar o conservar nunca crea existencia inicial: el saldo ya
+          // existe y se modifica solo con movimientos (SEG-05, SEG-18).
+          if (inventory.initialQuantityAtomic != null) {
+            throw const FormatException(
+              'La existencia se modifica mediante movimientos de inventario.',
+            );
+          }
+          inventoryBindings.add(
+            _InventoryBinding(
+              variantIndex: index,
+              inventoryItemId: inventoryItemId,
+              variantId: variantId,
+              creationEventId: null,
+              movementId: null,
+              unit: inventory.unit,
+              initialQuantityAtomic: null,
+            ),
           );
-        }
-        continue;
+        case RecursoNuevoResultado():
+          if (previous?.inventoryItemId != null) {
+            throw const FormatException(
+              'La existencia se modifica mediante movimientos de inventario.',
+            );
+          }
+          inventoryBindings.add(
+            _InventoryBinding(
+              variantIndex: index,
+              inventoryItemId: _uuid.v4(),
+              variantId: variantId,
+              creationEventId: _uuid.v4(),
+              movementId: inventory.initialQuantityAtomic == null
+                  ? null
+                  : _uuid.v4(),
+              unit: inventory.unit,
+              initialQuantityAtomic: inventory.initialQuantityAtomic,
+            ),
+          );
+        case RecursoNoDisponibleResultado(:final motivo):
+          throw FormatException(motivo);
+        case RecursoSeleccionRequeridaResultado(:final motivo):
+          throw FormatException(motivo);
       }
-      inventoryBindings.add(
-        _InventoryBinding(
-          variantIndex: index,
-          inventoryItemId: _uuid.v4(),
-          creationEventId: _uuid.v4(),
-          movementId: inventory.initialQuantityAtomic == null
-              ? null
-              : _uuid.v4(),
-          unit: inventory.unit,
-          initialQuantityAtomic: inventory.initialQuantityAtomic,
-        ),
-      );
     }
     return inventoryBindings;
+  }
+
+  /// Decide el recurso de una variante aplicando el §3.1 del contrato.
+  ///
+  /// La resolución ocurre al guardar, no al abrir el editor: lo observado en
+  /// pantalla puede quedarse viejo, y el command manda. `before` y un posible
+  /// descarte ya aplicado son las dos piezas de historial que se permite
+  /// consultar aquí; el resto viene de los puertos de memoria y procedencia.
+  Future<RecursoRecuperacionResultado> _resolveResource({
+    required String variantId,
+    required String? currentInventoryItemId,
+    required _NormalizedInventory inventory,
+    required SaleConfiguration saleConfiguration,
+    required String? selectedInventoryItemId,
+  }) async {
+    final trackingStore = _variantInventoryTrackingStore;
+    final inventoryStore = _inventoryProjectionStore;
+    final memoryStore = _variantInventoryMemoryStore;
+    if (trackingStore == null ||
+        inventoryStore == null ||
+        memoryStore == null) {
+      // Sin los puertos de seguimiento no se puede decidir con seguridad. Antes
+      // este camino creaba un recurso nuevo por variante; ahora falla en lugar de
+      // dejar datos duplicados.
+      throw StateError(
+        'No se configuró la resolución de recursos de inventario.',
+      );
+    }
+    final resolver = InventoryResourceResolver(
+      memoryStore: memoryStore,
+      trackingStore: trackingStore,
+      inventoryStore: inventoryStore,
+    );
+    return resolver.resolve(
+      variantId: variantId,
+      currentInventoryItemId: currentInventoryItemId,
+      requiredUnitId: inventory.unit.id,
+      saleConfiguration: saleConfiguration,
+      selectedInventoryItemId: selectedInventoryItemId,
+    );
   }
 
   Future<List<ProductoCreadoInventarioDependencia>>
@@ -366,30 +549,32 @@ class ProductoCommandService {
             dependsOnEventId: component.dependsOnEventId,
           ),
     };
-    if (before != null) {
-      for (var index = 0; index < normalizedVariants.length; index++) {
-        if (normalizedVariants[index].inventory == null) continue;
-        final id = before.variantes
-            .where((v) => v.id == variantIds[index])
-            .firstOrNull
-            ?.inventoryItemId;
-        if (id == null) continue;
-        final item = await _inventoryProjectionStore!.findItemById(id);
-        if (item == null) {
-          throw StateError('El recurso de inventario no existe.');
-        }
-        final creation = item.createdEventId == null
-            ? null
-            : await _syncedEventHistory.eventById(item.createdEventId!);
-        inventoryDependencies[id] = ProductoCreadoInventarioDependencia(
-          refId: id,
-          dependsOnEventId: creation?.deliveryStatus == 'pending'
-              ? creation!.eventId
-              : null,
-        );
-      }
+    // Un recurso recuperado o seleccionado puede tener su alta aún pendiente de
+    // aceptar por el servidor: se declara como dependencia normal y el push
+    // espera su aceptación antes de enviar el producto (contrato §3.1 y §6.2).
+    for (final binding in inventoryBindings.where((b) => !b.creaRecurso)) {
+      inventoryDependencies[binding.inventoryItemId] =
+          ProductoCreadoInventarioDependencia(
+            refId: binding.inventoryItemId,
+            dependsOnEventId: await _pendingCreationDependency(
+              binding.inventoryItemId,
+            ),
+          );
     }
     return inventoryDependencies.values.toList(growable: false);
+  }
+
+  /// Evento de alta que debe aceptarse antes de empujar un producto que
+  /// depende del recurso, o `null` si el alta ya está aceptada o no existe.
+  Future<String?> _pendingCreationDependency(String inventoryItemId) async {
+    final item = await _inventoryProjectionStore!.findItemById(inventoryItemId);
+    if (item == null) {
+      throw StateError('El recurso de inventario no existe.');
+    }
+    final createdEventId = item.createdEventId;
+    if (createdEventId == null) return null;
+    final creation = await _syncedEventHistory.eventById(createdEventId);
+    return creation?.deliveryStatus == 'pending' ? creation!.eventId : null;
   }
 
   List<ProductoCreadoVariante> _buildVariantPayloads(
@@ -409,6 +594,9 @@ class ProductoCommandService {
           precioVentaMenor: normalizedVariants[index].precioVentaMenor,
           costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
           codigoBarras: normalizedVariants[index].codigoBarras,
+          // Una binding existe siempre que la variante conserva o recupera
+          // seguimiento directo; su `inventoryItemId` manda sobre `before`,
+          // porque la resolución del command ocurre al guardar.
           inventoryItemId:
               inventoryByVariant[index]?.inventoryItemId ??
               (normalizedVariants[index].inventory == null
@@ -496,7 +684,12 @@ class ProductoCommandService {
     ProductoActualizadoPayload? updatePayload,
   }) {
     return [
-      for (final binding in article.inventoryBindings)
+      // Solo las variantes que crean recurso emiten `recurso_inventario_creado`.
+      // Recuperar o conservar un recurso existente no genera alta, ni balance ni
+      // `initial_balance` nuevos (contrato §3.2).
+      for (final binding in article.inventoryBindings.where(
+        (b) => b.creaRecurso,
+      ))
         _inventoryCreationAppend(
           binding: binding,
           productName: article.payload.nombre,
@@ -660,10 +853,14 @@ class ProductoCommandService {
       inventoryItemId: binding.inventoryItemId,
       name: _inventoryResourceName(productName, variantName),
       defaultUnitId: binding.unit.id,
+      // Procedencia explícita: es lo que permite distinguir más adelante un
+      // recurso autogenerado de uno independiente o legado, y es condición 1 de
+      // la elegibilidad de descarte. Recursos independientes la omiten.
+      originVariantId: binding.variantId,
       initialMovement: movement,
     );
     final event = SyncEvent(
-      eventId: binding.creationEventId,
+      eventId: binding.creationEventId!,
       aggregateType: RecursoInventarioCreadoPayload.aggregateType,
       aggregateId: binding.inventoryItemId,
       eventType: RecursoInventarioCreadoPayload.eventType,
@@ -795,6 +992,7 @@ class _NormalizedVariant {
     required this.codigoBarras,
     required this.inventory,
     required this.recipeComponents,
+    this.existingInventoryItemId,
   });
 
   final String? nombre;
@@ -803,6 +1001,11 @@ class _NormalizedVariant {
   final String? codigoBarras;
   final _NormalizedInventory? inventory;
   final List<_NormalizedRecipeComponent> recipeComponents;
+
+  /// Recurso existente que la persona usuaria eligió explícitamente para
+  /// recuperar, por ejemplo al resolver un legado ambiguo. Es una intención de
+  /// comando validada por el resolver, no un campo de pantalla ni un CRUD.
+  final String? existingInventoryItemId;
 }
 
 class _NormalizedRecipeComponent {
@@ -830,6 +1033,7 @@ class _NormalizedInventory {
 class _InventoryBinding {
   const _InventoryBinding({
     required this.variantIndex,
+    required this.variantId,
     required this.inventoryItemId,
     required this.creationEventId,
     required this.movementId,
@@ -838,9 +1042,17 @@ class _InventoryBinding {
   });
 
   final int variantIndex;
+  final String variantId;
   final String inventoryItemId;
-  final String creationEventId;
+
+  /// Evento de alta del recurso. `null` cuando el recurso se recupera o se
+  /// conserva: en ese caso no se emite `recurso_inventario_creado`, y por eso
+  /// no hay ni balance ni `initial_balance` nuevos.
+  final String? creationEventId;
   final String? movementId;
   final UnidadInventario unit;
   final int? initialQuantityAtomic;
+
+  /// Solo las binding que crean el recurso generan un evento de alta.
+  bool get creaRecurso => creationEventId != null;
 }

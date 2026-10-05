@@ -1,3 +1,5 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_tracking_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_variante_command.dart';
@@ -50,6 +52,9 @@ void main() {
           ...productoEventHandlers(
             ProductoEventHandler(
               productStore,
+              variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+                dao: VariantInventoryMemoryDao(db),
+              ),
               inventoryProjectionStore: inventoryStore,
             ),
           ),
@@ -74,6 +79,13 @@ void main() {
       productoDao: ProductoDao(db),
     );
     final service = ProductoCommandService(
+      variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+        dao: VariantInventoryMemoryDao(db),
+      ),
+      variantInventoryTrackingStore: DriftVariantInventoryTrackingStore(
+        inventoryDao: InventoryDao(db),
+        productoDao: ProductoDao(db),
+      ),
       eventStore: eventStore,
       commandContext: const LocalCommandContext(
         deviceId: 'device',
@@ -155,9 +167,9 @@ void main() {
     await save(unit: InventoryUnitIds.piece);
     expect(
       (await projection.snapshot(id)).variantes.single.inventoryItemId,
-      isNotNull,
+      _inventoryItemId,
     );
-    expect(await db.select(db.inventoryItems).get(), hasLength(2));
+    expect(await db.select(db.inventoryItems).get(), hasLength(1));
     expect(await db.select(db.inventoryMovements).get(), hasLength(1));
     expect(await db.select(db.eventRefs).get(), isEmpty);
   });

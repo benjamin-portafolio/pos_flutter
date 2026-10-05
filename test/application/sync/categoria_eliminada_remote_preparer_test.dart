@@ -1,3 +1,4 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_creado_payload.dart';
 import 'package:drift/native.dart';
@@ -69,7 +70,14 @@ void main() {
         ...categoriaEventHandlers(
           CategoriaEventHandler(categoryStore, productStore),
         ),
-        ...productoEventHandlers(ProductoEventHandler(productStore)),
+        ...productoEventHandlers(
+          ProductoEventHandler(
+            productStore,
+            variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+              dao: VariantInventoryMemoryDao(db),
+            ),
+          ),
+        ),
       },
     );
     localStore = DriftLocalEventStore(

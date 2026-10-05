@@ -39,6 +39,8 @@
 	<string>303240041001-878f4ksif8isdqontbdb5j0ejlnn19fr.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Usamos la cámara para capturar el código de barras de tus artículos.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

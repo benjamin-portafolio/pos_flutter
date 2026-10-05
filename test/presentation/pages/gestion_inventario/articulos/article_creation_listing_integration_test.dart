@@ -1,3 +1,4 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,7 +36,14 @@ void main() {
       eventDao: EventDao(db),
       eventRefDao: EventRefDao(db),
       eventProcessor: EventProcessor(
-        handlers: productoEventHandlers(ProductoEventHandler(projectionStore)),
+        handlers: productoEventHandlers(
+          ProductoEventHandler(
+            projectionStore,
+            variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+              dao: VariantInventoryMemoryDao(db),
+            ),
+          ),
+        ),
       ),
       appConfigController: AppConfigController(
         AppConfig.initial.copyWith(

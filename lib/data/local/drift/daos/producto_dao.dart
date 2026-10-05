@@ -132,6 +132,31 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
+  /// Variantes que mantienen vínculo directo con un recurso, incluidas las
+  /// inactivas. La unicidad normativa del vínculo directo cuenta también las
+  /// filas retiradas: una variante inactiva sigue reservando el recurso.
+  Future<List<ProductVariantRow>> obtenerVariantesPorRecurso(
+    String inventoryItemId,
+  ) {
+    return (select(productVariants)
+          ..where((variant) => variant.inventoryItemId.equals(inventoryItemId)))
+        .get();
+  }
+
+  /// Variantes que consumen un recurso como componente de receta, incluidas las
+  /// inactivas. El uso en receta no impide recuperar el recurso: sigue siendo un
+  /// recurso compartido.
+  Future<List<ProductVariantRow>> obtenerVariantesConRecetaDeRecurso(
+    String inventoryItemId,
+  ) {
+    final componentes = selectOnly(recipeComponents)
+      ..addColumns([recipeComponents.variantId])
+      ..where(recipeComponents.inventoryItemId.equals(inventoryItemId));
+    return (select(
+      productVariants,
+    )..where((variant) => variant.id.isInQuery(componentes))).get();
+  }
+
   Future<List<ProductVariantRow>> obtenerVariantesPorProducto(
     String productId,
   ) {
@@ -353,6 +378,11 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     for (final v in variants) {
       recipes.addAll(await obtenerComponentesRecetaPorVariante(v.id));
     }
+    final memories =
+        await (select(db.variantInventoryMemory)..where(
+              (m) => m.variantId.isIn(variants.map((v) => v.id).toList()),
+            ))
+            .get();
     await into(db.productUpdateUndo).insert(
       ProductUpdateUndoCompanion.insert(
         eventId: eventId,
@@ -362,12 +392,33 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
           'variants': variants.map((v) => v.toJson()).toList(),
           'recipes': recipes.map((r) => r.toJson()).toList(),
         }),
+        memoryJson: Value(
+          jsonEncode(
+            memories
+                .map(
+                  (m) => {
+                    'variant_id': m.variantId,
+                    'inventory_item_id': m.inventoryItemId,
+                    'source_event_id': m.sourceEventId,
+                    'source_server_sequence': m.sourceServerSequence,
+                  },
+                )
+                .toList(),
+          ),
+        ),
       ),
       mode: InsertMode.insertOrIgnore,
     );
   }
 
   Future<bool> restaurarRespaldoActualizacion(
+    String eventId,
+    String baseEventId,
+  ) => db.transaction(
+    () => _restaurarRespaldoActualizacion(eventId, baseEventId),
+  );
+
+  Future<bool> _restaurarRespaldoActualizacion(
     String eventId,
     String baseEventId,
   ) async {
@@ -422,6 +473,26 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
       await into(recipeComponents).insert(
         RecipeComponentRow.fromJson(Map<String, dynamic>.from(r as Map)),
       );
+    }
+    // Restaurar también la ausencia previa, sin ocultar fallos de integridad.
+    final affectedIds = {...ids, ...present.map((v) => v.id)};
+    await (delete(
+      db.variantInventoryMemory,
+    )..where((m) => m.variantId.isIn(affectedIds.toList()))).go();
+    {
+      final memoryData = jsonDecode(backup.memoryJson) as List;
+      for (final m in memoryData) {
+        await into(db.variantInventoryMemory).insertOnConflictUpdate(
+          VariantInventoryMemoryCompanion.insert(
+            variantId: m['variant_id'] as String,
+            inventoryItemId: m['inventory_item_id'] as String,
+            sourceEventId: m['source_event_id'] as String,
+            sourceServerSequence: Value<int?>(
+              m['source_server_sequence'] as int?,
+            ),
+          ),
+        );
+      }
     }
     await (delete(
       db.productUpdateUndo,

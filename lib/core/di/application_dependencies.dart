@@ -1,3 +1,5 @@
+import '../../application/sync/handlers/inventory_discard_event_handler.dart';
+import '../../application/sync/inventory_discard_policy.dart';
 import '../../application/import/articulo_import_batch_service.dart';
 import '../../application/commands/caja/caja_command_service.dart';
 import '../../application/commands/cuenta/cuenta_command_service.dart';
@@ -78,6 +80,8 @@ import '../../application/sync/projections/financial_category_projection_store.d
 import '../../application/sync/projections/financial_entry_projection_store.dart';
 import '../../application/sync/projections/inventory_projection_store.dart';
 import '../../application/sync/projections/producto_projection_store.dart';
+import '../../application/sync/projections/variant_inventory_memory_store.dart';
+import '../../application/sync/projections/variant_inventory_tracking_store.dart';
 import '../../application/sync/projections/sale_draft_projection_store.dart';
 import '../../application/sync/remote_event_applier.dart';
 import '../../application/sync/remote_event_preparer.dart';
@@ -147,11 +151,27 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<ProductoEventHandler>(
     () => ProductoEventHandler(
       getIt<ProductoProjectionStore>(),
+      variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
     ),
   );
   getIt.registerLazySingleton<InventoryEventHandler>(
-    () => InventoryEventHandler(getIt<InventoryProjectionStore>()),
+    () => InventoryEventHandler(
+      getIt<InventoryProjectionStore>(),
+      trackingStore: getIt<VariantInventoryTrackingStore>(),
+      discardHandler: InventoryDiscardEventHandler(
+        inventoryStore: getIt<InventoryProjectionStore>(),
+        productStore: getIt<ProductoProjectionStore>(),
+        trackingStore: getIt<VariantInventoryTrackingStore>(),
+        history: getIt<SyncedEventHistory>(),
+        policy: InventoryDiscardPolicy(
+          trackingStore: getIt<VariantInventoryTrackingStore>(),
+          memoryStore: getIt<VariantInventoryMemoryStore>(),
+        ),
+        isStandalone: () =>
+            getIt<AppConfigController>().mode == AppMode.standalone,
+      ),
+    ),
   );
   getIt.registerLazySingleton<SaleDraftProjectionStore>(
     () => getIt<AppDatabase>().saleDao,
@@ -319,6 +339,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
       cashProjectionStore: getIt<CashProjectionStore>(),
       accountBalanceBaselineProjectionStore:
           getIt<AccountBalanceBaselineProjectionStore>(),
@@ -507,6 +528,8 @@ void registerApplicationDependencies(
       syncedEventHistory: getIt<SyncedEventHistory>(),
       unidadInventarioRepository: getIt<UnidadInventarioRepository>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
+      variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
+      variantInventoryTrackingStore: getIt<VariantInventoryTrackingStore>(),
     ),
   );
   getIt.registerLazySingleton<ArticuloImportBatchService>(

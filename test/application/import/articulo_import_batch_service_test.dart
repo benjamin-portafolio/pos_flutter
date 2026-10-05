@@ -1,3 +1,5 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_tracking_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -74,6 +76,9 @@ void main() {
     productoQueFalla = null;
     final handler = ProductoEventHandler(
       productos,
+      variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+        dao: VariantInventoryMemoryDao(db),
+      ),
       inventoryProjectionStore: inventario,
     );
     store = _RecordingStore(
@@ -101,6 +106,13 @@ void main() {
     );
     servicio = ArticuloImportBatchService(
       productoCommandService: ProductoCommandService(
+        variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+          dao: VariantInventoryMemoryDao(db),
+        ),
+        variantInventoryTrackingStore: DriftVariantInventoryTrackingStore(
+          inventoryDao: InventoryDao(db),
+          productoDao: ProductoDao(db),
+        ),
         eventStore: store,
         commandContext: const LocalCommandContext(
           deviceId: 'test-device',

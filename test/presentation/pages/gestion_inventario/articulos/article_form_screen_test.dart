@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
 import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/article_form_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/models/articulo_form_result.dart';
+
+import '../../../../support/fake_mobile_scanner_platform.dart';
 
 void main() {
   const editableArticle = ArticuloFormResult(
@@ -1157,10 +1160,21 @@ void main() {
     expect(result?.variantes.single.codigoBarras, '750802876102');
   });
 
-  testWidgets('ESCANEAR abre la pantalla de escaneo sin cámara', (
+  testWidgets('ESCANEAR llena la variante y se guarda con el artículo', (
     tester,
   ) async {
-    await _pumpForm(tester);
+    final originalPlatform = MobileScannerPlatform.instance;
+    final camera = FakeMobileScannerPlatform();
+    MobileScannerPlatform.instance = camera;
+    MobileScannerController.resetPlatformSessionOwner();
+    addTearDown(() async {
+      await camera.captures.close();
+      MobileScannerPlatform.instance = originalPlatform;
+      MobileScannerController.resetPlatformSessionOwner();
+    });
+    ArticuloFormResult? saved;
+    await _pumpForm(tester, onSave: (value) async => saved = value);
+    await tester.enterText(find.byKey(const Key('article_name_field')), 'Café');
     await _chooseAdvanced(tester);
     await tester.tap(find.byKey(const Key('article_variant_card_0')));
     await tester.pumpAndSettle();
@@ -1169,6 +1183,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('barcode_scanner_screen')), findsOneWidget);
+    expect(find.byKey(const Key('fake_camera_preview')), findsOneWidget);
+    camera.captures.add(
+      const BarcodeCapture(barcodes: [Barcode(rawValue: '012345678905')]),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('variant_barcode_field')))
+          .controller!
+          .text,
+      '012345678905',
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '10',
+    );
+    await tester.tap(find.byKey(const Key('save_variant_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await tester.pumpAndSettle();
+
+    expect(saved?.variantes.single.codigoBarras, '012345678905');
   });
 }
 

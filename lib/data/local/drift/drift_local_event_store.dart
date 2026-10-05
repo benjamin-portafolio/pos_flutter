@@ -13,7 +13,10 @@ import '../../../application/sync/payloads/venta_borrador_limpiada_payload.dart'
 import 'app_database.dart';
 
 class DriftLocalEventStore
-    implements LocalEventStore, LocalAtomicEventBatchStore {
+    implements
+        LocalEventStore,
+        LocalAtomicEventBatchStore,
+        LocalTransactionalEventStore {
   DriftLocalEventStore({
     required AppDatabase db,
     required EventDao eventDao,
@@ -27,6 +30,13 @@ class DriftLocalEventStore
        _eventProcessor = eventProcessor,
        _appConfigController = appConfigController,
        _uuid = uuid;
+
+  @override
+  bool get isStandalone => _appConfigController?.mode == AppMode.standalone;
+
+  @override
+  Future<T> runInTransaction<T>(Future<T> Function() action) =>
+      _db.transaction(action);
 
   static const _localPendingSource = 'local_pending';
 
