@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
 
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
@@ -588,6 +589,11 @@ Future<void> _openAndSelectCategory(
 
 class _FakeProductoRepository implements ProductoRepository {
   @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
+  @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
 
   _FakeProductoRepository(this.articles);
@@ -636,6 +642,11 @@ class _FakeProductoRepository implements ProductoRepository {
 }
 
 class _SequencedProductoRepository implements ProductoRepository {
+  @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
   @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
 

@@ -5,6 +5,39 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     with _$ProductoDaoMixin {
   ProductoDao(super.db);
 
+  /// Igualdad textual sobre el código ya normalizado, sin cargar el catálogo.
+  Future<List<ProductoCodigoBarrasRow>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async {
+    final query =
+        select(productVariants).join([
+          innerJoin(products, products.id.equalsExp(productVariants.productId)),
+          leftOuterJoin(
+            db.units,
+            db.units.unitId.equalsExp(products.saleUnitId),
+          ),
+        ])..where(
+          productVariants.barcode.equals(codigo) &
+              productVariants.active.equals(true) &
+              products.active.equals(true),
+        );
+    query.orderBy([
+      OrderingTerm(expression: products.name.lower()),
+      OrderingTerm(expression: products.id),
+      OrderingTerm(expression: productVariants.sortOrder),
+      OrderingTerm(expression: productVariants.id),
+    ]);
+    return (await query.get())
+        .map(
+          (row) => ProductoCodigoBarrasRow(
+            producto: row.readTable(products),
+            variante: row.readTable(productVariants),
+            unidadVenta: row.readTableOrNull(db.units),
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Stream<List<ProductoListadoRow>> watchProductosListado({
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},

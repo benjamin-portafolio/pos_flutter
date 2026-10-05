@@ -12,8 +12,10 @@ import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
 import '../../widgets/article_search_bar.dart';
 import 'draft_item_edit_sheet.dart';
+import 'barcode/barcode_read_gate.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
+import 'sale_barcode_scanner_screen.dart';
 
 class CajaScreen extends StatefulWidget {
   const CajaScreen({
@@ -40,6 +42,34 @@ class _CajaScreenState extends State<CajaScreen> {
       widget.saleDraftRepository ?? getIt<SaleDraftRepository>();
   late final _draft = _repository.watchCurrentDraft();
   bool _clearing = false;
+  bool _scannerOpen = false;
+  final _barcodeClock = Stopwatch()..start();
+  late final _barcodeGate = BarcodeReadGate(clock: () => _barcodeClock.elapsed);
+
+  Future<void> _openBarcodeScanner() async {
+    if (_scannerOpen || _clearing) return;
+    _scannerOpen = true;
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => SaleBarcodeScannerScreen(
+            productoRepository: widget.productoRepository,
+            saleDraftRepository: _repository,
+            ventaBorradorCommandService: widget.ventaBorradorCommandService,
+            readGate: _barcodeGate,
+          ),
+        ),
+      );
+    } finally {
+      _scannerOpen = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _barcodeClock.stop();
+    super.dispose();
+  }
 
   Future<void> _clear(SaleDraft sale) async {
     if (_clearing) return;
@@ -93,6 +123,7 @@ class _CajaScreenState extends State<CajaScreen> {
           saleDraftRepository: _repository,
           ventaBorradorCommandService: widget.ventaBorradorCommandService,
           onOpenCaja: widget.onOpenCaja,
+          onScanBarcode: _openBarcodeScanner,
         ),
         Expanded(
           child: StreamBuilder<SaleDraft?>(
@@ -143,19 +174,19 @@ class _CajaScreenState extends State<CajaScreen> {
                               ),
                             ),
                           const SizedBox(height: 8),
-                          const Row(
+                          Row(
                             children: [
-                              Expanded(
+                              const Expanded(
                                 child: OutlinedButton(
                                   onPressed: null,
                                   child: Text('Añadir artículo nuevo'),
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               IconButton.outlined(
-                                onPressed: null,
-                                tooltip: 'Código de barras',
-                                icon: Icon(Icons.qr_code_scanner),
+                                onPressed: _openBarcodeScanner,
+                                tooltip: 'Escanear código de barras',
+                                icon: const Icon(Icons.barcode_reader),
                               ),
                             ],
                           ),

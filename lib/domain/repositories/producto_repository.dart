@@ -1,8 +1,16 @@
 import '../articulos/articulo_listado.dart';
 import '../articulos/articulo_detalle.dart';
 import '../articulos/articulo_vinculado_categoria.dart';
+import '../articulos/variante_por_codigo_barras.dart';
 
 abstract interface class ProductoRepository {
+  /// Coincidencias exactas normalizadas con CodigoBarras, conservando ceros.
+  /// Vacío devuelve cero candidatos; una entrada incompatible lanza ArgumentError.
+  /// Solo incluye productos y variantes activos; no presupone unicidad.
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  );
+
   Future<ArticuloDetalle?> obtenerDetalle(String productoId);
 
   Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(

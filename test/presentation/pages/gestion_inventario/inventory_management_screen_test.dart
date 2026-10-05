@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_inventory_update_result.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 import 'package:pos_flutter/domain/articulos/variante_detalle.dart';
@@ -929,6 +930,11 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
+  @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
   @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async {
     requestedId = productoId;

@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -407,8 +408,14 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 }
 
 class _FakeProductoRepository implements ProductoRepository {
+  @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
   // Un controlador sin oyentes también debe poder cerrarse en tearDown.
-  _FakeProductoRepository() : varianteCounts = StreamController<int>.broadcast();
+  _FakeProductoRepository()
+    : varianteCounts = StreamController<int>.broadcast();
 
   /// Emisiones sucesivas del conteo de variantes; cada una rebuilds el badge.
   final StreamController<int> varianteCounts;

@@ -12,6 +12,7 @@ class FakeMobileScannerPlatform extends MobileScannerPlatform {
   int stops = 0;
   int disposals = 0;
   StartOptions? lastStartOptions;
+  Rect? lastScanWindow;
 
   @override
   Stream<BarcodeCapture?> get barcodesStream => captures.stream;
@@ -46,7 +47,9 @@ class FakeMobileScannerPlatform extends MobileScannerPlatform {
   }
 
   @override
-  Future<void> updateScanWindow(Rect? window) async {}
+  Future<void> updateScanWindow(Rect? window) async {
+    lastScanWindow = window;
+  }
 
   @override
   Future<void> dispose() async {

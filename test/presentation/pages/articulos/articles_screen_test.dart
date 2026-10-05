@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -169,6 +170,11 @@ class _Categories implements CategoriaRepository {
 }
 
 class _Products implements ProductoRepository {
+  @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
   _Products(this.stream);
   final Stream<List<ArticuloListado>> stream;
 

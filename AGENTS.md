@@ -171,5 +171,9 @@ lectura y libera la camara al cerrar o pasar la app a segundo plano, incluso
 si habia una solicitud de permiso pendiente. Android usa el detector incluido
 para funcionar offline; iOS y macOS declaran el uso de camara y macOS incluye
 el entitlement correspondiente.
-La busqueda por codigo de barras de `caja_screen.dart` y
-`article_search_bar.dart` sigue deshabilitada, a la espera de una sesion propia.
+Los dos accesos de codigo de barras de Caja abren `SaleBarcodeScannerScreen`,
+con escaneo continuo, `BarcodeReadGate` y la misma venta persistida que Caja.
+La compuerta temporal conserva pruebas fisicas pendientes de retirada/enfoque;
+no bloquean la integracion (plan de Escaneo en caja, revision 2).
+`ArticleSearchBar` recibe `onScanBarcode` opcional. Articulos no lo proporciona
+y conserva su lector deshabilitado y su busqueda textual.

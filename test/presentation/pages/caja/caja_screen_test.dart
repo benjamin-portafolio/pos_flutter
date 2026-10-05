@@ -60,11 +60,13 @@ void main() {
       for (final button in tester.widgetList<IconButton>(
         find.byWidgetPredicate(
           (widget) =>
-              widget is IconButton && widget.tooltip == 'Código de barras',
+              widget is IconButton &&
+              widget.tooltip == 'Escanear código de barras',
         ),
       )) {
-        expect(button.onPressed, isNull);
+        expect(button.onPressed, isNotNull);
       }
+      expect(find.byIcon(Icons.barcode_reader), findsNWidgets(2));
       for (final button in tester.widgetList<TextButton>(
         find.byType(TextButton),
       )) {
@@ -371,9 +373,7 @@ class _Commands implements VentaBorradorCommandService {
   }
 
   @override
-  Future<void> eliminarProducto(
-    EliminarProductoBorradorCommand command,
-  ) async {
+  Future<void> eliminarProducto(EliminarProductoBorradorCommand command) async {
     removed.add(command);
     if (fail) throw StateError('fallo');
     await gate;
