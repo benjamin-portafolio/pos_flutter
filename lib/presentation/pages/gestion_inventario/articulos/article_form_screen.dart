@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../application/config/app_config_controller.dart';
+import '../../../../domain/repositories/proveedor_repository.dart';
 import '../../../../domain/articulos/nombre_producto.dart';
 import '../../../../domain/articulos/nombre_variante.dart';
 import '../../../../domain/articulos/codigo_barras.dart';
@@ -28,6 +30,8 @@ class ArticleFormScreen extends StatefulWidget {
     this.inventoryResourceRepository,
     this.onCreateInventoryResource,
     this.onRegisterInventoryMovement,
+    this.proveedorRepository,
+    this.appConfigController,
     super.key,
   });
 
@@ -35,6 +39,8 @@ class ArticleFormScreen extends StatefulWidget {
   final List<UnidadInventario> unidadesVenta;
   final Future<void> Function(ArticuloFormResult result)? onSave;
   final ArticuloFormResult? initialValue;
+  final ProveedorRepository? proveedorRepository;
+  final AppConfigController? appConfigController;
   bool get editing => initialValue != null;
   bool get preview => editing && onSave == null;
   final RecursoInventarioRepository? inventoryResourceRepository;
@@ -420,6 +426,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           onCreateInventoryResource: widget.onCreateInventoryResource,
           onRegisterInventoryMovement: widget.onRegisterInventoryMovement,
           productName: _nameController.text.trim(),
+          proveedorRepository: widget.proveedorRepository,
+          appConfigController: widget.appConfigController,
+          saleConfiguration: _saleConfiguration,
           canDelete: true,
           isLastVariant: variants.length == 1,
           existingNameKeys: _variantNameKeys(excludingIndex: index),
@@ -464,6 +473,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           onCreateInventoryResource: widget.onCreateInventoryResource,
           onRegisterInventoryMovement: widget.onRegisterInventoryMovement,
           productName: _nameController.text.trim(),
+          proveedorRepository: widget.proveedorRepository,
+          appConfigController: widget.appConfigController,
+          saleConfiguration: _saleConfiguration,
           canDelete: false,
           existingNameKeys: _variantNameKeys(),
         ),
@@ -503,6 +515,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         (variant.codigoBarras?.trim().isEmpty ?? true) &&
         !variant.seguimientoExistencias &&
         !variant.usaReceta &&
+        (variant.proveedores?.isEmpty ?? true) &&
         (variant.existenciaInicial?.trim().isEmpty ?? true);
   }
 
@@ -644,7 +657,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (!validSaleUnit) setState(() => _showSaleUnitError = true);
     final variants = _creationMode == _ArticleCreationMode.simple
         ? [
-            ArticuloFormVarianteResult(
+            ArticuloFormVarianteResult.conProveedores(
+              id: _advancedVariants?.firstOrNull?.id,
+              proveedores: _advancedVariants?.firstOrNull?.proveedores,
               nombre: null,
               precioVenta: _priceController.text,
               costoEstandar: null,
@@ -660,12 +675,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     }
     if (!validFields || !validSaleUnit || variantError != null) return;
 
-    final saleConfiguration = _saleMode == SaleMode.unit
-        ? const UnitSaleConfiguration()
-        : MeasuredSaleConfiguration(
-            saleUnitId: _selectedSaleUnit!.id,
-            priceReferenceQuantityAtomic: _selectedSaleUnit!.factorAtomico,
-          );
+    final saleConfiguration = _saleConfiguration;
     setState(() {
       _saving = true;
       _saveError = null;
@@ -691,6 +701,16 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       });
     }
   }
+
+  /// Una edición conserva la cantidad de referencia original del producto.
+  SaleConfiguration get _saleConfiguration =>
+      widget.initialValue?.saleConfiguration ??
+      (_saleMode == SaleMode.unit
+          ? const UnitSaleConfiguration()
+          : MeasuredSaleConfiguration(
+              saleUnitId: _selectedSaleUnit!.id,
+              priceReferenceQuantityAtomic: _selectedSaleUnit!.factorAtomico,
+            ));
 
   String? _validateVariants(List<ArticuloFormVarianteResult> variants) {
     if (variants.isEmpty) return 'Agrega al menos una variante.';
@@ -793,6 +813,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           a.precioVenta != b.precioVenta ||
           a.costoEstandar != b.costoEstandar ||
           a.codigoBarras != b.codigoBarras ||
+          !listEquals(a.proveedores, b.proveedores) ||
           a.inventoryUnitId != b.inventoryUnitId ||
           a.existenciaInicial != b.existenciaInicial ||
           !listEquals(

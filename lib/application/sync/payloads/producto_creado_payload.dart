@@ -1,3 +1,5 @@
+import 'producto_proveedor_precio.dart';
+import 'producto_proveedor_dependencia.dart';
 import '../../../domain/articulos/codigo_barras.dart';
 import '../../../domain/articulos/costo_estandar.dart';
 import '../../../domain/articulos/nombre_producto.dart';
@@ -14,6 +16,7 @@ class ProductoCreadoPayload {
     required this.variantes,
     required this.dependenciaCategoria,
     required this.dependenciasInventario,
+    required this.dependenciasProveedores,
   });
 
   static const aggregateType = 'product';
@@ -24,6 +27,52 @@ class ProductoCreadoPayload {
   final List<ProductoCreadoVariante> variantes;
   final ProductoCreadoDependencia? dependenciaCategoria;
   final List<ProductoCreadoInventarioDependencia> dependenciasInventario;
+  final List<ProductoProveedorDependencia> dependenciasProveedores;
+
+  /// Proveedores presentes en este estado; una ausencia legada no inventa IDs.
+  Set<String> get supplierIds => _supplierIds(variantes);
+
+  /// Consulta el conocimiento del campo en metadatos históricos de proyección.
+  /// Un evento anterior sin snapshot de variantes no acredita conocimiento;
+  /// si lo incluye, suppliers conserva las mismas validaciones del contrato.
+  static bool knowsSuppliers(Map<String, Object?> json) {
+    final variants = json['variants'];
+    if (variants is! List || variants.isEmpty) return false;
+    final lists = [
+      for (final v in variants)
+        ProductoProveedorPrecio.parseVariant(_requiredMap(v, 'variant')),
+    ];
+    final known = lists.first != null;
+    if (lists.any((s) => (s != null) != known)) {
+      throw const FormatException('Snapshot parcial de proveedores.');
+    }
+    return known;
+  }
+
+  /// Completa una lectura actual sin alterar el formato de eventos históricos.
+  /// Solo una base legada sin relaciones puede promoverse a conjuntos vacíos.
+  ProductoCreadoPayload withKnownSuppliers() => ProductoCreadoPayload.create(
+    nombre: nombre,
+    categoriaId: categoriaId,
+    saleConfiguration: saleConfiguration,
+    dependenciaCategoria: dependenciaCategoria,
+    dependenciasInventario: dependenciasInventario,
+    dependenciasProveedores: dependenciasProveedores,
+    variantes: [
+      for (final v in variantes)
+        ProductoCreadoVariante.create(
+          id: v.id,
+          nombre: v.nombre,
+          codigoBarras: v.codigoBarras,
+          precioVentaMenor: v.precioVentaMenor,
+          costoEstandarMenor: v.costoEstandarMenor,
+          inventoryItemId: v.inventoryItemId,
+          componentesReceta: v.componentesReceta,
+          proveedores: v.proveedores ?? const [],
+          orden: v.orden,
+        ),
+    ],
+  );
 
   factory ProductoCreadoPayload.create({
     required String nombre,
@@ -32,6 +81,7 @@ class ProductoCreadoPayload {
     required List<ProductoCreadoVariante> variantes,
     ProductoCreadoDependencia? dependenciaCategoria,
     List<ProductoCreadoInventarioDependencia> dependenciasInventario = const [],
+    List<ProductoProveedorDependencia> dependenciasProveedores = const [],
   }) {
     final normalizedName = NombreProducto.fromInput(nombre).value;
     final normalizedCategoryId = _optionalNonEmptyString(
@@ -51,6 +101,10 @@ class ProductoCreadoPayload {
       variantes: validatedVariants,
       dependenciaCategoria: dependenciaCategoria,
       dependenciasInventario: validatedInventoryDependencies,
+      dependenciasProveedores: ProductoProveedorDependencia.validate(
+        _supplierIds(validatedVariants),
+        dependenciasProveedores,
+      ),
     );
   }
 
@@ -119,6 +173,7 @@ class ProductoCreadoPayload {
     var categoryDependencySeen = false;
     String? saleUnitDependencyId;
     final inventoryDependencies = <ProductoCreadoInventarioDependencia>[];
+    final supplierDependencies = <ProductoProveedorDependencia>[];
     for (var index = 0; index < dependencies.length; index++) {
       final dependency = _requiredMap(
         dependencies[index],
@@ -161,9 +216,13 @@ class ProductoCreadoPayload {
               fieldName: 'dependencies[$index]',
             ),
           );
+        case 'supplier':
+          supplierDependencies.add(
+            ProductoProveedorDependencia.fromJson(dependency),
+          );
         default:
           throw const FormatException(
-            'producto_creado solo admite dependencias category, unit e inventory_item.',
+            'producto_creado solo admite dependencias category, unit, inventory_item y supplier.',
           );
       }
     }
@@ -199,6 +258,10 @@ class ProductoCreadoPayload {
         validatedVariants,
         inventoryDependencies,
       ),
+      dependenciasProveedores: ProductoProveedorDependencia.validate(
+        _supplierIds(validatedVariants),
+        supplierDependencies,
+      ),
     );
   }
 
@@ -214,6 +277,7 @@ class ProductoCreadoPayload {
       if (saleConfiguration case final MeasuredSaleConfiguration measured)
         {'ref_type': 'unit', 'ref_id': measured.saleUnitId},
       ...dependenciasInventario.map((dependency) => dependency.toJson()),
+      ...dependenciasProveedores.map((dependency) => dependency.toJson()),
     ],
   };
 }
@@ -228,6 +292,7 @@ class ProductoCreadoVariante {
     required this.costoEstandarMenor,
     required this.inventoryItemId,
     required this.componentesReceta,
+    required this.proveedores,
     required this.orden,
   });
 
@@ -239,6 +304,7 @@ class ProductoCreadoVariante {
     String? codigoBarras,
     String? inventoryItemId,
     List<ProductoCreadoComponenteReceta> componentesReceta = const [],
+    List<ProductoProveedorPrecio>? proveedores,
     required int orden,
   }) {
     final normalizedName = NombreVariante.fromInput(nombre);
@@ -265,6 +331,7 @@ class ProductoCreadoVariante {
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
       inventoryItemId: normalizedInventoryItemId,
       componentesReceta: validatedComponents,
+      proveedores: ProductoProveedorPrecio.validate(proveedores),
       orden: orden,
     );
   }
@@ -280,6 +347,9 @@ class ProductoCreadoVariante {
   final int? costoEstandarMenor;
   final String? inventoryItemId;
   final List<ProductoCreadoComponenteReceta> componentesReceta;
+
+  /// null: campo legado ausente/desconocido; []: sin relaciones explícitas.
+  final List<ProductoProveedorPrecio>? proveedores;
   final int orden;
 
   factory ProductoCreadoVariante.fromJson(
@@ -324,6 +394,7 @@ class ProductoCreadoVariante {
           '$fieldName.inventory_item_id',
         ),
         componentesReceta: recipeComponents,
+        proveedores: ProductoProveedorPrecio.parseVariant(json),
         orden: _requiredInt(json['sort_order'], '$fieldName.sort_order'),
       );
     } on ArgumentError catch (error) {
@@ -348,6 +419,8 @@ class ProductoCreadoVariante {
             .map((component) => component.toJson())
             .toList(growable: false),
       },
+    if (proveedores != null)
+      'suppliers': proveedores!.map((supplier) => supplier.toJson()).toList(),
     'sort_order': orden,
   };
 }
@@ -522,6 +595,12 @@ List<ProductoCreadoVariante> _validateVariants(
   if (variants.isEmpty) {
     throw const FormatException(
       'producto_creado requiere una o más variantes.',
+    );
+  }
+  if (variants.any((v) => v.proveedores == null) &&
+      variants.any((v) => v.proveedores != null)) {
+    throw const FormatException(
+      'Todas las variantes deben declarar suppliers o conservar su ausencia legada.',
     );
   }
   final ids = <String>{};
@@ -756,3 +835,10 @@ int? _optionalNonNegativeInt(Object? value, String fieldName) {
   }
   return parsed;
 }
+
+Set<String> _supplierIds(List<ProductoCreadoVariante> variants) => {
+  for (final variant in variants)
+    for (final supplier
+        in variant.proveedores ?? const <ProductoProveedorPrecio>[])
+      supplier.supplierId,
+};

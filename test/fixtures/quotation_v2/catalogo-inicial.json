@@ -1,0 +1,69 @@
+{
+  "products": [
+    {
+      "id": "20000000-0000-4000-8000-000000000007",
+      "active": true,
+      "name": "Pan",
+      "sale_mode": "unit",
+      "sale_unit_id": null,
+      "price_reference_quantity_atomic": null
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000008",
+      "active": true,
+      "name": "Café medido",
+      "sale_mode": "measured",
+      "sale_unit_id": "10000000-0000-4000-8000-000000000002",
+      "price_reference_quantity_atomic": 1
+    }
+  ],
+  "product_variants": [
+    {
+      "id": "20000000-0000-4000-8000-000000000009",
+      "active": true,
+      "product_id": "20000000-0000-4000-8000-000000000007",
+      "name": "Original",
+      "sale_price_minor": 10000,
+      "standard_cost_minor": 6000,
+      "inventory_item_id": "20000000-0000-4000-8000-000000000011",
+      "sort_order": 0
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000010",
+      "active": true,
+      "product_id": "20000000-0000-4000-8000-000000000008",
+      "name": "Original",
+      "sale_price_minor": 20,
+      "standard_cost_minor": 8,
+      "inventory_item_id": null,
+      "sort_order": 0
+    }
+  ],
+  "units": [
+    {
+      "unit_id": "10000000-0000-4000-8000-000000000002",
+      "active": true,
+      "code": "g",
+      "name": "Gramo",
+      "symbol": "g",
+      "dimension": "mass",
+      "atomic_factor": 1,
+      "max_fraction_digits": 0
+    }
+  ],
+  "inventory_items": [
+    {
+      "id": "20000000-0000-4000-8000-000000000011",
+      "active": true,
+      "name": "Recurso 1",
+      "default_unit_id": "10000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000012",
+      "active": true,
+      "name": "Recurso 2",
+      "default_unit_id": "10000000-0000-4000-8000-000000000001"
+    }
+  ],
+  "recipe_components": []
+}

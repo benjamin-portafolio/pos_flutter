@@ -1,3 +1,8 @@
+import '../../../domain/articulos/proveedor_variante.dart';
+import '../../sync/payloads/producto_proveedor_precio.dart';
+import '../../sync/payloads/producto_proveedor_dependencia.dart';
+import '../../sync/payloads/proveedor_creado_payload.dart';
+import '../../sync/projections/proveedor_projection_store.dart';
 import 'producto_inventory_update_result.dart';
 import '../../sync/inventory_discard_policy.dart';
 import '../../sync/payloads/recurso_inventario_descartado_payload.dart';
@@ -43,9 +48,11 @@ class ProductoCommandService {
     required UnidadInventarioRepository unidadInventarioRepository,
     InventoryProjectionStore? inventoryProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
+    ProveedorProjectionStore? proveedorProjectionStore,
     VariantInventoryMemoryStore? variantInventoryMemoryStore,
     VariantInventoryTrackingStore? variantInventoryTrackingStore,
-  }) : _productoProjectionStore = productoProjectionStore,
+  }) : _proveedorProjectionStore = proveedorProjectionStore,
+       _productoProjectionStore = productoProjectionStore,
        _eventStore = eventStore,
        _commandContext = commandContext,
        _categoriaProjectionStore = categoriaProjectionStore,
@@ -55,7 +62,20 @@ class ProductoCommandService {
        _variantInventoryMemoryStore = variantInventoryMemoryStore,
        _variantInventoryTrackingStore = variantInventoryTrackingStore;
 
+  final ProveedorProjectionStore? _proveedorProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
+
+  bool get _isStandalone =>
+      _eventStore is LocalTransactionalEventStore &&
+      (_eventStore as LocalTransactionalEventStore).isStandalone;
+
+  Future<ProductoCreadoPayload> _snapshotForEdit(String productId) async {
+    final current = await _productoProjectionStore!.snapshot(productId);
+    return _proveedorProjectionStore != null
+        ? current.withKnownSuppliers()
+        : current;
+  }
+
   final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final CategoriaProjectionStore _categoriaProjectionStore;
@@ -72,6 +92,16 @@ class ProductoCommandService {
     final product = await _productoProjectionStore?.findProductById(id);
     if (product == null || !product.active) {
       throw StateError('El artículo no existe.');
+    }
+    if (!_isStandalone &&
+        product.lastEventId != null &&
+        (await _syncedEventHistory.eventById(
+              product.lastEventId!,
+            ))?.deliveryStatus ==
+            'not_required') {
+      throw StateError(
+        'El historial local requiere una importación explícita.',
+      );
     }
     return product;
   }
@@ -107,7 +137,7 @@ class ProductoCommandService {
     if (product.lastEventId != baseEventId) {
       throw StateError('El artículo cambió. Vuelve a abrirlo.');
     }
-    final before = await _productoProjectionStore!.snapshot(productId);
+    final before = await _snapshotForEdit(productId);
     if (product.saleConfiguration != command.saleConfiguration) {
       throw const FormatException('No se puede cambiar la forma de venta.');
     }
@@ -130,7 +160,13 @@ class ProductoCommandService {
       deviceId: _commandContext.deviceId,
       userId: _commandContext.userId,
       baseVersion: product.version,
-      baseServerSequence: product.lastServerSequence,
+      baseServerSequence:
+          (await _syncedEventHistory.eventById(
+                product.lastEventId!,
+              ))?.deliveryStatus ==
+              'pending'
+          ? null
+          : product.lastServerSequence,
       createdAtLocal: DateTime.now(),
       payload: payload.toJson(),
     );
@@ -204,13 +240,20 @@ class ProductoCommandService {
   Future<void> eliminarArticulo({
     required String productId,
     required String baseEventId,
+  }) => _runInTransaction(
+    () => _eliminarArticulo(productId: productId, baseEventId: baseEventId),
+  );
+
+  Future<void> _eliminarArticulo({
+    required String productId,
+    required String baseEventId,
   }) async {
     final product = await _obtenerBaseEdicion(productId);
     if (product.lastEventId != baseEventId) {
       throw StateError('El artículo cambió. Vuelve a abrirlo.');
     }
-    final before = await _productoProjectionStore!.snapshot(productId);
-    final variants = await _productoProjectionStore.findVariantsByProductId(
+    final before = await _snapshotForEdit(productId);
+    final variants = await _productoProjectionStore!.findVariantsByProductId(
       productId,
     );
     final payload = ProductoActualizadoPayload(
@@ -228,7 +271,13 @@ class ProductoCommandService {
         deviceId: _commandContext.deviceId,
         userId: _commandContext.userId,
         baseVersion: product.version,
-        baseServerSequence: product.lastServerSequence,
+        baseServerSequence:
+            (await _syncedEventHistory.eventById(
+                  product.lastEventId!,
+                ))?.deliveryStatus ==
+                'pending'
+            ? null
+            : product.lastServerSequence,
         createdAtLocal: DateTime.now(),
         payload: payload.toJson(),
       ),
@@ -238,11 +287,15 @@ class ProductoCommandService {
           LocalEventRef.affects(refType: 'product_variant', refId: v.id),
           LocalEventRef.affects(refType: 'recipe', refId: v.id),
         ],
+        ..._supplierRefs([before]),
       ],
     );
   }
 
-  Future<void> crearArticulo(CrearArticuloCommand command) async {
+  Future<void> crearArticulo(CrearArticuloCommand command) =>
+      _runInTransaction(() => _crearArticulo(command));
+
+  Future<void> _crearArticulo(CrearArticuloCommand command) async {
     final article = await _prepareArticulo(command);
     final event = _creationEvent(article);
     await _appendArticulo(article, event);
@@ -250,7 +303,10 @@ class ProductoCommandService {
 
   /// Prepara todo antes de escribir. Recursos de todo el lote preceden a los
   /// productos y el adaptador debe garantizar una sola transacción local.
-  Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) async {
+  Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) =>
+      _runInTransaction(() => _crearArticulosLote(commands));
+
+  Future<void> _crearArticulosLote(List<CrearArticuloCommand> commands) async {
     if (commands.isEmpty) return;
     if (_eventStore is! LocalAtomicEventBatchStore) {
       throw StateError(
@@ -320,16 +376,19 @@ class ProductoCommandService {
       inventoryBindings,
       before,
     );
+    final variantPayloads = _buildVariantPayloads(
+      variants,
+      variantIds,
+      inventoryBindings,
+      before,
+    );
+    final supplierDependencies = await _supplierDependencies(variantPayloads);
     final payload = ProductoCreadoPayload.create(
       nombre: nombre.value,
       categoriaId: categoriaId,
       saleConfiguration: saleConfiguration,
-      variantes: _buildVariantPayloads(
-        variants,
-        variantIds,
-        inventoryBindings,
-        before,
-      ),
+      variantes: variantPayloads,
+      dependenciasProveedores: supplierDependencies,
       dependenciaCategoria: dependency,
       dependenciasInventario: inventoryDependencies,
     );
@@ -388,6 +447,7 @@ class ProductoCommandService {
           codigoBarras: CodigoBarras.fromInput(captured.codigoBarras).value,
           inventory: directInventory,
           recipeComponents: recipeComponents,
+          proveedores: ProveedorVariante.canonical(captured.proveedores),
           existingInventoryItemId: _normalizeOptional(
             captured.existingInventoryItemId,
           ),
@@ -612,8 +672,101 @@ class ProductoCommandService {
                 quantityAtomic: component.quantityAtomic,
               ),
           ],
+          proveedores: _variantSuppliers(
+            normalizedVariants[index],
+            before?.variantes
+                .where((v) => v.id == variantIds[index])
+                .firstOrNull,
+          ),
           orden: index,
         ),
+    ];
+  }
+
+  List<ProductoProveedorPrecio>? _variantSuppliers(
+    _NormalizedVariant variant,
+    ProductoCreadoVariante? previous,
+  ) {
+    final captured = variant.proveedores;
+    if (captured == null) {
+      return previous?.proveedores ??
+          (_proveedorProjectionStore != null ? const [] : null);
+    }
+    final prior = {
+      for (final s in previous?.proveedores ?? <ProductoProveedorPrecio>[])
+        s.supplierId: s,
+    };
+    return [
+      for (final s in captured)
+        ProductoProveedorPrecio(
+          supplierId: s.proveedorId,
+          quotedPriceMinor: s.precioInformadoMenor,
+          quotedAtMs:
+              prior[s.proveedorId]?.quotedPriceMinor == s.precioInformadoMenor
+              ? prior[s.proveedorId]!.quotedAtMs
+              : s.fechaInformadaMs,
+        ),
+    ];
+  }
+
+  Future<List<ProductoProveedorDependencia>> _supplierDependencies(
+    List<ProductoCreadoVariante> variants,
+  ) async {
+    final ids = {
+      for (final v in variants)
+        for (final s in v.proveedores ?? <ProductoProveedorPrecio>[])
+          s.supplierId,
+    };
+    final result = <ProductoProveedorDependencia>[];
+    for (final id in ids) {
+      final supplier = await _proveedorProjectionStore?.findById(id);
+      if (supplier == null) throw StateError('No existe el proveedor $id.');
+      String? dependency;
+      if (supplier.lastServerSequence == null) {
+        final creation = supplier.createdEventId == null
+            ? null
+            : await _syncedEventHistory.eventById(supplier.createdEventId!);
+        if (creation == null ||
+            creation.eventType != ProveedorCreadoPayload.eventType ||
+            creation.aggregateId != id) {
+          throw StateError('No se encontró el alta del proveedor $id.');
+        }
+        switch (creation.deliveryStatus) {
+          case 'pending':
+            dependency = creation.eventId;
+          case 'not_required':
+            if (!_isStandalone) {
+              throw StateError(
+                'El proveedor local requiere una importación explícita.',
+              );
+            }
+          case 'delivered':
+            break;
+          default:
+            throw StateError('El alta del proveedor $id no fue aceptada.');
+        }
+      }
+      result.add(
+        ProductoProveedorDependencia(refId: id, dependsOnEventId: dependency),
+      );
+    }
+    return result;
+  }
+
+  List<LocalEventRef> _supplierRefs(List<ProductoCreadoPayload> states) {
+    final variantIds = {
+      for (final state in states)
+        for (final v in state.variantes)
+          if (v.proveedores != null) v.id,
+    }.toList()..sort();
+    final supplierIds = {
+      for (final state in states) ...state.supplierIds,
+    }.toList()..sort();
+    return [
+      for (final id in variantIds)
+        LocalEventRef.affects(refType: 'variant_suppliers', refId: id),
+      for (final id in supplierIds)
+        LocalEventRef.uses(refType: 'supplier', refId: id),
     ];
   }
 
@@ -635,6 +788,10 @@ class ProductoCommandService {
     final saleConfiguration = payload.saleConfiguration;
     return [
       LocalEventRef.affects(refType: 'product', refId: productId),
+      ..._supplierRefs([
+        if (updatePayload != null) updatePayload.before,
+        payload,
+      ]),
       if (updatePayload != null)
         for (final v in updatePayload.removedVariants) ...[
           LocalEventRef.affects(refType: 'product_variant', refId: v.id),
@@ -993,6 +1150,7 @@ class _NormalizedVariant {
     required this.inventory,
     required this.recipeComponents,
     this.existingInventoryItemId,
+    this.proveedores,
   });
 
   final String? nombre;
@@ -1001,6 +1159,7 @@ class _NormalizedVariant {
   final String? codigoBarras;
   final _NormalizedInventory? inventory;
   final List<_NormalizedRecipeComponent> recipeComponents;
+  final List<ProveedorVariante>? proveedores;
 
   /// Recurso existente que la persona usuaria eligió explícitamente para
   /// recuperar, por ejemplo al resolver un legado ambiguo. Es una intención de

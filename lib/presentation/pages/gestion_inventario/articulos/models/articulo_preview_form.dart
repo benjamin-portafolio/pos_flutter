@@ -25,8 +25,9 @@ class ArticuloPreviewForm {
       saleConfiguration: detalle.saleConfiguration,
       variantes: detalle.variantes
           .map(
-            (variant) => ArticuloFormVarianteResult(
+            (variant) => ArticuloFormVarianteResult.conProveedores(
               id: variant.id,
+              proveedores: variant.proveedores,
               nombre: variant.nombre,
               precioVenta: money(variant.precioVentaMenor),
               costoEstandar: variant.costoEstandarMenor == null

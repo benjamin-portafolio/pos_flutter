@@ -35,7 +35,7 @@ void main() {
         nombre: 'Pan',
         categoriaId: null,
         saleConfiguration: configuration,
-        variantes: const [
+        variantes: [
           VarianteDetalle(
             nombre: null,
             precioVentaMenor: 1001,

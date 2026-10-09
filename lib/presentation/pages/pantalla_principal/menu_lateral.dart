@@ -1,3 +1,5 @@
+import '../../../application/commands/cotizaciones/recuperar_cotizacion_result.dart';
+import '../cotizaciones/quotations_screen.dart';
 import '../caja/cash_management_screen.dart';
 import '../cuenta/declarar_saldo_cuenta_screen.dart';
 import '../gestion_clientes/clientes_screen.dart';
@@ -12,7 +14,9 @@ import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dar
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 
 class MenuLateral extends StatelessWidget {
-  const MenuLateral({super.key});
+  const MenuLateral({this.onOpenCaja, super.key});
+
+  final VoidCallback? onOpenCaja;
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +42,7 @@ class MenuLateral extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "PASTOR",
-                            style: TextStyle(color: Colors.white),
-                          ),
+                          Text("PASTOR", style: TextStyle(color: Colors.white)),
                           Text(
                             "+524341548804",
                             style: TextStyle(
@@ -110,6 +111,7 @@ class MenuLateral extends StatelessWidget {
               });
             },
           ),
+          _QuotationsMenuTile(onOpenCaja: onOpenCaja),
           const _InventoryMenuTile(),
           ListTile(
             leading: Icon(Icons.swap_horiz),
@@ -270,4 +272,49 @@ class _CashMenuTile extends StatelessWidget {
       },
     );
   }
+}
+
+/// El resultado vuelve al Home que abrió el drawer y selecciona su Caja.
+class _QuotationsMenuTile extends StatefulWidget {
+  const _QuotationsMenuTile({this.onOpenCaja});
+  final VoidCallback? onOpenCaja;
+  @override
+  State<_QuotationsMenuTile> createState() => _QuotationsMenuTileState();
+}
+
+class _QuotationsMenuTileState extends State<_QuotationsMenuTile> {
+  bool _opening = false;
+  Future<void> _open() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    final navigator = Navigator.of(context);
+    final ownerRoute = ModalRoute.of(context);
+    final onOpenCaja = widget.onOpenCaja;
+    navigator.pop();
+    // El drawer puede desmontarse al cerrarse; la navegación pertenece a Home.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!navigator.mounted || ownerRoute?.isCurrent != true) {
+      if (mounted) setState(() => _opening = false);
+      return;
+    }
+    try {
+      final result = await navigator.push<RecuperarCotizacionResult>(
+        MaterialPageRoute(builder: (_) => const QuotationsScreen()),
+      );
+      if (result?.draftAvailable == true &&
+          navigator.mounted &&
+          ownerRoute?.isCurrent == true) {
+        onOpenCaja?.call();
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: const Icon(Icons.request_quote_outlined),
+    title: const Text('Cotizaciones'),
+    onTap: _opening ? null : _open,
+  );
 }

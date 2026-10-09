@@ -1,3 +1,4 @@
+import 'producto_proveedor_precio.dart';
 import 'producto_creado_payload.dart';
 
 /// Estado completo antes y después para edición atómica y reversión local.
@@ -13,6 +14,13 @@ class ProductoActualizadoPayload {
     }
     if (before.saleConfiguration != after.saleConfiguration) {
       throw const FormatException('No se puede cambiar la forma de venta.');
+    }
+    if (!deleteProduct &&
+        (before.variantes.first.proveedores == null) !=
+            (after.variantes.first.proveedores == null)) {
+      throw const FormatException(
+        'La edición debe conocer suppliers en before y after, o conservar ambos estados legados.',
+      );
     }
     if (deleteProduct && !sameState(before, after)) {
       throw const FormatException(
@@ -80,6 +88,7 @@ class ProductoActualizadoPayload {
           v.costoEstandarMenor != other.costoEstandarMenor ||
           v.inventoryItemId != other.inventoryItemId ||
           v.orden != other.orden ||
+          !ProductoProveedorPrecio.sameList(v.proveedores, other.proveedores) ||
           v.componentesReceta.length != other.componentesReceta.length) {
         return false;
       }
@@ -96,9 +105,31 @@ class ProductoActualizadoPayload {
     return true;
   }
 
+  static bool knowsSuppliers(Map<String, Object?> json) {
+    final state = json['after'] ?? json['before'];
+    return state is Map &&
+        ProductoCreadoPayload.knowsSuppliers(Map<String, Object?>.from(state));
+  }
+
+  /// Transición explícita desde una proyección legada a una base actual completa.
+  /// No relaja sameState: el before conocido debe ser exactamente la lectura
+  /// actual con conjuntos vacíos, y una base legada jamás sustituye una conocida.
+  static bool sameEditingBase(
+    ProductoCreadoPayload current,
+    ProductoCreadoPayload before,
+  ) =>
+      sameState(current, before) ||
+      (current.variantes.first.proveedores == null &&
+          before.variantes.first.proveedores != null &&
+          sameState(current.withKnownSuppliers(), before));
+
   Set<String> get dependencyEventIds => {
     baseEventId,
     if (!deleteProduct) ?after.dependenciaCategoria?.dependsOnEventId,
+    if (!deleteProduct)
+      ...after.dependenciasProveedores
+          .map((d) => d.dependsOnEventId)
+          .whereType<String>(),
     if (!deleteProduct)
       ...after.dependenciasInventario
           .map((d) => d.dependsOnEventId)

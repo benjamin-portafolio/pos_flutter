@@ -1,3 +1,5 @@
+import '../projections/producto_proveedores_projection_store.dart';
+import '../projections/proveedor_projection_store.dart';
 import '../projections/variant_inventory_memory_store.dart';
 import '../payloads/producto_actualizado_payload.dart';
 import '../models/sync_event.dart';
@@ -10,9 +12,12 @@ class ProductoEventHandler {
     this._productoProjectionStore, {
     required VariantInventoryMemoryStore variantInventoryMemoryStore,
     InventoryProjectionStore? inventoryProjectionStore,
-  }) : _memoryStore = variantInventoryMemoryStore,
+    ProveedorProjectionStore? proveedorProjectionStore,
+  }) : _proveedorProjectionStore = proveedorProjectionStore,
+       _memoryStore = variantInventoryMemoryStore,
        _inventoryProjectionStore = inventoryProjectionStore;
 
+  final ProveedorProjectionStore? _proveedorProjectionStore;
   final ProductoProjectionStore _productoProjectionStore;
   final VariantInventoryMemoryStore _memoryStore;
   final InventoryProjectionStore? _inventoryProjectionStore;
@@ -68,6 +73,7 @@ class ProductoEventHandler {
       await _productoProjectionStore.deleteProductById(productId);
     }
 
+    await _validateSuppliers(payload);
     await _validateInventory(payload);
 
     final version = event.baseVersion ?? 1;
@@ -103,6 +109,14 @@ class ProductoEventHandler {
           lastServerSequence: event.serverSequence,
         ),
       );
+      if (variant.proveedores case final suppliers?) {
+        final store = _productoProjectionStore;
+        if (store is! ProductoProveedoresProjectionStore) {
+          throw StateError('No se configuró la proyección de proveedores.');
+        }
+        await (store as ProductoProveedoresProjectionStore)
+            .replaceVariantSuppliers(variant.id, suppliers);
+      }
       for (final component in variant.componentesReceta) {
         await _productoProjectionStore.insertRecipeComponent(
           ProductoRecetaComponenteProjection(
@@ -138,11 +152,13 @@ class ProductoEventHandler {
       throw StateError('El artículo no existe.');
     }
     if (product.lastEventId != payload.baseEventId ||
-        product.version != event.baseVersion) {
+        product.version != event.baseVersion ||
+        (event.baseServerSequence != null &&
+            product.lastServerSequence != event.baseServerSequence)) {
       throw StateError('El artículo cambió desde que se abrió la edición.');
     }
     final current = await _productoProjectionStore.snapshot(product.id);
-    if (!ProductoActualizadoPayload.sameState(current, payload.before)) {
+    if (!ProductoActualizadoPayload.sameEditingBase(current, payload.before)) {
       throw StateError('La base del artículo no coincide.');
     }
     for (final variant
@@ -158,7 +174,11 @@ class ProductoEventHandler {
         throw StateError('La variante pertenece a otro artículo.');
       }
     }
-    if (!payload.deleteProduct) await _validateInventory(payload.after);
+    await _validateSuppliers(payload.before);
+    if (!payload.deleteProduct) {
+      await _validateSuppliers(payload.after);
+      await _validateInventory(payload.after);
+    }
     await _productoProjectionStore.applyUpdate(
       event,
       payload.after,
@@ -166,6 +186,14 @@ class ProductoEventHandler {
     );
     if (!payload.deleteProduct) {
       await _maintainMemory(event, payload.before, payload.after);
+    }
+  }
+
+  Future<void> _validateSuppliers(ProductoCreadoPayload state) async {
+    for (final id in state.supplierIds) {
+      if (await _proveedorProjectionStore?.findById(id) == null) {
+        throw StateError('No existe el proveedor $id.');
+      }
     }
   }
 

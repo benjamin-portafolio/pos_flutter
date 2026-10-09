@@ -1,3 +1,8 @@
+import '../../../application/commands/cotizaciones/cotizacion_command_service.dart';
+import '../../../application/commands/cotizaciones/guardar_cotizacion_command.dart';
+import '../../../application/commands/cotizaciones/quotation_already_linked_exception.dart';
+import '../../../domain/repositories/quotation_repository.dart';
+import '../cotizaciones/quotation_ticket_screen.dart';
 import '../../../domain/repositories/confirmed_sale_repository.dart';
 import 'confirmed_sales_screen.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +25,8 @@ import 'sale_barcode_scanner_screen.dart';
 class CajaScreen extends StatefulWidget {
   const CajaScreen({
     this.saleDraftRepository,
+    this.quotationRepository,
+    this.cotizacionCommandService,
     this.ventaBorradorCommandService,
     this.productoRepository,
     this.unidadInventarioRepository,
@@ -28,6 +35,8 @@ class CajaScreen extends StatefulWidget {
   });
 
   final SaleDraftRepository? saleDraftRepository;
+  final QuotationRepository? quotationRepository;
+  final CotizacionCommandService? cotizacionCommandService;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final ProductoRepository? productoRepository;
   final UnidadInventarioRepository? unidadInventarioRepository;
@@ -43,12 +52,89 @@ class _CajaScreenState extends State<CajaScreen> {
   late final _draft = _repository.watchCurrentDraft();
   bool _clearing = false;
   bool _scannerOpen = false;
+  bool _quoting = false;
+  bool _routeOpen = false;
+  GuardarCotizacionCommand? _quotationIntent;
+  bool get _busy => _clearing || _quoting || _scannerOpen || _routeOpen;
+
+  Future<void> _quote(SaleDraft sale) async {
+    if (_busy || sale.items.isEmpty || sale.lastEventId == null) return;
+    setState(() => _quoting = true);
+    try {
+      if (_quotationIntent?.saleId != sale.id ||
+          _quotationIntent?.expectedDraftEventId != sale.lastEventId) {
+        _quotationIntent = GuardarCotizacionCommand(
+          saleId: sale.id,
+          expectedDraftEventId: sale.lastEventId!,
+        );
+      }
+      String quotationId;
+      LimpiarVentaBorradorCommand? emissionDraft;
+      try {
+        final result =
+            await (widget.cotizacionCommandService ??
+                    getIt<CotizacionCommandService>())
+                .guardar(_quotationIntent!);
+        quotationId = result.quotationId;
+        emissionDraft = LimpiarVentaBorradorCommand(
+          saleId: sale.id,
+          expectedDraftEventId: sale.lastEventId,
+        );
+      } on QuotationAlreadyLinkedException catch (linked) {
+        quotationId = linked.quotationId;
+      }
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => QuotationTicketScreen(
+            quotationId: quotationId,
+            repository: widget.quotationRepository,
+            emissionDraft: emissionDraft,
+            draftCommands: widget.ventaBorradorCommandService,
+          ),
+        ),
+      );
+      // Una consulta posterior se abre como historial, sin limpiar la captura.
+      _quotationIntent = null;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo guardar la cotización. Revisa la captura e intenta nuevamente.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _quoting = false);
+    }
+  }
+
+  Future<void> _openPayment(SaleDraft sale) async {
+    if (_busy) return;
+    setState(() => _routeOpen = true);
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PaymentMethodScreen(
+            totalMinor: sale.totalMinor,
+            saleId: sale.id,
+            expectedDraftEventId: sale.lastEventId,
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _routeOpen = false);
+    }
+  }
+
   final _barcodeClock = Stopwatch()..start();
   late final _barcodeGate = BarcodeReadGate(clock: () => _barcodeClock.elapsed);
 
   Future<void> _openBarcodeScanner() async {
-    if (_scannerOpen || _clearing) return;
-    _scannerOpen = true;
+    if (_busy) return;
+    setState(() => _scannerOpen = true);
     try {
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
@@ -61,7 +147,7 @@ class _CajaScreenState extends State<CajaScreen> {
         ),
       );
     } finally {
-      _scannerOpen = false;
+      if (mounted) setState(() => _scannerOpen = false);
     }
   }
 
@@ -72,12 +158,17 @@ class _CajaScreenState extends State<CajaScreen> {
   }
 
   Future<void> _clear(SaleDraft sale) async {
-    if (_clearing) return;
+    if (_busy) return;
     setState(() => _clearing = true);
     try {
       await (widget.ventaBorradorCommandService ??
               getIt<VentaBorradorCommandService>())
-          .limpiar(LimpiarVentaBorradorCommand(saleId: sale.id));
+          .limpiar(
+            LimpiarVentaBorradorCommand(
+              saleId: sale.id,
+              expectedDraftEventId: sale.lastEventId,
+            ),
+          );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -91,18 +182,24 @@ class _CajaScreenState extends State<CajaScreen> {
     }
   }
 
-  Future<void> _openEditor(SaleDraftItem item) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => DraftItemEditSheet(
-        item: item,
-        ventaBorradorCommandService: widget.ventaBorradorCommandService,
-        unidadInventarioRepository:
-            widget.unidadInventarioRepository ??
-            getIt<UnidadInventarioRepository>(),
-      ),
-    );
+  Future<void> _openEditor(SaleDraftItem item) async {
+    if (_busy) return;
+    setState(() => _routeOpen = true);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => DraftItemEditSheet(
+          item: item,
+          ventaBorradorCommandService: widget.ventaBorradorCommandService,
+          unidadInventarioRepository:
+              widget.unidadInventarioRepository ??
+              getIt<UnidadInventarioRepository>(),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _routeOpen = false);
+    }
   }
 
   @override
@@ -117,13 +214,16 @@ class _CajaScreenState extends State<CajaScreen> {
             icon: const Icon(Icons.receipt_long),
             label: const Text('Ventas cobradas'),
           ),
-        ArticleSearchBar(
-          showQuickAdd: false,
-          productoRepository: widget.productoRepository,
-          saleDraftRepository: _repository,
-          ventaBorradorCommandService: widget.ventaBorradorCommandService,
-          onOpenCaja: widget.onOpenCaja,
-          onScanBarcode: _openBarcodeScanner,
+        AbsorbPointer(
+          absorbing: _busy,
+          child: ArticleSearchBar(
+            showQuickAdd: false,
+            productoRepository: widget.productoRepository,
+            saleDraftRepository: _repository,
+            ventaBorradorCommandService: widget.ventaBorradorCommandService,
+            onOpenCaja: widget.onOpenCaja,
+            onScanBarcode: _busy ? null : _openBarcodeScanner,
+          ),
         ),
         Expanded(
           child: StreamBuilder<SaleDraft?>(
@@ -167,7 +267,9 @@ class _CajaScreenState extends State<CajaScreen> {
                                     if (i > 0) const Divider(height: 1),
                                     _SaleLine(
                                       item: sale.items[i],
-                                      onEdit: () => _openEditor(sale.items[i]),
+                                      onEdit: _busy
+                                          ? null
+                                          : () => _openEditor(sale.items[i]),
                                     ),
                                   ],
                                 ],
@@ -184,7 +286,7 @@ class _CajaScreenState extends State<CajaScreen> {
                               ),
                               const SizedBox(width: 8),
                               IconButton.outlined(
-                                onPressed: _openBarcodeScanner,
+                                onPressed: _busy ? null : _openBarcodeScanner,
                                 tooltip: 'Escanear código de barras',
                                 icon: const Icon(Icons.barcode_reader),
                               ),
@@ -237,7 +339,7 @@ class _CajaScreenState extends State<CajaScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           FilledButton.icon(
-                            onPressed: sale == null || _clearing
+                            onPressed: sale == null || _busy
                                 ? null
                                 : () => _clear(sale),
                             style: FilledButton.styleFrom(
@@ -251,20 +353,32 @@ class _CajaScreenState extends State<CajaScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          FilledButton(
-                            onPressed:
-                                sale == null || sale.items.isEmpty || _clearing
-                                ? null
-                                : () => Navigator.of(context).push<void>(
-                                    MaterialPageRoute(
-                                      builder: (_) => PaymentMethodScreen(
-                                        totalMinor: sale.totalMinor,
-                                        saleId: sale.id,
-                                        expectedDraftEventId: sale.lastEventId,
-                                      ),
-                                    ),
-                                  ),
-                            child: Text('Cobrar: $total'),
+                          Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed:
+                                    sale == null ||
+                                        sale.items.isEmpty ||
+                                        sale.lastEventId == null ||
+                                        _busy
+                                    ? null
+                                    : () => _quote(sale),
+                                icon: const Icon(Icons.request_quote_outlined),
+                                label: Text(
+                                  _quoting ? 'Guardando…' : 'Cotizar',
+                                ),
+                              ),
+                              FilledButton(
+                                onPressed:
+                                    sale == null || sale.items.isEmpty || _busy
+                                    ? null
+                                    : () => _openPayment(sale),
+                                child: Text('Cobrar: $total'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -283,7 +397,7 @@ class _CajaScreenState extends State<CajaScreen> {
 class _SaleLine extends StatelessWidget {
   const _SaleLine({required this.item, required this.onEdit});
   final SaleDraftItem item;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) => Padding(

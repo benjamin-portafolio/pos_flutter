@@ -25,6 +25,11 @@ class RemoteEventApplier {
     List<SyncEvent> events, {
     Future<void> Function()? afterApply,
   }) async {
+    for (final event in events) {
+      if (!_eventProcessor.supports(event.eventType)) {
+        throw UnsupportedError('Evento no soportado: ${event.eventType}');
+      }
+    }
     if (events.any(
       (e) => e.eventType == RecursoInventarioDescartadoPayload.eventType,
     )) {

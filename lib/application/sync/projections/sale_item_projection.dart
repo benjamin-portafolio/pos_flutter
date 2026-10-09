@@ -12,8 +12,12 @@ class SaleItemProjection extends SyncProjection {
     required this.saleId,
     required this.sortOrder,
     required this.snapshot,
+    this.persistedTotalMinor,
   });
   final String saleId;
   final int sortOrder;
   final SaleItemSnapshot snapshot;
+
+  /// Importe almacenado cuando se lee SQLite; permite verificar su integridad.
+  final int? persistedTotalMinor;
 }

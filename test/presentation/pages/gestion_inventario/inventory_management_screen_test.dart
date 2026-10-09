@@ -64,7 +64,7 @@ void main() {
   ) async {
     final repository = _FakeProductoRepository(
       productoRepository.articulos,
-      detail: const ArticuloDetalle(
+      detail: ArticuloDetalle(
         nombre: 'Café',
         categoriaId: 'category-1',
         saleConfiguration: UnitSaleConfiguration(),
@@ -377,7 +377,10 @@ void main() {
         'Caf',
       );
 
-      await tester.tap(find.byKey(const Key('clear_article_search_button')));
+      // La búsqueda actual conserva sólo la X de cerrar; vaciar el campo
+      // limpia el término mediante el mismo debounce de la captura textual.
+      await tester.enterText(find.byKey(const Key('article_search_field')), '');
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.pump();
 
       expect(repository.queries.last.search, '');

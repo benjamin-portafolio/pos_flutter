@@ -1,3 +1,8 @@
+import 'dart:convert';
+import '../../../application/sync/payloads/producto_actualizado_payload.dart';
+import '../../../application/sync/payloads/producto_proveedor_precio.dart';
+import '../../../application/sync/payloads/producto_proveedor_dependencia.dart';
+import '../../../application/sync/projections/producto_proveedores_projection_store.dart';
 import '../../../domain/inventario/inventory_consumption_configuration.dart';
 import 'package:drift/drift.dart';
 
@@ -7,7 +12,8 @@ import 'app_database.dart' as drift;
 import '../../../application/sync/payloads/producto_creado_payload.dart';
 import '../../../application/sync/models/sync_event.dart';
 
-class DriftProductoProjectionStore implements ProductoProjectionStore {
+class DriftProductoProjectionStore
+    implements ProductoProjectionStore, ProductoProveedoresProjectionStore {
   DriftProductoProjectionStore({required drift.ProductoDao productoDao})
     : _productoDao = productoDao;
 
@@ -38,6 +44,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
     }
     final variants = await findVariantsByProductId(productId);
     final values = <ProductoCreadoVariante>[];
+    final suppliersByVariant = await supplierSets(productId);
     for (final variant in variants.where((v) => v.active)) {
       final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
         variant.id,
@@ -51,6 +58,7 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
           codigoBarras: variant.codigoBarras,
           inventoryItemId: variant.inventoryItemId,
           orden: variant.orden,
+          proveedores: suppliersByVariant?[variant.id],
           componentesReceta: recipe
               .map(
                 (c) => ProductoCreadoComponenteReceta.create(
@@ -67,6 +75,11 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       categoriaId: product.categoriaId,
       saleConfiguration: product.saleConfiguration,
       variantes: values,
+      dependenciasProveedores: {
+        for (final v in values)
+          for (final s in v.proveedores ?? <ProductoProveedorPrecio>[])
+            s.supplierId,
+      }.map((id) => ProductoProveedorDependencia(refId: id)).toList(),
       dependenciasInventario: {
         for (final v in values) ...[
           if (v.inventoryItemId != null) v.inventoryItemId!,
@@ -74,6 +87,45 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
         ],
       }.map((id) => ProductoCreadoInventarioDependencia(refId: id)).toList(),
     );
+  }
+
+  /// Lectura de relaciones sin reconstruir/validar todo el producto histórico.
+  /// null conserva desconocimiento legado; un mapa conocido incluye todos los
+  /// conjuntos activos, incluso vacíos. No depende de event_refs ni del reloj.
+  Future<Map<String, List<ProductoProveedorPrecio>>?> supplierSets(
+    String productId,
+  ) async {
+    var known = false;
+    for (final row in await _productoDao.eventosEstadoProveedores(
+      productId,
+      aggregateType: ProductoCreadoPayload.aggregateType,
+    )) {
+      final json = Map<String, Object?>.from(jsonDecode(row.payload) as Map);
+      known |= switch (row.eventType) {
+        ProductoCreadoPayload.eventType => ProductoCreadoPayload.knowsSuppliers(
+          json,
+        ),
+        ProductoActualizadoPayload.eventType =>
+          ProductoActualizadoPayload.knowsSuppliers(json),
+        _ => false,
+      };
+    }
+    final sets = <String, List<ProductoProveedorPrecio>>{};
+    for (final variant in (await _productoDao.obtenerVariantesPorProducto(
+      productId,
+    )).where((v) => v.active)) {
+      final rows = await _productoDao.obtenerProveedoresPorVariante(variant.id);
+      sets[variant.id] = ProductoProveedorPrecio.validate([
+        for (final s in rows)
+          ProductoProveedorPrecio(
+            supplierId: s.supplierId,
+            quotedPriceMinor: s.quotedPriceMinor,
+            quotedAtMs: s.quotedAtMs,
+          ),
+      ])!;
+      known |= rows.isNotEmpty;
+    }
+    return known ? Map.unmodifiable(sets) : null;
   }
 
   @override
@@ -199,6 +251,9 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
           ),
         );
       }
+      if (v.proveedores case final suppliers?) {
+        await replaceVariantSuppliers(v.id, suppliers);
+      }
       for (final c in v.componentesReceta) {
         await insertRecipeComponent(
           ProductoRecetaComponenteProjection(
@@ -291,6 +346,20 @@ class DriftProductoProjectionStore implements ProductoProjectionStore {
       ),
     );
   }
+
+  @override
+  Future<void> replaceVariantSuppliers(
+    String variantId,
+    List<ProductoProveedorPrecio> suppliers,
+  ) => _productoDao.reemplazarProveedoresVariante(variantId, [
+    for (final s in suppliers)
+      drift.VariantSuppliersCompanion.insert(
+        variantId: variantId,
+        supplierId: s.supplierId,
+        quotedPriceMinor: s.quotedPriceMinor,
+        quotedAtMs: s.quotedAtMs,
+      ),
+  ]);
 
   @override
   Future<void> insertRecipeComponent(

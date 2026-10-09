@@ -4564,6 +4564,946 @@ class RecipeComponentsCompanion extends UpdateCompanion<RecipeComponentRow> {
   }
 }
 
+class $SuppliersTable extends Suppliers
+    with TableInfo<$SuppliersTable, SupplierRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SuppliersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+    'phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    name,
+    phone,
+    notes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'suppliers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SupplierRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+        _phoneMeta,
+        phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SupplierRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SupplierRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      phone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+    );
+  }
+
+  @override
+  $SuppliersTable createAlias(String alias) {
+    return $SuppliersTable(attachedDatabase, alias);
+  }
+}
+
+class SupplierRow extends DataClass implements Insertable<SupplierRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Nombre obligatorio normalizado por el contrato de eventos.
+  final String name;
+
+  /// Teléfono opcional como texto, sin interpretar prefijos o ceros iniciales.
+  final String? phone;
+
+  /// Notas opcionales del proveedor; vacío se normaliza a null en el contrato.
+  final String? notes;
+  const SupplierRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.name,
+    this.phone,
+    this.notes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    return map;
+  }
+
+  SuppliersCompanion toCompanion(bool nullToAbsent) {
+    return SuppliersCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      name: Value(name),
+      phone: phone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phone),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+    );
+  }
+
+  factory SupplierRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SupplierRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      name: serializer.fromJson<String>(json['name']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      notes: serializer.fromJson<String?>(json['notes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'name': serializer.toJson<String>(name),
+      'phone': serializer.toJson<String?>(phone),
+      'notes': serializer.toJson<String?>(notes),
+    };
+  }
+
+  SupplierRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? name,
+    Value<String?> phone = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+  }) => SupplierRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    name: name ?? this.name,
+    phone: phone.present ? phone.value : this.phone,
+    notes: notes.present ? notes.value : this.notes,
+  );
+  SupplierRow copyWithCompanion(SuppliersCompanion data) {
+    return SupplierRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      name: data.name.present ? data.name.value : this.name,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      notes: data.notes.present ? data.notes.value : this.notes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SupplierRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('notes: $notes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    name,
+    phone,
+    notes,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SupplierRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.name == this.name &&
+          other.phone == this.phone &&
+          other.notes == this.notes);
+}
+
+class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> name;
+  final Value<String?> phone;
+  final Value<String?> notes;
+  final Value<int> rowid;
+  const SuppliersCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.name = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SuppliersCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String name,
+    this.phone = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name);
+  static Insertable<SupplierRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? name,
+    Expression<String>? phone,
+    Expression<String>? notes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (notes != null) 'notes': notes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SuppliersCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? name,
+    Value<String?>? phone,
+    Value<String?>? notes,
+    Value<int>? rowid,
+  }) {
+    return SuppliersCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      notes: notes ?? this.notes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SuppliersCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('name: $name, ')
+          ..write('phone: $phone, ')
+          ..write('notes: $notes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $VariantSuppliersTable extends VariantSuppliers
+    with TableInfo<$VariantSuppliersTable, VariantSupplierRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VariantSuppliersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _variantIdMeta = const VerificationMeta(
+    'variantId',
+  );
+  @override
+  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
+    'variant_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES product_variants (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _supplierIdMeta = const VerificationMeta(
+    'supplierId',
+  );
+  @override
+  late final GeneratedColumn<String> supplierId = GeneratedColumn<String>(
+    'supplier_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES suppliers (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _quotedPriceMinorMeta = const VerificationMeta(
+    'quotedPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> quotedPriceMinor = GeneratedColumn<int>(
+    'quoted_price_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quotedAtMsMeta = const VerificationMeta(
+    'quotedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> quotedAtMs = GeneratedColumn<int>(
+    'quoted_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    variantId,
+    supplierId,
+    quotedPriceMinor,
+    quotedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'variant_suppliers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VariantSupplierRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('variant_id')) {
+      context.handle(
+        _variantIdMeta,
+        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_variantIdMeta);
+    }
+    if (data.containsKey('supplier_id')) {
+      context.handle(
+        _supplierIdMeta,
+        supplierId.isAcceptableOrUnknown(data['supplier_id']!, _supplierIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_supplierIdMeta);
+    }
+    if (data.containsKey('quoted_price_minor')) {
+      context.handle(
+        _quotedPriceMinorMeta,
+        quotedPriceMinor.isAcceptableOrUnknown(
+          data['quoted_price_minor']!,
+          _quotedPriceMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_quotedPriceMinorMeta);
+    }
+    if (data.containsKey('quoted_at_ms')) {
+      context.handle(
+        _quotedAtMsMeta,
+        quotedAtMs.isAcceptableOrUnknown(
+          data['quoted_at_ms']!,
+          _quotedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_quotedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {variantId, supplierId};
+  @override
+  VariantSupplierRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VariantSupplierRow(
+      variantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_id'],
+      )!,
+      supplierId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplier_id'],
+      )!,
+      quotedPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quoted_price_minor'],
+      )!,
+      quotedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quoted_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $VariantSuppliersTable createAlias(String alias) {
+    return $VariantSuppliersTable(attachedDatabase, alias);
+  }
+}
+
+class VariantSupplierRow extends DataClass
+    implements Insertable<VariantSupplierRow> {
+  /// Variante propietaria; su borrado físico elimina las relaciones en cascada.
+  final String variantId;
+
+  /// Proveedor existente; RESTRICT impide borrarlo mientras esté relacionado.
+  final String supplierId;
+
+  /// Entero no negativo en unidad monetaria menor (0 es un precio explícito).
+  /// Por unidad de la variante o cantidad de referencia del producto medido.
+  final int quotedPriceMinor;
+
+  /// Fecha informada UTC en milisegundos Unix; no es un reloj de concurrencia.
+  final int quotedAtMs;
+  const VariantSupplierRow({
+    required this.variantId,
+    required this.supplierId,
+    required this.quotedPriceMinor,
+    required this.quotedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['variant_id'] = Variable<String>(variantId);
+    map['supplier_id'] = Variable<String>(supplierId);
+    map['quoted_price_minor'] = Variable<int>(quotedPriceMinor);
+    map['quoted_at_ms'] = Variable<int>(quotedAtMs);
+    return map;
+  }
+
+  VariantSuppliersCompanion toCompanion(bool nullToAbsent) {
+    return VariantSuppliersCompanion(
+      variantId: Value(variantId),
+      supplierId: Value(supplierId),
+      quotedPriceMinor: Value(quotedPriceMinor),
+      quotedAtMs: Value(quotedAtMs),
+    );
+  }
+
+  factory VariantSupplierRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VariantSupplierRow(
+      variantId: serializer.fromJson<String>(json['variantId']),
+      supplierId: serializer.fromJson<String>(json['supplierId']),
+      quotedPriceMinor: serializer.fromJson<int>(json['quotedPriceMinor']),
+      quotedAtMs: serializer.fromJson<int>(json['quotedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'variantId': serializer.toJson<String>(variantId),
+      'supplierId': serializer.toJson<String>(supplierId),
+      'quotedPriceMinor': serializer.toJson<int>(quotedPriceMinor),
+      'quotedAtMs': serializer.toJson<int>(quotedAtMs),
+    };
+  }
+
+  VariantSupplierRow copyWith({
+    String? variantId,
+    String? supplierId,
+    int? quotedPriceMinor,
+    int? quotedAtMs,
+  }) => VariantSupplierRow(
+    variantId: variantId ?? this.variantId,
+    supplierId: supplierId ?? this.supplierId,
+    quotedPriceMinor: quotedPriceMinor ?? this.quotedPriceMinor,
+    quotedAtMs: quotedAtMs ?? this.quotedAtMs,
+  );
+  VariantSupplierRow copyWithCompanion(VariantSuppliersCompanion data) {
+    return VariantSupplierRow(
+      variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      supplierId: data.supplierId.present
+          ? data.supplierId.value
+          : this.supplierId,
+      quotedPriceMinor: data.quotedPriceMinor.present
+          ? data.quotedPriceMinor.value
+          : this.quotedPriceMinor,
+      quotedAtMs: data.quotedAtMs.present
+          ? data.quotedAtMs.value
+          : this.quotedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VariantSupplierRow(')
+          ..write('variantId: $variantId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('quotedPriceMinor: $quotedPriceMinor, ')
+          ..write('quotedAtMs: $quotedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(variantId, supplierId, quotedPriceMinor, quotedAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VariantSupplierRow &&
+          other.variantId == this.variantId &&
+          other.supplierId == this.supplierId &&
+          other.quotedPriceMinor == this.quotedPriceMinor &&
+          other.quotedAtMs == this.quotedAtMs);
+}
+
+class VariantSuppliersCompanion extends UpdateCompanion<VariantSupplierRow> {
+  final Value<String> variantId;
+  final Value<String> supplierId;
+  final Value<int> quotedPriceMinor;
+  final Value<int> quotedAtMs;
+  final Value<int> rowid;
+  const VariantSuppliersCompanion({
+    this.variantId = const Value.absent(),
+    this.supplierId = const Value.absent(),
+    this.quotedPriceMinor = const Value.absent(),
+    this.quotedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VariantSuppliersCompanion.insert({
+    required String variantId,
+    required String supplierId,
+    required int quotedPriceMinor,
+    required int quotedAtMs,
+    this.rowid = const Value.absent(),
+  }) : variantId = Value(variantId),
+       supplierId = Value(supplierId),
+       quotedPriceMinor = Value(quotedPriceMinor),
+       quotedAtMs = Value(quotedAtMs);
+  static Insertable<VariantSupplierRow> custom({
+    Expression<String>? variantId,
+    Expression<String>? supplierId,
+    Expression<int>? quotedPriceMinor,
+    Expression<int>? quotedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (variantId != null) 'variant_id': variantId,
+      if (supplierId != null) 'supplier_id': supplierId,
+      if (quotedPriceMinor != null) 'quoted_price_minor': quotedPriceMinor,
+      if (quotedAtMs != null) 'quoted_at_ms': quotedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VariantSuppliersCompanion copyWith({
+    Value<String>? variantId,
+    Value<String>? supplierId,
+    Value<int>? quotedPriceMinor,
+    Value<int>? quotedAtMs,
+    Value<int>? rowid,
+  }) {
+    return VariantSuppliersCompanion(
+      variantId: variantId ?? this.variantId,
+      supplierId: supplierId ?? this.supplierId,
+      quotedPriceMinor: quotedPriceMinor ?? this.quotedPriceMinor,
+      quotedAtMs: quotedAtMs ?? this.quotedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (variantId.present) {
+      map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (supplierId.present) {
+      map['supplier_id'] = Variable<String>(supplierId.value);
+    }
+    if (quotedPriceMinor.present) {
+      map['quoted_price_minor'] = Variable<int>(quotedPriceMinor.value);
+    }
+    if (quotedAtMs.present) {
+      map['quoted_at_ms'] = Variable<int>(quotedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VariantSuppliersCompanion(')
+          ..write('variantId: $variantId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('quotedPriceMinor: $quotedPriceMinor, ')
+          ..write('quotedAtMs: $quotedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $EspaciosTable extends Espacios with TableInfo<$EspaciosTable, Espacio> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -12040,6 +12980,1879 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePaymentRow> {
   }
 }
 
+class $QuotationsTable extends Quotations
+    with TableInfo<$QuotationsTable, QuotationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuotationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _issuedAtLocalMeta = const VerificationMeta(
+    'issuedAtLocal',
+  );
+  @override
+  late final GeneratedColumn<DateTime> issuedAtLocal =
+      GeneratedColumn<DateTime>(
+        'issued_at_local',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _sourceSaleIdMeta = const VerificationMeta(
+    'sourceSaleId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceSaleId = GeneratedColumn<String>(
+    'source_sale_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceDraftEventIdMeta =
+      const VerificationMeta('sourceDraftEventId');
+  @override
+  late final GeneratedColumn<String> sourceDraftEventId =
+      GeneratedColumn<String>(
+        'source_draft_event_id',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _currentSaleIdMeta = const VerificationMeta(
+    'currentSaleId',
+  );
+  @override
+  late final GeneratedColumn<String> currentSaleId = GeneratedColumn<String>(
+    'current_sale_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    userId,
+    deviceId,
+    issuedAtLocal,
+    sourceSaleId,
+    sourceDraftEventId,
+    currentSaleId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'quotations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QuotationRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('issued_at_local')) {
+      context.handle(
+        _issuedAtLocalMeta,
+        issuedAtLocal.isAcceptableOrUnknown(
+          data['issued_at_local']!,
+          _issuedAtLocalMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_issuedAtLocalMeta);
+    }
+    if (data.containsKey('source_sale_id')) {
+      context.handle(
+        _sourceSaleIdMeta,
+        sourceSaleId.isAcceptableOrUnknown(
+          data['source_sale_id']!,
+          _sourceSaleIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceSaleIdMeta);
+    }
+    if (data.containsKey('source_draft_event_id')) {
+      context.handle(
+        _sourceDraftEventIdMeta,
+        sourceDraftEventId.isAcceptableOrUnknown(
+          data['source_draft_event_id']!,
+          _sourceDraftEventIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceDraftEventIdMeta);
+    }
+    if (data.containsKey('current_sale_id')) {
+      context.handle(
+        _currentSaleIdMeta,
+        currentSaleId.isAcceptableOrUnknown(
+          data['current_sale_id']!,
+          _currentSaleIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuotationRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuotationRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      issuedAtLocal: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}issued_at_local'],
+      )!,
+      sourceSaleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_sale_id'],
+      )!,
+      sourceDraftEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_draft_event_id'],
+      )!,
+      currentSaleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}current_sale_id'],
+      ),
+    );
+  }
+
+  @override
+  $QuotationsTable createAlias(String alias) {
+    return $QuotationsTable(attachedDatabase, alias);
+  }
+}
+
+class QuotationRow extends DataClass implements Insertable<QuotationRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Usuario que emitió el documento.
+  final String userId;
+
+  /// Dispositivo que conserva el historial local.
+  final String deviceId;
+
+  /// Emisión estable por intención, con precisión de segundos de SQLite/Drift.
+  final DateTime issuedAtLocal;
+
+  /// Identidad histórica del origen, sin FK porque limpiar lo elimina.
+  final String sourceSaleId;
+
+  /// Revisión histórica del borrador capturado, sin FK a events.
+  final String sourceDraftEventId;
+
+  /// Venta vinculada para derivar estado; sin FK para tolerar su limpieza.
+  final String? currentSaleId;
+  const QuotationRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.userId,
+    required this.deviceId,
+    required this.issuedAtLocal,
+    required this.sourceSaleId,
+    required this.sourceDraftEventId,
+    this.currentSaleId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['user_id'] = Variable<String>(userId);
+    map['device_id'] = Variable<String>(deviceId);
+    map['issued_at_local'] = Variable<DateTime>(issuedAtLocal);
+    map['source_sale_id'] = Variable<String>(sourceSaleId);
+    map['source_draft_event_id'] = Variable<String>(sourceDraftEventId);
+    if (!nullToAbsent || currentSaleId != null) {
+      map['current_sale_id'] = Variable<String>(currentSaleId);
+    }
+    return map;
+  }
+
+  QuotationsCompanion toCompanion(bool nullToAbsent) {
+    return QuotationsCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      userId: Value(userId),
+      deviceId: Value(deviceId),
+      issuedAtLocal: Value(issuedAtLocal),
+      sourceSaleId: Value(sourceSaleId),
+      sourceDraftEventId: Value(sourceDraftEventId),
+      currentSaleId: currentSaleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currentSaleId),
+    );
+  }
+
+  factory QuotationRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuotationRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      userId: serializer.fromJson<String>(json['userId']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      issuedAtLocal: serializer.fromJson<DateTime>(json['issuedAtLocal']),
+      sourceSaleId: serializer.fromJson<String>(json['sourceSaleId']),
+      sourceDraftEventId: serializer.fromJson<String>(
+        json['sourceDraftEventId'],
+      ),
+      currentSaleId: serializer.fromJson<String?>(json['currentSaleId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'userId': serializer.toJson<String>(userId),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'issuedAtLocal': serializer.toJson<DateTime>(issuedAtLocal),
+      'sourceSaleId': serializer.toJson<String>(sourceSaleId),
+      'sourceDraftEventId': serializer.toJson<String>(sourceDraftEventId),
+      'currentSaleId': serializer.toJson<String?>(currentSaleId),
+    };
+  }
+
+  QuotationRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? userId,
+    String? deviceId,
+    DateTime? issuedAtLocal,
+    String? sourceSaleId,
+    String? sourceDraftEventId,
+    Value<String?> currentSaleId = const Value.absent(),
+  }) => QuotationRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    userId: userId ?? this.userId,
+    deviceId: deviceId ?? this.deviceId,
+    issuedAtLocal: issuedAtLocal ?? this.issuedAtLocal,
+    sourceSaleId: sourceSaleId ?? this.sourceSaleId,
+    sourceDraftEventId: sourceDraftEventId ?? this.sourceDraftEventId,
+    currentSaleId: currentSaleId.present
+        ? currentSaleId.value
+        : this.currentSaleId,
+  );
+  QuotationRow copyWithCompanion(QuotationsCompanion data) {
+    return QuotationRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      issuedAtLocal: data.issuedAtLocal.present
+          ? data.issuedAtLocal.value
+          : this.issuedAtLocal,
+      sourceSaleId: data.sourceSaleId.present
+          ? data.sourceSaleId.value
+          : this.sourceSaleId,
+      sourceDraftEventId: data.sourceDraftEventId.present
+          ? data.sourceDraftEventId.value
+          : this.sourceDraftEventId,
+      currentSaleId: data.currentSaleId.present
+          ? data.currentSaleId.value
+          : this.currentSaleId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuotationRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('issuedAtLocal: $issuedAtLocal, ')
+          ..write('sourceSaleId: $sourceSaleId, ')
+          ..write('sourceDraftEventId: $sourceDraftEventId, ')
+          ..write('currentSaleId: $currentSaleId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    userId,
+    deviceId,
+    issuedAtLocal,
+    sourceSaleId,
+    sourceDraftEventId,
+    currentSaleId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuotationRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.userId == this.userId &&
+          other.deviceId == this.deviceId &&
+          other.issuedAtLocal == this.issuedAtLocal &&
+          other.sourceSaleId == this.sourceSaleId &&
+          other.sourceDraftEventId == this.sourceDraftEventId &&
+          other.currentSaleId == this.currentSaleId);
+}
+
+class QuotationsCompanion extends UpdateCompanion<QuotationRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> userId;
+  final Value<String> deviceId;
+  final Value<DateTime> issuedAtLocal;
+  final Value<String> sourceSaleId;
+  final Value<String> sourceDraftEventId;
+  final Value<String?> currentSaleId;
+  final Value<int> rowid;
+  const QuotationsCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.issuedAtLocal = const Value.absent(),
+    this.sourceSaleId = const Value.absent(),
+    this.sourceDraftEventId = const Value.absent(),
+    this.currentSaleId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuotationsCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String userId,
+    required String deviceId,
+    required DateTime issuedAtLocal,
+    required String sourceSaleId,
+    required String sourceDraftEventId,
+    this.currentSaleId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       deviceId = Value(deviceId),
+       issuedAtLocal = Value(issuedAtLocal),
+       sourceSaleId = Value(sourceSaleId),
+       sourceDraftEventId = Value(sourceDraftEventId);
+  static Insertable<QuotationRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? userId,
+    Expression<String>? deviceId,
+    Expression<DateTime>? issuedAtLocal,
+    Expression<String>? sourceSaleId,
+    Expression<String>? sourceDraftEventId,
+    Expression<String>? currentSaleId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (userId != null) 'user_id': userId,
+      if (deviceId != null) 'device_id': deviceId,
+      if (issuedAtLocal != null) 'issued_at_local': issuedAtLocal,
+      if (sourceSaleId != null) 'source_sale_id': sourceSaleId,
+      if (sourceDraftEventId != null)
+        'source_draft_event_id': sourceDraftEventId,
+      if (currentSaleId != null) 'current_sale_id': currentSaleId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuotationsCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? userId,
+    Value<String>? deviceId,
+    Value<DateTime>? issuedAtLocal,
+    Value<String>? sourceSaleId,
+    Value<String>? sourceDraftEventId,
+    Value<String?>? currentSaleId,
+    Value<int>? rowid,
+  }) {
+    return QuotationsCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      userId: userId ?? this.userId,
+      deviceId: deviceId ?? this.deviceId,
+      issuedAtLocal: issuedAtLocal ?? this.issuedAtLocal,
+      sourceSaleId: sourceSaleId ?? this.sourceSaleId,
+      sourceDraftEventId: sourceDraftEventId ?? this.sourceDraftEventId,
+      currentSaleId: currentSaleId ?? this.currentSaleId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (issuedAtLocal.present) {
+      map['issued_at_local'] = Variable<DateTime>(issuedAtLocal.value);
+    }
+    if (sourceSaleId.present) {
+      map['source_sale_id'] = Variable<String>(sourceSaleId.value);
+    }
+    if (sourceDraftEventId.present) {
+      map['source_draft_event_id'] = Variable<String>(sourceDraftEventId.value);
+    }
+    if (currentSaleId.present) {
+      map['current_sale_id'] = Variable<String>(currentSaleId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuotationsCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('issuedAtLocal: $issuedAtLocal, ')
+          ..write('sourceSaleId: $sourceSaleId, ')
+          ..write('sourceDraftEventId: $sourceDraftEventId, ')
+          ..write('currentSaleId: $currentSaleId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $QuotationItemsTable extends QuotationItems
+    with TableInfo<$QuotationItemsTable, QuotationItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuotationItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _createdEventIdMeta = const VerificationMeta(
+    'createdEventId',
+  );
+  @override
+  late final GeneratedColumn<String> createdEventId = GeneratedColumn<String>(
+    'created_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastEventIdMeta = const VerificationMeta(
+    'lastEventId',
+  );
+  @override
+  late final GeneratedColumn<String> lastEventId = GeneratedColumn<String>(
+    'last_event_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastServerSequenceMeta =
+      const VerificationMeta('lastServerSequence');
+  @override
+  late final GeneratedColumn<int> lastServerSequence = GeneratedColumn<int>(
+    'last_server_sequence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _quotationIdMeta = const VerificationMeta(
+    'quotationId',
+  );
+  @override
+  late final GeneratedColumn<String> quotationId = GeneratedColumn<String>(
+    'quotation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES quotations (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _variantIdMeta = const VerificationMeta(
+    'variantId',
+  );
+  @override
+  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
+    'variant_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productNameSnapshotMeta =
+      const VerificationMeta('productNameSnapshot');
+  @override
+  late final GeneratedColumn<String> productNameSnapshot =
+      GeneratedColumn<String>(
+        'product_name_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _variantNameSnapshotMeta =
+      const VerificationMeta('variantNameSnapshot');
+  @override
+  late final GeneratedColumn<String> variantNameSnapshot =
+      GeneratedColumn<String>(
+        'variant_name_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleModeSnapshotMeta = const VerificationMeta(
+    'saleModeSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> saleModeSnapshot = GeneratedColumn<String>(
+    'sale_mode_snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _measuredQuantityAtomicMeta =
+      const VerificationMeta('measuredQuantityAtomic');
+  @override
+  late final GeneratedColumn<int> measuredQuantityAtomic = GeneratedColumn<int>(
+    'measured_quantity_atomic',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _saleUnitCodeSnapshotMeta =
+      const VerificationMeta('saleUnitCodeSnapshot');
+  @override
+  late final GeneratedColumn<String> saleUnitCodeSnapshot =
+      GeneratedColumn<String>(
+        'sale_unit_code_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleUnitSymbolSnapshotMeta =
+      const VerificationMeta('saleUnitSymbolSnapshot');
+  @override
+  late final GeneratedColumn<String> saleUnitSymbolSnapshot =
+      GeneratedColumn<String>(
+        'sale_unit_symbol_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _saleUnitAtomicFactorSnapshotMeta =
+      const VerificationMeta('saleUnitAtomicFactorSnapshot');
+  @override
+  late final GeneratedColumn<int> saleUnitAtomicFactorSnapshot =
+      GeneratedColumn<int>(
+        'sale_unit_atomic_factor_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    quotationId,
+    variantId,
+    productNameSnapshot,
+    variantNameSnapshot,
+    saleModeSnapshot,
+    quantity,
+    measuredQuantityAtomic,
+    saleUnitCodeSnapshot,
+    saleUnitSymbolSnapshot,
+    saleUnitAtomicFactorSnapshot,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'quotation_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QuotationItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('created_event_id')) {
+      context.handle(
+        _createdEventIdMeta,
+        createdEventId.isAcceptableOrUnknown(
+          data['created_event_id']!,
+          _createdEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_event_id')) {
+      context.handle(
+        _lastEventIdMeta,
+        lastEventId.isAcceptableOrUnknown(
+          data['last_event_id']!,
+          _lastEventIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_sequence')) {
+      context.handle(
+        _lastServerSequenceMeta,
+        lastServerSequence.isAcceptableOrUnknown(
+          data['last_server_sequence']!,
+          _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('quotation_id')) {
+      context.handle(
+        _quotationIdMeta,
+        quotationId.isAcceptableOrUnknown(
+          data['quotation_id']!,
+          _quotationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_quotationIdMeta);
+    }
+    if (data.containsKey('variant_id')) {
+      context.handle(
+        _variantIdMeta,
+        variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_variantIdMeta);
+    }
+    if (data.containsKey('product_name_snapshot')) {
+      context.handle(
+        _productNameSnapshotMeta,
+        productNameSnapshot.isAcceptableOrUnknown(
+          data['product_name_snapshot']!,
+          _productNameSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_productNameSnapshotMeta);
+    }
+    if (data.containsKey('variant_name_snapshot')) {
+      context.handle(
+        _variantNameSnapshotMeta,
+        variantNameSnapshot.isAcceptableOrUnknown(
+          data['variant_name_snapshot']!,
+          _variantNameSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_mode_snapshot')) {
+      context.handle(
+        _saleModeSnapshotMeta,
+        saleModeSnapshot.isAcceptableOrUnknown(
+          data['sale_mode_snapshot']!,
+          _saleModeSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_saleModeSnapshotMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('measured_quantity_atomic')) {
+      context.handle(
+        _measuredQuantityAtomicMeta,
+        measuredQuantityAtomic.isAcceptableOrUnknown(
+          data['measured_quantity_atomic']!,
+          _measuredQuantityAtomicMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_unit_code_snapshot')) {
+      context.handle(
+        _saleUnitCodeSnapshotMeta,
+        saleUnitCodeSnapshot.isAcceptableOrUnknown(
+          data['sale_unit_code_snapshot']!,
+          _saleUnitCodeSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_unit_symbol_snapshot')) {
+      context.handle(
+        _saleUnitSymbolSnapshotMeta,
+        saleUnitSymbolSnapshot.isAcceptableOrUnknown(
+          data['sale_unit_symbol_snapshot']!,
+          _saleUnitSymbolSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sale_unit_atomic_factor_snapshot')) {
+      context.handle(
+        _saleUnitAtomicFactorSnapshotMeta,
+        saleUnitAtomicFactorSnapshot.isAcceptableOrUnknown(
+          data['sale_unit_atomic_factor_snapshot']!,
+          _saleUnitAtomicFactorSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sortOrderMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuotationItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuotationItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      createdEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_event_id'],
+      ),
+      lastEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_event_id'],
+      ),
+      lastServerSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_server_sequence'],
+      ),
+      quotationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quotation_id'],
+      )!,
+      variantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_id'],
+      )!,
+      productNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_name_snapshot'],
+      )!,
+      variantNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_name_snapshot'],
+      ),
+      saleModeSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_mode_snapshot'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      ),
+      measuredQuantityAtomic: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}measured_quantity_atomic'],
+      ),
+      saleUnitCodeSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_unit_code_snapshot'],
+      ),
+      saleUnitSymbolSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sale_unit_symbol_snapshot'],
+      ),
+      saleUnitAtomicFactorSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sale_unit_atomic_factor_snapshot'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $QuotationItemsTable createAlias(String alias) {
+    return $QuotationItemsTable(attachedDatabase, alias);
+  }
+}
+
+class QuotationItemRow extends DataClass
+    implements Insertable<QuotationItemRow> {
+  /// Unique global ID generated on the device as a UUID
+  final String id;
+
+  /// Logical deletion flag (active = true means not deleted)
+  final bool active;
+
+  /// Version for optimistic concurrency control and conflict resolution
+  final int version;
+
+  /// Reference to the event that created this record
+  final String? createdEventId;
+
+  /// Reference to the last event that modified this record
+  final String? lastEventId;
+
+  /// Sync cursor representing the official server sequence
+  final int? lastServerSequence;
+
+  /// Documento propietario; impide dejar líneas huérfanas.
+  final String quotationId;
+
+  /// Variante histórica sin FK: el documento sobrevive al catálogo.
+  final String variantId;
+
+  /// Nombre del producto al emitir el documento.
+  final String productNameSnapshot;
+
+  /// Nombre opcional de la variante al emitir el documento.
+  final String? variantNameSnapshot;
+
+  /// Modo capturado: unit o measured.
+  final String saleModeSnapshot;
+
+  /// Conteo entero positivo en unit; null en measured.
+  final int? quantity;
+
+  /// Cantidad atómica positiva en measured; null en unit.
+  final int? measuredQuantityAtomic;
+
+  /// Código original de la unidad medida; null en unit.
+  final String? saleUnitCodeSnapshot;
+
+  /// Símbolo original para presentar la cantidad; null en unit.
+  final String? saleUnitSymbolSnapshot;
+
+  /// Átomos por unidad de presentación original; null en unit.
+  final int? saleUnitAtomicFactorSnapshot;
+
+  /// Orden estable dentro del documento, desde cero.
+  final int sortOrder;
+  const QuotationItemRow({
+    required this.id,
+    required this.active,
+    required this.version,
+    this.createdEventId,
+    this.lastEventId,
+    this.lastServerSequence,
+    required this.quotationId,
+    required this.variantId,
+    required this.productNameSnapshot,
+    this.variantNameSnapshot,
+    required this.saleModeSnapshot,
+    this.quantity,
+    this.measuredQuantityAtomic,
+    this.saleUnitCodeSnapshot,
+    this.saleUnitSymbolSnapshot,
+    this.saleUnitAtomicFactorSnapshot,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['active'] = Variable<bool>(active);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || createdEventId != null) {
+      map['created_event_id'] = Variable<String>(createdEventId);
+    }
+    if (!nullToAbsent || lastEventId != null) {
+      map['last_event_id'] = Variable<String>(lastEventId);
+    }
+    if (!nullToAbsent || lastServerSequence != null) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    map['quotation_id'] = Variable<String>(quotationId);
+    map['variant_id'] = Variable<String>(variantId);
+    map['product_name_snapshot'] = Variable<String>(productNameSnapshot);
+    if (!nullToAbsent || variantNameSnapshot != null) {
+      map['variant_name_snapshot'] = Variable<String>(variantNameSnapshot);
+    }
+    map['sale_mode_snapshot'] = Variable<String>(saleModeSnapshot);
+    if (!nullToAbsent || quantity != null) {
+      map['quantity'] = Variable<int>(quantity);
+    }
+    if (!nullToAbsent || measuredQuantityAtomic != null) {
+      map['measured_quantity_atomic'] = Variable<int>(measuredQuantityAtomic);
+    }
+    if (!nullToAbsent || saleUnitCodeSnapshot != null) {
+      map['sale_unit_code_snapshot'] = Variable<String>(saleUnitCodeSnapshot);
+    }
+    if (!nullToAbsent || saleUnitSymbolSnapshot != null) {
+      map['sale_unit_symbol_snapshot'] = Variable<String>(
+        saleUnitSymbolSnapshot,
+      );
+    }
+    if (!nullToAbsent || saleUnitAtomicFactorSnapshot != null) {
+      map['sale_unit_atomic_factor_snapshot'] = Variable<int>(
+        saleUnitAtomicFactorSnapshot,
+      );
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  QuotationItemsCompanion toCompanion(bool nullToAbsent) {
+    return QuotationItemsCompanion(
+      id: Value(id),
+      active: Value(active),
+      version: Value(version),
+      createdEventId: createdEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdEventId),
+      lastEventId: lastEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventId),
+      lastServerSequence: lastServerSequence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerSequence),
+      quotationId: Value(quotationId),
+      variantId: Value(variantId),
+      productNameSnapshot: Value(productNameSnapshot),
+      variantNameSnapshot: variantNameSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantNameSnapshot),
+      saleModeSnapshot: Value(saleModeSnapshot),
+      quantity: quantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quantity),
+      measuredQuantityAtomic: measuredQuantityAtomic == null && nullToAbsent
+          ? const Value.absent()
+          : Value(measuredQuantityAtomic),
+      saleUnitCodeSnapshot: saleUnitCodeSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saleUnitCodeSnapshot),
+      saleUnitSymbolSnapshot: saleUnitSymbolSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saleUnitSymbolSnapshot),
+      saleUnitAtomicFactorSnapshot:
+          saleUnitAtomicFactorSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saleUnitAtomicFactorSnapshot),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory QuotationItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuotationItemRow(
+      id: serializer.fromJson<String>(json['id']),
+      active: serializer.fromJson<bool>(json['active']),
+      version: serializer.fromJson<int>(json['version']),
+      createdEventId: serializer.fromJson<String?>(json['createdEventId']),
+      lastEventId: serializer.fromJson<String?>(json['lastEventId']),
+      lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      quotationId: serializer.fromJson<String>(json['quotationId']),
+      variantId: serializer.fromJson<String>(json['variantId']),
+      productNameSnapshot: serializer.fromJson<String>(
+        json['productNameSnapshot'],
+      ),
+      variantNameSnapshot: serializer.fromJson<String?>(
+        json['variantNameSnapshot'],
+      ),
+      saleModeSnapshot: serializer.fromJson<String>(json['saleModeSnapshot']),
+      quantity: serializer.fromJson<int?>(json['quantity']),
+      measuredQuantityAtomic: serializer.fromJson<int?>(
+        json['measuredQuantityAtomic'],
+      ),
+      saleUnitCodeSnapshot: serializer.fromJson<String?>(
+        json['saleUnitCodeSnapshot'],
+      ),
+      saleUnitSymbolSnapshot: serializer.fromJson<String?>(
+        json['saleUnitSymbolSnapshot'],
+      ),
+      saleUnitAtomicFactorSnapshot: serializer.fromJson<int?>(
+        json['saleUnitAtomicFactorSnapshot'],
+      ),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'active': serializer.toJson<bool>(active),
+      'version': serializer.toJson<int>(version),
+      'createdEventId': serializer.toJson<String?>(createdEventId),
+      'lastEventId': serializer.toJson<String?>(lastEventId),
+      'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'quotationId': serializer.toJson<String>(quotationId),
+      'variantId': serializer.toJson<String>(variantId),
+      'productNameSnapshot': serializer.toJson<String>(productNameSnapshot),
+      'variantNameSnapshot': serializer.toJson<String?>(variantNameSnapshot),
+      'saleModeSnapshot': serializer.toJson<String>(saleModeSnapshot),
+      'quantity': serializer.toJson<int?>(quantity),
+      'measuredQuantityAtomic': serializer.toJson<int?>(measuredQuantityAtomic),
+      'saleUnitCodeSnapshot': serializer.toJson<String?>(saleUnitCodeSnapshot),
+      'saleUnitSymbolSnapshot': serializer.toJson<String?>(
+        saleUnitSymbolSnapshot,
+      ),
+      'saleUnitAtomicFactorSnapshot': serializer.toJson<int?>(
+        saleUnitAtomicFactorSnapshot,
+      ),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  QuotationItemRow copyWith({
+    String? id,
+    bool? active,
+    int? version,
+    Value<String?> createdEventId = const Value.absent(),
+    Value<String?> lastEventId = const Value.absent(),
+    Value<int?> lastServerSequence = const Value.absent(),
+    String? quotationId,
+    String? variantId,
+    String? productNameSnapshot,
+    Value<String?> variantNameSnapshot = const Value.absent(),
+    String? saleModeSnapshot,
+    Value<int?> quantity = const Value.absent(),
+    Value<int?> measuredQuantityAtomic = const Value.absent(),
+    Value<String?> saleUnitCodeSnapshot = const Value.absent(),
+    Value<String?> saleUnitSymbolSnapshot = const Value.absent(),
+    Value<int?> saleUnitAtomicFactorSnapshot = const Value.absent(),
+    int? sortOrder,
+  }) => QuotationItemRow(
+    id: id ?? this.id,
+    active: active ?? this.active,
+    version: version ?? this.version,
+    createdEventId: createdEventId.present
+        ? createdEventId.value
+        : this.createdEventId,
+    lastEventId: lastEventId.present ? lastEventId.value : this.lastEventId,
+    lastServerSequence: lastServerSequence.present
+        ? lastServerSequence.value
+        : this.lastServerSequence,
+    quotationId: quotationId ?? this.quotationId,
+    variantId: variantId ?? this.variantId,
+    productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
+    variantNameSnapshot: variantNameSnapshot.present
+        ? variantNameSnapshot.value
+        : this.variantNameSnapshot,
+    saleModeSnapshot: saleModeSnapshot ?? this.saleModeSnapshot,
+    quantity: quantity.present ? quantity.value : this.quantity,
+    measuredQuantityAtomic: measuredQuantityAtomic.present
+        ? measuredQuantityAtomic.value
+        : this.measuredQuantityAtomic,
+    saleUnitCodeSnapshot: saleUnitCodeSnapshot.present
+        ? saleUnitCodeSnapshot.value
+        : this.saleUnitCodeSnapshot,
+    saleUnitSymbolSnapshot: saleUnitSymbolSnapshot.present
+        ? saleUnitSymbolSnapshot.value
+        : this.saleUnitSymbolSnapshot,
+    saleUnitAtomicFactorSnapshot: saleUnitAtomicFactorSnapshot.present
+        ? saleUnitAtomicFactorSnapshot.value
+        : this.saleUnitAtomicFactorSnapshot,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  QuotationItemRow copyWithCompanion(QuotationItemsCompanion data) {
+    return QuotationItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      active: data.active.present ? data.active.value : this.active,
+      version: data.version.present ? data.version.value : this.version,
+      createdEventId: data.createdEventId.present
+          ? data.createdEventId.value
+          : this.createdEventId,
+      lastEventId: data.lastEventId.present
+          ? data.lastEventId.value
+          : this.lastEventId,
+      lastServerSequence: data.lastServerSequence.present
+          ? data.lastServerSequence.value
+          : this.lastServerSequence,
+      quotationId: data.quotationId.present
+          ? data.quotationId.value
+          : this.quotationId,
+      variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      productNameSnapshot: data.productNameSnapshot.present
+          ? data.productNameSnapshot.value
+          : this.productNameSnapshot,
+      variantNameSnapshot: data.variantNameSnapshot.present
+          ? data.variantNameSnapshot.value
+          : this.variantNameSnapshot,
+      saleModeSnapshot: data.saleModeSnapshot.present
+          ? data.saleModeSnapshot.value
+          : this.saleModeSnapshot,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      measuredQuantityAtomic: data.measuredQuantityAtomic.present
+          ? data.measuredQuantityAtomic.value
+          : this.measuredQuantityAtomic,
+      saleUnitCodeSnapshot: data.saleUnitCodeSnapshot.present
+          ? data.saleUnitCodeSnapshot.value
+          : this.saleUnitCodeSnapshot,
+      saleUnitSymbolSnapshot: data.saleUnitSymbolSnapshot.present
+          ? data.saleUnitSymbolSnapshot.value
+          : this.saleUnitSymbolSnapshot,
+      saleUnitAtomicFactorSnapshot: data.saleUnitAtomicFactorSnapshot.present
+          ? data.saleUnitAtomicFactorSnapshot.value
+          : this.saleUnitAtomicFactorSnapshot,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuotationItemRow(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('quotationId: $quotationId, ')
+          ..write('variantId: $variantId, ')
+          ..write('productNameSnapshot: $productNameSnapshot, ')
+          ..write('variantNameSnapshot: $variantNameSnapshot, ')
+          ..write('saleModeSnapshot: $saleModeSnapshot, ')
+          ..write('quantity: $quantity, ')
+          ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
+          ..write('saleUnitCodeSnapshot: $saleUnitCodeSnapshot, ')
+          ..write('saleUnitSymbolSnapshot: $saleUnitSymbolSnapshot, ')
+          ..write(
+            'saleUnitAtomicFactorSnapshot: $saleUnitAtomicFactorSnapshot, ',
+          )
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    active,
+    version,
+    createdEventId,
+    lastEventId,
+    lastServerSequence,
+    quotationId,
+    variantId,
+    productNameSnapshot,
+    variantNameSnapshot,
+    saleModeSnapshot,
+    quantity,
+    measuredQuantityAtomic,
+    saleUnitCodeSnapshot,
+    saleUnitSymbolSnapshot,
+    saleUnitAtomicFactorSnapshot,
+    sortOrder,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuotationItemRow &&
+          other.id == this.id &&
+          other.active == this.active &&
+          other.version == this.version &&
+          other.createdEventId == this.createdEventId &&
+          other.lastEventId == this.lastEventId &&
+          other.lastServerSequence == this.lastServerSequence &&
+          other.quotationId == this.quotationId &&
+          other.variantId == this.variantId &&
+          other.productNameSnapshot == this.productNameSnapshot &&
+          other.variantNameSnapshot == this.variantNameSnapshot &&
+          other.saleModeSnapshot == this.saleModeSnapshot &&
+          other.quantity == this.quantity &&
+          other.measuredQuantityAtomic == this.measuredQuantityAtomic &&
+          other.saleUnitCodeSnapshot == this.saleUnitCodeSnapshot &&
+          other.saleUnitSymbolSnapshot == this.saleUnitSymbolSnapshot &&
+          other.saleUnitAtomicFactorSnapshot ==
+              this.saleUnitAtomicFactorSnapshot &&
+          other.sortOrder == this.sortOrder);
+}
+
+class QuotationItemsCompanion extends UpdateCompanion<QuotationItemRow> {
+  final Value<String> id;
+  final Value<bool> active;
+  final Value<int> version;
+  final Value<String?> createdEventId;
+  final Value<String?> lastEventId;
+  final Value<int?> lastServerSequence;
+  final Value<String> quotationId;
+  final Value<String> variantId;
+  final Value<String> productNameSnapshot;
+  final Value<String?> variantNameSnapshot;
+  final Value<String> saleModeSnapshot;
+  final Value<int?> quantity;
+  final Value<int?> measuredQuantityAtomic;
+  final Value<String?> saleUnitCodeSnapshot;
+  final Value<String?> saleUnitSymbolSnapshot;
+  final Value<int?> saleUnitAtomicFactorSnapshot;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const QuotationItemsCompanion({
+    this.id = const Value.absent(),
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    this.quotationId = const Value.absent(),
+    this.variantId = const Value.absent(),
+    this.productNameSnapshot = const Value.absent(),
+    this.variantNameSnapshot = const Value.absent(),
+    this.saleModeSnapshot = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.measuredQuantityAtomic = const Value.absent(),
+    this.saleUnitCodeSnapshot = const Value.absent(),
+    this.saleUnitSymbolSnapshot = const Value.absent(),
+    this.saleUnitAtomicFactorSnapshot = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuotationItemsCompanion.insert({
+    required String id,
+    this.active = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdEventId = const Value.absent(),
+    this.lastEventId = const Value.absent(),
+    this.lastServerSequence = const Value.absent(),
+    required String quotationId,
+    required String variantId,
+    required String productNameSnapshot,
+    this.variantNameSnapshot = const Value.absent(),
+    required String saleModeSnapshot,
+    this.quantity = const Value.absent(),
+    this.measuredQuantityAtomic = const Value.absent(),
+    this.saleUnitCodeSnapshot = const Value.absent(),
+    this.saleUnitSymbolSnapshot = const Value.absent(),
+    this.saleUnitAtomicFactorSnapshot = const Value.absent(),
+    required int sortOrder,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       quotationId = Value(quotationId),
+       variantId = Value(variantId),
+       productNameSnapshot = Value(productNameSnapshot),
+       saleModeSnapshot = Value(saleModeSnapshot),
+       sortOrder = Value(sortOrder);
+  static Insertable<QuotationItemRow> custom({
+    Expression<String>? id,
+    Expression<bool>? active,
+    Expression<int>? version,
+    Expression<String>? createdEventId,
+    Expression<String>? lastEventId,
+    Expression<int>? lastServerSequence,
+    Expression<String>? quotationId,
+    Expression<String>? variantId,
+    Expression<String>? productNameSnapshot,
+    Expression<String>? variantNameSnapshot,
+    Expression<String>? saleModeSnapshot,
+    Expression<int>? quantity,
+    Expression<int>? measuredQuantityAtomic,
+    Expression<String>? saleUnitCodeSnapshot,
+    Expression<String>? saleUnitSymbolSnapshot,
+    Expression<int>? saleUnitAtomicFactorSnapshot,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (active != null) 'active': active,
+      if (version != null) 'version': version,
+      if (createdEventId != null) 'created_event_id': createdEventId,
+      if (lastEventId != null) 'last_event_id': lastEventId,
+      if (lastServerSequence != null)
+        'last_server_sequence': lastServerSequence,
+      if (quotationId != null) 'quotation_id': quotationId,
+      if (variantId != null) 'variant_id': variantId,
+      if (productNameSnapshot != null)
+        'product_name_snapshot': productNameSnapshot,
+      if (variantNameSnapshot != null)
+        'variant_name_snapshot': variantNameSnapshot,
+      if (saleModeSnapshot != null) 'sale_mode_snapshot': saleModeSnapshot,
+      if (quantity != null) 'quantity': quantity,
+      if (measuredQuantityAtomic != null)
+        'measured_quantity_atomic': measuredQuantityAtomic,
+      if (saleUnitCodeSnapshot != null)
+        'sale_unit_code_snapshot': saleUnitCodeSnapshot,
+      if (saleUnitSymbolSnapshot != null)
+        'sale_unit_symbol_snapshot': saleUnitSymbolSnapshot,
+      if (saleUnitAtomicFactorSnapshot != null)
+        'sale_unit_atomic_factor_snapshot': saleUnitAtomicFactorSnapshot,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuotationItemsCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? active,
+    Value<int>? version,
+    Value<String?>? createdEventId,
+    Value<String?>? lastEventId,
+    Value<int?>? lastServerSequence,
+    Value<String>? quotationId,
+    Value<String>? variantId,
+    Value<String>? productNameSnapshot,
+    Value<String?>? variantNameSnapshot,
+    Value<String>? saleModeSnapshot,
+    Value<int?>? quantity,
+    Value<int?>? measuredQuantityAtomic,
+    Value<String?>? saleUnitCodeSnapshot,
+    Value<String?>? saleUnitSymbolSnapshot,
+    Value<int?>? saleUnitAtomicFactorSnapshot,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return QuotationItemsCompanion(
+      id: id ?? this.id,
+      active: active ?? this.active,
+      version: version ?? this.version,
+      createdEventId: createdEventId ?? this.createdEventId,
+      lastEventId: lastEventId ?? this.lastEventId,
+      lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      quotationId: quotationId ?? this.quotationId,
+      variantId: variantId ?? this.variantId,
+      productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
+      variantNameSnapshot: variantNameSnapshot ?? this.variantNameSnapshot,
+      saleModeSnapshot: saleModeSnapshot ?? this.saleModeSnapshot,
+      quantity: quantity ?? this.quantity,
+      measuredQuantityAtomic:
+          measuredQuantityAtomic ?? this.measuredQuantityAtomic,
+      saleUnitCodeSnapshot: saleUnitCodeSnapshot ?? this.saleUnitCodeSnapshot,
+      saleUnitSymbolSnapshot:
+          saleUnitSymbolSnapshot ?? this.saleUnitSymbolSnapshot,
+      saleUnitAtomicFactorSnapshot:
+          saleUnitAtomicFactorSnapshot ?? this.saleUnitAtomicFactorSnapshot,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdEventId.present) {
+      map['created_event_id'] = Variable<String>(createdEventId.value);
+    }
+    if (lastEventId.present) {
+      map['last_event_id'] = Variable<String>(lastEventId.value);
+    }
+    if (lastServerSequence.present) {
+      map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (quotationId.present) {
+      map['quotation_id'] = Variable<String>(quotationId.value);
+    }
+    if (variantId.present) {
+      map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (productNameSnapshot.present) {
+      map['product_name_snapshot'] = Variable<String>(
+        productNameSnapshot.value,
+      );
+    }
+    if (variantNameSnapshot.present) {
+      map['variant_name_snapshot'] = Variable<String>(
+        variantNameSnapshot.value,
+      );
+    }
+    if (saleModeSnapshot.present) {
+      map['sale_mode_snapshot'] = Variable<String>(saleModeSnapshot.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (measuredQuantityAtomic.present) {
+      map['measured_quantity_atomic'] = Variable<int>(
+        measuredQuantityAtomic.value,
+      );
+    }
+    if (saleUnitCodeSnapshot.present) {
+      map['sale_unit_code_snapshot'] = Variable<String>(
+        saleUnitCodeSnapshot.value,
+      );
+    }
+    if (saleUnitSymbolSnapshot.present) {
+      map['sale_unit_symbol_snapshot'] = Variable<String>(
+        saleUnitSymbolSnapshot.value,
+      );
+    }
+    if (saleUnitAtomicFactorSnapshot.present) {
+      map['sale_unit_atomic_factor_snapshot'] = Variable<int>(
+        saleUnitAtomicFactorSnapshot.value,
+      );
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuotationItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('active: $active, ')
+          ..write('version: $version, ')
+          ..write('createdEventId: $createdEventId, ')
+          ..write('lastEventId: $lastEventId, ')
+          ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('quotationId: $quotationId, ')
+          ..write('variantId: $variantId, ')
+          ..write('productNameSnapshot: $productNameSnapshot, ')
+          ..write('variantNameSnapshot: $variantNameSnapshot, ')
+          ..write('saleModeSnapshot: $saleModeSnapshot, ')
+          ..write('quantity: $quantity, ')
+          ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
+          ..write('saleUnitCodeSnapshot: $saleUnitCodeSnapshot, ')
+          ..write('saleUnitSymbolSnapshot: $saleUnitSymbolSnapshot, ')
+          ..write(
+            'saleUnitAtomicFactorSnapshot: $saleUnitAtomicFactorSnapshot, ',
+          )
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CreditSalesTable extends CreditSales
     with TableInfo<$CreditSalesTable, CreditSaleRow> {
   @override
@@ -18050,6 +20863,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RecipeComponentsTable recipeComponents = $RecipeComponentsTable(
     this,
   );
+  late final $SuppliersTable suppliers = $SuppliersTable(this);
+  late final $VariantSuppliersTable variantSuppliers = $VariantSuppliersTable(
+    this,
+  );
   late final $EspaciosTable espacios = $EspaciosTable(this);
   late final $EventsTable events = $EventsTable(this);
   late final $EventRefsTable eventRefs = $EventRefsTable(this);
@@ -18067,6 +20884,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InventoryItemDiscardsTable inventoryItemDiscards =
       $InventoryItemDiscardsTable(this);
   late final $SalePaymentsTable salePayments = $SalePaymentsTable(this);
+  late final $QuotationsTable quotations = $QuotationsTable(this);
+  late final $QuotationItemsTable quotationItems = $QuotationItemsTable(this);
   late final $CreditSalesTable creditSales = $CreditSalesTable(this);
   late final $CustomerPaymentsTable customerPayments = $CustomerPaymentsTable(
     this,
@@ -18122,6 +20941,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'ux_sale_items_order',
     'CREATE UNIQUE INDEX ux_sale_items_order ON sale_items (sale_id, sort_order)',
   );
+  late final Index ixQuotationsListing = Index(
+    'ix_quotations_listing',
+    'CREATE INDEX ix_quotations_listing ON quotations (user_id, device_id, issued_at_local DESC, id DESC)',
+  );
+  late final Index uxQuotationsCurrentSale = Index(
+    'ux_quotations_current_sale',
+    'CREATE UNIQUE INDEX ux_quotations_current_sale ON quotations (current_sale_id) WHERE active = 1 AND current_sale_id IS NOT NULL',
+  );
+  late final Index uxQuotationItemsOrder = Index(
+    'ux_quotation_items_order',
+    'CREATE UNIQUE INDEX ux_quotation_items_order ON quotation_items (quotation_id, sort_order)',
+  );
   late final Index ixCreditSalesCustomer = Index(
     'ix_credit_sales_customer',
     'CREATE INDEX ix_credit_sales_customer ON credit_sales (cliente_id, occurred_at_ms, id)',
@@ -18147,6 +20978,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'CREATE INDEX ix_cash_movements_session ON cash_movements (session_id)',
   );
   late final ClienteDao clienteDao = ClienteDao(this as AppDatabase);
+  late final ProveedorDao proveedorDao = ProveedorDao(this as AppDatabase);
   late final CategoriaDao categoriaDao = CategoriaDao(this as AppDatabase);
   late final ProductoDao productoDao = ProductoDao(this as AppDatabase);
   late final EspacioDao espacioDao = EspacioDao(this as AppDatabase);
@@ -18158,6 +20990,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final UnitDao unitDao = UnitDao(this as AppDatabase);
   late final InventoryDao inventoryDao = InventoryDao(this as AppDatabase);
   late final SaleDao saleDao = SaleDao(this as AppDatabase);
+  late final QuotationDao quotationDao = QuotationDao(this as AppDatabase);
   late final FinancialCategoryDao financialCategoryDao = FinancialCategoryDao(
     this as AppDatabase,
   );
@@ -18179,6 +21012,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     productVariants,
     productUpdateUndo,
     recipeComponents,
+    suppliers,
+    variantSuppliers,
     espacios,
     events,
     eventRefs,
@@ -18190,6 +21025,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     variantInventoryMemory,
     inventoryItemDiscards,
     salePayments,
+    quotations,
+    quotationItems,
     creditSales,
     customerPayments,
     creditAllocations,
@@ -18208,6 +21045,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ixVariantInventoryMemoryItem,
     uxSalesLocalDraft,
     uxSaleItemsOrder,
+    ixQuotationsListing,
+    uxQuotationsCurrentSale,
+    uxQuotationItemsOrder,
     ixCreditSalesCustomer,
     ixCustomerPaymentsCustomer,
     ixFinancialEntriesPeriod,
@@ -18230,6 +21070,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('recipe_components', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'product_variants',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('variant_suppliers', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -21317,6 +24164,26 @@ final class $$ProductVariantsTableReferences
     );
   }
 
+  static MultiTypedResultKey<$VariantSuppliersTable, List<VariantSupplierRow>>
+  _variantSuppliersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.variantSuppliers,
+    aliasName: 'product_variants__id__variant_suppliers__variant_id',
+  );
+
+  $$VariantSuppliersTableProcessedTableManager get variantSuppliersRefs {
+    final manager = $$VariantSuppliersTableTableManager(
+      $_db,
+      $_db.variantSuppliers,
+    ).filter((f) => f.variantId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _variantSuppliersRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$SaleItemsTable, List<SaleItemRow>>
   _saleItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.saleItems,
@@ -21492,6 +24359,31 @@ class $$ProductVariantsTableFilterComposer
           }) => $$RecipeComponentsTableFilterComposer(
             $db: $db,
             $table: $db.recipeComponents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> variantSuppliersRefs(
+    Expression<bool> Function($$VariantSuppliersTableFilterComposer f) f,
+  ) {
+    final $$VariantSuppliersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.variantSuppliers,
+      getReferencedColumn: (t) => t.variantId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VariantSuppliersTableFilterComposer(
+            $db: $db,
+            $table: $db.variantSuppliers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21795,6 +24687,31 @@ class $$ProductVariantsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> variantSuppliersRefs<T extends Object>(
+    Expression<T> Function($$VariantSuppliersTableAnnotationComposer a) f,
+  ) {
+    final $$VariantSuppliersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.variantSuppliers,
+      getReferencedColumn: (t) => t.variantId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VariantSuppliersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.variantSuppliers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> saleItemsRefs<T extends Object>(
     Expression<T> Function($$SaleItemsTableAnnotationComposer a) f,
   ) {
@@ -21864,6 +24781,7 @@ class $$ProductVariantsTableTableManager
             bool productId,
             bool inventoryItemId,
             bool recipeComponentsRefs,
+            bool variantSuppliersRefs,
             bool saleItemsRefs,
             bool variantInventoryMemoryRefs,
           })
@@ -21962,6 +24880,7 @@ class $$ProductVariantsTableTableManager
                 productId = false,
                 inventoryItemId = false,
                 recipeComponentsRefs = false,
+                variantSuppliersRefs = false,
                 saleItemsRefs = false,
                 variantInventoryMemoryRefs = false,
               }) {
@@ -21969,6 +24888,7 @@ class $$ProductVariantsTableTableManager
                   db: db,
                   explicitlyWatchedTables: [
                     if (recipeComponentsRefs) db.recipeComponents,
+                    if (variantSuppliersRefs) db.variantSuppliers,
                     if (saleItemsRefs) db.saleItems,
                     if (variantInventoryMemoryRefs) db.variantInventoryMemory,
                   ],
@@ -22044,6 +24964,27 @@ class $$ProductVariantsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (variantSuppliersRefs)
+                        await $_getPrefetchedData<
+                          ProductVariantRow,
+                          $ProductVariantsTable,
+                          VariantSupplierRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ProductVariantsTableReferences
+                              ._variantSuppliersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ProductVariantsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).variantSuppliersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.variantId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (saleItemsRefs)
                         await $_getPrefetchedData<
                           ProductVariantRow,
@@ -22110,6 +25051,7 @@ typedef $$ProductVariantsTableProcessedTableManager =
         bool productId,
         bool inventoryItemId,
         bool recipeComponentsRefs,
+        bool variantSuppliersRefs,
         bool saleItemsRefs,
         bool variantInventoryMemoryRefs,
       })
@@ -22696,6 +25638,797 @@ typedef $$RecipeComponentsTableProcessedTableManager =
       (RecipeComponentRow, $$RecipeComponentsTableReferences),
       RecipeComponentRow,
       PrefetchHooks Function({bool variantId, bool inventoryItemId})
+    >;
+typedef $$SuppliersTableCreateCompanionBuilder =
+    SuppliersCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String name,
+      Value<String?> phone,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+typedef $$SuppliersTableUpdateCompanionBuilder =
+    SuppliersCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> name,
+      Value<String?> phone,
+      Value<String?> notes,
+      Value<int> rowid,
+    });
+
+final class $$SuppliersTableReferences
+    extends BaseReferences<_$AppDatabase, $SuppliersTable, SupplierRow> {
+  $$SuppliersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$VariantSuppliersTable, List<VariantSupplierRow>>
+  _variantSuppliersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.variantSuppliers,
+    aliasName: 'suppliers__id__variant_suppliers__supplier_id',
+  );
+
+  $$VariantSuppliersTableProcessedTableManager get variantSuppliersRefs {
+    final manager = $$VariantSuppliersTableTableManager(
+      $_db,
+      $_db.variantSuppliers,
+    ).filter((f) => f.supplierId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _variantSuppliersRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SuppliersTableFilterComposer
+    extends Composer<_$AppDatabase, $SuppliersTable> {
+  $$SuppliersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> variantSuppliersRefs(
+    Expression<bool> Function($$VariantSuppliersTableFilterComposer f) f,
+  ) {
+    final $$VariantSuppliersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.variantSuppliers,
+      getReferencedColumn: (t) => t.supplierId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VariantSuppliersTableFilterComposer(
+            $db: $db,
+            $table: $db.variantSuppliers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SuppliersTableOrderingComposer
+    extends Composer<_$AppDatabase, $SuppliersTable> {
+  $$SuppliersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SuppliersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SuppliersTable> {
+  $$SuppliersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  Expression<T> variantSuppliersRefs<T extends Object>(
+    Expression<T> Function($$VariantSuppliersTableAnnotationComposer a) f,
+  ) {
+    final $$VariantSuppliersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.variantSuppliers,
+      getReferencedColumn: (t) => t.supplierId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VariantSuppliersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.variantSuppliers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SuppliersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SuppliersTable,
+          SupplierRow,
+          $$SuppliersTableFilterComposer,
+          $$SuppliersTableOrderingComposer,
+          $$SuppliersTableAnnotationComposer,
+          $$SuppliersTableCreateCompanionBuilder,
+          $$SuppliersTableUpdateCompanionBuilder,
+          (SupplierRow, $$SuppliersTableReferences),
+          SupplierRow,
+          PrefetchHooks Function({bool variantSuppliersRefs})
+        > {
+  $$SuppliersTableTableManager(_$AppDatabase db, $SuppliersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SuppliersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SuppliersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SuppliersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SuppliersCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                name: name,
+                phone: phone,
+                notes: notes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String name,
+                Value<String?> phone = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SuppliersCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                name: name,
+                phone: phone,
+                notes: notes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SuppliersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({variantSuppliersRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (variantSuppliersRefs) db.variantSuppliers,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (variantSuppliersRefs)
+                    await $_getPrefetchedData<
+                      SupplierRow,
+                      $SuppliersTable,
+                      VariantSupplierRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$SuppliersTableReferences
+                          ._variantSuppliersRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$SuppliersTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).variantSuppliersRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.supplierId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SuppliersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SuppliersTable,
+      SupplierRow,
+      $$SuppliersTableFilterComposer,
+      $$SuppliersTableOrderingComposer,
+      $$SuppliersTableAnnotationComposer,
+      $$SuppliersTableCreateCompanionBuilder,
+      $$SuppliersTableUpdateCompanionBuilder,
+      (SupplierRow, $$SuppliersTableReferences),
+      SupplierRow,
+      PrefetchHooks Function({bool variantSuppliersRefs})
+    >;
+typedef $$VariantSuppliersTableCreateCompanionBuilder =
+    VariantSuppliersCompanion Function({
+      required String variantId,
+      required String supplierId,
+      required int quotedPriceMinor,
+      required int quotedAtMs,
+      Value<int> rowid,
+    });
+typedef $$VariantSuppliersTableUpdateCompanionBuilder =
+    VariantSuppliersCompanion Function({
+      Value<String> variantId,
+      Value<String> supplierId,
+      Value<int> quotedPriceMinor,
+      Value<int> quotedAtMs,
+      Value<int> rowid,
+    });
+
+final class $$VariantSuppliersTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $VariantSuppliersTable,
+          VariantSupplierRow
+        > {
+  $$VariantSuppliersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ProductVariantsTable _variantIdTable(_$AppDatabase db) => db
+      .productVariants
+      .createAlias('variant_suppliers__variant_id__product_variants__id');
+
+  $$ProductVariantsTableProcessedTableManager get variantId {
+    final $_column = $_itemColumn<String>('variant_id')!;
+
+    final manager = $$ProductVariantsTableTableManager(
+      $_db,
+      $_db.productVariants,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_variantIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SuppliersTable _supplierIdTable(_$AppDatabase db) =>
+      db.suppliers.createAlias('variant_suppliers__supplier_id__suppliers__id');
+
+  $$SuppliersTableProcessedTableManager get supplierId {
+    final $_column = $_itemColumn<String>('supplier_id')!;
+
+    final manager = $$SuppliersTableTableManager(
+      $_db,
+      $_db.suppliers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_supplierIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$VariantSuppliersTableFilterComposer
+    extends Composer<_$AppDatabase, $VariantSuppliersTable> {
+  $$VariantSuppliersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get quotedPriceMinor => $composableBuilder(
+    column: $table.quotedPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quotedAtMs => $composableBuilder(
+    column: $table.quotedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ProductVariantsTableFilterComposer get variantId {
+    final $$ProductVariantsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.productVariants,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductVariantsTableFilterComposer(
+            $db: $db,
+            $table: $db.productVariants,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SuppliersTableFilterComposer get supplierId {
+    final $$SuppliersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.supplierId,
+      referencedTable: $db.suppliers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SuppliersTableFilterComposer(
+            $db: $db,
+            $table: $db.suppliers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VariantSuppliersTableOrderingComposer
+    extends Composer<_$AppDatabase, $VariantSuppliersTable> {
+  $$VariantSuppliersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get quotedPriceMinor => $composableBuilder(
+    column: $table.quotedPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quotedAtMs => $composableBuilder(
+    column: $table.quotedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ProductVariantsTableOrderingComposer get variantId {
+    final $$ProductVariantsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.productVariants,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductVariantsTableOrderingComposer(
+            $db: $db,
+            $table: $db.productVariants,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SuppliersTableOrderingComposer get supplierId {
+    final $$SuppliersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.supplierId,
+      referencedTable: $db.suppliers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SuppliersTableOrderingComposer(
+            $db: $db,
+            $table: $db.suppliers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VariantSuppliersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VariantSuppliersTable> {
+  $$VariantSuppliersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get quotedPriceMinor => $composableBuilder(
+    column: $table.quotedPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get quotedAtMs => $composableBuilder(
+    column: $table.quotedAtMs,
+    builder: (column) => column,
+  );
+
+  $$ProductVariantsTableAnnotationComposer get variantId {
+    final $$ProductVariantsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.variantId,
+      referencedTable: $db.productVariants,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductVariantsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.productVariants,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SuppliersTableAnnotationComposer get supplierId {
+    final $$SuppliersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.supplierId,
+      referencedTable: $db.suppliers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SuppliersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.suppliers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VariantSuppliersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $VariantSuppliersTable,
+          VariantSupplierRow,
+          $$VariantSuppliersTableFilterComposer,
+          $$VariantSuppliersTableOrderingComposer,
+          $$VariantSuppliersTableAnnotationComposer,
+          $$VariantSuppliersTableCreateCompanionBuilder,
+          $$VariantSuppliersTableUpdateCompanionBuilder,
+          (VariantSupplierRow, $$VariantSuppliersTableReferences),
+          VariantSupplierRow,
+          PrefetchHooks Function({bool variantId, bool supplierId})
+        > {
+  $$VariantSuppliersTableTableManager(
+    _$AppDatabase db,
+    $VariantSuppliersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VariantSuppliersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VariantSuppliersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VariantSuppliersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> variantId = const Value.absent(),
+                Value<String> supplierId = const Value.absent(),
+                Value<int> quotedPriceMinor = const Value.absent(),
+                Value<int> quotedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VariantSuppliersCompanion(
+                variantId: variantId,
+                supplierId: supplierId,
+                quotedPriceMinor: quotedPriceMinor,
+                quotedAtMs: quotedAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String variantId,
+                required String supplierId,
+                required int quotedPriceMinor,
+                required int quotedAtMs,
+                Value<int> rowid = const Value.absent(),
+              }) => VariantSuppliersCompanion.insert(
+                variantId: variantId,
+                supplierId: supplierId,
+                quotedPriceMinor: quotedPriceMinor,
+                quotedAtMs: quotedAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$VariantSuppliersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({variantId = false, supplierId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (variantId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.variantId,
+                                referencedTable:
+                                    $$VariantSuppliersTableReferences
+                                        ._variantIdTable(db),
+                                referencedColumn:
+                                    $$VariantSuppliersTableReferences
+                                        ._variantIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (supplierId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.supplierId,
+                                referencedTable:
+                                    $$VariantSuppliersTableReferences
+                                        ._supplierIdTable(db),
+                                referencedColumn:
+                                    $$VariantSuppliersTableReferences
+                                        ._supplierIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$VariantSuppliersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $VariantSuppliersTable,
+      VariantSupplierRow,
+      $$VariantSuppliersTableFilterComposer,
+      $$VariantSuppliersTableOrderingComposer,
+      $$VariantSuppliersTableAnnotationComposer,
+      $$VariantSuppliersTableCreateCompanionBuilder,
+      $$VariantSuppliersTableUpdateCompanionBuilder,
+      (VariantSupplierRow, $$VariantSuppliersTableReferences),
+      VariantSupplierRow,
+      PrefetchHooks Function({bool variantId, bool supplierId})
     >;
 typedef $$EspaciosTableCreateCompanionBuilder =
     EspaciosCompanion Function({
@@ -27694,6 +31427,1031 @@ typedef $$SalePaymentsTableProcessedTableManager =
       SalePaymentRow,
       PrefetchHooks Function({bool saleId, bool cashMovementsRefs})
     >;
+typedef $$QuotationsTableCreateCompanionBuilder =
+    QuotationsCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String userId,
+      required String deviceId,
+      required DateTime issuedAtLocal,
+      required String sourceSaleId,
+      required String sourceDraftEventId,
+      Value<String?> currentSaleId,
+      Value<int> rowid,
+    });
+typedef $$QuotationsTableUpdateCompanionBuilder =
+    QuotationsCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> userId,
+      Value<String> deviceId,
+      Value<DateTime> issuedAtLocal,
+      Value<String> sourceSaleId,
+      Value<String> sourceDraftEventId,
+      Value<String?> currentSaleId,
+      Value<int> rowid,
+    });
+
+final class $$QuotationsTableReferences
+    extends BaseReferences<_$AppDatabase, $QuotationsTable, QuotationRow> {
+  $$QuotationsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$QuotationItemsTable, List<QuotationItemRow>>
+  _quotationItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.quotationItems,
+    aliasName: 'quotations__id__quotation_items__quotation_id',
+  );
+
+  $$QuotationItemsTableProcessedTableManager get quotationItemsRefs {
+    final manager = $$QuotationItemsTableTableManager(
+      $_db,
+      $_db.quotationItems,
+    ).filter((f) => f.quotationId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_quotationItemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$QuotationsTableFilterComposer
+    extends Composer<_$AppDatabase, $QuotationsTable> {
+  $$QuotationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get issuedAtLocal => $composableBuilder(
+    column: $table.issuedAtLocal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceSaleId => $composableBuilder(
+    column: $table.sourceSaleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceDraftEventId => $composableBuilder(
+    column: $table.sourceDraftEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currentSaleId => $composableBuilder(
+    column: $table.currentSaleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> quotationItemsRefs(
+    Expression<bool> Function($$QuotationItemsTableFilterComposer f) f,
+  ) {
+    final $$QuotationItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.quotationItems,
+      getReferencedColumn: (t) => t.quotationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuotationItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.quotationItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$QuotationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuotationsTable> {
+  $$QuotationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get issuedAtLocal => $composableBuilder(
+    column: $table.issuedAtLocal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceSaleId => $composableBuilder(
+    column: $table.sourceSaleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceDraftEventId => $composableBuilder(
+    column: $table.sourceDraftEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currentSaleId => $composableBuilder(
+    column: $table.currentSaleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$QuotationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuotationsTable> {
+  $$QuotationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get issuedAtLocal => $composableBuilder(
+    column: $table.issuedAtLocal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceSaleId => $composableBuilder(
+    column: $table.sourceSaleId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceDraftEventId => $composableBuilder(
+    column: $table.sourceDraftEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currentSaleId => $composableBuilder(
+    column: $table.currentSaleId,
+    builder: (column) => column,
+  );
+
+  Expression<T> quotationItemsRefs<T extends Object>(
+    Expression<T> Function($$QuotationItemsTableAnnotationComposer a) f,
+  ) {
+    final $$QuotationItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.quotationItems,
+      getReferencedColumn: (t) => t.quotationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuotationItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.quotationItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$QuotationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QuotationsTable,
+          QuotationRow,
+          $$QuotationsTableFilterComposer,
+          $$QuotationsTableOrderingComposer,
+          $$QuotationsTableAnnotationComposer,
+          $$QuotationsTableCreateCompanionBuilder,
+          $$QuotationsTableUpdateCompanionBuilder,
+          (QuotationRow, $$QuotationsTableReferences),
+          QuotationRow,
+          PrefetchHooks Function({bool quotationItemsRefs})
+        > {
+  $$QuotationsTableTableManager(_$AppDatabase db, $QuotationsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuotationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuotationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuotationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<DateTime> issuedAtLocal = const Value.absent(),
+                Value<String> sourceSaleId = const Value.absent(),
+                Value<String> sourceDraftEventId = const Value.absent(),
+                Value<String?> currentSaleId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuotationsCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                userId: userId,
+                deviceId: deviceId,
+                issuedAtLocal: issuedAtLocal,
+                sourceSaleId: sourceSaleId,
+                sourceDraftEventId: sourceDraftEventId,
+                currentSaleId: currentSaleId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String userId,
+                required String deviceId,
+                required DateTime issuedAtLocal,
+                required String sourceSaleId,
+                required String sourceDraftEventId,
+                Value<String?> currentSaleId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuotationsCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                userId: userId,
+                deviceId: deviceId,
+                issuedAtLocal: issuedAtLocal,
+                sourceSaleId: sourceSaleId,
+                sourceDraftEventId: sourceDraftEventId,
+                currentSaleId: currentSaleId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$QuotationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({quotationItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (quotationItemsRefs) db.quotationItems,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (quotationItemsRefs)
+                    await $_getPrefetchedData<
+                      QuotationRow,
+                      $QuotationsTable,
+                      QuotationItemRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$QuotationsTableReferences
+                          ._quotationItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$QuotationsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).quotationItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.quotationId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$QuotationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QuotationsTable,
+      QuotationRow,
+      $$QuotationsTableFilterComposer,
+      $$QuotationsTableOrderingComposer,
+      $$QuotationsTableAnnotationComposer,
+      $$QuotationsTableCreateCompanionBuilder,
+      $$QuotationsTableUpdateCompanionBuilder,
+      (QuotationRow, $$QuotationsTableReferences),
+      QuotationRow,
+      PrefetchHooks Function({bool quotationItemsRefs})
+    >;
+typedef $$QuotationItemsTableCreateCompanionBuilder =
+    QuotationItemsCompanion Function({
+      required String id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      required String quotationId,
+      required String variantId,
+      required String productNameSnapshot,
+      Value<String?> variantNameSnapshot,
+      required String saleModeSnapshot,
+      Value<int?> quantity,
+      Value<int?> measuredQuantityAtomic,
+      Value<String?> saleUnitCodeSnapshot,
+      Value<String?> saleUnitSymbolSnapshot,
+      Value<int?> saleUnitAtomicFactorSnapshot,
+      required int sortOrder,
+      Value<int> rowid,
+    });
+typedef $$QuotationItemsTableUpdateCompanionBuilder =
+    QuotationItemsCompanion Function({
+      Value<String> id,
+      Value<bool> active,
+      Value<int> version,
+      Value<String?> createdEventId,
+      Value<String?> lastEventId,
+      Value<int?> lastServerSequence,
+      Value<String> quotationId,
+      Value<String> variantId,
+      Value<String> productNameSnapshot,
+      Value<String?> variantNameSnapshot,
+      Value<String> saleModeSnapshot,
+      Value<int?> quantity,
+      Value<int?> measuredQuantityAtomic,
+      Value<String?> saleUnitCodeSnapshot,
+      Value<String?> saleUnitSymbolSnapshot,
+      Value<int?> saleUnitAtomicFactorSnapshot,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+final class $$QuotationItemsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $QuotationItemsTable, QuotationItemRow> {
+  $$QuotationItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $QuotationsTable _quotationIdTable(_$AppDatabase db) => db.quotations
+      .createAlias('quotation_items__quotation_id__quotations__id');
+
+  $$QuotationsTableProcessedTableManager get quotationId {
+    final $_column = $_itemColumn<String>('quotation_id')!;
+
+    final manager = $$QuotationsTableTableManager(
+      $_db,
+      $_db.quotations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_quotationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$QuotationItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $QuotationItemsTable> {
+  $$QuotationItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get variantId => $composableBuilder(
+    column: $table.variantId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productNameSnapshot => $composableBuilder(
+    column: $table.productNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get variantNameSnapshot => $composableBuilder(
+    column: $table.variantNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get saleModeSnapshot => $composableBuilder(
+    column: $table.saleModeSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get measuredQuantityAtomic => $composableBuilder(
+    column: $table.measuredQuantityAtomic,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get saleUnitCodeSnapshot => $composableBuilder(
+    column: $table.saleUnitCodeSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get saleUnitSymbolSnapshot => $composableBuilder(
+    column: $table.saleUnitSymbolSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get saleUnitAtomicFactorSnapshot => $composableBuilder(
+    column: $table.saleUnitAtomicFactorSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$QuotationsTableFilterComposer get quotationId {
+    final $$QuotationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.quotationId,
+      referencedTable: $db.quotations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuotationsTableFilterComposer(
+            $db: $db,
+            $table: $db.quotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$QuotationItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuotationItemsTable> {
+  $$QuotationItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get variantId => $composableBuilder(
+    column: $table.variantId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productNameSnapshot => $composableBuilder(
+    column: $table.productNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get variantNameSnapshot => $composableBuilder(
+    column: $table.variantNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get saleModeSnapshot => $composableBuilder(
+    column: $table.saleModeSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get measuredQuantityAtomic => $composableBuilder(
+    column: $table.measuredQuantityAtomic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get saleUnitCodeSnapshot => $composableBuilder(
+    column: $table.saleUnitCodeSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get saleUnitSymbolSnapshot => $composableBuilder(
+    column: $table.saleUnitSymbolSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get saleUnitAtomicFactorSnapshot => $composableBuilder(
+    column: $table.saleUnitAtomicFactorSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$QuotationsTableOrderingComposer get quotationId {
+    final $$QuotationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.quotationId,
+      referencedTable: $db.quotations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuotationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.quotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$QuotationItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuotationItemsTable> {
+  $$QuotationItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdEventId => $composableBuilder(
+    column: $table.createdEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastEventId => $composableBuilder(
+    column: $table.lastEventId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastServerSequence => $composableBuilder(
+    column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get variantId =>
+      $composableBuilder(column: $table.variantId, builder: (column) => column);
+
+  GeneratedColumn<String> get productNameSnapshot => $composableBuilder(
+    column: $table.productNameSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get variantNameSnapshot => $composableBuilder(
+    column: $table.variantNameSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get saleModeSnapshot => $composableBuilder(
+    column: $table.saleModeSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get measuredQuantityAtomic => $composableBuilder(
+    column: $table.measuredQuantityAtomic,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get saleUnitCodeSnapshot => $composableBuilder(
+    column: $table.saleUnitCodeSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get saleUnitSymbolSnapshot => $composableBuilder(
+    column: $table.saleUnitSymbolSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get saleUnitAtomicFactorSnapshot => $composableBuilder(
+    column: $table.saleUnitAtomicFactorSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  $$QuotationsTableAnnotationComposer get quotationId {
+    final $$QuotationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.quotationId,
+      referencedTable: $db.quotations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$QuotationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.quotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$QuotationItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QuotationItemsTable,
+          QuotationItemRow,
+          $$QuotationItemsTableFilterComposer,
+          $$QuotationItemsTableOrderingComposer,
+          $$QuotationItemsTableAnnotationComposer,
+          $$QuotationItemsTableCreateCompanionBuilder,
+          $$QuotationItemsTableUpdateCompanionBuilder,
+          (QuotationItemRow, $$QuotationItemsTableReferences),
+          QuotationItemRow,
+          PrefetchHooks Function({bool quotationId})
+        > {
+  $$QuotationItemsTableTableManager(
+    _$AppDatabase db,
+    $QuotationItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuotationItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuotationItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuotationItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                Value<String> quotationId = const Value.absent(),
+                Value<String> variantId = const Value.absent(),
+                Value<String> productNameSnapshot = const Value.absent(),
+                Value<String?> variantNameSnapshot = const Value.absent(),
+                Value<String> saleModeSnapshot = const Value.absent(),
+                Value<int?> quantity = const Value.absent(),
+                Value<int?> measuredQuantityAtomic = const Value.absent(),
+                Value<String?> saleUnitCodeSnapshot = const Value.absent(),
+                Value<String?> saleUnitSymbolSnapshot = const Value.absent(),
+                Value<int?> saleUnitAtomicFactorSnapshot = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuotationItemsCompanion(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                quotationId: quotationId,
+                variantId: variantId,
+                productNameSnapshot: productNameSnapshot,
+                variantNameSnapshot: variantNameSnapshot,
+                saleModeSnapshot: saleModeSnapshot,
+                quantity: quantity,
+                measuredQuantityAtomic: measuredQuantityAtomic,
+                saleUnitCodeSnapshot: saleUnitCodeSnapshot,
+                saleUnitSymbolSnapshot: saleUnitSymbolSnapshot,
+                saleUnitAtomicFactorSnapshot: saleUnitAtomicFactorSnapshot,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<bool> active = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String?> createdEventId = const Value.absent(),
+                Value<String?> lastEventId = const Value.absent(),
+                Value<int?> lastServerSequence = const Value.absent(),
+                required String quotationId,
+                required String variantId,
+                required String productNameSnapshot,
+                Value<String?> variantNameSnapshot = const Value.absent(),
+                required String saleModeSnapshot,
+                Value<int?> quantity = const Value.absent(),
+                Value<int?> measuredQuantityAtomic = const Value.absent(),
+                Value<String?> saleUnitCodeSnapshot = const Value.absent(),
+                Value<String?> saleUnitSymbolSnapshot = const Value.absent(),
+                Value<int?> saleUnitAtomicFactorSnapshot = const Value.absent(),
+                required int sortOrder,
+                Value<int> rowid = const Value.absent(),
+              }) => QuotationItemsCompanion.insert(
+                id: id,
+                active: active,
+                version: version,
+                createdEventId: createdEventId,
+                lastEventId: lastEventId,
+                lastServerSequence: lastServerSequence,
+                quotationId: quotationId,
+                variantId: variantId,
+                productNameSnapshot: productNameSnapshot,
+                variantNameSnapshot: variantNameSnapshot,
+                saleModeSnapshot: saleModeSnapshot,
+                quantity: quantity,
+                measuredQuantityAtomic: measuredQuantityAtomic,
+                saleUnitCodeSnapshot: saleUnitCodeSnapshot,
+                saleUnitSymbolSnapshot: saleUnitSymbolSnapshot,
+                saleUnitAtomicFactorSnapshot: saleUnitAtomicFactorSnapshot,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$QuotationItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({quotationId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (quotationId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.quotationId,
+                                referencedTable: $$QuotationItemsTableReferences
+                                    ._quotationIdTable(db),
+                                referencedColumn:
+                                    $$QuotationItemsTableReferences
+                                        ._quotationIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$QuotationItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QuotationItemsTable,
+      QuotationItemRow,
+      $$QuotationItemsTableFilterComposer,
+      $$QuotationItemsTableOrderingComposer,
+      $$QuotationItemsTableAnnotationComposer,
+      $$QuotationItemsTableCreateCompanionBuilder,
+      $$QuotationItemsTableUpdateCompanionBuilder,
+      (QuotationItemRow, $$QuotationItemsTableReferences),
+      QuotationItemRow,
+      PrefetchHooks Function({bool quotationId})
+    >;
 typedef $$CreditSalesTableCreateCompanionBuilder =
     CreditSalesCompanion Function({
       required String id,
@@ -32135,6 +36893,10 @@ class $AppDatabaseManager {
       $$ProductUpdateUndoTableTableManager(_db, _db.productUpdateUndo);
   $$RecipeComponentsTableTableManager get recipeComponents =>
       $$RecipeComponentsTableTableManager(_db, _db.recipeComponents);
+  $$SuppliersTableTableManager get suppliers =>
+      $$SuppliersTableTableManager(_db, _db.suppliers);
+  $$VariantSuppliersTableTableManager get variantSuppliers =>
+      $$VariantSuppliersTableTableManager(_db, _db.variantSuppliers);
   $$EspaciosTableTableManager get espacios =>
       $$EspaciosTableTableManager(_db, _db.espacios);
   $$EventsTableTableManager get events =>
@@ -32160,6 +36922,10 @@ class $AppDatabaseManager {
       $$InventoryItemDiscardsTableTableManager(_db, _db.inventoryItemDiscards);
   $$SalePaymentsTableTableManager get salePayments =>
       $$SalePaymentsTableTableManager(_db, _db.salePayments);
+  $$QuotationsTableTableManager get quotations =>
+      $$QuotationsTableTableManager(_db, _db.quotations);
+  $$QuotationItemsTableTableManager get quotationItems =>
+      $$QuotationItemsTableTableManager(_db, _db.quotationItems);
   $$CreditSalesTableTableManager get creditSales =>
       $$CreditSalesTableTableManager(_db, _db.creditSales);
   $$CustomerPaymentsTableTableManager get customerPayments =>
@@ -32193,6 +36959,18 @@ class ClienteDaoManager {
       $$ClientesTableTableManager(_db.attachedDatabase, _db.clientes);
 }
 
+mixin _$ProveedorDaoMixin on DatabaseAccessor<AppDatabase> {
+  $SuppliersTable get suppliers => attachedDatabase.suppliers;
+  ProveedorDaoManager get managers => ProveedorDaoManager(this);
+}
+
+class ProveedorDaoManager {
+  final _$ProveedorDaoMixin _db;
+  ProveedorDaoManager(this._db);
+  $$SuppliersTableTableManager get suppliers =>
+      $$SuppliersTableTableManager(_db.attachedDatabase, _db.suppliers);
+}
+
 mixin _$CategoriaDaoMixin on DatabaseAccessor<AppDatabase> {
   $CategoriesTable get categories => attachedDatabase.categories;
   CategoriaDaoManager get managers => CategoriaDaoManager(this);
@@ -32213,6 +36991,9 @@ mixin _$ProductoDaoMixin on DatabaseAccessor<AppDatabase> {
   $ProductVariantsTable get productVariants => attachedDatabase.productVariants;
   $RecipeComponentsTable get recipeComponents =>
       attachedDatabase.recipeComponents;
+  $SuppliersTable get suppliers => attachedDatabase.suppliers;
+  $VariantSuppliersTable get variantSuppliers =>
+      attachedDatabase.variantSuppliers;
   ProductoDaoManager get managers => ProductoDaoManager(this);
 }
 
@@ -32239,6 +37020,13 @@ class ProductoDaoManager {
       $$RecipeComponentsTableTableManager(
         _db.attachedDatabase,
         _db.recipeComponents,
+      );
+  $$SuppliersTableTableManager get suppliers =>
+      $$SuppliersTableTableManager(_db.attachedDatabase, _db.suppliers);
+  $$VariantSuppliersTableTableManager get variantSuppliers =>
+      $$VariantSuppliersTableTableManager(
+        _db.attachedDatabase,
+        _db.variantSuppliers,
       );
 }
 
@@ -32409,6 +37197,30 @@ class SaleDaoManager {
       );
   $$SaleItemsTableTableManager get saleItems =>
       $$SaleItemsTableTableManager(_db.attachedDatabase, _db.saleItems);
+}
+
+mixin _$QuotationDaoMixin on DatabaseAccessor<AppDatabase> {
+  $QuotationsTable get quotations => attachedDatabase.quotations;
+  $QuotationItemsTable get quotationItems => attachedDatabase.quotationItems;
+  $ClientesTable get clientes => attachedDatabase.clientes;
+  $SalesTable get sales => attachedDatabase.sales;
+  QuotationDaoManager get managers => QuotationDaoManager(this);
+}
+
+class QuotationDaoManager {
+  final _$QuotationDaoMixin _db;
+  QuotationDaoManager(this._db);
+  $$QuotationsTableTableManager get quotations =>
+      $$QuotationsTableTableManager(_db.attachedDatabase, _db.quotations);
+  $$QuotationItemsTableTableManager get quotationItems =>
+      $$QuotationItemsTableTableManager(
+        _db.attachedDatabase,
+        _db.quotationItems,
+      );
+  $$ClientesTableTableManager get clientes =>
+      $$ClientesTableTableManager(_db.attachedDatabase, _db.clientes);
+  $$SalesTableTableManager get sales =>
+      $$SalesTableTableManager(_db.attachedDatabase, _db.sales);
 }
 
 mixin _$FinancialCategoryDaoMixin on DatabaseAccessor<AppDatabase> {

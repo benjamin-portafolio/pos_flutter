@@ -7,6 +7,7 @@ class SyncHealthCheck {
     required this.status,
     required this.latestServerSequence,
     required this.serverTime,
+    this.capabilities = const [],
   });
 
   factory SyncHealthCheck.fromResponse({
@@ -21,6 +22,11 @@ class SyncHealthCheck {
       status: data['status'] as String?,
       latestServerSequence: _readInt(data['latest_server_sequence']),
       serverTime: _readDateTime(data['server_time']),
+      capabilities: data['capabilities'] is List
+          ? List<String>.unmodifiable(
+              (data['capabilities'] as List).whereType<String>(),
+            )
+          : const [],
     );
   }
 
@@ -29,6 +35,7 @@ class SyncHealthCheck {
   final String? status;
   final int? latestServerSequence;
   final DateTime? serverTime;
+  final List<String> capabilities;
 
   bool get isHttpSuccessful => statusCode >= 200 && statusCode < 300;
 

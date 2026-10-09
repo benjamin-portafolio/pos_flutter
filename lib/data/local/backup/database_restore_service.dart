@@ -5,6 +5,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../../../application/backup/backup_service.dart';
 import '../drift/app_database.dart';
+import '../drift/current_database_schema.dart';
 
 class DriftDatabaseRestoreService implements DatabaseRestoreService {
   DriftDatabaseRestoreService({required AppDatabase db}) : _db = db;
@@ -21,7 +22,7 @@ class DriftDatabaseRestoreService implements DatabaseRestoreService {
       throw StateError('El respaldo descargado no coincide con el sha256.');
     }
 
-    _validateIntegrity(snapshotFile);
+    _validateIntegrity(snapshotFile, schemaVersion: _db.schemaVersion);
 
     final databaseFile = await appDatabaseFile();
     await _db.close();
@@ -31,13 +32,22 @@ class DriftDatabaseRestoreService implements DatabaseRestoreService {
   }
 }
 
-void _validateIntegrity(File databaseFile) {
+void _validateIntegrity(File databaseFile, {required int schemaVersion}) {
   final sqlite = sqlite3.open(databaseFile.path);
   try {
     final result = sqlite.select('PRAGMA integrity_check');
     final value = result.isEmpty ? null : result.first.values.first;
     if (value != 'ok') {
       throw StateError('El respaldo descargado no paso integrity_check.');
+    }
+    final version = sqlite.select('PRAGMA user_version').single.values.single;
+    if (version != schemaVersion || !hasCurrentAppDatabaseSchema(sqlite)) {
+      throw StateError(
+        'El respaldo no contiene el esquema actual de la aplicación.',
+      );
+    }
+    if (sqlite.select('PRAGMA foreign_key_check').isNotEmpty) {
+      throw StateError('El respaldo contiene referencias inválidas.');
     }
   } finally {
     sqlite.close();

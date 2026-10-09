@@ -24,9 +24,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onTabTapped(int index) {
     if (index == 4) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const ClientesScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const ClientesScreen()));
       return;
     }
 
@@ -40,15 +40,17 @@ class _HomeScreenState extends State<HomeScreen> {
     //return Scaffold(body: Center(child: Text('Hello World!')));
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _currentIndex == 3 ? 'Artículos' : 'PASTOR',
-        ),
+        title: Text(_currentIndex == 3 ? 'Artículos' : 'PASTOR'),
         actions: [
           IconButton(icon: Icon(Icons.person_add), onPressed: () {}),
           IconButton(icon: Icon(Icons.phone), onPressed: () {}),
         ],
       ),
-      drawer: MenuLateral(),
+      drawer: MenuLateral(
+        onOpenCaja: () {
+          if (mounted) _onTabTapped(2);
+        },
+      ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

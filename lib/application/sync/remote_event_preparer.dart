@@ -1,3 +1,5 @@
+import 'payloads/proveedor_creado_payload.dart';
+import 'payloads/proveedor_actualizado_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
 import 'categoria_eliminada_conflict_projection_restorer.dart';
 import 'models/sync_event.dart';
@@ -30,6 +32,61 @@ class RemoteEventPreparer {
       pending.map((event) => event.eventId).toList(growable: false),
     );
 
+    if (officialEvent.eventType == ProveedorCreadoPayload.eventType) {
+      final failed = <String>{
+        for (final local in pending)
+          if (local.eventType == ProveedorCreadoPayload.eventType &&
+              local.aggregateId == officialEvent.aggregateId &&
+              local.eventId != officialEvent.eventId)
+            local.eventId,
+      };
+      for (final local in pending) {
+        final dependencies = switch (local.eventType) {
+          ProveedorActualizadoPayload.eventType => [
+            ProveedorActualizadoPayload.fromJson(local.payload).baseEventId,
+          ],
+          ProductoCreadoPayload.eventType =>
+            ProductoCreadoPayload.fromJson(local.payload)
+                .dependenciasProveedores
+                .map((d) => d.dependsOnEventId)
+                .whereType<String>(),
+          ProductoActualizadoPayload.eventType =>
+            ProductoActualizadoPayload.fromJson(
+              local.payload,
+            ).dependencyEventIds,
+          _ => const <String>[],
+        };
+        if (dependencies.any(failed.contains)) failed.add(local.eventId);
+      }
+      for (final local in pending.reversed.where(
+        (e) => failed.contains(e.eventId),
+      )) {
+        await _conflictProjectionCleaner.hideConflictProjection(local);
+        await _syncPersistence.updateEventSyncStatus(
+          local.eventId,
+          'conflict',
+          rejectionReason:
+              'El alta local del proveedor o su base entró en conflicto.',
+        );
+      }
+    }
+    if (officialEvent.aggregateType ==
+        ProveedorActualizadoPayload.aggregateType) {
+      for (final local in pending.reversed) {
+        if (local.eventType != ProveedorActualizadoPayload.eventType ||
+            local.aggregateId != officialEvent.aggregateId ||
+            local.eventId == officialEvent.eventId) {
+          continue;
+        }
+        await _conflictProjectionCleaner.hideConflictProjection(local);
+        await _syncPersistence.updateEventSyncStatus(
+          local.eventId,
+          'conflict',
+          rejectionReason:
+              'El proveedor cambió oficialmente desde la base local.',
+        );
+      }
+    }
     if (officialEvent.aggregateType ==
         ClienteActualizadoPayload.aggregateType) {
       for (final local in pending.reversed) {

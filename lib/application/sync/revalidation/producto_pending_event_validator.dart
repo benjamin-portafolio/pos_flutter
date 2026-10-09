@@ -1,4 +1,5 @@
 import '../models/sync_event.dart';
+import '../projections/proveedor_projection_store.dart';
 import '../payloads/producto_actualizado_payload.dart';
 import '../payloads/producto_creado_payload.dart';
 import '../projections/categoria_projection_store.dart';
@@ -12,6 +13,7 @@ import 'pending_event_validator.dart';
 
 class ProductoPendingEventValidator implements PendingEventValidator {
   ProductoPendingEventValidator({
+    this.proveedorProjectionStore,
     required ProductoProjectionStore? productoProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     required InventoryProjectionStore? inventoryProjectionStore,
@@ -26,6 +28,7 @@ class ProductoPendingEventValidator implements PendingEventValidator {
        _dependencies = dependencies;
 
   final ProductoProjectionStore? _productoProjectionStore;
+  final ProveedorProjectionStore? proveedorProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final InventoryProjectionStore? _inventoryProjectionStore;
   final SyncPersistence _syncPersistence;
@@ -69,6 +72,9 @@ class ProductoPendingEventValidator implements PendingEventValidator {
     if (event.eventType == ProductoCreadoPayload.eventType) {
       final payload = ProductoCreadoPayload.fromJson(event.payload);
       final dependencyEventIds = <String>{
+        ...payload.dependenciasProveedores
+            .map((d) => d.dependsOnEventId)
+            .whereType<String>(),
         ...payload.dependenciasInventario
             .map((dependency) => dependency.dependsOnEventId)
             .whereType<String>(),
@@ -126,6 +132,10 @@ class ProductoPendingEventValidator implements PendingEventValidator {
         );
       }
     }
+    final supplierConflict = await _supplierConflict(payload.after);
+    if (!payload.deleteProduct && supplierConflict != null) {
+      return supplierConflict;
+    }
     final base = await _dependencies.resolveBase(
       baseEventId: payload.baseEventId,
       fallbackServerSequence: event.baseServerSequence,
@@ -157,6 +167,8 @@ class ProductoPendingEventValidator implements PendingEventValidator {
       );
     }
     final payload = ProductoCreadoPayload.fromJson(event.payload);
+    final supplierConflict = await _supplierConflict(payload);
+    if (supplierConflict != null) return supplierConflict;
     for (final payloadVariant in payload.variantes) {
       final variant = await store.findVariantById(payloadVariant.id);
       if (variant != null && variant.createdEventId != event.eventId) {
@@ -197,6 +209,18 @@ class ProductoPendingEventValidator implements PendingEventValidator {
       return const PendingConflict(
         'Ya no existe la categoría elegida para el artículo.',
       );
+    }
+    return null;
+  }
+
+  Future<PendingConflict?> _supplierConflict(
+    ProductoCreadoPayload state,
+  ) async {
+    for (final id in state.supplierIds) {
+      final supplier = await proveedorProjectionStore?.findById(id);
+      if (supplier == null || !supplier.active) {
+        return const PendingConflict('El proveedor ya no está disponible.');
+      }
     }
     return null;
   }

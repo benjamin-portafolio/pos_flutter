@@ -1,5 +1,7 @@
+import 'proveedor_variante.dart';
+
 class VarianteDetalle {
-  const VarianteDetalle({
+  VarianteDetalle({
     this.id,
     required this.nombre,
     required this.precioVentaMenor,
@@ -7,7 +9,9 @@ class VarianteDetalle {
     required this.inventoryItemId,
     required this.componentesReceta,
     this.codigoBarras,
-  });
+    List<ProveedorVariante>? proveedores,
+  }) : proveedores = ProveedorVariante.canonical(proveedores);
+  final List<ProveedorVariante>? proveedores;
   final String? id;
   final String? nombre;
   final int precioVentaMenor;

@@ -59,11 +59,9 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
 
   @override
   Future<void> deleteItem(String saleId, String saleItemId) async {
-    await (delete(saleItems)
-          ..where(
-            (t) => t.saleId.equals(saleId) & t.id.equals(saleItemId),
-          ))
-        .go();
+    await (delete(
+      saleItems,
+    )..where((t) => t.saleId.equals(saleId) & t.id.equals(saleItemId))).go();
   }
 
   @override
@@ -122,6 +120,7 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
             lastServerSequence: r.lastServerSequence,
             saleId: r.saleId,
             sortOrder: r.sortOrder,
+            persistedTotalMinor: r.totalMinor,
             snapshot: SaleItemSnapshot(
               variantId: r.variantId,
               consumptionConfigurationKey: r.consumptionConfigurationKey,
@@ -145,54 +144,56 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
 
   @override
   Future<void> saveSale(SaleProjection s) async {
-    await into(sales).insertOnConflictUpdate(
-      SalesCompanion.insert(
-        id: s.id,
-        userId: s.userId,
-        deviceId: s.deviceId,
-        status: Value(s.status.name),
-        totalMinor: s.totalMinor,
-        createdAtLocal: s.createdAtLocal,
-        updatedAtLocal: s.updatedAtLocal,
-        active: Value(s.active),
-        version: Value(s.version),
-        createdEventId: Value(s.createdEventId),
-        lastEventId: Value(s.lastEventId),
-        lastServerSequence: Value(s.lastServerSequence),
-      ),
-    );
+    await into(sales).insertOnConflictUpdate(_saleCompanion(s));
   }
+
+  SalesCompanion _saleCompanion(SaleProjection s) => SalesCompanion.insert(
+    id: s.id,
+    userId: s.userId,
+    deviceId: s.deviceId,
+    status: Value(s.status.name),
+    totalMinor: s.totalMinor,
+    createdAtLocal: s.createdAtLocal,
+    updatedAtLocal: s.updatedAtLocal,
+    active: Value(s.active),
+    version: Value(s.version),
+    createdEventId: Value(s.createdEventId),
+    lastEventId: Value(s.lastEventId),
+    lastServerSequence: Value(s.lastServerSequence),
+  );
 
   @override
   Future<void> saveItem(SaleItemProjection p) async {
+    await into(saleItems).insertOnConflictUpdate(_itemCompanion(p));
+  }
+
+  SaleItemsCompanion _itemCompanion(SaleItemProjection p) {
     final s = p.snapshot;
-    await into(saleItems).insertOnConflictUpdate(
-      SaleItemsCompanion.insert(
-        id: p.id,
-        saleId: p.saleId,
-        variantId: s.variantId,
-        consumptionConfigurationKey: Value(s.consumptionConfigurationKey),
-        productNameSnapshot: s.productName,
-        variantNameSnapshot: Value(s.variantName),
-        saleModeSnapshot: s.saleMode,
-        quantity: Value(s.quantity),
-        measuredQuantityAtomic: Value(s.measuredQuantityAtomic),
-        unitPriceMinor: s.unitPriceMinor,
-        standardCostMinorSnapshot: Value(s.standardCostMinor),
-        priceReferenceQuantityAtomicSnapshot: Value(
-          s.priceReferenceQuantityAtomic,
-        ),
-        saleUnitCodeSnapshot: Value(s.unitCode),
-        saleUnitSymbolSnapshot: Value(s.unitSymbol),
-        saleUnitAtomicFactorSnapshot: Value(s.unitAtomicFactor),
-        totalMinor: s.totalMinor,
-        sortOrder: p.sortOrder,
-        active: Value(p.active),
-        version: Value(p.version),
-        createdEventId: Value(p.createdEventId),
-        lastEventId: Value(p.lastEventId),
-        lastServerSequence: Value(p.lastServerSequence),
+    return SaleItemsCompanion.insert(
+      id: p.id,
+      saleId: p.saleId,
+      variantId: s.variantId,
+      consumptionConfigurationKey: Value(s.consumptionConfigurationKey),
+      productNameSnapshot: s.productName,
+      variantNameSnapshot: Value(s.variantName),
+      saleModeSnapshot: s.saleMode,
+      quantity: Value(s.quantity),
+      measuredQuantityAtomic: Value(s.measuredQuantityAtomic),
+      unitPriceMinor: s.unitPriceMinor,
+      standardCostMinorSnapshot: Value(s.standardCostMinor),
+      priceReferenceQuantityAtomicSnapshot: Value(
+        s.priceReferenceQuantityAtomic,
       ),
+      saleUnitCodeSnapshot: Value(s.unitCode),
+      saleUnitSymbolSnapshot: Value(s.unitSymbol),
+      saleUnitAtomicFactorSnapshot: Value(s.unitAtomicFactor),
+      totalMinor: s.totalMinor,
+      sortOrder: p.sortOrder,
+      active: Value(p.active),
+      version: Value(p.version),
+      createdEventId: Value(p.createdEventId),
+      lastEventId: Value(p.lastEventId),
+      lastServerSequence: Value(p.lastServerSequence),
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../../../../../domain/articulos/proveedor_variante.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../../domain/articulos/sale_configuration.dart';
@@ -32,8 +33,23 @@ class ArticuloFormVarianteResult {
     this.existenciaInicial,
     this.recipeComponents = const [],
     this.linkedInventoryItemId,
-  });
+  }) : proveedores = null;
 
+  ArticuloFormVarianteResult.conProveedores({
+    this.id,
+    required this.nombre,
+    required this.precioVenta,
+    required this.costoEstandar,
+    this.codigoBarras,
+    this.inventoryUnitId,
+    this.existenciaInicial,
+    this.recipeComponents = const [],
+    this.linkedInventoryItemId,
+    List<ProveedorVariante>? proveedores,
+  }) : proveedores = ProveedorVariante.canonical(proveedores);
+
+  /// Conjunto completo del borrador; se persiste al guardar el artículo.
+  final List<ProveedorVariante>? proveedores;
   final String? id;
   final String? nombre;
   final String precioVenta;
@@ -70,9 +86,11 @@ class ArticuloFormVarianteResult {
     bool clearExistenciaInicial = false,
     List<RecipeComponentFormResult>? recipeComponents,
     bool clearRecipeComponents = false,
+    List<ProveedorVariante>? proveedores,
   }) {
-    return ArticuloFormVarianteResult(
+    return ArticuloFormVarianteResult.conProveedores(
       id: id,
+      proveedores: proveedores ?? this.proveedores,
       nombre: clearNombre ? null : nombre ?? this.nombre,
       precioVenta: precioVenta ?? this.precioVenta,
       costoEstandar: clearCostoEstandar

@@ -1,0 +1,117 @@
+[
+  {
+    "event": {
+      "event_id": "27adc5bb-a739-4c78-8926-87a10424d0ef",
+      "aggregate_type": "sale_draft",
+      "aggregate_id": "20000000-0000-4000-8000-000000000020",
+      "event_type": "producto_agregado_borrador",
+      "device_id": "quotation-tablet",
+      "user_id": "quotation-user",
+      "base_version": 0,
+      "base_server_sequence": null,
+      "server_sequence": null,
+      "created_at_local": "2026-10-06T18:10:00.000Z",
+      "application_status": "applied",
+      "delivery_status": "not_required",
+      "payload": {
+        "sale_item_id": "58f0d3d0-c022-4dec-94b4-0dea0191cbd3",
+        "sort_order": 0,
+        "variant_id": "20000000-0000-4000-8000-000000000009",
+        "product_name_snapshot": "Pan actualizado",
+        "variant_name_snapshot": "Actual",
+        "sale_mode_snapshot": "unit",
+        "quantity": 2,
+        "measured_quantity_atomic": null,
+        "sale_unit_code_snapshot": null,
+        "sale_unit_symbol_snapshot": null,
+        "sale_unit_atomic_factor_snapshot": null,
+        "consumption_configuration_key": "[\"20000000-0000-4000-8000-000000000012\"]",
+        "unit_price_minor": 12000,
+        "standard_cost_minor_snapshot": 7000,
+        "price_reference_quantity_atomic_snapshot": null
+      }
+    },
+    "refs": [
+      {
+        "ref_type": "sale",
+        "ref_id": "20000000-0000-4000-8000-000000000020",
+        "relationship": "affects"
+      },
+      {
+        "ref_type": "sale_item",
+        "ref_id": "58f0d3d0-c022-4dec-94b4-0dea0191cbd3",
+        "relationship": "affects"
+      },
+      {
+        "ref_type": "product",
+        "ref_id": "20000000-0000-4000-8000-000000000007",
+        "relationship": "uses"
+      },
+      {
+        "ref_type": "product_variant",
+        "ref_id": "20000000-0000-4000-8000-000000000009",
+        "relationship": "uses"
+      }
+    ]
+  },
+  {
+    "event": {
+      "event_id": "c30da768-78b9-4b21-9dfc-9268e40b5b2d",
+      "aggregate_type": "sale_draft",
+      "aggregate_id": "20000000-0000-4000-8000-000000000020",
+      "event_type": "producto_agregado_borrador",
+      "device_id": "quotation-tablet",
+      "user_id": "quotation-user",
+      "base_version": 1,
+      "base_server_sequence": null,
+      "server_sequence": null,
+      "created_at_local": "2026-10-06T18:10:00.000Z",
+      "application_status": "applied",
+      "delivery_status": "not_required",
+      "payload": {
+        "sale_item_id": "13ed4410-5343-4160-acf7-899bdab08031",
+        "sort_order": 1,
+        "variant_id": "20000000-0000-4000-8000-000000000010",
+        "product_name_snapshot": "Café actualizado",
+        "variant_name_snapshot": "Actual",
+        "sale_mode_snapshot": "measured",
+        "quantity": null,
+        "measured_quantity_atomic": 500,
+        "sale_unit_code_snapshot": "g",
+        "sale_unit_symbol_snapshot": "g",
+        "sale_unit_atomic_factor_snapshot": 1,
+        "consumption_configuration_key": "[null]",
+        "unit_price_minor": 3000,
+        "standard_cost_minor_snapshot": 1200,
+        "price_reference_quantity_atomic_snapshot": 100
+      }
+    },
+    "refs": [
+      {
+        "ref_type": "sale",
+        "ref_id": "20000000-0000-4000-8000-000000000020",
+        "relationship": "affects"
+      },
+      {
+        "ref_type": "sale_item",
+        "ref_id": "13ed4410-5343-4160-acf7-899bdab08031",
+        "relationship": "affects"
+      },
+      {
+        "ref_type": "product",
+        "ref_id": "20000000-0000-4000-8000-000000000008",
+        "relationship": "uses"
+      },
+      {
+        "ref_type": "product_variant",
+        "ref_id": "20000000-0000-4000-8000-000000000010",
+        "relationship": "uses"
+      },
+      {
+        "ref_type": "unit",
+        "ref_id": "10000000-0000-4000-8000-000000000002",
+        "relationship": "uses"
+      }
+    ]
+  }
+]

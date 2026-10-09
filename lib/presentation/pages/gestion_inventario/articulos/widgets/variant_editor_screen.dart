@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../../application/config/app_config.dart';
+import '../../../../../application/config/app_config_controller.dart';
+import '../../../../../domain/articulos/proveedor_variante.dart';
+import '../../../../../domain/articulos/sale_configuration.dart';
+import '../../../../../domain/articulos/sale_mode.dart';
 import '../../../../../domain/articulos/codigo_barras.dart';
 import '../../../../../domain/articulos/costo_estandar.dart';
 import '../../../../../domain/articulos/nombre_variante.dart';
@@ -11,15 +16,19 @@ import '../../../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../../../domain/inventario/unidad_inventario.dart';
 import '../../../../../domain/repositories/recurso_inventario_repository.dart';
+import '../../../../../domain/repositories/proveedor_repository.dart';
 import '../../recursos/inventory_movement_screen.dart';
 import '../../recursos/models/inventory_movement_draft.dart';
 import '../../recursos/models/inventory_resource_form_result.dart';
 import '../../recursos/widgets/inventory_quantity_input_formatter.dart';
 import '../models/articulo_form_result.dart';
 import '../models/recipe_component_form_result.dart';
+import '../models/proveedor_precios_form_result.dart';
 import 'barcode_scanner_screen.dart';
 import 'currency_input_formatter.dart';
 import 'recipe_editor_screen.dart';
+import 'variant_suppliers_editor_screen.dart';
+import 'variant_suppliers_summary.dart';
 
 class VariantEditorScreen extends StatefulWidget {
   const VariantEditorScreen({
@@ -34,6 +43,9 @@ class VariantEditorScreen extends StatefulWidget {
     this.onCreateInventoryResource,
     this.onRegisterInventoryMovement,
     this.productName,
+    this.proveedorRepository,
+    this.appConfigController,
+    this.saleConfiguration = const UnitSaleConfiguration(),
     super.key,
   });
 
@@ -56,6 +68,9 @@ class VariantEditorScreen extends StatefulWidget {
   /// Nombre del artículo, para identificar el recurso en la pantalla de
   /// movimientos. Es texto de consulta, no un dato editable.
   final String? productName;
+  final ProveedorRepository? proveedorRepository;
+  final AppConfigController? appConfigController;
+  final SaleConfiguration saleConfiguration;
 
   @override
   State<VariantEditorScreen> createState() => _VariantEditorScreenState();
@@ -74,6 +89,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late bool _trackingInventory;
   late bool _recipeEnabled;
   late List<RecipeComponentFormResult> _recipeComponents;
+  List<ProveedorVariante>? _suppliers;
   String? _recipeError;
   String? _barcodeError;
   StreamSubscription<RecursoInventarioListado?>? _linkedResourceSubscription;
@@ -96,6 +112,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _trackingInventory = initial?.seguimientoExistencias ?? false;
     _recipeComponents = List.of(initial?.recipeComponents ?? const []);
     _recipeEnabled = _recipeComponents.isNotEmpty;
+    _suppliers = ProveedorVariante.canonical(initial?.proveedores);
     _priceController.addListener(_refreshCalculatedValues);
     _costController.addListener(_refreshCalculatedValues);
     _barcodeController.addListener(_clearBarcodeError);
@@ -442,6 +459,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                     ],
                   ),
                 ),
+                _buildSuppliers(),
               ],
             ),
           ),
@@ -665,8 +683,9 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     final name = NombreVariante.fromInput(_nameController.text);
     Navigator.of(context).pop(
       VariantEditorResult.saved(
-        ArticuloFormVarianteResult(
+        ArticuloFormVarianteResult.conProveedores(
           id: widget.initialValue?.id,
+          proveedores: _suppliers,
           nombre: name.value,
           precioVenta: _priceController.text.trim().replaceAll(',', '.'),
           costoEstandar: CostoEstandar.fromInput(_costController.text) == null
@@ -690,6 +709,80 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildSuppliers() {
+    final repository = widget.proveedorRepository;
+    final config = widget.appConfigController;
+    if (repository == null || config == null) return const SizedBox.shrink();
+    return StreamBuilder<AppConfig>(
+      stream: config.changes,
+      initialData: config.config,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: _EditorCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                VariantSuppliersSummary(
+                  repository: repository,
+                  proveedores: _suppliers ?? const [],
+                  priceBasis: _supplierPriceBasis,
+                ),
+                if (!widget.preview) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    key: const Key('manage_variant_suppliers_button'),
+                    onPressed: _openSuppliersEditor,
+                    icon: const Icon(Icons.local_shipping_outlined),
+                    label: const Text('ADMINISTRAR PROVEEDORES'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String get _supplierPriceBasis {
+    final sale = widget.saleConfiguration;
+    if (sale.mode == SaleMode.unit) {
+      return 'Precio por una unidad vendible de esta presentación.';
+    }
+    final unit =
+        widget.inventoryUnits
+            .where((u) => u.id == sale.saleUnitId)
+            .firstOrNull ??
+        widget.inventoryUnit;
+    return 'Precio por ${_codec.formatAtomic(sale.priceReferenceQuantityAtomic!, unit)} ${unit.simbolo}.';
+  }
+
+  Future<void> _openSuppliersEditor() async {
+    final repository = widget.proveedorRepository;
+    final config = widget.appConfigController;
+    if (widget.preview || repository == null || config == null) {
+      return;
+    }
+    final result = await Navigator.of(context).push<ProveedorPreciosFormResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => VariantSuppliersEditorScreen(
+          repository: repository,
+          config: config,
+          initialValue: _suppliers ?? const [],
+          presentationLabel: _resourceLabel,
+          priceBasis: _supplierPriceBasis,
+        ),
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+    setState(() => _suppliers = result.proveedores);
   }
 
   Future<void> _openRecipeEditor() async {

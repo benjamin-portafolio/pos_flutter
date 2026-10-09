@@ -1,3 +1,7 @@
+import '../../application/sync/projections/proveedor_projection_store.dart';
+import '../../data/local/drift/drift_proveedor_projection_store.dart';
+import '../../data/repositories/proveedor_repository_impl.dart';
+import '../../domain/repositories/proveedor_repository.dart';
 import '../../domain/repositories/cash_repository.dart';
 import '../../data/repositories/cash_repository_impl.dart';
 import '../../application/sync/projections/cash_projection_store.dart';
@@ -74,6 +78,7 @@ import '../../domain/repositories/financial_entry_repository.dart';
 import '../../domain/repositories/recurso_inventario_repository.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
+import '../../application/sync/projections/quotation_projection_store.dart';
 
 class DataDependencyBootstrap {
   const DataDependencyBootstrap({
@@ -117,6 +122,15 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => GoogleDriveBackupStore(authService: getIt<GoogleDriveAuthService>()),
   );
 
+  getIt.registerLazySingleton<ProveedorDao>(
+    () => getIt<AppDatabase>().proveedorDao,
+  );
+  getIt.registerLazySingleton<ProveedorProjectionStore>(
+    () => DriftProveedorProjectionStore(getIt<ProveedorDao>()),
+  );
+  getIt.registerLazySingleton<ProveedorRepository>(
+    () => ProveedorRepositoryImpl(getIt<ProveedorDao>()),
+  );
   getIt.registerLazySingleton<ClienteDao>(
     () => getIt<AppDatabase>().clienteDao,
   );
@@ -139,6 +153,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => ProductoDao(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<QuotationDao>(
+    () => getIt<AppDatabase>().quotationDao,
+  );
+  getIt.registerLazySingleton<QuotationProjectionStore>(
+    () => getIt<QuotationDao>(),
+  );
   getIt.registerLazySingleton<FinancialCategoryDao>(
     () => getIt<AppDatabase>().financialCategoryDao,
   );

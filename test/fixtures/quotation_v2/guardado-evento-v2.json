@@ -1,0 +1,78 @@
+{
+  "event": {
+    "event_id": "20000000-0000-4000-8000-000000000002",
+    "aggregate_type": "quotation",
+    "aggregate_id": "20000000-0000-4000-8000-000000000001",
+    "event_type": "cotizacion_guardada",
+    "device_id": "quotation-tablet",
+    "user_id": "quotation-user",
+    "base_version": 0,
+    "base_server_sequence": null,
+    "server_sequence": null,
+    "created_at_local": "2026-10-06T18:00:00.000Z",
+    "application_status": "applied",
+    "delivery_status": "not_required",
+    "payload": {
+      "format_version": 2,
+      "source_sale_id": "20000000-0000-4000-8000-000000000003",
+      "source_draft_event_id": "20000000-0000-4000-8000-000000000004",
+      "issued_at_ms": 1791309600000,
+      "lines": [
+        {
+          "id": "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+          "source_sale_item_id": "20000000-0000-4000-8000-000000000005",
+          "sort_order": 0,
+          "selection": {
+            "variant_id": "20000000-0000-4000-8000-000000000009",
+            "product_name_snapshot": "Pan",
+            "variant_name_snapshot": "Original",
+            "sale_mode_snapshot": "unit",
+            "quantity": 2,
+            "measured_quantity_atomic": null,
+            "sale_unit_code_snapshot": null,
+            "sale_unit_symbol_snapshot": null,
+            "sale_unit_atomic_factor_snapshot": null
+          }
+        },
+        {
+          "id": "572a2152-8675-5107-a812-ee5d562701b7",
+          "source_sale_item_id": "20000000-0000-4000-8000-000000000006",
+          "sort_order": 1,
+          "selection": {
+            "variant_id": "20000000-0000-4000-8000-000000000010",
+            "product_name_snapshot": "Café medido",
+            "variant_name_snapshot": "Original",
+            "sale_mode_snapshot": "measured",
+            "quantity": null,
+            "measured_quantity_atomic": 500,
+            "sale_unit_code_snapshot": "g",
+            "sale_unit_symbol_snapshot": "g",
+            "sale_unit_atomic_factor_snapshot": 1
+          }
+        }
+      ]
+    }
+  },
+  "refs": [
+    {
+      "ref_type": "quotation",
+      "ref_id": "20000000-0000-4000-8000-000000000001",
+      "relationship": "affects"
+    },
+    {
+      "ref_type": "quotation_item",
+      "ref_id": "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+      "relationship": "affects"
+    },
+    {
+      "ref_type": "quotation_item",
+      "ref_id": "572a2152-8675-5107-a812-ee5d562701b7",
+      "relationship": "affects"
+    },
+    {
+      "ref_type": "sale",
+      "ref_id": "20000000-0000-4000-8000-000000000003",
+      "relationship": "uses"
+    }
+  ]
+}

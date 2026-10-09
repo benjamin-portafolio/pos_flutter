@@ -1,0 +1,62 @@
+{
+  "event": {
+    "event_id": "20000000-0000-4000-8000-000000000021",
+    "aggregate_type": "quotation",
+    "aggregate_id": "20000000-0000-4000-8000-000000000001",
+    "event_type": "cotizacion_recuperada",
+    "device_id": "quotation-tablet",
+    "user_id": "quotation-user",
+    "base_version": 1,
+    "base_server_sequence": null,
+    "server_sequence": null,
+    "created_at_local": "2026-10-06T18:10:00.000Z",
+    "application_status": "applied",
+    "delivery_status": "not_required",
+    "payload": {
+      "format_version": 2,
+      "base_quotation_event_id": "20000000-0000-4000-8000-000000000002",
+      "previous_sale_id": "20000000-0000-4000-8000-000000000003",
+      "sale_id": "20000000-0000-4000-8000-000000000020",
+      "recovered_at_ms": 1791310200000,
+      "draft_version": 2,
+      "draft_created_event_id": "27adc5bb-a739-4c78-8926-87a10424d0ef",
+      "draft_last_event_id": "c30da768-78b9-4b21-9dfc-9268e40b5b2d",
+      "lines": [
+        {
+          "quotation_item_id": "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+          "sale_item_id": "58f0d3d0-c022-4dec-94b4-0dea0191cbd3",
+          "draft_event_id": "27adc5bb-a739-4c78-8926-87a10424d0ef",
+          "sort_order": 0
+        },
+        {
+          "quotation_item_id": "572a2152-8675-5107-a812-ee5d562701b7",
+          "sale_item_id": "13ed4410-5343-4160-acf7-899bdab08031",
+          "draft_event_id": "c30da768-78b9-4b21-9dfc-9268e40b5b2d",
+          "sort_order": 1
+        }
+      ]
+    }
+  },
+  "refs": [
+    {
+      "ref_type": "quotation",
+      "ref_id": "20000000-0000-4000-8000-000000000001",
+      "relationship": "affects"
+    },
+    {
+      "ref_type": "sale",
+      "ref_id": "20000000-0000-4000-8000-000000000020",
+      "relationship": "uses"
+    },
+    {
+      "ref_type": "event",
+      "ref_id": "27adc5bb-a739-4c78-8926-87a10424d0ef",
+      "relationship": "uses"
+    },
+    {
+      "ref_type": "event",
+      "ref_id": "c30da768-78b9-4b21-9dfc-9268e40b5b2d",
+      "relationship": "uses"
+    }
+  ]
+}

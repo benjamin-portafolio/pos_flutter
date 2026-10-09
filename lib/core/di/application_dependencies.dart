@@ -1,4 +1,19 @@
+import '../../application/commands/proveedores/proveedor_command_service.dart';
+import '../../application/sync/projections/proveedor_projection_store.dart';
+import '../../application/sync/handlers/proveedor_creado_event_handler.dart';
+import '../../application/sync/handlers/proveedor_actualizado_event_handler.dart';
+import '../../application/sync/payloads/proveedor_creado_payload.dart';
+import '../../application/sync/payloads/proveedor_actualizado_payload.dart';
+import '../../application/sync/handlers/cotizacion_recuperada_event_handler.dart';
+import '../../application/sync/payloads/cotizacion_recuperada_payload.dart';
+import '../../application/sync/quotation_recovery_validator.dart';
 import '../../application/sync/handlers/inventory_discard_event_handler.dart';
+import '../../application/commands/cotizaciones/cotizacion_command_service.dart';
+import '../../application/sync/handlers/cotizacion_guardada_event_handler.dart';
+import '../../application/sync/payloads/cotizacion_guardada_payload.dart';
+import '../../application/sync/projections/quotation_projection_store.dart';
+import '../../domain/repositories/quotation_repository.dart';
+import '../../data/repositories/quotation_repository_impl.dart';
 import '../../application/sync/inventory_discard_policy.dart';
 import '../../application/import/articulo_import_batch_service.dart';
 import '../../application/commands/caja/caja_command_service.dart';
@@ -129,6 +144,21 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<SyncHealthService>(
     () => SyncHealthService(endpointConfig: getIt<SyncEndpointConfig>()),
   );
+  getIt.registerLazySingleton<ProveedorCreadoEventHandler>(
+    () => ProveedorCreadoEventHandler(getIt<ProveedorProjectionStore>()),
+  );
+  getIt.registerLazySingleton<ProveedorActualizadoEventHandler>(
+    () => ProveedorActualizadoEventHandler(getIt<ProveedorProjectionStore>()),
+  );
+  getIt.registerLazySingleton<ProveedorCommandService>(
+    () => ProveedorCommandService(
+      history: getIt<SyncedEventHistory>(),
+      projectionStore: getIt<ProveedorProjectionStore>(),
+      eventStore: getIt<LocalEventStore>(),
+      commandContext: getIt<LocalCommandContext>(),
+      config: getIt<AppConfigController>(),
+    ),
+  );
   getIt.registerLazySingleton<ClienteEventHandler>(
     () => ClienteEventHandler(getIt<ClienteProjectionStore>()),
   );
@@ -151,6 +181,7 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<ProductoEventHandler>(
     () => ProductoEventHandler(
       getIt<ProductoProjectionStore>(),
+      proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
     ),
@@ -185,6 +216,41 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<VentaBorradorLimpiadaEventHandler>(
     () => VentaBorradorLimpiadaEventHandler(getIt<SaleDraftProjectionStore>()),
+  );
+  getIt.registerLazySingleton<QuotationRepository>(
+    () => QuotationRepositoryImpl(
+      dao: getIt<QuotationDao>(),
+      validator: getIt<QuotationRecoveryValidator>(),
+      userId: getIt<LocalCommandContext>().userId,
+      deviceId: getIt<LocalCommandContext>().deviceId,
+    ),
+  );
+  getIt.registerLazySingleton<CotizacionGuardadaEventHandler>(
+    () => CotizacionGuardadaEventHandler(
+      store: getIt<QuotationProjectionStore>(),
+      drafts: getIt<SaleDraftProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<QuotationRecoveryValidator>(
+    () => QuotationRecoveryValidator(
+      products: getIt<ProductoProjectionStore>(),
+      units: getIt<UnidadInventarioRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<CotizacionRecuperadaEventHandler>(
+    () => CotizacionRecuperadaEventHandler(
+      store: getIt<QuotationProjectionStore>(),
+      drafts: getIt<SaleDraftProjectionStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<CotizacionCommandService>(
+    () => CotizacionCommandService(
+      store: getIt<QuotationProjectionStore>(),
+      drafts: getIt<SaleDraftProjectionStore>(),
+      validator: getIt<QuotationRecoveryValidator>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+    ),
   );
   getIt.registerLazySingleton<VentaBorradorEventHandler>(
     () => VentaBorradorEventHandler(getIt<SaleDraftProjectionStore>()),
@@ -307,6 +373,14 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EventProcessor>(
     () => EventProcessor(
       handlers: {
+        ProveedorCreadoPayload.eventType:
+            getIt<ProveedorCreadoEventHandler>().apply,
+        ProveedorActualizadoPayload.eventType:
+            getIt<ProveedorActualizadoEventHandler>().apply,
+        CotizacionRecuperadaPayload.eventType:
+            getIt<CotizacionRecuperadaEventHandler>().apply,
+        CotizacionGuardadaPayload.eventType:
+            getIt<CotizacionGuardadaEventHandler>().apply,
         CajaAbiertaPayload.eventType: getIt<CashEventHandler>().apply,
         CajaCerradaPayload.eventType: getIt<CashEventHandler>().apply,
         SaldoCuentaInicialDeclaradoPayload.eventType:
@@ -339,6 +413,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
       cashProjectionStore: getIt<CashProjectionStore>(),
       accountBalanceBaselineProjectionStore:
@@ -387,6 +462,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<PendingEventRevalidator>(
     () => PendingEventRevalidator(
+      proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       cashProjectionStore: getIt<CashProjectionStore>(),
       accountBalanceBaselineProjectionStore:
           getIt<AccountBalanceBaselineProjectionStore>(),
@@ -409,6 +485,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
     () => SyncConflictProjectionCleaner(
+      proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
@@ -521,6 +598,7 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ProductoCommandService>(
     () => ProductoCommandService(
+      proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),

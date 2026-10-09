@@ -139,7 +139,7 @@ class InventoryResourceResolver {
         final update = updates[event.eventId]!;
         if (event.baseVersion != version ||
             update.deleteProduct ||
-            !ProductoActualizadoPayload.sameState(state, update.before)) {
+            !ProductoActualizadoPayload.sameEditingBase(state, update.before)) {
           return (complete: false, inventoryItemId: null);
         }
         final prior = update.before.variantes
@@ -159,7 +159,10 @@ class InventoryResourceResolver {
         visited.add(event.eventId);
       }
       if (updates.keys.any((id) => !visited.contains(id)) ||
-          !ProductoActualizadoPayload.sameState(state, history.currentState!)) {
+          !ProductoActualizadoPayload.sameEditingBase(
+            state,
+            history.currentState!,
+          )) {
         return (complete: false, inventoryItemId: null);
       }
       return (complete: true, inventoryItemId: lastItem);

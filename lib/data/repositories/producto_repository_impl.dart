@@ -1,3 +1,5 @@
+import '../../domain/articulos/proveedor_variante.dart';
+import '../local/drift/drift_producto_projection_store.dart';
 import '../../domain/articulos/articulo_listado.dart';
 import '../../domain/articulos/articulo_detalle.dart';
 import '../../domain/articulos/codigo_barras.dart';
@@ -50,6 +52,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     if (product == null || !product.active) return null;
     final rows = await _productoDao.obtenerVariantesPorProducto(productoId);
     final variants = <VarianteDetalle>[];
+    final supplierSets = await DriftProductoProjectionStore(
+      productoDao: _productoDao,
+    ).supplierSets(productoId);
     for (final row in rows.where((row) => row.active)) {
       final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
         row.id,
@@ -57,6 +62,15 @@ class ProductoRepositoryImpl implements ProductoRepository {
       variants.add(
         VarianteDetalle(
           id: row.id,
+          proveedores: supplierSets?[row.id]
+              ?.map(
+                (s) => ProveedorVariante(
+                  proveedorId: s.supplierId,
+                  precioInformadoMenor: s.quotedPriceMinor,
+                  fechaInformadaMs: s.quotedAtMs,
+                ),
+              )
+              .toList(),
           nombre: row.name,
           precioVentaMenor: row.salePriceMinor,
           costoEstandarMenor: row.standardCostMinor,

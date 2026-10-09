@@ -1,0 +1,94 @@
+{
+  "namespace_url": "6ba7b811-9dad-11d1-80b4-00c04fd430c8",
+  "ids": {
+    "quotation_id": "20000000-0000-4000-8000-000000000001",
+    "save_event_id": "20000000-0000-4000-8000-000000000002",
+    "source_sale_id": "20000000-0000-4000-8000-000000000003",
+    "source_draft_event_id": "20000000-0000-4000-8000-000000000004",
+    "source_sale_item_ids": [
+      "20000000-0000-4000-8000-000000000005",
+      "20000000-0000-4000-8000-000000000006"
+    ],
+    "product_ids": [
+      "20000000-0000-4000-8000-000000000007",
+      "20000000-0000-4000-8000-000000000008"
+    ],
+    "variant_ids": [
+      "20000000-0000-4000-8000-000000000009",
+      "20000000-0000-4000-8000-000000000010"
+    ],
+    "inventory_item_ids": [
+      "20000000-0000-4000-8000-000000000011",
+      "20000000-0000-4000-8000-000000000012"
+    ],
+    "user_id": "quotation-user",
+    "device_id": "quotation-tablet",
+    "unit_id": "10000000-0000-4000-8000-000000000002",
+    "quotation_item_ids": [
+      "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+      "572a2152-8675-5107-a812-ee5d562701b7"
+    ],
+    "source_draft_event_ids": [
+      "20000000-0000-4000-8000-000000000013",
+      "20000000-0000-4000-8000-000000000004"
+    ]
+  },
+  "intentions": [
+    {
+      "command": {
+        "quotation_id": "20000000-0000-4000-8000-000000000001",
+        "expected_quotation_event_id": "20000000-0000-4000-8000-000000000002",
+        "sale_id": "20000000-0000-4000-8000-000000000020",
+        "event_id": "20000000-0000-4000-8000-000000000021",
+        "recovered_at_ms": 1791310200000
+      },
+      "quotation_base_version": 1,
+      "previous_sale_id": "20000000-0000-4000-8000-000000000003",
+      "draft_version": 2,
+      "draft_created_event_id": "27adc5bb-a739-4c78-8926-87a10424d0ef",
+      "draft_last_event_id": "c30da768-78b9-4b21-9dfc-9268e40b5b2d",
+      "lines": [
+        {
+          "quotation_item_id": "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+          "sale_item_id": "58f0d3d0-c022-4dec-94b4-0dea0191cbd3",
+          "draft_event_id": "27adc5bb-a739-4c78-8926-87a10424d0ef",
+          "sort_order": 0
+        },
+        {
+          "quotation_item_id": "572a2152-8675-5107-a812-ee5d562701b7",
+          "sale_item_id": "13ed4410-5343-4160-acf7-899bdab08031",
+          "draft_event_id": "c30da768-78b9-4b21-9dfc-9268e40b5b2d",
+          "sort_order": 1
+        }
+      ]
+    },
+    {
+      "command": {
+        "quotation_id": "20000000-0000-4000-8000-000000000001",
+        "expected_quotation_event_id": "20000000-0000-4000-8000-000000000021",
+        "sale_id": "20000000-0000-4000-8000-000000000022",
+        "event_id": "20000000-0000-4000-8000-000000000023",
+        "recovered_at_ms": 1791310800000
+      },
+      "quotation_base_version": 2,
+      "previous_sale_id": "20000000-0000-4000-8000-000000000020",
+      "draft_version": 2,
+      "draft_created_event_id": "b0030544-74a8-4aa7-bceb-911d0115da48",
+      "draft_last_event_id": "78356421-4bc2-4511-b2bd-cb05b8d6090d",
+      "lines": [
+        {
+          "quotation_item_id": "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+          "sale_item_id": "44e350d7-930a-4698-bec3-ee16388c3051",
+          "draft_event_id": "b0030544-74a8-4aa7-bceb-911d0115da48",
+          "sort_order": 0
+        },
+        {
+          "quotation_item_id": "572a2152-8675-5107-a812-ee5d562701b7",
+          "sale_item_id": "101b22f9-4cad-4738-a293-0d80924d79f8",
+          "draft_event_id": "78356421-4bc2-4511-b2bd-cb05b8d6090d",
+          "sort_order": 1
+        }
+      ]
+    }
+  ]
+}

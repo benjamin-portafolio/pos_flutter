@@ -1,5 +1,6 @@
 import '../../../../domain/ventas/confirmed_sale.dart';
 import 'sale_draft_display.dart';
+import '../../../tickets/ticket_document.dart';
 
 /// Datos de presentación tomados exclusivamente del cobro conservado.
 class SaleReceiptDisplay {
@@ -50,6 +51,25 @@ class SaleReceiptDisplay {
     if (sale.paymentMethod == 'cash')
       ('Cambio', SaleDraftDisplay.money(sale.changeMinor)),
   ];
+
+  TicketDocument get ticket => TicketDocument(
+    title: 'RECIBO DE VENTA',
+    identifier: 'Recibo # ${sale.id}',
+    date: date,
+    currency: sale.currency,
+    details: [
+      if (sale.paymentReference != null) 'Referencia: ${sale.paymentReference}',
+      if (sale.clienteNombre != null) 'Cliente: ${sale.clienteNombre}',
+    ],
+    summary: [
+      paymentLabel,
+      '$distinctItems',
+      quantities,
+      SaleDraftDisplay.money(sale.totalMinor),
+    ],
+    itemRows: itemRows,
+    totals: totals,
+  );
 
   String get semanticLabel => [
     'Recibo ${sale.id}',

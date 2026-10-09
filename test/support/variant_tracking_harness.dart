@@ -1,3 +1,8 @@
+import 'package:pos_flutter/application/sync/handlers/proveedor_creado_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/proveedor_actualizado_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/proveedor_creado_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/proveedor_actualizado_payload.dart';
+import 'package:pos_flutter/data/local/drift/drift_proveedor_projection_store.dart';
 import 'package:pos_flutter/application/sync/sync_preflight_service.dart';
 import 'package:pos_flutter/application/sync/pending_event_revalidator.dart';
 import 'package:pos_flutter/application/sync/remote_event_preparer.dart';
@@ -85,9 +90,16 @@ class VariantTrackingHarness {
     );
     processor = EventProcessor(
       handlers: {
+        ProveedorCreadoPayload.eventType: ProveedorCreadoEventHandler(
+          suppliers,
+        ).apply,
+        ProveedorActualizadoPayload.eventType: ProveedorActualizadoEventHandler(
+          suppliers,
+        ).apply,
         ...productoEventHandlers(
           ProductoEventHandler(
             products,
+            proveedorProjectionStore: suppliers,
             variantInventoryMemoryStore: memory,
             inventoryProjectionStore: inventory,
           ),
@@ -127,6 +139,7 @@ class VariantTrackingHarness {
     final units = UnidadInventarioRepositoryImpl(unitDao: UnitDao(db));
     commands = ProductoCommandService(
       eventStore: events,
+      proveedorProjectionStore: suppliers,
       commandContext: context,
       categoriaProjectionStore: categories,
       syncedEventHistory: history,
@@ -161,6 +174,7 @@ class VariantTrackingHarness {
       inventoryStore: inventory,
     );
     cleaner = SyncConflictProjectionCleaner(
+      proveedorProjectionStore: suppliers,
       espacioProjectionStore: DriftEspacioProjectionStore(
         espacioDao: EspacioDao(db),
       ),
@@ -183,6 +197,7 @@ class VariantTrackingHarness {
       eventStore: DriftSyncedEventStore(db: db),
       eventProcessor: processor,
       serverEchoAcknowledger: ServerEchoAcknowledger(
+        proveedorProjectionStore: suppliers,
         confirmedSaleStore: DriftConfirmedSaleStore(db),
         categoriaProjectionStore: categories,
         productoProjectionStore: products,
@@ -193,6 +208,7 @@ class VariantTrackingHarness {
   }
   final LocalCommandContext context;
   final AppDatabase db;
+  late final suppliers = DriftProveedorProjectionStore(db.proveedorDao);
   late final AppConfigController config;
   late final DriftInventoryProjectionStore inventory;
   late final DriftProductoProjectionStore products;
@@ -285,6 +301,7 @@ class VariantTrackingHarness {
     commandContext: context,
     remoteEventApplier: remote,
     pendingEventRevalidator: PendingEventRevalidator(
+      proveedorProjectionStore: suppliers,
       syncPersistence: history,
       syncedEventHistory: history,
       espacioProjectionStore: DriftEspacioProjectionStore(

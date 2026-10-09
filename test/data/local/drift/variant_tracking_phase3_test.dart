@@ -718,6 +718,7 @@ void main() {
             ProductoCreadoVariante.create(
               id: ids.variantId,
               nombre: null,
+              proveedores: before.variantes.single.proveedores,
               precioVentaMenor: 1000,
               costoEstandarMenor: null,
               inventoryItemId: officialId,

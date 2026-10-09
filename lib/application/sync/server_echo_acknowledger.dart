@@ -1,3 +1,6 @@
+import 'payloads/proveedor_creado_payload.dart';
+import 'payloads/proveedor_actualizado_payload.dart';
+import 'projections/proveedor_projection_store.dart';
 import 'projections/variant_inventory_memory_store.dart';
 import 'projections/cash_projection_store.dart';
 import 'projections/account_balance_baseline_projection_store.dart';
@@ -35,6 +38,7 @@ class ServerEchoAcknowledger {
     this.confirmedSaleStore,
     this.customerCreditStore,
     this.clienteProjectionStore,
+    this.proveedorProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
     InventoryProjectionStore? inventoryProjectionStore,
@@ -51,6 +55,7 @@ class ServerEchoAcknowledger {
   final AccountBalanceBaselineProjectionStore?
   accountBalanceBaselineProjectionStore;
   final ClienteProjectionStore? clienteProjectionStore;
+  final ProveedorProjectionStore? proveedorProjectionStore;
   final ConfirmedSaleStore? confirmedSaleStore;
   final CustomerCreditStore? customerCreditStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
@@ -73,6 +78,13 @@ class ServerEchoAcknowledger {
         return;
       case AbonoClienteRegistradoPayload.eventType:
         await customerCreditStore?.acknowledge(event.eventId, serverSequence);
+        return;
+      case ProveedorActualizadoPayload.eventType:
+      case ProveedorCreadoPayload.eventType:
+        await proveedorProjectionStore?.advanceServerSequence(
+          event.aggregateId,
+          serverSequence,
+        );
         return;
       case ClienteActualizadoPayload.eventType:
       case ClienteCreadoPayload.eventType:
