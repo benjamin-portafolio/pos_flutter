@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 
-import 'ticket_document.dart';
+import '../../application/tickets/ticket_document.dart';
 
 /// Dibuja el ticket completo en PNG, independientemente del área visible.
 class TicketImageGenerator {

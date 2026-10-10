@@ -664,6 +664,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.2"
+  pos_bluetooth_printer:
+    dependency: "direct main"
+    description:
+      path: "packages/pos_bluetooth_printer"
+      relative: true
+    source: path
+    version: "0.1.0"
   posix:
     dependency: transitive
     description:
@@ -1007,4 +1014,4 @@ packages:
     version: "3.1.3"
 sdks:
   dart: ">=3.11.4 <4.0.0"
-  flutter: ">=3.38.0"
+  flutter: ">=3.41.6"

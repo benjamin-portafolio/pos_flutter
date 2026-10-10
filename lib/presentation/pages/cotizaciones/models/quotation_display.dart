@@ -2,7 +2,7 @@ import '../../../../domain/cotizaciones/quotation.dart';
 import '../../../../domain/cotizaciones/quotation_item.dart';
 import '../../../../domain/cotizaciones/quotation_estimate.dart';
 import '../../../../domain/cotizaciones/quotation_status.dart';
-import '../../../tickets/ticket_document.dart';
+import '../../../../application/tickets/ticket_document.dart';
 import '../../caja/models/sale_draft_display.dart';
 
 /// Combina selección durable y estimación temporal, sin persistir importes.

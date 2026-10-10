@@ -226,7 +226,7 @@ void main() {
     expect(label, contains(r'$245.00 MXN'));
     expect(find.text('Nueva captura'), findsNothing);
     expect(find.text('Cerrar'), findsOneWidget);
-    expect(tester.widget<IconButton>(_icon('Imprimir')).onPressed, isNull);
+    expect(tester.widget<IconButton>(_icon('Imprimir')).onPressed, isNotNull);
   });
 
   testWidgets(

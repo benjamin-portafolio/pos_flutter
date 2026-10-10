@@ -3,11 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../../application/commands/ventas/agregar_producto_borrador_command.dart';
 import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/articulos/codigo_barras.dart';
-import '../../../domain/articulos/sale_configuration.dart';
 import '../../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
@@ -16,6 +14,8 @@ import '../../../domain/ventas/sale_draft_item.dart';
 import '../articulos/sale_quantity_dialog.dart';
 import 'barcode/barcode_product_selection_dialog.dart';
 import 'barcode/barcode_read_gate.dart';
+import 'barcode/sale_barcode_read_coordinator.dart';
+import 'barcode/sale_barcode_read_outcome.dart';
 import 'models/sale_draft_display.dart';
 
 /// Escaneo continuo sobre el mismo borrador persistido que observa Caja.
@@ -40,11 +40,12 @@ class SaleBarcodeScannerScreen extends StatefulWidget {
 
 class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
     with WidgetsBindingObserver {
-  late final _products =
-      widget.productoRepository ?? getIt<ProductoRepository>();
-  late final _commands =
-      widget.ventaBorradorCommandService ??
-      getIt<VentaBorradorCommandService>();
+  late final _coordinator = SaleBarcodeReadCoordinator(
+    products: widget.productoRepository ?? getIt<ProductoRepository>(),
+    commands:
+        widget.ventaBorradorCommandService ??
+        getIt<VentaBorradorCommandService>(),
+  );
   late final _draft =
       (widget.saleDraftRepository ?? getIt<SaleDraftRepository>())
           .watchCurrentDraft();
@@ -215,59 +216,45 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
 
   Future<void> _read(String code, int generation) async {
     try {
-      final candidates = await _products.buscarVariantesPorCodigoBarras(code);
-      if (!_canFinishRead(generation)) return;
-      if (candidates.isEmpty) {
-        _setMessage('No se encontró un artículo con este código.');
-        return;
-      }
-      final candidate = candidates.length == 1
-          ? candidates.single
-          : await _showReaderDialog<VariantePorCodigoBarras>(
+      final result = await _coordinator.read(
+        code,
+        canContinue: () => _canFinishRead(generation),
+        selectProduct: (candidates) =>
+            _showReaderDialog<VariantePorCodigoBarras>(
               (_) => BarcodeProductSelectionDialog(candidates: candidates),
-            );
-      if (!_canFinishRead(generation)) return;
-      if (candidate == null) {
-        _setMessage(
-          'Selección cancelada. Retira la etiqueta para volver a leerla.',
-        );
-        return;
-      }
-      String? quantity;
-      final unit = candidate.unidadVenta;
-      if (candidate.saleConfiguration is MeasuredSaleConfiguration) {
-        if (unit == null || !unit.activa) {
-          _setMessage(
-            'La unidad de venta no está disponible. Vuelve a seleccionar el artículo.',
-          );
-          return;
-        }
-        quantity = await _showReaderDialog<String>(
+            ),
+        requestQuantity: (candidate) => _showReaderDialog<String>(
           (_) => SaleQuantityDialog(
             productName: [
               candidate.nombreProducto,
               if (candidate.nombreVariante != null) candidate.nombreVariante!,
             ].join(' · '),
-            unit: unit,
+            unit: candidate.unidadVenta!,
           ),
-        );
-        if (!_canFinishRead(generation)) return;
-        if (quantity == null) {
+        ),
+        onSaving: () => _setMessage('Guardando artículo…'),
+      );
+      switch (result.outcome) {
+        case SaleBarcodeReadOutcome.added:
+          _setMessage('Artículo agregado. Retira la etiqueta para repetir.');
+        case SaleBarcodeReadOutcome.notFound:
+          _setMessage('No se encontró un artículo con este código.');
+        case SaleBarcodeReadOutcome.selectionCancelled:
+          _setMessage(
+            'Selección cancelada. Retira la etiqueta para volver a leerla.',
+          );
+        case SaleBarcodeReadOutcome.quantityCancelled:
           _setMessage(
             'Cantidad cancelada. Retira la etiqueta para volver a leerla.',
           );
-          return;
-        }
+        case SaleBarcodeReadOutcome.unitUnavailable:
+          _setMessage(
+            'La unidad de venta no está disponible. Vuelve a seleccionar el artículo.',
+          );
+        case SaleBarcodeReadOutcome.interrupted:
+          // _canFinishRead conserva el mensaje y las reglas de esta cámara.
+          break;
       }
-      _setMessage('Guardando artículo…');
-      await _commands.agregar(
-        AgregarProductoBorradorCommand(
-          variantId: candidate.varianteId,
-          measuredQuantity: quantity,
-          expectedUnitId: unit?.id,
-        ),
-      );
-      _setMessage('Artículo agregado. Retira la etiqueta para repetir.');
     } on FormatException catch (error) {
       _setMessage(error.message);
     } on StateError catch (error) {

@@ -26,6 +26,12 @@ import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.d
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
 import 'dart:async';
+import 'package:pos_flutter/application/printing/printer_gateway.dart';
+import 'package:pos_flutter/application/printing/printer_settings_controller.dart';
+import 'package:pos_flutter/application/printing/ticket_print_service.dart';
+import 'package:pos_flutter/presentation/pages/impresoras/printer_settings_screen.dart';
+import '../../../support/fake_printer_gateway.dart';
+import '../../../support/fake_printer_settings_store.dart';
 
 void main() {
   late _FakeSyncDetectionSettingsStore detectionSettingsStore;
@@ -62,6 +68,43 @@ void main() {
   tearDown(() async {
     await getIt.reset();
   });
+
+  for (final mode in AppMode.values) {
+    testWidgets('Configuracion opens local Impresoras in ${mode.name}', (
+      tester,
+    ) async {
+      getIt<AppConfigController>().update(
+        getIt<AppConfigController>().config.copyWith(mode: mode),
+      );
+      final gateway = FakePrinterGateway();
+      final printers = PrinterSettingsController(FakePrinterSettingsStore());
+      await printers.load();
+      final service = TicketPrintService(gateway);
+      getIt.registerSingleton<PrinterGateway>(gateway);
+      getIt.registerSingleton<PrinterSettingsController>(printers);
+      getIt.registerSingleton<TicketPrintService>(service);
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: SyncSettingsScreen())),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Impresoras'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Impresoras'));
+      await tester.pumpAndSettle();
+      final screen = tester.widget<PrinterSettingsScreen>(
+        find.byType(PrinterSettingsScreen),
+      );
+      expect(screen.controller, same(printers));
+      expect(screen.gateway, same(gateway));
+      expect(screen.printService, same(service));
+      expect(gateway.calls, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+      await printers.dispose();
+      await service.dispose();
+    });
+  }
 
   testWidgets('Configuracion opens settings as a full page', (tester) async {
     final scaffoldKey = GlobalKey<ScaffoldState>();

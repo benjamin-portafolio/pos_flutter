@@ -1,3 +1,9 @@
+import '../../application/printing/printer_gateway.dart';
+import '../../application/printing/ticket_encoder.dart';
+import '../../data/printing/esc_pos_ticket_encoder.dart';
+import '../../application/printing/printer_settings_store.dart';
+import '../../data/local/printing/printer_settings_file_store.dart';
+import '../../data/printing/android_bluetooth_printer_gateway.dart';
 import '../../application/sync/projections/proveedor_projection_store.dart';
 import '../../data/local/drift/drift_proveedor_projection_store.dart';
 import '../../data/repositories/proveedor_repository_impl.dart';
@@ -95,6 +101,14 @@ class DataDependencyBootstrap {
 }
 
 Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
+  getIt.registerLazySingleton<TicketEncoder>(() => const EscPosTicketEncoder());
+  getIt.registerLazySingleton<PrinterSettingsStore>(
+    () => PrinterSettingsFileStore(),
+  );
+  getIt.registerLazySingleton<PrinterGateway>(
+    () => AndroidBluetoothPrinterGateway(),
+    dispose: (gateway) => gateway.close(),
+  );
   final appConfigStore = AppConfigFileStore();
   final deviceIdentityProvider = DeviceIdentityFileStore();
   final syncEndpointStore = SyncEndpointFileStore();

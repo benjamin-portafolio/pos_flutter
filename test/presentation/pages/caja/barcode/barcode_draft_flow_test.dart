@@ -5,7 +5,6 @@ import 'package:drift/drift.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
-import 'package:pos_flutter/application/commands/ventas/agregar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
@@ -19,6 +18,7 @@ import 'package:pos_flutter/data/repositories/producto_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/sale_draft_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/barcode_read_gate.dart';
+import 'package:pos_flutter/presentation/pages/caja/barcode/sale_barcode_read_coordinator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -102,23 +102,22 @@ void main() {
         config.update(AppConfig.initial.copyWith(mode: mode));
         var now = Duration.zero;
         final gate = BarcodeReadGate(clock: () => now)..setCameraActive(true);
-        Future<String> read(String code) async {
-          final candidates = await products.buscarVariantesPorCodigoBarras(
-            code,
-          );
-          if (candidates.isEmpty) return 'Desconocido';
-          if (candidates.length != 1) return 'Ambiguo';
-          await commands.agregar(
-            AgregarProductoBorradorCommand(
-              variantId: candidates.single.varianteId,
-            ),
-          );
-          return 'Guardado';
-        }
+        final coordinator = SaleBarcodeReadCoordinator(
+          products: products,
+          commands: commands,
+        );
 
         Future<void> observe(String code) async {
           final accepted = gate.observe({code});
-          if (accepted != null) await read(accepted);
+          if (accepted != null) {
+            await coordinator.read(
+              accepted,
+              canContinue: () => true,
+              selectProduct: (_) async => null,
+              requestQuantity: (_) async =>
+                  throw StateError('Cantidad inesperada'),
+            );
+          }
         }
 
         await observe('999');

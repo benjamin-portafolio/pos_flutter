@@ -8,8 +8,12 @@ import '../../../application/commands/ventas/venta_borrador_command_service.dart
 import '../../../core/di/injection.dart';
 import '../../../domain/cotizaciones/quotation.dart';
 import '../../../domain/repositories/quotation_repository.dart';
-import '../../tickets/ticket_document.dart';
+import '../../../application/tickets/ticket_document.dart';
 import '../../tickets/ticket_image_generator.dart';
+import '../../tickets/ticket_print_action.dart';
+import '../../../application/printing/printer_gateway.dart';
+import '../../../application/printing/printer_settings_controller.dart';
+import '../../../application/printing/ticket_print_service.dart';
 import 'models/quotation_display.dart';
 import 'quotation_estimate_builder.dart';
 
@@ -21,9 +25,15 @@ class QuotationTicketScreen extends StatefulWidget {
     this.draftCommands,
     this.shareTicket,
     this.generateImage,
+    this.printerSettings,
+    this.printerGateway,
+    this.printService,
     super.key,
   });
 
+  final PrinterSettingsController? printerSettings;
+  final PrinterGateway? printerGateway;
+  final TicketPrintService? printService;
   final String quotationId;
   final QuotationRepository? repository;
 
@@ -45,6 +55,30 @@ class _QuotationTicketScreenState extends State<QuotationTicketScreen> {
   Future<Uint8List>? _image;
   bool _busy = false;
   int _subscription = 0;
+  final _readyTicket = ValueNotifier<(TicketDocument?, Uint8List?)>((
+    null,
+    null,
+  ));
+  (TicketDocument?, Uint8List?) _nextReady = (null, null);
+  bool _readyScheduled = false;
+
+  // The action lives outside the async estimate/preview subtree. Refreshing a
+  // price must not dispose a confirmed print intent or hide its result.
+  void _publishReady(TicketDocument? document, Uint8List? bytes) {
+    _nextReady = (document, bytes);
+    if (_readyScheduled) return;
+    _readyScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _readyScheduled = false;
+      if (mounted) _readyTicket.value = _nextReady;
+    });
+  }
+
+  @override
+  void dispose() {
+    _readyTicket.dispose();
+    super.dispose();
+  }
 
   void _reload() => setState(() {
     _display = null;
@@ -116,7 +150,7 @@ class _QuotationTicketScreenState extends State<QuotationTicketScreen> {
     }
   }
 
-  Widget _content(Widget child, {Uint8List? bytes}) => Column(
+  Widget _options(TicketDocument? document, Uint8List? bytes) => Column(
     children: [
       Wrap(
         alignment: WrapAlignment.center,
@@ -134,10 +168,11 @@ class _QuotationTicketScreenState extends State<QuotationTicketScreen> {
                     : () => _share(bytes, context),
               ),
             ),
-          const IconButton(
-            onPressed: null,
-            tooltip: 'Imprimir',
-            icon: Icon(Icons.print_outlined),
+          TicketPrintAction(
+            document: document,
+            controller: widget.printerSettings,
+            gateway: widget.printerGateway,
+            service: widget.printService,
           ),
         ],
       ),
@@ -149,137 +184,164 @@ class _QuotationTicketScreenState extends State<QuotationTicketScreen> {
             textAlign: TextAlign.center,
           ),
         ),
-      Expanded(child: child),
-      SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FilledButton(
-            onPressed: _busy
-                ? null
-                : widget.emissionDraft == null
-                ? () => Navigator.of(context).pop()
-                : _display == null
-                ? null
-                : _newDraft,
-            child: Text(
-              widget.emissionDraft == null ? 'Cerrar' : 'Nueva captura',
+    ],
+  );
+
+  Widget _content(Widget child, {Uint8List? bytes, TicketDocument? document}) {
+    _publishReady(document, bytes);
+    return Column(
+      children: [
+        Expanded(child: child),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: FilledButton(
+              onPressed: _busy
+                  ? null
+                  : widget.emissionDraft == null
+                  ? () => Navigator.of(context).pop()
+                  : _display == null
+                  ? null
+                  : _newDraft,
+              child: Text(
+                widget.emissionDraft == null ? 'Cerrar' : 'Nueva captura',
+              ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Ticket de cotización')),
     backgroundColor: const Color(0xFFF0F0F0),
     body: SafeArea(
-      child: StreamBuilder<Quotation?>(
-        key: ValueKey(_subscription),
-        stream: _document,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            _display = null;
-            _image = null;
-            return _content(
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('No se pudo cargar la cotización.'),
-                    TextButton(
-                      onPressed: _busy ? null : _reload,
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-          if (!snapshot.hasData &&
-              snapshot.connectionState == ConnectionState.waiting) {
-            return _content(const Center(child: CircularProgressIndicator()));
-          }
-          final quotation = snapshot.data;
-          if (quotation == null) {
-            _display = null;
-            _image = null;
-            return _content(
-              const Center(child: Text('No se encontró la cotización.')),
-            );
-          }
-          return QuotationEstimateBuilder(
-            quotation: quotation,
-            repository: _repository,
-            builder: (estimate) {
-              if (_display?.quotation != quotation ||
-                  _display?.estimate != estimate) {
-                _display = QuotationDisplay(quotation, estimate);
-                _image = null;
-              }
-              final display = _display!;
-              _image ??= Future.sync(
-                () => (widget.generateImage ?? TicketImageGenerator().generate)(
-                  display.ticket,
-                ),
-              );
-              return FutureBuilder<Uint8List>(
-                future: _image,
-                builder: (context, image) {
-                  if (image.connectionState != ConnectionState.done) {
-                    return _content(
-                      const Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  if (image.hasError) {
-                    return _content(
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'La cotización está guardada. No se pudo generar la imagen.',
-                            ),
-                            TextButton(
-                              onPressed: _busy
-                                  ? null
-                                  : () => setState(() => _image = null),
-                              child: const Text('Reintentar'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  if (!image.hasData) {
-                    return _content(
-                      const Center(child: CircularProgressIndicator()),
-                    );
-                  }
+      child: Column(
+        children: [
+          ValueListenableBuilder<(TicketDocument?, Uint8List?)>(
+            valueListenable: _readyTicket,
+            builder: (_, ready, _) => _options(ready.$1, ready.$2),
+          ),
+          Expanded(
+            child: StreamBuilder<Quotation?>(
+              key: ValueKey(_subscription),
+              stream: _document,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  _display = null;
+                  _image = null;
                   return _content(
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(12),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 600),
-                          child: Image.memory(
-                            image.data!,
-                            width: double.infinity,
-                            fit: BoxFit.fitWidth,
-                            semanticLabel: display.semanticLabel,
-                            filterQuality: FilterQuality.medium,
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('No se pudo cargar la cotización.'),
+                          TextButton(
+                            onPressed: _busy ? null : _reload,
+                            child: const Text('Reintentar'),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                    bytes: image.data!,
                   );
-                },
-              );
-            },
-          );
-        },
+                }
+                if (!snapshot.hasData &&
+                    snapshot.connectionState == ConnectionState.waiting) {
+                  return _content(
+                    const Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final quotation = snapshot.data;
+                if (quotation == null) {
+                  _display = null;
+                  _image = null;
+                  return _content(
+                    const Center(child: Text('No se encontró la cotización.')),
+                  );
+                }
+                if (_display?.quotation != quotation) _publishReady(null, null);
+                return QuotationEstimateBuilder(
+                  quotation: quotation,
+                  repository: _repository,
+                  builder: (estimate) {
+                    if (_display?.quotation != quotation ||
+                        _display?.estimate != estimate) {
+                      _display = QuotationDisplay(quotation, estimate);
+                      _image = null;
+                    }
+                    final display = _display!;
+                    _image ??= Future.sync(
+                      () =>
+                          (widget.generateImage ??
+                          TicketImageGenerator().generate)(display.ticket),
+                    );
+                    return FutureBuilder<Uint8List>(
+                      future: _image,
+                      builder: (context, image) {
+                        if (image.connectionState != ConnectionState.done) {
+                          return _content(
+                            const Center(child: CircularProgressIndicator()),
+                            document: display.ticket,
+                          );
+                        }
+                        if (image.hasError) {
+                          return _content(
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'La cotización está guardada. No se pudo generar la imagen.',
+                                  ),
+                                  TextButton(
+                                    onPressed: _busy
+                                        ? null
+                                        : () => setState(() => _image = null),
+                                    child: const Text('Reintentar'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            document: display.ticket,
+                          );
+                        }
+                        if (!image.hasData) {
+                          return _content(
+                            const Center(child: CircularProgressIndicator()),
+                            document: display.ticket,
+                          );
+                        }
+                        return _content(
+                          SingleChildScrollView(
+                            padding: const EdgeInsets.all(12),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 600,
+                                ),
+                                child: Image.memory(
+                                  image.data!,
+                                  width: double.infinity,
+                                  fit: BoxFit.fitWidth,
+                                  semanticLabel: display.semanticLabel,
+                                  filterQuality: FilterQuality.medium,
+                                ),
+                              ),
+                            ),
+                          ),
+                          bytes: image.data!,
+                          document: display.ticket,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     ),
   );

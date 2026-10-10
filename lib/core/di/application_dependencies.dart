@@ -1,3 +1,8 @@
+import '../../application/printing/printer_gateway.dart';
+import '../../application/printing/ticket_encoder.dart';
+import '../../application/printing/printer_settings_controller.dart';
+import '../../application/printing/printer_settings_store.dart';
+import '../../application/printing/ticket_print_service.dart';
 import '../../application/commands/proveedores/proveedor_command_service.dart';
 import '../../application/sync/projections/proveedor_projection_store.dart';
 import '../../application/sync/handlers/proveedor_creado_event_handler.dart';
@@ -128,6 +133,17 @@ void registerApplicationDependencies(
   required String? storedSyncBaseUrl,
   required bool requireWifiForServerDetection,
 }) {
+  getIt.registerLazySingleton<PrinterSettingsController>(
+    () => PrinterSettingsController(getIt<PrinterSettingsStore>()),
+    dispose: (controller) => controller.dispose(),
+  );
+  getIt.registerLazySingleton<TicketPrintService>(
+    () => TicketPrintService(
+      getIt<PrinterGateway>(),
+      encoder: getIt<TicketEncoder>(),
+    ),
+    dispose: (service) => service.dispose(),
+  );
   getIt.registerSingleton<AppConfigController>(AppConfigController(appConfig));
   getIt.registerSingleton<LocalCommandContext>(
     LocalCommandContext(deviceId: deviceId, userId: appConfig.userId),

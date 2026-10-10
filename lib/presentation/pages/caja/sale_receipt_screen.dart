@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../application/printing/printer_gateway.dart';
+import '../../../application/printing/printer_settings_controller.dart';
+import '../../../application/printing/ticket_print_service.dart';
+import '../../../application/tickets/ticket_document.dart';
+import '../../tickets/ticket_print_action.dart';
 import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/ventas/confirmed_sale.dart';
 import 'models/sale_receipt_display.dart';
@@ -14,9 +19,15 @@ class SaleReceiptScreen extends StatefulWidget {
     required this.saleId,
     this.repository,
     this.shareReceipt,
+    this.printerSettings,
+    this.printerGateway,
+    this.printService,
     super.key,
   });
 
+  final PrinterSettingsController? printerSettings;
+  final PrinterGateway? printerGateway;
+  final TicketPrintService? printService;
   final String saleId;
   final ConfirmedSaleRepository? repository;
   final Future<ShareResult> Function(ShareParams)? shareReceipt;
@@ -62,9 +73,19 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
     }
   }
 
-  Widget _content(Widget child, {Uint8List? bytes}) => Column(
+  Widget _content(
+    Widget child, {
+    Uint8List? bytes,
+    TicketDocument? document,
+  }) => Column(
     children: [
       _ReceiptOptions(
+        printAction: TicketPrintAction(
+          document: document,
+          controller: widget.printerSettings,
+          gateway: widget.printerGateway,
+          service: widget.printService,
+        ),
         onShare: bytes == null || _sharing
             ? null
             : (context) => _shareReceipt(bytes, context),
@@ -128,11 +149,13 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                       ],
                     ),
                   ),
+                  document: receipt.ticket,
                 );
               }
               if (!image.hasData) {
                 return _content(
                   const Center(child: CircularProgressIndicator()),
+                  document: receipt.ticket,
                 );
               }
               return _content(
@@ -152,6 +175,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                   ),
                 ),
                 bytes: image.data!,
+                document: receipt.ticket,
               );
             },
           );
@@ -172,9 +196,10 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
 
 /// Compartir y WhatsApp abren el mismo selector para compartir la imagen.
 class _ReceiptOptions extends StatelessWidget {
-  const _ReceiptOptions({this.onShare});
+  const _ReceiptOptions({this.onShare, required this.printAction});
 
   final ValueChanged<BuildContext>? onShare;
+  final Widget printAction;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -192,17 +217,20 @@ class _ReceiptOptions extends StatelessWidget {
               ('Imprimir', Icons.print_outlined),
               ('Más opciones', Icons.more_vert),
             ])
-              Builder(
-                builder: (context) => IconButton(
-                  onPressed:
-                      (option.$1 == 'Compartir' || option.$1 == 'WhatsApp') &&
-                          onShare != null
-                      ? () => onShare!(context)
-                      : null,
-                  tooltip: option.$1,
-                  icon: Icon(option.$2),
+              if (option.$1 == 'Imprimir')
+                printAction
+              else
+                Builder(
+                  builder: (context) => IconButton(
+                    onPressed:
+                        (option.$1 == 'Compartir' || option.$1 == 'WhatsApp') &&
+                            onShare != null
+                        ? () => onShare!(context)
+                        : null,
+                    tooltip: option.$1,
+                    icon: Icon(option.$2),
+                  ),
                 ),
-              ),
           ],
         ),
         const Wrap(

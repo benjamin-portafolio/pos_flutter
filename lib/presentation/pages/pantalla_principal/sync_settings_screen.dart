@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../application/printing/printer_gateway.dart';
+import '../../../application/printing/printer_settings_controller.dart';
+import '../../../application/printing/ticket_print_service.dart';
+import '../impresoras/printer_settings_screen.dart';
 
 import '../../../application/commands/local_command_context.dart';
 import '../../../application/config/app_config.dart';
@@ -160,6 +164,25 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             ),
             value: _bankEnabled,
             onChanged: _isSavingBankEnabled ? null : _actualizarBanco,
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.print_outlined),
+            title: const Text('Impresoras'),
+            subtitle: const Text(
+              'Perfiles Bluetooth, predeterminada y prueba local.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PrinterSettingsScreen(
+                  controller: getIt<PrinterSettingsController>(),
+                  gateway: getIt<PrinterGateway>(),
+                  printService: getIt<TicketPrintService>(),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           if (_mode == AppMode.serverSync) ...[

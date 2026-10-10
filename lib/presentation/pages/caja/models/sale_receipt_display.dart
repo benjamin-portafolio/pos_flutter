@@ -1,6 +1,6 @@
 import '../../../../domain/ventas/confirmed_sale.dart';
 import 'sale_draft_display.dart';
-import '../../../tickets/ticket_document.dart';
+import '../../../../application/tickets/ticket_document.dart';
 
 /// Datos de presentación tomados exclusivamente del cobro conservado.
 class SaleReceiptDisplay {
