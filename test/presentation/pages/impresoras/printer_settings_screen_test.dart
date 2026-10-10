@@ -89,7 +89,7 @@ void main() {
 
   Future<void> tap(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }
@@ -202,7 +202,7 @@ void main() {
       await tap(tester, action(a.address, 'Elegir predeterminada'));
       await tap(tester, action(a.address, 'Quitar'));
       expect(
-        find.textContaining('seguirá vinculado en Android'),
+        find.textContaining('seguirá disponible en el sistema'),
         findsOneWidget,
       );
       await tap(tester, find.text('Cancelar'));

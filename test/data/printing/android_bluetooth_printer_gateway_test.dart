@@ -107,7 +107,7 @@ void main() {
         return null;
       });
       expect(
-        (await gateway.bondedDevices()).map((d) => d.address).toSet(),
+        (await gateway.listDestinations()).map((d) => d.address).toSet(),
         hasLength(2),
       );
       await gateway.connect('AA:BB:CC:DD:EE:02');

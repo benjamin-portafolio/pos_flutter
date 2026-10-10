@@ -17,6 +17,9 @@ class _PrinterProfileDialogState extends State<PrinterProfileDialog> {
   final _form = GlobalKey<FormState>();
   late final TextEditingController _alias;
   late PrinterPaper _paper;
+  late final TextEditingController _width;
+  late PrinterImageCommand _imageCommand;
+  late bool _supportsCut;
 
   @override
   void initState() {
@@ -25,11 +28,17 @@ class _PrinterProfileDialogState extends State<PrinterProfileDialog> {
       text: widget.profile?.alias ?? widget.device.name ?? 'Impresora',
     );
     _paper = widget.profile?.paper ?? PrinterPaper.mm58;
+    _width = TextEditingController(
+      text: '${widget.profile?.printableWidthDots ?? 384}',
+    );
+    _imageCommand = widget.profile?.imageCommand ?? PrinterImageCommand.gsV0;
+    _supportsCut = widget.profile?.supportsCut ?? false;
   }
 
   @override
   void dispose() {
     _alias.dispose();
+    _width.dispose();
     super.dispose();
   }
 
@@ -68,9 +77,45 @@ class _PrinterProfileDialogState extends State<PrinterProfileDialog> {
                   child: Text('80 mm'),
                 ),
               ],
-              onChanged: (value) => setState(() => _paper = value!),
+              onChanged: (value) => setState(() {
+                _paper = value!;
+                _width.text = value == PrinterPaper.mm58 ? '384' : '576';
+              }),
             ),
             const SizedBox(height: 16),
+            TextFormField(
+              controller: _width,
+              decoration: const InputDecoration(
+                labelText: 'Ancho imprimible (puntos)',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final width = int.tryParse(value ?? '');
+                return width == null ||
+                        width < 8 ||
+                        width > 2048 ||
+                        width % 8 != 0
+                    ? 'Usa un múltiplo de 8 entre 8 y 2048.'
+                    : null;
+              },
+            ),
+            DropdownButtonFormField<PrinterImageCommand>(
+              initialValue: _imageCommand,
+              decoration: const InputDecoration(labelText: 'Comando de imagen'),
+              items: [
+                for (final command in PrinterImageCommand.values)
+                  DropdownMenuItem(value: command, child: Text(command.name)),
+              ],
+              onChanged: (value) => setState(() => _imageCommand = value!),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enviar comando de corte'),
+              value: _supportsCut,
+              onChanged: (value) => setState(() => _supportsCut = value),
+            ),
+            const SizedBox(height: 16),
+            const Text('Ajusta imágenes y corte mediante pruebas físicas.'),
             const Text(
               'El papel seleccionado requiere verificación con el equipo físico.',
             ),
@@ -90,16 +135,14 @@ class _PrinterProfileDialogState extends State<PrinterProfileDialog> {
   void _submit() {
     if (!_form.currentState!.validate()) return;
     try {
-      final original = widget.profile;
       final profile = PrinterProfile(
         address: widget.device.address,
+        transport: widget.device.transport,
         alias: _alias.text,
         paper: _paper,
-        printableWidthDots: original?.paper == _paper
-            ? original!.printableWidthDots
-            : (_paper == PrinterPaper.mm58 ? 384 : 576),
-        imageCommand: original?.imageCommand ?? PrinterImageCommand.gsV0,
-        supportsCut: original?.supportsCut ?? false,
+        printableWidthDots: int.parse(_width.text),
+        imageCommand: _imageCommand,
+        supportsCut: _supportsCut,
       );
       Navigator.of(context).pop(profile);
     } on ArgumentError {

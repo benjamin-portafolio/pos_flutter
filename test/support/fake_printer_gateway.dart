@@ -39,7 +39,7 @@ class FakePrinterGateway implements PrinterGateway {
   }
 
   @override
-  Future<List<PrinterDevice>> bondedDevices() async {
+  Future<List<PrinterDevice>> listDestinations() async {
     calls.add('bondedDevices');
     return devices;
   }

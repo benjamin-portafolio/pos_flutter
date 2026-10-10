@@ -46,7 +46,7 @@ class _TicketPrinterDialogState extends State<TicketPrinterDialog> {
   Widget build(BuildContext context) {
     final settings = widget.controller.settings;
     final selected = settings.printers
-        .where((p) => p.address == _address)
+        .where((p) => p.destinationKey == _address)
         .firstOrNull;
     return AlertDialog(
       title: const Text('Imprimir ticket'),
@@ -63,7 +63,7 @@ class _TicketPrinterDialogState extends State<TicketPrinterDialog> {
                   '${selected.address} · ${selected.paper == PrinterPaper.mm58 ? 58 : 80} mm',
                 ),
                 Text(
-                  selected.address == settings.defaultAddress
+                  selected.destinationKey == settings.defaultAddress
                       ? 'Predeterminada'
                       : 'Solo para este envío',
                 ),
@@ -75,11 +75,11 @@ class _TicketPrinterDialogState extends State<TicketPrinterDialog> {
                     title: Text(profile.alias),
                     subtitle: Text(
                       '${profile.address} · ${profile.paper == PrinterPaper.mm58 ? 58 : 80} mm'
-                      '${profile.address == settings.defaultAddress ? ' · Predeterminada' : ''}',
+                      '${profile.destinationKey == settings.defaultAddress ? ' · Predeterminada' : ''}',
                     ),
-                    selected: profile.address == _address,
+                    selected: profile.destinationKey == _address,
                     onTap: () => setState(() {
-                      _address = profile.address;
+                      _address = profile.destinationKey;
                       _choosing = false;
                     }),
                   ),

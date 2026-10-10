@@ -375,7 +375,7 @@ void main() {
       await open(tester);
       expect(tester.widget<IconButton>(_print()).onPressed, isNull);
       expect(
-        find.text('Impresión disponible solo en Android.'),
+        find.text('Impresión disponible en Android y Windows.'),
         findsOneWidget,
       );
       expect(gateway.calls, isEmpty);

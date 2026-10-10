@@ -214,9 +214,18 @@ class TicketPrintService {
           _ => PrinterFailure.permissionDenied,
         });
       }
-      final devices = await step(_gateway.bondedDevices(), permissionTimeout);
+      final devices = await step(
+        _gateway.listDestinations(),
+        permissionTimeout,
+      );
       checkIntent();
-      if (!devices.any((d) => d.address.toUpperCase() == profile.address)) {
+      if (!devices.any(
+        (d) =>
+            d.transport == profile.transport &&
+            (profile.transport == PrinterTransport.androidBluetooth
+                ? d.address.toUpperCase() == profile.address
+                : d.address == profile.address),
+      )) {
         throw const PrinterException(PrinterFailure.deviceNotBonded);
       }
       try {
@@ -264,7 +273,15 @@ class TicketPrintService {
       }
       if (connectionAttempted) {
         try {
-          await step(_gateway.close(), closeTimeout, cleanup: true);
+          await step(
+            _gateway is PrinterJobGateway
+                ? (_gateway as PrinterJobGateway).finishJob(
+                    commit: failure == null,
+                  )
+                : _gateway.close(),
+            closeTimeout,
+            cleanup: true,
+          );
         } on PrinterException catch (error) {
           failure ??= error.failure;
           // Close failed, so retain a quarantine until explicit shutdown

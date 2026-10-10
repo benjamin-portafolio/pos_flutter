@@ -44,8 +44,13 @@ class PrinterSettingsController {
     () => PrinterSettings(
       printers: [
         for (final current in _settings.printers)
-          if (current.address == profile.address) profile else current,
-        if (!_settings.printers.any((p) => p.address == profile.address))
+          if (current.destinationKey == profile.destinationKey)
+            profile
+          else
+            current,
+        if (!_settings.printers.any(
+          (p) => p.destinationKey == profile.destinationKey,
+        ))
           profile,
       ],
       defaultAddress: _settings.defaultAddress,
@@ -53,9 +58,20 @@ class PrinterSettingsController {
   );
 
   Future<void> remove(String address) => _save(() {
-    final normalized = address.trim().toUpperCase();
+    final name = address.trim();
+    final normalized =
+        _settings.printers
+            .where(
+              (p) =>
+                  p.destinationKey == address ||
+                  (p.transport == PrinterTransport.androidBluetooth &&
+                      p.address == name.toUpperCase()),
+            )
+            .firstOrNull
+            ?.destinationKey ??
+        name;
     return PrinterSettings(
-      printers: _settings.printers.where((p) => p.address != normalized),
+      printers: _settings.printers.where((p) => p.destinationKey != normalized),
       defaultAddress: _settings.defaultAddress == normalized
           ? null
           : _settings.defaultAddress,

@@ -47,7 +47,9 @@ class _TicketPrintActionState extends State<TicketPrintAction>
   T? _registered<T extends Object>() =>
       getIt.isRegistered<T>() ? getIt<T>() : null;
   bool get _supported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.windows);
   bool _active(int intent) =>
       mounted &&
       intent == _intent &&
@@ -164,7 +166,9 @@ class _TicketPrintActionState extends State<TicketPrintAction>
       if (!mounted || !_active(intent)) return;
       setState(
         () => _message = result.sent
-            ? 'Ticket enviado a la impresora: $destination. El envío no confirma la impresión física; revisa el papel.'
+            ? (profile.transport == PrinterTransport.windowsSpooler
+                  ? 'Windows aceptó el trabajo para $destination. La aceptación no confirma la impresión física; revisa el papel.'
+                  : 'Ticket enviado a la impresora: $destination. El envío no confirma la impresión física; revisa el papel.')
             : '${printerFailureMessage(result.failure!)}${result.mayHavePrinted ? ' El envío se interrumpió. Puede haberse impreso una parte; revisa el ticket antes de reimprimir.' : ''}',
       );
     } catch (_) {
@@ -196,7 +200,7 @@ class _TicketPrintActionState extends State<TicketPrintAction>
       ),
       if (!_supported)
         const Text(
-          'Impresión disponible solo en Android.',
+          'Impresión disponible en Android y Windows.',
           textAlign: TextAlign.center,
         ),
       if (_pending && _message != null)

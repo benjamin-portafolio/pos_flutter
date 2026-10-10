@@ -45,7 +45,7 @@ class PrinterSettingsFileStore implements PrinterSettingsStore {
       final json = jsonDecode(utf8.decode(contents)) as Map<String, dynamic>;
       final version = json['version'];
       if (version is! int) throw const FormatException('Missing version');
-      if (version != 1) {
+      if (version != 1 && version != 2) {
         throw const PrinterSettingsException(
           PrinterSettingsFailure.unsupportedVersion,
         );
@@ -58,6 +58,12 @@ class PrinterSettingsFileStore implements PrinterSettingsStore {
           final profile = item as Map<String, dynamic>;
           return PrinterProfile(
             address: profile['address'] as String,
+            // Version 1 contained only Android Bluetooth destinations.
+            transport: version == 1
+                ? PrinterTransport.androidBluetooth
+                : PrinterTransport.values.byName(
+                    profile['transport'] as String,
+                  ),
             alias: profile['alias'] as String,
             paper: PrinterPaper.values.byName(profile['paper'] as String),
             printableWidthDots: profile['printableWidthDots'] as int,
@@ -116,11 +122,12 @@ class PrinterSettingsFileStore implements PrinterSettingsStore {
     final temporary = File('${file.path}.${_suffix()}.tmp');
     try {
       final json = {
-        'version': 1,
+        'version': 2,
         'printers': [
           for (final profile in settings.printers)
             {
               'address': profile.address,
+              'transport': profile.transport.name,
               'alias': profile.alias,
               'paper': profile.paper.name,
               'printableWidthDots': profile.printableWidthDots,

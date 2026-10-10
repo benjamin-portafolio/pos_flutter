@@ -94,7 +94,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     if (!mounted || device == null) return;
     PrinterProfile? existing;
     for (final profile in widget.controller.settings.printers) {
-      if (profile.address == device.address.trim().toUpperCase()) {
+      if (profile.destinationKey == device.destinationKey) {
         existing = profile;
       }
     }
@@ -117,7 +117,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
         title: const Text('Quitar impresora'),
         content: Text(
           'Quitar ${profile.alias} (${profile.address}) de esta app. '
-          'El dispositivo seguirá vinculado en Android. '
+          'La impresora seguirá disponible en el sistema. '
           'Si es la predeterminada, la selección quedará vacía.',
         ),
         actions: [
@@ -133,7 +133,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       ),
     );
     if (!mounted || accepted != true) return;
-    await _save(() => widget.controller.remove(profile.address));
+    await _save(() => widget.controller.remove(profile.destinationKey));
   }
 
   Future<void> _recover() async {
@@ -199,7 +199,9 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       if (!mounted) return;
       setState(() {
         _printMessage = result.sent
-            ? 'Prueba enviada a $_printDestination. El envío de bytes no confirma la impresión física; revisa el papel.'
+            ? (profile.transport == PrinterTransport.windowsSpooler
+                  ? 'Prueba enviada a la cola de Windows: $_printDestination. La aceptación no confirma la impresión física; revisa el papel.'
+                  : 'Prueba enviada a $_printDestination. El envío de bytes no confirma la impresión física; revisa el papel.')
             : '${printerFailureMessage(result.failure!)}${result.mayHavePrinted ? ' Puede haberse impreso una parte; revisa el ticket antes de reimprimir.' : ''}';
       });
     } on PrinterException catch (error) {
@@ -283,7 +285,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
           Text(
             settings.defaultAddress == null
                 ? 'Sin impresora predeterminada.'
-                : 'Predeterminada: ${settings.defaultAddress}',
+                : 'Predeterminada: ${settings.printers.firstWhere((p) => p.destinationKey == settings.defaultAddress).alias}',
           ),
           if (settings.defaultAddress != null)
             TextButton(
@@ -298,7 +300,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
             const Text('No hay impresoras guardadas.'),
           for (final profile in settings.printers)
             Card(
-              key: ValueKey(profile.address),
+              key: ValueKey(profile.destinationKey),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -311,7 +313,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                     Text(
                       '${profile.address} · ${profile.paper == PrinterPaper.mm58 ? 58 : 80} mm',
                     ),
-                    if (settings.defaultAddress == profile.address)
+                    if (settings.defaultAddress == profile.destinationKey)
                       const Text('Predeterminada'),
                     Wrap(
                       spacing: 8,
@@ -322,6 +324,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                                   PrinterDevice(
                                     address: profile.address,
                                     name: profile.alias,
+                                    transport: profile.transport,
                                   ),
                                   profile,
                                 )
@@ -331,9 +334,12 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                         TextButton(
                           onPressed:
                               canEdit &&
-                                  settings.defaultAddress != profile.address
+                                  settings.defaultAddress !=
+                                      profile.destinationKey
                               ? () => _save(
-                                  () => controller.setDefault(profile.address),
+                                  () => controller.setDefault(
+                                    profile.destinationKey,
+                                  ),
                                 )
                               : null,
                           child: const Text('Elegir predeterminada'),

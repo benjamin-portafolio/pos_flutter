@@ -71,7 +71,7 @@ class AndroidBluetoothPrinterGateway implements PrinterGateway {
   Future<PrinterPermission> requestPermission() =>
       _permission('requestPermission');
   @override
-  Future<List<PrinterDevice>> bondedDevices() async {
+  Future<List<PrinterDevice>> listDestinations() async {
     final devices = await _call<List<dynamic>>('bondedDevices');
     if (devices == null) {
       throw const PrinterException(PrinterFailure.transportError);
