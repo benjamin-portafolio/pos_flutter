@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
@@ -17,6 +18,7 @@ import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
 import '../../../support/fake_sale_draft_repository.dart';
+import '../../../support/fake_venta_borrador_command_service.dart';
 
 void main() {
   testWidgets(
@@ -33,6 +35,9 @@ void main() {
         _Products(Stream.value([_article])),
       );
       getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository());
+      getIt.registerSingleton<VentaBorradorCommandService>(
+        FakeVentaBorradorCommandService(),
+      );
       addTearDown(getIt.reset);
 
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));

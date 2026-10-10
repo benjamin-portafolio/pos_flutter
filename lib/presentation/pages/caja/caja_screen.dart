@@ -68,9 +68,10 @@ class CajaScreenState extends State<CajaScreen> {
     }
   }
 
-  bool get _desktopReader =>
+  bool get _physicalReaderAvailable =>
       defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.windows;
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.android;
 
   /// Home/menu deben esperar esta barrera antes de salir o abrir otra ruta.
   Future<bool> prepareToLeave() async {
@@ -289,9 +290,10 @@ class CajaScreenState extends State<CajaScreen> {
             onScanBarcode: _busy ? null : _openBarcodeScanner,
           ),
         ),
-        if (_desktopReader)
+        if (_physicalReaderAvailable)
           PhysicalBarcodeReader(
             key: _physicalReader,
+            automaticallyEnabled: defaultTargetPlatform != TargetPlatform.macOS,
             interactionEnabled: !_busy,
             coordinator: SaleBarcodeReadCoordinator(
               products:

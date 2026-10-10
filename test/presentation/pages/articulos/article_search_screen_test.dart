@@ -77,6 +77,7 @@ void main() {
         _Products(() => Stream.value(_catalog)),
       );
       getIt.registerSingleton<CategoriaRepository>(_Categories());
+      getIt.registerSingleton<VentaBorradorCommandService>(_Capture());
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
       await tester.pumpAndSettle();
       await tester.tap(

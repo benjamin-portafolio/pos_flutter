@@ -23,13 +23,18 @@ import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/repositories/sale_draft_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/cliente_resumen_repository_impl.dart';
+import 'package:pos_flutter/domain/repositories/cliente_resumen_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
 import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/barcode_product_selection_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/barcode/physical_barcode_reader.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
+import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
+import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
 import '../../../support/barcode_sale_fixture.dart';
@@ -65,6 +70,7 @@ void main() {
   Future<void> pumpCaja(
     WidgetTester tester, {
     bool home = false,
+    bool initiallyCovered = false,
     CotizacionCommandService? quotes,
     QuotationRepository? quotations,
   }) async {
@@ -77,23 +83,42 @@ void main() {
       getIt.registerSingleton<ProductoRepository>(f.products);
       getIt.registerSingleton<VentaBorradorCommandService>(f.commands);
       getIt.registerSingleton<AppConfigController>(f.config);
+      getIt.registerSingleton<ClienteResumenRepository>(
+        ClienteResumenRepositoryImpl(f.db),
+      );
     }
+    final caja = Scaffold(
+      body: CajaScreen(
+        saleDraftRepository: f.drafts,
+        productoRepository: f.products,
+        ventaBorradorCommandService: f.commands,
+        cotizacionCommandService: quotes,
+        quotationRepository: quotations,
+        unidadInventarioRepository: UnidadInventarioRepositoryImpl(
+          unitDao: f.db.unitDao,
+        ),
+      ),
+    );
     await tester.pumpWidget(
       MaterialApp(
-        home: home
-            ? const HomeScreen()
-            : Scaffold(
-                body: CajaScreen(
-                  saleDraftRepository: f.drafts,
-                  productoRepository: f.products,
-                  ventaBorradorCommandService: f.commands,
-                  cotizacionCommandService: quotes,
-                  quotationRepository: quotations,
-                  unidadInventarioRepository: UnidadInventarioRepositoryImpl(
-                    unitDao: f.db.unitDao,
-                  ),
+        onGenerateRoute: initiallyCovered
+            ? (_) => MaterialPageRoute<void>(builder: (_) => caja)
+            : null,
+        onGenerateInitialRoutes: initiallyCovered
+            ? (_) => [
+                MaterialPageRoute<void>(builder: (_) => caja),
+                PageRouteBuilder<void>(
+                  opaque: false,
+                  pageBuilder: (_, _, _) =>
+                      const Scaffold(body: Text('Ruta inicial')),
                 ),
-              ),
+              ]
+            : null,
+        home: initiallyCovered
+            ? null
+            : home
+            ? const HomeScreen()
+            : caja,
       ),
     );
     await settle(tester);
@@ -103,17 +128,27 @@ void main() {
     });
   }
 
-  for (final platform in [TargetPlatform.macOS, TargetPlatform.windows]) {
+  for (final platform in [
+    TargetPlatform.macOS,
+    TargetPlatform.windows,
+    TargetPlatform.android,
+  ]) {
     for (final mode in AppMode.values) {
       readerTest(
-        'activar una vez y Enter FIFO/repetidos en $platform ${mode.name}',
+        'preparación y Enter FIFO/repetidos en $platform ${mode.name}',
         (tester) async {
           debugDefaultTargetPlatformOverride = platform;
           f.config.update(AppConfig.initial.copyWith(mode: mode));
           await pumpCaja(tester);
-          expect(find.byKey(inputKey), findsNothing);
-          expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
-          await enable(tester);
+          if (platform == TargetPlatform.macOS) {
+            expect(find.byKey(inputKey), findsNothing);
+            expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
+            await enable(tester);
+          } else {
+            expect(find.byKey(toggleKey), findsNothing);
+            expect(find.byKey(inputKey), findsOneWidget);
+            expect(f.attempts, isEmpty);
+          }
           expect(field(tester).focusNode!.hasFocus, isTrue);
           expect(find.textContaining('Listo para escanear'), findsOneWidget);
           final gate = Completer<void>();
@@ -172,9 +207,233 @@ void main() {
             }
           });
         },
+        platforms: [platform],
       );
     }
   }
+
+  readerTest(
+    'espera sin lector; fragmentos sin Enter no consultan ni escriben',
+    (tester) async {
+      await pumpCaja(tester);
+      expect(find.byKey(toggleKey), findsNothing);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      expect(f.lookups, isEmpty);
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(text: '00'),
+      );
+      await settle(tester);
+      expect(f.lookups, isEmpty);
+      expect(f.attempts, isEmpty);
+      expect(
+        (await tester.runAsync(() => f.db.select(f.db.events).get()))!,
+        isEmpty,
+      );
+    },
+    platforms: [TargetPlatform.windows, TargetPlatform.android],
+  );
+
+  readerTest(
+    'no prepara ni enfoca mientras la ruta inicial cubre Caja',
+    (tester) async {
+      await pumpCaja(tester, initiallyCovered: true);
+      final reader = tester.state<PhysicalBarcodeReaderState>(
+        find.byType(PhysicalBarcodeReader, skipOffstage: false),
+      );
+      expect(reader.isEnabled, isFalse);
+      expect(f.lookups, isEmpty);
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      await send(tester, '001');
+      await settle(tester);
+      expect(f.attempts, hasLength(1));
+    },
+    platforms: [TargetPlatform.windows, TargetPlatform.android],
+  );
+
+  readerTest(
+    'entrar con app inactiva difiere preparación y exige reanudación',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      try {
+        await pumpCaja(tester);
+        expect(find.byKey(inputKey), findsNothing);
+        expect(f.attempts, isEmpty);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await settle(tester);
+        expect(field(tester).focusNode!.hasFocus, isFalse);
+        expect(find.textContaining('Lector en pausa'), findsOneWidget);
+        await tester.tap(find.text('Reanudar lector'));
+        await settle(tester);
+        await send(tester, '001');
+        await settle(tester);
+        expect(f.attempts, hasLength(1));
+      } finally {
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+      }
+    },
+    platforms: [TargetPlatform.windows, TargetPlatform.android],
+  );
+
+  readerTest(
+    'salir cancela preparación diferida y restaurar crea sesión lista',
+    (tester) async {
+      await pumpCaja(tester, initiallyCovered: true);
+      final reader = tester.state<PhysicalBarcodeReaderState>(
+        find.byType(PhysicalBarcodeReader, skipOffstage: false),
+      );
+      await reader.finish();
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(reader.isEnabled, isFalse);
+      expect(find.byKey(inputKey), findsNothing);
+      expect(f.attempts, isEmpty);
+      reader.enableReader();
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      await send(tester, '001');
+      await settle(tester);
+      expect(f.attempts, hasLength(1));
+    },
+    platforms: [TargetPlatform.windows, TargetPlatform.android],
+  );
+
+  readerTest(
+    'Android configura teclado none editable y permite teclado explícito',
+    (tester) async {
+      await pumpCaja(tester);
+      expect(field(tester).readOnly, isFalse);
+      expect(field(tester).keyboardType, TextInputType.none);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+      expect(
+        tester.testTextInput.setClientArgs!['inputType']['name'],
+        'TextInputType.none',
+      );
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(text: '001'),
+      );
+      await enter(tester);
+      await settle(tester);
+      expect(f.attempts, hasLength(1));
+      await enter(tester);
+      await settle(tester);
+      expect(f.attempts, hasLength(1));
+      await tester.tap(find.byTooltip('Escribir código'));
+      await settle(tester);
+      expect(field(tester).keyboardType, TextInputType.text);
+      expect(
+        tester.testTextInput.setClientArgs!['inputType']['name'],
+        'TextInputType.text',
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
+      await tester.enterText(find.byKey(inputKey), '002');
+      await tester.tap(find.byKey(inputKey));
+      await tester.pump();
+      expect(field(tester).controller!.text, '002');
+      await enter(tester);
+      await settle(tester);
+      expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+      await tester.tap(find.byTooltip('Usar lector físico'));
+      await settle(tester);
+      expect(field(tester).keyboardType, TextInputType.none);
+      expect(field(tester).readOnly, isFalse);
+      expect(
+        tester.testTextInput.setClientArgs!['inputType']['name'],
+        'TextInputType.none',
+      );
+    },
+    platforms: [TargetPlatform.android],
+  );
+
+  readerTest(
+    'Android conserva teclados de búsqueda, cantidad y efectivo',
+    (tester) async {
+      await pumpCaja(tester);
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) => w is TextField && w.decoration?.hintText == 'Quiero vender…',
+        ),
+      );
+      await settle(tester);
+      await tester.enterText(find.byType(TextField), '001');
+      expect(
+        tester.testTextInput.setClientArgs!['inputType']['name'],
+        'TextInputType.text',
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(f.attempts, isEmpty);
+      await tester.pageBack();
+      await settle(tester);
+      await send(tester, '004');
+      await settle(tester);
+      final quantity = find.descendant(
+        of: find.byType(SaleQuantityDialog),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(quantity, '0.500');
+      expect(
+        tester.testTextInput.setClientArgs!['inputType']['name'],
+        'TextInputType.number',
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
+      await tester.tap(find.text('Agregar'));
+      await settle(tester);
+      expect(f.attempts.single.measuredQuantity, '0.500');
+      expect(field(tester).keyboardType, TextInputType.none);
+      await tester.tap(find.textContaining('Cobrar:'));
+      await settle(tester);
+      await tester.tap(find.text('Efectivo'));
+      await settle(tester);
+      expect(find.byType(CashPaymentScreen), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '200');
+      expect(
+        tester.testTextInput.setClientArgs!['inputType']['name'],
+        'TextInputType.number',
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(f.attempts, hasLength(1));
+      await tester.pageBack();
+      await settle(tester);
+      await tester.pageBack();
+      await settle(tester);
+      expect(field(tester).keyboardType, TextInputType.none);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+    },
+    platforms: [TargetPlatform.android],
+  );
+
+  readerTest(
+    'clientes desde pestaña o menú restaura sesión nueva al regresar',
+    (tester) async {
+      await pumpCaja(tester, home: true);
+      for (final menu in [false, true]) {
+        await send(tester, '001');
+        await settle(tester);
+        if (menu) {
+          await tester.tap(find.byIcon(Icons.menu));
+          await settle(tester);
+          await tester.tap(find.text('Gestión de clientes'));
+        } else {
+          await tester.tap(find.text('Clientes'));
+        }
+        await settle(tester);
+        expect(find.byType(ClientesScreen), findsOneWidget);
+        expect(find.byKey(inputKey), findsNothing);
+        await tester.pageBack();
+        await settle(tester);
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+      }
+      await send(tester, '002');
+      await settle(tester);
+      expect(f.attempts.map((c) => c.variantId), ['A', 'A', 'B']);
+    },
+    platforms: [TargetPlatform.windows, TargetPlatform.android],
+  );
 
   readerTest('vacío/repetido, inválidos íntegros, límite sin truncado y NFKC', (
     tester,
@@ -367,7 +626,12 @@ void main() {
     expect(f.attempts, isEmpty);
     await tester.pageBack();
     await settle(tester);
-    expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isTrue);
+    expect(
+      tester
+          .state<PhysicalBarcodeReaderState>(find.byType(PhysicalBarcodeReader))
+          .isEnabled,
+      isTrue,
+    );
     expect(field(tester).focusNode!.hasFocus, isTrue);
     await send(tester, '001');
     await settle(tester);
@@ -410,31 +674,35 @@ void main() {
     expect(field(tester).focusNode!.hasFocus, isTrue);
   });
 
-  readerTest('desactivar drena; reactivar crea otra sesión', (tester) async {
-    await pumpCaja(tester);
-    await enable(tester);
-    final gate = Completer<void>();
-    f.beforeLookup = (code) => code == '001' ? gate.future : Future.value();
-    await send(tester, '001');
-    await send(tester, '002');
-    await tester.tap(find.byKey(toggleKey));
-    await tester.pump();
-    expect(find.text('Finalizando lecturas'), findsOneWidget);
-    if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
-      await tester.tap(find.text('Reanudar pendientes'));
-    }
-    gate.complete();
-    await settle(tester);
-    expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
-    expect(find.byKey(inputKey), findsNothing);
-    await enable(tester);
-    await send(tester, '001');
-    await settle(tester);
-    expect(f.attempts, hasLength(3));
-  });
+  readerTest(
+    'desactivar drena; reactivar crea otra sesión',
+    (tester) async {
+      await pumpCaja(tester);
+      await enable(tester);
+      final gate = Completer<void>();
+      f.beforeLookup = (code) => code == '001' ? gate.future : Future.value();
+      await send(tester, '001');
+      await send(tester, '002');
+      await tester.tap(find.byKey(toggleKey));
+      await tester.pump();
+      expect(find.text('Finalizando lecturas'), findsOneWidget);
+      if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Reanudar pendientes'));
+      }
+      gate.complete();
+      await settle(tester);
+      expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+      expect(find.byKey(inputKey), findsNothing);
+      await enable(tester);
+      await send(tester, '001');
+      await settle(tester);
+      expect(f.attempts, hasLength(3));
+    },
+    platforms: [TargetPlatform.macOS],
+  );
 
   readerTest(
-    'Home espera guardado; descarte no deshace commit y regreso desactivado',
+    'Home espera guardado; descarte conserva commit y regreso prepara sesión',
     (tester) async {
       await pumpCaja(tester, home: true);
       await enable(tester);
@@ -473,9 +741,23 @@ void main() {
       );
       await tester.tap(find.text('Caja'));
       await settle(tester);
-      expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
-      expect(find.byKey(inputKey), findsNothing);
-      expect(find.text(r'Cobrar: $1.00'), findsOneWidget);
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
+        expect(find.byKey(inputKey), findsNothing);
+      } else {
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+        await send(tester, '002');
+        await settle(tester);
+        expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+      }
+      expect(
+        find.text(
+          defaultTargetPlatform == TargetPlatform.macOS
+              ? r'Cobrar: $1.00'
+              : r'Cobrar: $2.00',
+        ),
+        findsOneWidget,
+      );
     },
   );
 
@@ -514,7 +796,14 @@ void main() {
       );
       tester.state<ScaffoldState>(find.byType(Scaffold).first).closeDrawer();
       await settle(tester);
-      expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isTrue);
+      expect(
+        tester
+            .state<PhysicalBarcodeReaderState>(
+              find.byType(PhysicalBarcodeReader),
+            )
+            .isEnabled,
+        isTrue,
+      );
     },
   );
   readerTest(
@@ -803,14 +1092,11 @@ void main() {
     },
   );
 
-  readerTest('fuera de macOS/Windows no se muestra modo lector', (
-    tester,
-  ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+  readerTest('iOS conserva ausencia del lector físico', (tester) async {
     await pumpCaja(tester);
     expect(find.text('Lector físico'), findsNothing);
     expect(find.byKey(inputKey), findsNothing);
-  });
+  }, platforms: [TargetPlatform.iOS]);
   readerTest(
     'regreso de Home espera lecturas aceptadas antes de sacar la ruta',
     (tester) async {
@@ -833,9 +1119,60 @@ void main() {
       gate.complete();
       await settle(tester);
       expect(f.attempts, hasLength(1));
-      expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
+      } else {
+        expect(find.textContaining('Lector en pausa'), findsOneWidget);
+        await tester.tap(find.text('Reanudar lector'));
+        await settle(tester);
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+      }
       expect(find.text(r'Cobrar: $1.00'), findsOneWidget);
     },
+  );
+
+  readerTest(
+    'Atrás Android en raíz espera cola antes de cerrar actividad',
+    (tester) async {
+      final platformCalls = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          platformCalls.add(call.method);
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await pumpCaja(tester, home: true);
+      final gate = Completer<void>();
+      f.beforeSave = (_) =>
+          f.attempts.length == 1 ? gate.future : Future.value();
+      await send(tester, '001');
+      await settle(tester);
+      await send(tester, '002');
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(platformCalls, isNot(contains('SystemNavigator.pop')));
+      expect(find.text('Finalizando lecturas'), findsOneWidget);
+      if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Reanudar pendientes'));
+      }
+      gate.complete();
+      await settle(tester);
+      expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+      expect(
+        platformCalls.where((c) => c == 'SystemNavigator.pop'),
+        hasLength(1),
+      );
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byKey(inputKey), findsNothing);
+    },
+    platforms: [TargetPlatform.android],
   );
 
   readerTest(
@@ -855,7 +1192,14 @@ void main() {
       await tester.pump();
       await tester.pageBack();
       await settle(tester);
-      expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isTrue);
+      expect(
+        tester
+            .state<PhysicalBarcodeReaderState>(
+              find.byType(PhysicalBarcodeReader),
+            )
+            .isEnabled,
+        isTrue,
+      );
       expect(find.textContaining('Lector en pausa'), findsOneWidget);
       await tester.tap(find.text('Reanudar lector'));
       await tester.pump();
@@ -875,7 +1219,14 @@ void main() {
       );
       tester.state<ScaffoldState>(find.byType(Scaffold).first).closeDrawer();
       await settle(tester);
-      expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isTrue);
+      expect(
+        tester
+            .state<PhysicalBarcodeReaderState>(
+              find.byType(PhysicalBarcodeReader),
+            )
+            .isEnabled,
+        isTrue,
+      );
       expect(field(tester).focusNode!.hasFocus, isTrue);
       await send(tester, '001');
       await settle(tester);
@@ -945,9 +1296,10 @@ Future<void> settle(WidgetTester tester) async {
 }
 
 Future<void> enable(WidgetTester tester) async {
-  await tester.tap(find.byKey(toggleKey));
-  await tester.pump();
-  await tester.pump();
+  if (find.byKey(toggleKey).evaluate().isNotEmpty) {
+    await tester.tap(find.byKey(toggleKey));
+    await settle(tester);
+  }
 }
 
 Future<void> send(WidgetTester tester, String code) async {
@@ -974,14 +1326,25 @@ Future<void> enter(WidgetTester tester) async {
   await tester.testTextInput.receiveAction(TextInputAction.done);
 }
 
-void readerTest(String name, Future<void> Function(WidgetTester) body) {
-  testWidgets(name, (tester) async {
-    try {
-      await body(tester);
-    } finally {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await settle(tester);
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+void readerTest(
+  String name,
+  Future<void> Function(WidgetTester) body, {
+  List<TargetPlatform> platforms = const [
+    TargetPlatform.macOS,
+    TargetPlatform.windows,
+    TargetPlatform.android,
+  ],
+}) {
+  for (final platform in platforms) {
+    testWidgets('${platform.name}: $name', (tester) async {
+      debugDefaultTargetPlatformOverride = platform;
+      try {
+        await body(tester);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await settle(tester);
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
 }

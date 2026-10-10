@@ -14,10 +14,16 @@ import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dar
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 
 class MenuLateral extends StatelessWidget {
-  const MenuLateral({this.onOpenCaja, this.beforeNavigate, super.key});
+  const MenuLateral({
+    this.onOpenCaja,
+    this.beforeNavigate,
+    this.afterNavigate,
+    super.key,
+  });
 
   final VoidCallback? onOpenCaja;
   final Future<bool> Function()? beforeNavigate;
+  final VoidCallback? afterNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -78,8 +84,14 @@ class MenuLateral extends StatelessWidget {
               ],
             ),
           ),
-          _CashMenuTile(beforeNavigate: beforeNavigate),
-          _BankMenuTile(beforeNavigate: beforeNavigate),
+          _CashMenuTile(
+            beforeNavigate: beforeNavigate,
+            afterNavigate: afterNavigate,
+          ),
+          _BankMenuTile(
+            beforeNavigate: beforeNavigate,
+            afterNavigate: afterNavigate,
+          ),
           // Usuario
           ListTile(
             title: Text("BENJAMÍN ALVARADO GONZÁLEZ (staff)"),
@@ -103,20 +115,26 @@ class MenuLateral extends StatelessWidget {
             onTap: () => _openMenuRoute<void>(
               context,
               beforeNavigate,
+              afterNavigate,
               (_) => const SyncSettingsPage(),
             ),
           ),
           _QuotationsMenuTile(
             onOpenCaja: onOpenCaja,
             beforeNavigate: beforeNavigate,
+            afterNavigate: afterNavigate,
           ),
-          _InventoryMenuTile(beforeNavigate: beforeNavigate),
+          _InventoryMenuTile(
+            beforeNavigate: beforeNavigate,
+            afterNavigate: afterNavigate,
+          ),
           ListTile(
             leading: Icon(Icons.swap_horiz),
             title: Text("Ingresos y gastos"),
             onTap: () => _openMenuRoute<void>(
               context,
               beforeNavigate,
+              afterNavigate,
               (_) => const IngresosYGastosScreen(),
             ),
           ),
@@ -126,6 +144,7 @@ class MenuLateral extends StatelessWidget {
             onTap: () => _openMenuRoute<void>(
               context,
               beforeNavigate,
+              afterNavigate,
               (_) => const ClientesScreen(),
             ),
           ),
@@ -136,6 +155,7 @@ class MenuLateral extends StatelessWidget {
             onTap: () => _openMenuRoute<void>(
               context,
               beforeNavigate,
+              afterNavigate,
               (_) => TableManagementScreen(),
             ),
           ),
@@ -149,8 +169,9 @@ class MenuLateral extends StatelessWidget {
 /// El conteo viene del catalogo local y se actualiza solo cuando cambia. La
 /// consulta se abre una vez: el drawer se reconstruye con frecuencia.
 class _InventoryMenuTile extends StatefulWidget {
-  const _InventoryMenuTile({this.beforeNavigate});
+  const _InventoryMenuTile({this.beforeNavigate, this.afterNavigate});
   final Future<bool> Function()? beforeNavigate;
+  final VoidCallback? afterNavigate;
 
   @override
   State<_InventoryMenuTile> createState() => _InventoryMenuTileState();
@@ -172,6 +193,7 @@ class _InventoryMenuTileState extends State<_InventoryMenuTile> {
           onTap: () => _openMenuRoute<void>(
             context,
             widget.beforeNavigate,
+            widget.afterNavigate,
             (_) => const InventoryManagementScreen(),
           ),
         );
@@ -197,8 +219,9 @@ Widget _buildBadge(int count) {
 /// habilitada en la instalacion. Es una pantalla aparte de caja: el saldo
 /// bancario no es efectivo de cajon.
 class _BankMenuTile extends StatelessWidget {
-  const _BankMenuTile({this.beforeNavigate});
+  const _BankMenuTile({this.beforeNavigate, this.afterNavigate});
   final Future<bool> Function()? beforeNavigate;
+  final VoidCallback? afterNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -214,6 +237,7 @@ class _BankMenuTile extends StatelessWidget {
           onTap: () => _openMenuRoute<void>(
             context,
             beforeNavigate,
+            afterNavigate,
             (_) => const DeclararSaldoCuentaScreen(),
           ),
         );
@@ -225,8 +249,9 @@ class _BankMenuTile extends StatelessWidget {
 /// La entrada de caja solo existe cuando la captura esta habilitada en la
 /// instalacion. Escucha el ajuste para reflejarse sin reiniciar la app.
 class _CashMenuTile extends StatelessWidget {
-  const _CashMenuTile({this.beforeNavigate});
+  const _CashMenuTile({this.beforeNavigate, this.afterNavigate});
   final Future<bool> Function()? beforeNavigate;
+  final VoidCallback? afterNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -242,6 +267,7 @@ class _CashMenuTile extends StatelessWidget {
           onTap: () => _openMenuRoute<void>(
             context,
             beforeNavigate,
+            afterNavigate,
             (_) => const CashManagementScreen(),
           ),
         );
@@ -252,8 +278,13 @@ class _CashMenuTile extends StatelessWidget {
 
 /// El resultado vuelve al Home que abrió el drawer y selecciona su Caja.
 class _QuotationsMenuTile extends StatefulWidget {
-  const _QuotationsMenuTile({this.onOpenCaja, this.beforeNavigate});
+  const _QuotationsMenuTile({
+    this.onOpenCaja,
+    this.beforeNavigate,
+    this.afterNavigate,
+  });
   final Future<bool> Function()? beforeNavigate;
+  final VoidCallback? afterNavigate;
   final VoidCallback? onOpenCaja;
   @override
   State<_QuotationsMenuTile> createState() => _QuotationsMenuTileState();
@@ -271,6 +302,7 @@ class _QuotationsMenuTileState extends State<_QuotationsMenuTile> {
       final result = await _openMenuRoute<RecuperarCotizacionResult>(
         context,
         widget.beforeNavigate,
+        widget.afterNavigate,
         (_) => const QuotationsScreen(),
       );
       if (result?.draftAvailable == true &&
@@ -296,6 +328,7 @@ class _QuotationsMenuTileState extends State<_QuotationsMenuTile> {
 Future<T?> _openMenuRoute<T>(
   BuildContext context,
   Future<bool> Function()? beforeNavigate,
+  VoidCallback? afterNavigate,
   WidgetBuilder builder,
 ) async {
   final navigator = Navigator.of(context);
@@ -305,5 +338,11 @@ Future<T?> _openMenuRoute<T>(
   if (Scaffold.of(context).isDrawerOpen) navigator.pop();
   await WidgetsBinding.instance.endOfFrame;
   if (!navigator.mounted || ownerRoute?.isCurrent != true) return null;
-  return navigator.push<T>(MaterialPageRoute(builder: builder));
+  try {
+    return await navigator.push<T>(MaterialPageRoute(builder: builder));
+  } finally {
+    if (navigator.mounted && ownerRoute?.isCurrent == true) {
+      afterNavigate?.call();
+    }
+  }
 }

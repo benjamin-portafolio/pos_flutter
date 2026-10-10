@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
@@ -19,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 2;
   bool _navigating = false;
   bool _restoreAfterMenu = false;
+  bool _restoreAfterMenuRoute = false;
   int? _menuReaderGeneration;
   final _caja = GlobalKey<CajaScreenState>();
   final _scaffold = GlobalKey<ScaffoldState>();
@@ -42,12 +44,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onTabTapped(int index) async {
+    final restore = _caja.currentState?.isReaderEnabled == true;
+    final generation = _caja.currentState?.readerInterruptionGeneration;
     if (index == _currentIndex || !await _prepareNavigation()) return;
     if (!mounted) return;
     if (index == 4) {
       await Navigator.of(
         context,
       ).push<void>(MaterialPageRoute(builder: (_) => const ClientesScreen()));
+      if (restore) _caja.currentState?.restoreReader(generation);
       return;
     }
     setState(() => _currentIndex = index);
@@ -64,9 +69,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<bool> _beforeMenuNavigate() async {
+    final restore =
+        _restoreAfterMenu || _caja.currentState?.isReaderEnabled == true;
+    final generation =
+        _caja.currentState?.readerInterruptionGeneration ??
+        _menuReaderGeneration;
     final allowed = await _prepareNavigation();
-    if (allowed) _restoreAfterMenu = false;
+    if (allowed) {
+      _restoreAfterMenu = false;
+      _restoreAfterMenuRoute = restore;
+      _menuReaderGeneration = generation;
+    }
     return allowed;
+  }
+
+  void _afterMenuNavigate() {
+    if (_restoreAfterMenuRoute) {
+      _restoreAfterMenuRoute = false;
+      _caja.currentState?.restoreReader(_menuReaderGeneration);
+    }
   }
 
   void _drawerChanged(bool open) {
@@ -77,14 +98,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _leave() async {
-    if (await _prepareNavigation() && mounted) Navigator.of(context).pop();
+    if (!await _prepareNavigation() || !mounted) return;
+    final navigator = Navigator.of(context);
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        !navigator.canPop()) {
+      // Atrás en la raíz termina la actividad después de resolver la cola;
+      // quitar la única ruta del Navigator dejaría el contenedor vacío.
+      await SystemNavigator.pop();
+    } else {
+      navigator.pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) => PopScope<void>(
     canPop:
         defaultTargetPlatform != TargetPlatform.macOS &&
-        defaultTargetPlatform != TargetPlatform.windows,
+        defaultTargetPlatform != TargetPlatform.windows &&
+        defaultTargetPlatform != TargetPlatform.android,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) unawaited(_leave());
     },
@@ -107,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onDrawerChanged: _drawerChanged,
       drawer: MenuLateral(
         beforeNavigate: _beforeMenuNavigate,
+        afterNavigate: _afterMenuNavigate,
         onOpenCaja: () {
           if (mounted) _onTabTapped(2);
         },

@@ -14,6 +14,7 @@ import 'package:pos_flutter/presentation/pages/caja/models/sale_draft_display.da
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
 
 import '../../../support/fake_sale_draft_repository.dart';
+import '../../../support/fake_producto_repository.dart';
 import '../../../support/fake_unidad_inventario_repository.dart';
 import '../../../support/sale_draft_fixtures.dart';
 
@@ -154,6 +155,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: CajaScreen(
+              productoRepository: FakeProductoRepository(),
               saleDraftRepository: FakeSaleDraftRepository(() async* {
                 yield sampleSale();
                 yield* updates.stream;
@@ -337,10 +339,11 @@ Future<void> _pump(
       ),
       home: Scaffold(
         body: CajaScreen(
+          productoRepository: FakeProductoRepository(),
           saleDraftRepository: FakeSaleDraftRepository(
             () => Stream.value(sale),
           ),
-          ventaBorradorCommandService: commands,
+          ventaBorradorCommandService: commands ?? _Commands(),
           unidadInventarioRepository: units,
         ),
       ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show ViewFocusEvent, ViewFocusState;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../articulos/sale_quantity_dialog.dart';
@@ -18,11 +19,13 @@ import 'sale_barcode_read_result.dart';
 class PhysicalBarcodeReader extends StatefulWidget {
   const PhysicalBarcodeReader({
     required this.coordinator,
+    this.automaticallyEnabled = false,
     this.interactionEnabled = true,
     super.key,
   });
 
   final SaleBarcodeReadCoordinator coordinator;
+  final bool automaticallyEnabled;
   final bool interactionEnabled;
 
   @override
@@ -44,6 +47,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
   bool _windowFocused = true;
   bool _closing = false;
   bool _requiresExplicitResume = false;
+  bool _preparationRequested = false;
+  int? _restoringGeneration;
+  bool _manualKeyboard = false;
   String? _notice;
 
   bool get isEnabled => _session != null;
@@ -57,7 +63,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _appActive =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    _requiresExplicitResume = !_appActive;
     _focus.addListener(_focusChanged);
+    _preparationRequested = widget.automaticallyEnabled;
   }
 
   @override
@@ -70,12 +78,20 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
       _requiresExplicitResume = true;
       pause();
     }
+    _schedulePreparation();
+  }
+
+  @override
+  void didUpdateWidget(PhysicalBarcodeReader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.interactionEnabled) _schedulePreparation();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appActive = state == AppLifecycleState.resumed;
     if (!_appActive) _interrupt();
+    _schedulePreparation();
     if (mounted) setState(() {});
   }
 
@@ -84,12 +100,14 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     if (event.viewId != View.of(context).viewId) return;
     _windowFocused = event.state == ViewFocusState.focused;
     if (!_windowFocused) _interrupt();
+    _schedulePreparation();
     if (mounted) setState(() {});
   }
 
   void _interrupt() {
     _interruptionGeneration++;
     _requiresExplicitResume = true;
+    _manualKeyboard = false;
     pause();
   }
 
@@ -100,6 +118,33 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
 
   void enableReader({int? restoringGeneration}) {
     if (!mounted || _closing || _session != null) return;
+    _preparationRequested = true;
+    _restoringGeneration = restoringGeneration;
+    // El selector de macOS es una acción explícita. Las restauraciones deben
+    // conservar cualquier interrupción ocurrida durante la ruta anterior.
+    if (restoringGeneration == null) _requiresExplicitResume = false;
+    _schedulePreparation();
+  }
+
+  void _schedulePreparation() {
+    if (!_preparationRequested) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_preparationRequested ||
+          _session != null ||
+          _closing ||
+          _finishOperation != null ||
+          !widget.interactionEnabled ||
+          !_available) {
+        return;
+      }
+      _preparationRequested = false;
+      _startSession();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _startSession() {
     final session = PhysicalBarcodeReaderController(
       coordinator: widget.coordinator,
       selectProduct: (candidates) => _showReaderDialog<VariantePorCodigoBarras>(
@@ -119,17 +164,13 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _shownResult = null;
     _notice = null;
     _requiresExplicitResume =
-        !_appActive ||
-        !_windowFocused ||
-        (restoringGeneration != null &&
-            restoringGeneration != _interruptionGeneration);
+        _requiresExplicitResume ||
+        (_restoringGeneration != null &&
+            _restoringGeneration != _interruptionGeneration);
+    _restoringGeneration = null;
     session.addListener(_changed);
     session.activate();
-    if (!_available ||
-        (restoringGeneration != null &&
-            restoringGeneration != _interruptionGeneration)) {
-      session.pause();
-    }
+    if (_requiresExplicitResume) session.pause();
     if (!_requiresExplicitResume) {
       _requestFocus(session);
     }
@@ -138,18 +179,47 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
 
   void _requestFocus(PhysicalBarcodeReaderController session) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && identical(_session, session) && !_closing && _available) {
+      if (mounted &&
+          identical(_session, session) &&
+          !_closing &&
+          widget.interactionEnabled &&
+          !_requiresExplicitResume &&
+          session.isAccepting &&
+          _available) {
         _focus.requestFocus();
       }
     });
   }
 
   void _resume() {
-    if (!_available || _closing) return;
+    if (!_available || _closing || !widget.interactionEnabled) return;
+    if (_requiresExplicitResume || _session?.isPaused == true) _text.clear();
     _requiresExplicitResume = false;
-    _text.clear();
     _session?.resume();
     _focus.requestFocus();
+  }
+
+  void _toggleManualKeyboard() {
+    final session = _session;
+    if (session == null ||
+        !_available ||
+        _closing ||
+        !widget.interactionEnabled) {
+      return;
+    }
+    final showKeyboard = !_manualKeyboard;
+    final generation = _interruptionGeneration;
+    _focus.unfocus();
+    setState(() => _manualKeyboard = showKeyboard);
+    // Reconectar después de actualizar keyboardType también permite abrir el
+    // teclado si el campo ya tenía foco. No afecta a otros campos de la app.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          identical(_session, session) &&
+          generation == _interruptionGeneration) {
+        _resume();
+      }
+    });
   }
 
   void _focusChanged() {
@@ -236,6 +306,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
 
   /// Se espera `done` antes de permitir cualquier cambio de borrador/contexto.
   Future<void> finish() {
+    // Cancelar también una preparación diferida: la navegación puede empezar
+    // antes del primer frame o mientras Caja está cubierta/inactiva.
+    _preparationRequested = false;
     if (_session == null) return Future<void>.value();
     return _finishOperation ??= _finishSession();
   }
@@ -245,6 +318,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     if (session == null) return;
     setState(() => _closing = true);
     _text.clear();
+    _manualKeyboard = false;
     _focus.unfocus();
     final done = session.finish();
     // Un selector ya visible se resuelve primero. Cubrirlo con el diálogo de
@@ -342,39 +416,68 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MergeSemantics(
-            child: Row(
-              children: [
-                const Expanded(child: Text('Lector físico')),
-                Switch(
-                  key: const Key('physical_barcode_toggle'),
-                  value: session != null,
-                  onChanged: _closing || !widget.interactionEnabled
-                      ? null
-                      : (enabled) {
-                          if (enabled) {
-                            enableReader();
-                          } else {
-                            unawaited(finish());
-                          }
-                        },
-                ),
-              ],
+          if (widget.automaticallyEnabled)
+            const Text('Lector físico')
+          else
+            MergeSemantics(
+              child: Row(
+                children: [
+                  const Expanded(child: Text('Lector físico')),
+                  Switch(
+                    key: const Key('physical_barcode_toggle'),
+                    value: session != null,
+                    onChanged: _closing || !widget.interactionEnabled
+                        ? null
+                        : (enabled) {
+                            if (enabled) {
+                              enableReader();
+                            } else {
+                              unawaited(finish());
+                            }
+                          },
+                  ),
+                ],
+              ),
             ),
-          ),
           if (session != null) ...[
             TextField(
               key: const Key('physical_barcode_input'),
               controller: _text,
               focusNode: _focus,
               readOnly: _closing || !widget.interactionEnabled,
+              // Flutter mantiene la conexión editable para HID. En Android,
+              // TextInputType.none suprime únicamente el teclado en pantalla.
+              keyboardType:
+                  defaultTargetPlatform == TargetPlatform.android &&
+                      !_manualKeyboard
+                  ? TextInputType.none
+                  : TextInputType.text,
               textInputAction: TextInputAction.done,
               onEditingComplete: () {},
               onSubmitted: _submit,
               onTap: _resume,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Escanea un código y envía Enter',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: defaultTargetPlatform == TargetPlatform.android
+                    ? IconButton(
+                        key: const Key('physical_barcode_keyboard'),
+                        tooltip: _manualKeyboard
+                            ? 'Usar lector físico'
+                            : 'Escribir código',
+                        onPressed:
+                            _closing ||
+                                !widget.interactionEnabled ||
+                                !_available
+                            ? null
+                            : _toggleManualKeyboard,
+                        icon: Icon(
+                          _manualKeyboard
+                              ? Icons.barcode_reader
+                              : Icons.keyboard,
+                        ),
+                      )
+                    : null,
               ),
             ),
             Semantics(
@@ -395,7 +498,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
-                  onPressed: _available ? _resume : null,
+                  onPressed: _available && widget.interactionEnabled
+                      ? _resume
+                      : null,
                   child: const Text('Reanudar lector'),
                 ),
               ),

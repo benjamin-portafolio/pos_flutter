@@ -8,6 +8,7 @@ import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/cotizaciones/quotation_ticket_screen.dart';
 
 import '../../../support/fake_sale_draft_repository.dart';
+import '../../../support/fake_producto_repository.dart';
 import '../../../support/pump_receipt_image.dart';
 import '../../../support/quotation_ui_fixtures.dart';
 import '../../../support/sale_draft_fixtures.dart';
@@ -25,6 +26,8 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: CajaScreen(
+              productoRepository: FakeProductoRepository(),
+              ventaBorradorCommandService: FakeQuotationDraftCommands(),
               key: UniqueKey(),
               saleDraftRepository: FakeSaleDraftRepository(
                 () => Stream.value(draft),
@@ -210,12 +213,13 @@ Future<void> _caja(
       navigatorKey: navigator,
       home: Scaffold(
         body: CajaScreen(
+          productoRepository: FakeProductoRepository(),
           saleDraftRepository: FakeSaleDraftRepository(
             () => Stream.value(sale),
           ),
           quotationRepository: FakeQuotationRepository(),
           cotizacionCommandService: commands,
-          ventaBorradorCommandService: drafts,
+          ventaBorradorCommandService: drafts ?? FakeQuotationDraftCommands(),
         ),
       ),
     ),
