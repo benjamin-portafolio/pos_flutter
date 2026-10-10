@@ -78,6 +78,7 @@ void main() {
       accept('001');
       expect(reader.isAccepting, isTrue);
       expect(reader.pendingReadCount, 2);
+      expect(reader.unstartedReadCount, 3);
       expect(fixture.lookups, ['001']);
       final finished = reader.finish();
       expect(reader.isFinishing, isTrue);
@@ -92,6 +93,7 @@ void main() {
       expect((await fixture.draft)!.items.map((i) => i.quantity), [2, 1]);
       expect((await fixture.draft)!.totalMinor, 300);
       expect(reader.pendingReadCount, 0);
+      expect(reader.unstartedReadCount, 0);
       expect(reader.isProcessing, isFalse);
       final events = await fixture.db.select(fixture.db.events).get();
       expect(events, hasLength(3));
@@ -117,6 +119,7 @@ void main() {
     accept('001');
     accept('001');
     expect(reader.pendingReadCount, 2);
+    expect(reader.unstartedReadCount, 2);
     expect(fixture.lookups, ['001']);
     await fixture.expectNoWrites();
     final finished = reader.finish();

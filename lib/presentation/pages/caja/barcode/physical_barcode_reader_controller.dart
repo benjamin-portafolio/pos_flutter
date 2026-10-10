@@ -36,7 +36,9 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
   bool _paused = false;
   bool _dialogOpen = false;
   bool _processing = false;
+  bool _hasCurrentRead = false;
   bool _saving = false;
+  bool _commandStarted = false;
   bool _finishing = false;
   bool _terminated = false;
   bool _disposed = false;
@@ -54,6 +56,11 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
 
   /// Excluye la intención en curso, incluso si espera consulta o diálogo.
   int get pendingReadCount => _queue.length;
+
+  /// Incluye la consulta/diálogo actual si todavía no inició su comando.
+  /// Es lo que se pierde al confirmar `finish(discardPending: true)`.
+  int get unstartedReadCount =>
+      _queue.length + (_hasCurrentRead && !_commandStarted ? 1 : 0);
   Object? get error => _error;
   SaleBarcodeReadResult? get lastResult => _lastResult;
 
@@ -163,6 +170,7 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
     try {
       while (_queue.isNotEmpty && !_terminated && !_paused && _error == null) {
         final code = _queue.removeFirst();
+        _hasCurrentRead = true;
         _lastResult = null;
         _notify();
         try {
@@ -178,12 +186,15 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
               _saving = true;
               _notify();
             },
+            onCommandStarted: () => _commandStarted = true,
           );
           if (!_terminated) _lastResult = result;
         } catch (error) {
           if (!_terminated) _error = error;
         } finally {
+          _hasCurrentRead = false;
           _saving = false;
+          _commandStarted = false;
           _notify();
         }
       }

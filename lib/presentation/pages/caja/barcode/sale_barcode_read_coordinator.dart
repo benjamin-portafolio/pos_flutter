@@ -30,6 +30,7 @@ class SaleBarcodeReadCoordinator {
     requestQuantity,
     Future<void> Function()? waitUntilReady,
     void Function()? onSaving,
+    void Function()? onCommandStarted,
   }) async {
     SaleBarcodeReadResult result(
       SaleBarcodeReadOutcome outcome, {
@@ -83,6 +84,7 @@ class SaleBarcodeReadCoordinator {
     // comando de una sesión que terminó mientras esperaba. Una vez llamado,
     // el command service completa su operación atómica sin rollback de UI.
     if (!canContinue()) return result(SaleBarcodeReadOutcome.interrupted);
+    onCommandStarted?.call();
     await _commands.agregar(
       AgregarProductoBorradorCommand(
         variantId: candidate.varianteId,

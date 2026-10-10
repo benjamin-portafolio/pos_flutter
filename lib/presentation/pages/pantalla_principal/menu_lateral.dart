@@ -14,9 +14,10 @@ import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dar
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 
 class MenuLateral extends StatelessWidget {
-  const MenuLateral({this.onOpenCaja, super.key});
+  const MenuLateral({this.onOpenCaja, this.beforeNavigate, super.key});
 
   final VoidCallback? onOpenCaja;
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -77,8 +78,8 @@ class MenuLateral extends StatelessWidget {
               ],
             ),
           ),
-          const _CashMenuTile(),
-          const _BankMenuTile(),
+          _CashMenuTile(beforeNavigate: beforeNavigate),
+          _BankMenuTile(beforeNavigate: beforeNavigate),
           // Usuario
           ListTile(
             title: Text("BENJAMÍN ALVARADO GONZÁLEZ (staff)"),
@@ -99,60 +100,44 @@ class MenuLateral extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.settings),
             title: Text("Configuracion"),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => const SyncSettingsPage(),
-                  ),
-                );
-              });
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => const SyncSettingsPage(),
+            ),
           ),
-          _QuotationsMenuTile(onOpenCaja: onOpenCaja),
-          const _InventoryMenuTile(),
+          _QuotationsMenuTile(
+            onOpenCaja: onOpenCaja,
+            beforeNavigate: beforeNavigate,
+          ),
+          _InventoryMenuTile(beforeNavigate: beforeNavigate),
           ListTile(
             leading: Icon(Icons.swap_horiz),
             title: Text("Ingresos y gastos"),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => const IngresosYGastosScreen(),
-                  ),
-                );
-              });
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => const IngresosYGastosScreen(),
+            ),
           ),
           ListTile(
             leading: Icon(Icons.people),
             title: Text("Gestión de clientes"),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(builder: (_) => const ClientesScreen()),
-                );
-              });
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => const ClientesScreen(),
+            ),
           ),
           ListTile(
             leading: Icon(Icons.table_chart),
             title: Text("Gestión de la mesa"),
             trailing: _buildBadge(19),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TableManagementScreen(),
-                ),
-              );
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => TableManagementScreen(),
+            ),
           ),
         ],
       ),
@@ -164,7 +149,8 @@ class MenuLateral extends StatelessWidget {
 /// El conteo viene del catalogo local y se actualiza solo cuando cambia. La
 /// consulta se abre una vez: el drawer se reconstruye con frecuencia.
 class _InventoryMenuTile extends StatefulWidget {
-  const _InventoryMenuTile();
+  const _InventoryMenuTile({this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   State<_InventoryMenuTile> createState() => _InventoryMenuTileState();
@@ -183,17 +169,11 @@ class _InventoryMenuTileState extends State<_InventoryMenuTile> {
           leading: const Icon(Icons.inventory),
           title: const Text("Gestión de inventarios"),
           trailing: _buildBadge(snapshot.data ?? 0),
-          onTap: () {
-            final navigator = Navigator.of(context);
-            navigator.pop();
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              navigator.push(
-                MaterialPageRoute(
-                  builder: (context) => const InventoryManagementScreen(),
-                ),
-              );
-            });
-          },
+          onTap: () => _openMenuRoute<void>(
+            context,
+            widget.beforeNavigate,
+            (_) => const InventoryManagementScreen(),
+          ),
         );
       },
     );
@@ -217,7 +197,8 @@ Widget _buildBadge(int count) {
 /// habilitada en la instalacion. Es una pantalla aparte de caja: el saldo
 /// bancario no es efectivo de cajon.
 class _BankMenuTile extends StatelessWidget {
-  const _BankMenuTile();
+  const _BankMenuTile({this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -230,14 +211,11 @@ class _BankMenuTile extends StatelessWidget {
         return ListTile(
           leading: const Icon(Icons.account_balance),
           title: const Text('Saldo en cuenta bancaria'),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const DeclararSaldoCuentaScreen(),
-              ),
-            );
-          },
+          onTap: () => _openMenuRoute<void>(
+            context,
+            beforeNavigate,
+            (_) => const DeclararSaldoCuentaScreen(),
+          ),
         );
       },
     );
@@ -247,7 +225,8 @@ class _BankMenuTile extends StatelessWidget {
 /// La entrada de caja solo existe cuando la captura esta habilitada en la
 /// instalacion. Escucha el ajuste para reflejarse sin reiniciar la app.
 class _CashMenuTile extends StatelessWidget {
-  const _CashMenuTile();
+  const _CashMenuTile({this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -260,14 +239,11 @@ class _CashMenuTile extends StatelessWidget {
         return ListTile(
           leading: const Icon(Icons.point_of_sale),
           title: const Text('Apertura y corte de caja'),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const CashManagementScreen(),
-              ),
-            );
-          },
+          onTap: () => _openMenuRoute<void>(
+            context,
+            beforeNavigate,
+            (_) => const CashManagementScreen(),
+          ),
         );
       },
     );
@@ -276,7 +252,8 @@ class _CashMenuTile extends StatelessWidget {
 
 /// El resultado vuelve al Home que abrió el drawer y selecciona su Caja.
 class _QuotationsMenuTile extends StatefulWidget {
-  const _QuotationsMenuTile({this.onOpenCaja});
+  const _QuotationsMenuTile({this.onOpenCaja, this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
   final VoidCallback? onOpenCaja;
   @override
   State<_QuotationsMenuTile> createState() => _QuotationsMenuTileState();
@@ -290,16 +267,11 @@ class _QuotationsMenuTileState extends State<_QuotationsMenuTile> {
     final navigator = Navigator.of(context);
     final ownerRoute = ModalRoute.of(context);
     final onOpenCaja = widget.onOpenCaja;
-    navigator.pop();
-    // El drawer puede desmontarse al cerrarse; la navegación pertenece a Home.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!navigator.mounted || ownerRoute?.isCurrent != true) {
-      if (mounted) setState(() => _opening = false);
-      return;
-    }
     try {
-      final result = await navigator.push<RecuperarCotizacionResult>(
-        MaterialPageRoute(builder: (_) => const QuotationsScreen()),
+      final result = await _openMenuRoute<RecuperarCotizacionResult>(
+        context,
+        widget.beforeNavigate,
+        (_) => const QuotationsScreen(),
       );
       if (result?.draftAvailable == true &&
           navigator.mounted &&
@@ -317,4 +289,21 @@ class _QuotationsMenuTileState extends State<_QuotationsMenuTile> {
     title: const Text('Cotizaciones'),
     onTap: _opening ? null : _open,
   );
+}
+
+/// Toda ruta del menú cruza la misma barrera de Caja, incluido un drawer
+/// abierto programáticamente. El dueño de la navegación sobrevive al drawer.
+Future<T?> _openMenuRoute<T>(
+  BuildContext context,
+  Future<bool> Function()? beforeNavigate,
+  WidgetBuilder builder,
+) async {
+  final navigator = Navigator.of(context);
+  final ownerRoute = ModalRoute.of(context);
+  if (beforeNavigate != null && !await beforeNavigate()) return null;
+  if (!context.mounted || !navigator.mounted) return null;
+  if (Scaffold.of(context).isDrawerOpen) navigator.pop();
+  await WidgetsBinding.instance.endOfFrame;
+  if (!navigator.mounted || ownerRoute?.isCurrent != true) return null;
+  return navigator.push<T>(MaterialPageRoute(builder: builder));
 }

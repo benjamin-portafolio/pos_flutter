@@ -1,23 +1,27 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
 import '../../../application/commands/cotizaciones/cotizacion_command_service.dart';
 import '../../../application/commands/cotizaciones/guardar_cotizacion_command.dart';
 import '../../../application/commands/cotizaciones/quotation_already_linked_exception.dart';
-import '../../../domain/repositories/quotation_repository.dart';
-import '../cotizaciones/quotation_ticket_screen.dart';
-import '../../../domain/repositories/confirmed_sale_repository.dart';
-import 'confirmed_sales_screen.dart';
-import 'package:flutter/material.dart';
-
 import '../../../application/commands/ventas/limpiar_venta_borrador_command.dart';
 import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
+import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
+import '../../../domain/repositories/quotation_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/repositories/unidad_inventario_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
 import '../../widgets/article_search_bar.dart';
-import 'draft_item_edit_sheet.dart';
+import '../articulos/article_search_screen.dart';
+import '../cotizaciones/quotation_ticket_screen.dart';
 import 'barcode/barcode_read_gate.dart';
+import 'barcode/physical_barcode_reader.dart';
+import 'barcode/sale_barcode_read_coordinator.dart';
+import 'confirmed_sales_screen.dart';
+import 'draft_item_edit_sheet.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
 import 'sale_barcode_scanner_screen.dart';
@@ -43,22 +47,93 @@ class CajaScreen extends StatefulWidget {
   final VoidCallback? onOpenCaja;
 
   @override
-  State<CajaScreen> createState() => _CajaScreenState();
+  CajaScreenState createState() => CajaScreenState();
 }
 
-class _CajaScreenState extends State<CajaScreen> {
+class CajaScreenState extends State<CajaScreen> {
   late final _repository =
       widget.saleDraftRepository ?? getIt<SaleDraftRepository>();
   late final _draft = _repository.watchCurrentDraft();
-  bool _clearing = false;
-  bool _scannerOpen = false;
-  bool _quoting = false;
-  bool _routeOpen = false;
-  GuardarCotizacionCommand? _quotationIntent;
-  bool get _busy => _clearing || _quoting || _scannerOpen || _routeOpen;
+  final _physicalReader = GlobalKey<PhysicalBarcodeReaderState>();
+  bool _resolvingReads = false;
+  bool get isReaderEnabled => _physicalReader.currentState?.isEnabled == true;
+  int? get readerInterruptionGeneration =>
+      _physicalReader.currentState?.interruptionGeneration;
 
-  Future<void> _quote(SaleDraft sale) async {
-    if (_busy || sale.items.isEmpty || sale.lastEventId == null) return;
+  void restoreReader(int? generation) {
+    if (mounted && !_busy) {
+      _physicalReader.currentState?.enableReader(
+        restoringGeneration: generation,
+      );
+    }
+  }
+
+  bool get _desktopReader =>
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows;
+
+  /// Home/menu deben esperar esta barrera antes de salir o abrir otra ruta.
+  Future<bool> prepareToLeave() async {
+    if (_busy) return false;
+    setState(() => _resolvingReads = true);
+    try {
+      await _physicalReader.currentState?.finish();
+      return mounted;
+    } finally {
+      if (mounted) setState(() => _resolvingReads = false);
+    }
+  }
+
+  Future<void> _runAction(Future<void> Function() action) async {
+    if (_busy) return;
+    final reader = _physicalReader.currentState;
+    final restoreMode = reader?.isEnabled == true;
+    final generation = reader?.interruptionGeneration;
+    setState(() => _resolvingReads = true);
+    try {
+      await reader?.finish();
+      if (mounted) await action();
+    } finally {
+      if (mounted) {
+        setState(() => _resolvingReads = false);
+        if (restoreMode) reader?.enableReader(restoringGeneration: generation);
+      }
+    }
+  }
+
+  Future<void> _openSearch() => _runAction(
+    () => Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ArticleSearchScreen(
+          productoRepository:
+              widget.productoRepository ?? getIt<ProductoRepository>(),
+          saleDraftRepository: _repository,
+          ventaBorradorCommandService: widget.ventaBorradorCommandService,
+          onOpenCaja: widget.onOpenCaja,
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _openConfirmedSales() => _runAction(
+    () => Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const ConfirmedSalesScreen()),
+    ),
+  );
+
+  bool _clearing = false;
+  bool _quoting = false;
+  GuardarCotizacionCommand? _quotationIntent;
+  bool get _busy => _resolvingReads;
+
+  Future<void> _quote() => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted ||
+        sale == null ||
+        sale.items.isEmpty ||
+        sale.lastEventId == null) {
+      return;
+    }
     setState(() => _quoting = true);
     try {
       if (_quotationIntent?.saleId != sale.id ||
@@ -109,47 +184,37 @@ class _CajaScreenState extends State<CajaScreen> {
     } finally {
       if (mounted) setState(() => _quoting = false);
     }
-  }
+  });
 
-  Future<void> _openPayment(SaleDraft sale) async {
-    if (_busy) return;
-    setState(() => _routeOpen = true);
-    try {
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => PaymentMethodScreen(
-            totalMinor: sale.totalMinor,
-            saleId: sale.id,
-            expectedDraftEventId: sale.lastEventId,
-          ),
+  Future<void> _openPayment() => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null || sale.items.isEmpty) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => PaymentMethodScreen(
+          totalMinor: sale.totalMinor,
+          saleId: sale.id,
+          expectedDraftEventId: sale.lastEventId,
         ),
-      );
-    } finally {
-      if (mounted) setState(() => _routeOpen = false);
-    }
-  }
+      ),
+    );
+  });
 
   final _barcodeClock = Stopwatch()..start();
   late final _barcodeGate = BarcodeReadGate(clock: () => _barcodeClock.elapsed);
 
-  Future<void> _openBarcodeScanner() async {
-    if (_busy) return;
-    setState(() => _scannerOpen = true);
-    try {
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => SaleBarcodeScannerScreen(
-            productoRepository: widget.productoRepository,
-            saleDraftRepository: _repository,
-            ventaBorradorCommandService: widget.ventaBorradorCommandService,
-            readGate: _barcodeGate,
-          ),
+  Future<void> _openBarcodeScanner() => _runAction(() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => SaleBarcodeScannerScreen(
+          productoRepository: widget.productoRepository,
+          saleDraftRepository: _repository,
+          ventaBorradorCommandService: widget.ventaBorradorCommandService,
+          readGate: _barcodeGate,
         ),
-      );
-    } finally {
-      if (mounted) setState(() => _scannerOpen = false);
-    }
-  }
+      ),
+    );
+  });
 
   @override
   void dispose() {
@@ -157,8 +222,9 @@ class _CajaScreenState extends State<CajaScreen> {
     super.dispose();
   }
 
-  Future<void> _clear(SaleDraft sale) async {
-    if (_busy) return;
+  Future<void> _clear() => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null) return;
     setState(() => _clearing = true);
     try {
       await (widget.ventaBorradorCommandService ??
@@ -180,27 +246,26 @@ class _CajaScreenState extends State<CajaScreen> {
     } finally {
       if (mounted) setState(() => _clearing = false);
     }
-  }
+  });
 
-  Future<void> _openEditor(SaleDraftItem item) async {
-    if (_busy) return;
-    setState(() => _routeOpen = true);
-    try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => DraftItemEditSheet(
-          item: item,
-          ventaBorradorCommandService: widget.ventaBorradorCommandService,
-          unidadInventarioRepository:
-              widget.unidadInventarioRepository ??
-              getIt<UnidadInventarioRepository>(),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _routeOpen = false);
-    }
-  }
+  Future<void> _openEditor(String itemId) => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null) return;
+    final items = sale.items.where((item) => item.id == itemId);
+    if (items.isEmpty) return;
+    final item = items.single;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraftItemEditSheet(
+        item: item,
+        ventaBorradorCommandService: widget.ventaBorradorCommandService,
+        unidadInventarioRepository:
+            widget.unidadInventarioRepository ??
+            getIt<UnidadInventarioRepository>(),
+      ),
+    );
+  });
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -208,9 +273,7 @@ class _CajaScreenState extends State<CajaScreen> {
       children: [
         if (getIt.isRegistered<ConfirmedSaleRepository>())
           TextButton.icon(
-            onPressed: () => Navigator.of(context).push<void>(
-              MaterialPageRoute(builder: (_) => const ConfirmedSalesScreen()),
-            ),
+            onPressed: _busy ? null : _openConfirmedSales,
             icon: const Icon(Icons.receipt_long),
             label: const Text('Ventas cobradas'),
           ),
@@ -222,9 +285,22 @@ class _CajaScreenState extends State<CajaScreen> {
             saleDraftRepository: _repository,
             ventaBorradorCommandService: widget.ventaBorradorCommandService,
             onOpenCaja: widget.onOpenCaja,
+            onOpenSearch: _openSearch,
             onScanBarcode: _busy ? null : _openBarcodeScanner,
           ),
         ),
+        if (_desktopReader)
+          PhysicalBarcodeReader(
+            key: _physicalReader,
+            interactionEnabled: !_busy,
+            coordinator: SaleBarcodeReadCoordinator(
+              products:
+                  widget.productoRepository ?? getIt<ProductoRepository>(),
+              commands:
+                  widget.ventaBorradorCommandService ??
+                  getIt<VentaBorradorCommandService>(),
+            ),
+          ),
         Expanded(
           child: StreamBuilder<SaleDraft?>(
             stream: _draft,
@@ -269,7 +345,7 @@ class _CajaScreenState extends State<CajaScreen> {
                                       item: sale.items[i],
                                       onEdit: _busy
                                           ? null
-                                          : () => _openEditor(sale.items[i]),
+                                          : () => _openEditor(sale.items[i].id),
                                     ),
                                   ],
                                 ],
@@ -339,9 +415,7 @@ class _CajaScreenState extends State<CajaScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           FilledButton.icon(
-                            onPressed: sale == null || _busy
-                                ? null
-                                : () => _clear(sale),
+                            onPressed: sale == null || _busy ? null : _clear,
                             style: FilledButton.styleFrom(
                               backgroundColor: Theme.of(
                                 context,
@@ -365,7 +439,7 @@ class _CajaScreenState extends State<CajaScreen> {
                                         sale.lastEventId == null ||
                                         _busy
                                     ? null
-                                    : () => _quote(sale),
+                                    : _quote,
                                 icon: const Icon(Icons.request_quote_outlined),
                                 label: Text(
                                   _quoting ? 'Guardando…' : 'Cotizar',
@@ -375,7 +449,7 @@ class _CajaScreenState extends State<CajaScreen> {
                                 onPressed:
                                     sale == null || sale.items.isEmpty || _busy
                                     ? null
-                                    : () => _openPayment(sale),
+                                    : _openPayment,
                                 child: Text('Cobrar: $total'),
                               ),
                             ],

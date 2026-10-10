@@ -10,7 +10,9 @@ import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
 import 'package:pos_flutter/application/sync/handlers/venta_borrador_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/venta_borrador_limpiada_event_handler.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_agregado_borrador_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_local_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dart';
@@ -25,7 +27,10 @@ import 'package:pos_flutter/presentation/pages/caja/barcode/sale_barcode_read_co
 /// Los hooks solo detienen consultas/comandos; la persistencia y el flujo de
 /// eventos son reales, sobre una base aislada que nunca abre la instalación.
 class BarcodeSaleFixture {
-  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  BarcodeSaleFixture({AppDatabase? database})
+    : db = database ?? AppDatabase.forTesting(NativeDatabase.memory());
+
+  final AppDatabase db;
   final config = AppConfigController(AppConfig.initial);
   final lookups = <String>[];
   final attempts = <AgregarProductoBorradorCommand>[];
@@ -43,6 +48,9 @@ class BarcodeSaleFixture {
   late final processor = EventProcessor(
     handlers: {
       ProductoAgregadoBorradorPayload.eventType: VentaBorradorEventHandler(
+        db.saleDao,
+      ).apply,
+      VentaBorradorLimpiadaPayload.eventType: VentaBorradorLimpiadaEventHandler(
         db.saleDao,
       ).apply,
     },

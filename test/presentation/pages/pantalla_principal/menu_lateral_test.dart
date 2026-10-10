@@ -106,6 +106,55 @@ void main() {
     });
   }
 
+  testWidgets('ruta del menú espera permiso de navegación y puede denegarse', (
+    tester,
+  ) async {
+    final scaffoldKey = GlobalKey<ScaffoldState>();
+    final gate = Completer<bool>();
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: MenuLateral(
+            beforeNavigate: () {
+              calls++;
+              return gate.future;
+            },
+          ),
+        ),
+      ),
+    );
+    scaffoldKey.currentState!.openDrawer();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Configuracion'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Configuracion'));
+    await tester.pump();
+    expect(calls, 1);
+    expect(find.byType(SyncSettingsPage), findsNothing);
+    expect(scaffoldKey.currentState!.isDrawerOpen, isTrue);
+    gate.complete(false);
+    await tester.pumpAndSettle();
+    expect(find.byType(SyncSettingsPage), findsNothing);
+    expect(scaffoldKey.currentState!.isDrawerOpen, isTrue);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: MenuLateral(beforeNavigate: () async => true),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Configuracion'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SyncSettingsPage), findsOneWidget);
+    expect(scaffoldKey.currentState!.isDrawerOpen, isFalse);
+  });
+
   testWidgets('Configuracion opens settings as a full page', (tester) async {
     final scaffoldKey = GlobalKey<ScaffoldState>();
 
