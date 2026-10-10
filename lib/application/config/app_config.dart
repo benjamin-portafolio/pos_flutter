@@ -65,11 +65,12 @@ class AppConfig {
     this.googleUserEmail,
     this.lastBackupAt,
     this.lastBackupLocalSequence,
+    this.businessPhone,
     this.cashEnabled = true,
     this.bankEnabled = true,
   });
 
-  static const defaultBusinessName = 'Miradent';
+  static const defaultBusinessName = 'PASTOR';
   static const defaultUserId = 'user_active';
   static const defaultUserName = 'Benjamin Alvarado';
   static const defaultBackupHour = 3;
@@ -101,6 +102,12 @@ class AppConfig {
   final int backupHour;
   final DateTime? lastBackupAt;
   final int? lastBackupLocalSequence;
+
+  /// Teléfono o whatsapp de contacto del negocio. Es opcional y hoy no tiene
+  /// pantalla que lo edite: lo consume el pie del catálogo en PDF, que omite la
+  /// línea de contacto cuando está vacío. La instalación no lo rellena, así que
+  /// el PDF sale sin línea de contacto hasta que exista esa pantalla.
+  final String? businessPhone;
 
   /// Habilita la captura de caja en esta instalacion. No es un evento: no se
   /// sincroniza y el servidor no lo valida.
@@ -154,6 +161,7 @@ class AppConfig {
     int? backupHour,
     Object? lastBackupAt = _sentinel,
     Object? lastBackupLocalSequence = _sentinel,
+    Object? businessPhone = _sentinel,
     bool? cashEnabled,
     bool? bankEnabled,
   }) {
@@ -201,6 +209,10 @@ class AppConfig {
               lastBackupLocalSequence,
               this.lastBackupLocalSequence,
             ),
+      businessPhone: _valueOrCurrent<String?>(
+        businessPhone,
+        this.businessPhone,
+      ),
       cashEnabled: cashEnabled ?? this.cashEnabled,
       bankEnabled: bankEnabled ?? this.bankEnabled,
     );
@@ -221,6 +233,7 @@ class AppConfig {
       'backup_hour': backupHour,
       'last_backup_at': lastBackupAt?.toUtc().toIso8601String(),
       'last_backup_local_sequence': lastBackupLocalSequence,
+      'business_phone': businessPhone,
       'cash_enabled': cashEnabled,
       'bank_enabled': bankEnabled,
     };
@@ -239,12 +252,17 @@ class AppConfig {
     final backupHour =
         _readInt(json['backup_hour']) ?? AppConfig.defaultBackupHour;
     final storedAuthProvider = json['auth_provider'] as String?;
+    final storedBusinessName = json['business_name'] as String?;
 
     return AppConfig(
       mode: mode,
       setupCompleted: json['setup_completed'] == true,
+      // Las instalaciones existentes guardaron el nombre predeterminado
+      // anterior. Actualizarlo también al leerlo para los catálogos y reportes.
       businessName:
-          json['business_name'] as String? ?? AppConfig.defaultBusinessName,
+          storedBusinessName == null || storedBusinessName == 'Miradent'
+          ? AppConfig.defaultBusinessName
+          : storedBusinessName,
       userId: json['user_id'] as String? ?? AppConfig.defaultUserId,
       userName: json['user_name'] as String? ?? AppConfig.defaultUserName,
       authProvider: storedAuthProvider == null || storedAuthProvider == 'local'
@@ -259,6 +277,9 @@ class AppConfig {
       backupHour: backupHour.clamp(0, 23).toInt(),
       lastBackupAt: _readDateTime(json['last_backup_at']),
       lastBackupLocalSequence: _readInt(json['last_backup_local_sequence']),
+      // Sin clave se lee como vacío: el pie del catálogo omite la línea de
+      // contacto en vez de inventar un teléfono.
+      businessPhone: _blankToNull(json['business_phone'] as String?),
       // Una instalacion sin la clave se considera habilitada: el valor por
       // defecto evita que una actualizacion apague la captura sin querer.
       cashEnabled: json['cash_enabled'] != false,
@@ -284,5 +305,11 @@ class AppConfig {
   static DateTime? _readDateTime(Object? value) {
     if (value is! String) return null;
     return DateTime.tryParse(value);
+  }
+
+  static String? _blankToNull(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

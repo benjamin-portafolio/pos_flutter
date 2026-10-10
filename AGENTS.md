@@ -163,3 +163,17 @@ flutter test
 
 El flujo completo implementado como referencia es `espacio_creado`.
 El boton `Agregar mesa` existe visualmente, pero no tiene flujo funcional por decision de alcance.
+El boton `ESCANEAR` del editor de variantes navega a `BarcodeScannerScreen`, que
+usa la camara con `mobile_scanner` y devuelve un `String` con el codigo leido,
+o `null` si el usuario cancela. El editor valida y llena el campo; el guardado
+conserva el mismo flujo que la captura manual. La pantalla acepta una sola
+lectura y libera la camara al cerrar o pasar la app a segundo plano, incluso
+si habia una solicitud de permiso pendiente. Android usa el detector incluido
+para funcionar offline; iOS y macOS declaran el uso de camara y macOS incluye
+el entitlement correspondiente.
+Los dos accesos de codigo de barras de Caja abren `SaleBarcodeScannerScreen`,
+con escaneo continuo, `BarcodeReadGate` y la misma venta persistida que Caja.
+La compuerta temporal conserva pruebas fisicas pendientes de retirada/enfoque;
+no bloquean la integracion (plan de Escaneo en caja, revision 2).
+`ArticleSearchBar` recibe `onScanBarcode` opcional. Articulos no lo proporciona
+y conserva su lector deshabilitado y su busqueda textual.

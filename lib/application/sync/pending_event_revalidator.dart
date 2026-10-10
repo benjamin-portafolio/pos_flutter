@@ -1,3 +1,7 @@
+import 'revalidation/proveedor_pending_event_validator.dart';
+import 'payloads/proveedor_creado_payload.dart';
+import 'payloads/proveedor_actualizado_payload.dart';
+import 'projections/proveedor_projection_store.dart';
 import 'revalidation/cash_pending_event_validator.dart';
 import 'revalidation/account_balance_pending_event_validator.dart';
 import 'payloads/caja_abierta_payload.dart';
@@ -48,8 +52,10 @@ import 'synced_event_history.dart';
 class PendingEventRevalidator {
   PendingEventRevalidator({
     CashProjectionStore? cashProjectionStore,
-    AccountBalanceBaselineProjectionStore? accountBalanceBaselineProjectionStore,
+    AccountBalanceBaselineProjectionStore?
+    accountBalanceBaselineProjectionStore,
     ClienteProjectionStore? clienteProjectionStore,
+    ProveedorProjectionStore? proveedorProjectionStore,
     required SyncPersistence syncPersistence,
     required SyncedEventHistory syncedEventHistory,
     required EspacioProjectionStore espacioProjectionStore,
@@ -80,6 +86,7 @@ class PendingEventRevalidator {
           categoriaEliminadaConflictProjectionRestorer,
     );
     final product = ProductoPendingEventValidator(
+      proveedorProjectionStore: proveedorProjectionStore,
       productoProjectionStore: productoProjectionStore,
       categoriaProjectionStore: categoriaProjectionStore,
       inventoryProjectionStore: inventoryProjectionStore,
@@ -101,6 +108,16 @@ class PendingEventRevalidator {
       cashProjectionStore,
     );
     _validators = {
+      if (proveedorProjectionStore != null)
+        ProveedorCreadoPayload.eventType: ProveedorPendingEventValidator(
+          proveedorProjectionStore,
+          syncedEventHistory,
+        ),
+      if (proveedorProjectionStore != null)
+        ProveedorActualizadoPayload.eventType: ProveedorPendingEventValidator(
+          proveedorProjectionStore,
+          syncedEventHistory,
+        ),
       CajaAbiertaPayload.eventType: cash,
       CajaCerradaPayload.eventType: cash,
       if (accountBalanceBaselineProjectionStore != null)

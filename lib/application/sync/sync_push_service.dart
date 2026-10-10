@@ -1,3 +1,6 @@
+import 'payloads/proveedor_creado_payload.dart';
+import 'payloads/proveedor_actualizado_payload.dart';
+import 'sync_health_service.dart';
 import 'payloads/caja_abierta_payload.dart';
 import 'payloads/caja_cerrada_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
@@ -33,6 +36,9 @@ class SyncPushService {
        _conflictProjectionCleaner = conflictProjectionCleaner,
        _client = client ?? http.Client();
 
+  /// Los eventos restantes siguen pendientes para la siguiente vuelta del monitor.
+  static const maxEventsPerPush = 150;
+
   final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
   final SyncConflictProjectionCleaner _conflictProjectionCleaner;
@@ -44,7 +50,9 @@ class SyncPushService {
     final eligibleEvents = <SyncEvent>[];
     final waitingEvents = <SyncEvent>[];
     for (final event in events) {
-      final target = _dependsOnEventIds(event, pendingEventIds)
+      final target =
+          (eligibleEvents.length >= maxEventsPerPush ||
+              _dependsOnEventIds(event, pendingEventIds))
           ? waitingEvents
           : eligibleEvents;
       target.add(event);
@@ -66,6 +74,35 @@ class SyncPushService {
       );
     }
 
+    final needsSuppliers = events.any(
+      (e) => switch (e.eventType) {
+        ProveedorCreadoPayload.eventType ||
+        ProveedorActualizadoPayload.eventType => true,
+        ProductoCreadoPayload.eventType =>
+          ProductoCreadoPayload.fromJson(
+                e.payload,
+              ).variantes.first.proveedores !=
+              null,
+        ProductoActualizadoPayload.eventType =>
+          ProductoActualizadoPayload.fromJson(
+                e.payload,
+              ).after.variantes.first.proveedores !=
+              null,
+        _ => false,
+      },
+    );
+    if (needsSuppliers) {
+      final health = await SyncHealthService(
+        endpointConfig: _endpointConfig,
+        client: _client,
+      ).check();
+      if (!health.isAvailable ||
+          !health.capabilities.contains('product_suppliers_v1')) {
+        throw const SyncPushException(
+          'Actualiza el servidor y todos los clientes para sincronizar proveedores. Los cambios siguen pendientes.',
+        );
+      }
+    }
     final response = await _postEvents(events);
     final Map<String, Object?> decodedBody;
     final Map<String, _RemoteEventResult> remoteResults;
@@ -92,6 +129,7 @@ class SyncPushService {
     var rejected = 0;
     var pending = 0;
     final conflictEvents = <SyncEvent>[];
+    final rejectedEvents = <SyncEvent>[];
     final rejectedIds = <String>{};
 
     for (final event in events) {
@@ -115,6 +153,10 @@ class SyncPushService {
         case 'rejected':
           rejected++;
           rejectedIds.add(event.eventId);
+          if (event.aggregateType == ProveedorCreadoPayload.aggregateType ||
+              event.aggregateType == ProductoCreadoPayload.aggregateType) {
+            rejectedEvents.add(event);
+          }
         case 'conflict':
           conflictEvents.add(event);
       }
@@ -125,7 +167,9 @@ class SyncPushService {
       conflictEvents,
       rejectedIds,
     );
-    for (final event in conflictEvents.reversed) {
+    final toRestore = [...conflictEvents, ...rejectedEvents]
+      ..sort((a, b) => (b.localSequence ?? 0).compareTo(a.localSequence ?? 0));
+    for (final event in toRestore) {
       await _conflictProjectionCleaner.hideConflictProjection(event);
     }
 
@@ -201,6 +245,10 @@ class SyncPushService {
         return CajaCerradaPayload.fromJson(
           event.payload,
         ).dependencyEventIds.any(eventIds.contains);
+      case ProveedorActualizadoPayload.eventType:
+        return eventIds.contains(
+          ProveedorActualizadoPayload.fromJson(event.payload).baseEventId,
+        );
       case ClienteActualizadoPayload.eventType:
         return eventIds.contains(
           ClienteActualizadoPayload.fromJson(event.payload).baseEventId,
@@ -232,7 +280,10 @@ class SyncPushService {
         ).dependencyEventIds.any(eventIds.contains);
       case ProductoCreadoPayload.eventType:
         final payload = ProductoCreadoPayload.fromJson(event.payload);
-        return switch (payload.dependenciaCategoria?.dependsOnEventId) {
+        return payload.dependenciasProveedores.any(
+              (d) => eventIds.contains(d.dependsOnEventId),
+            ) ||
+            switch (payload.dependenciaCategoria?.dependsOnEventId) {
               final dependencyEventId? => eventIds.contains(dependencyEventId),
               null => false,
             } ||

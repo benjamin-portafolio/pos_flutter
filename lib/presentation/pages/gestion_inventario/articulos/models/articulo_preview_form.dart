@@ -25,16 +25,21 @@ class ArticuloPreviewForm {
       saleConfiguration: detalle.saleConfiguration,
       variantes: detalle.variantes
           .map(
-            (variant) => ArticuloFormVarianteResult(
+            (variant) => ArticuloFormVarianteResult.conProveedores(
               id: variant.id,
+              proveedores: variant.proveedores,
               nombre: variant.nombre,
               precioVenta: money(variant.precioVentaMenor),
               costoEstandar: variant.costoEstandarMenor == null
                   ? null
                   : money(variant.costoEstandarMenor!),
+              codigoBarras: variant.codigoBarras,
               inventoryUnitId: variant.inventoryItemId == null
                   ? null
                   : resource(variant.inventoryItemId!).unidadPredeterminada.id,
+              // Identidad del recurso ya vinculado. No es un campo capturable:
+              // solo habilita el acceso a movimientos en el editor de variante.
+              linkedInventoryItemId: variant.inventoryItemId,
               recipeComponents: variant.componentesReceta.entries
                   .map((entry) {
                     final recurso = resource(entry.key);

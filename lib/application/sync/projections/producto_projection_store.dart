@@ -74,6 +74,7 @@ class ProductoVarianteProjection extends SyncProjection {
     required this.productoId,
     this.nombre,
     this.nameKey,
+    this.codigoBarras,
     required this.precioVentaMenor,
     this.costoEstandarMenor,
     this.inventoryItemId,
@@ -87,6 +88,9 @@ class ProductoVarianteProjection extends SyncProjection {
   final String productoId;
   final String? nombre;
   final String? nameKey;
+
+  /// Código de barras opcional, solo dígitos, conservado como texto.
+  final String? codigoBarras;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
   final String? inventoryItemId;

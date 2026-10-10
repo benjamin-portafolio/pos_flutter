@@ -54,6 +54,13 @@ class VentaBorradorCommandService {
             sale.status != SaleStatus.borrador) {
           throw StateError('La venta no corresponde al borrador actual.');
         }
+        if (command.expectedDraftEventId != null &&
+            (command.expectedDraftEventId!.trim().isEmpty ||
+                sale.lastEventId != command.expectedDraftEventId!.trim())) {
+          throw StateError(
+            'El borrador cambió; no se puede limpiar esta revisión.',
+          );
+        }
         final items = await store.items(saleId);
         final payload = VentaBorradorLimpiadaPayload(
           saleItemIds: items.map((item) => item.id).toList(),

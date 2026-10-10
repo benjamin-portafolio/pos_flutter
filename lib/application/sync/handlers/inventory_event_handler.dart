@@ -1,3 +1,5 @@
+import 'inventory_discard_event_handler.dart';
+import '../projections/variant_inventory_tracking_store.dart';
 import '../models/sync_event.dart';
 import '../payloads/inventory_movement_payload.dart';
 import '../payloads/movimiento_inventario_registrado_payload.dart';
@@ -6,7 +8,21 @@ import '../payloads/recurso_inventario_creado_payload.dart';
 import '../projections/inventory_projection_store.dart';
 
 class InventoryEventHandler {
-  InventoryEventHandler(this._projectionStore);
+  InventoryEventHandler(
+    this._projectionStore, {
+    this.trackingStore,
+    this.discardHandler,
+  });
+  final VariantInventoryTrackingStore? trackingStore;
+  final InventoryDiscardEventHandler? discardHandler;
+
+  Future<void> applyRecursoInventarioDescartado(SyncEvent event) async {
+    final handler = discardHandler;
+    if (handler == null) {
+      throw StateError('No se configuró el descarte seguro.');
+    }
+    await handler.apply(event);
+  }
 
   final InventoryProjectionStore _projectionStore;
 
@@ -19,6 +35,17 @@ class InventoryEventHandler {
       );
     }
 
+    final discard = await trackingStore?.appliedDiscard(event.aggregateId);
+    if (discard != null) {
+      // La prueba se escribe solo tras aplicar un descarte. En un replay vacío
+      // no existe aún: el alta se aplica antes que los eventos que la necesitan.
+      if (discard.creationEventId != event.eventId) {
+        throw StateError(
+          'Un UUID descartado no puede reutilizarse en otra alta.',
+        );
+      }
+      return;
+    }
     final unit = await _projectionStore.findUnitById(payload.defaultUnitId);
     if (unit == null || !unit.active) {
       throw InventoryProjectionConflict(
@@ -90,6 +117,7 @@ class InventoryEventHandler {
           createdEventId: event.eventId,
           lastEventId: event.eventId,
           lastServerSequence: event.serverSequence,
+          originVariantId: payload.originVariantId,
         ),
         balance: InventoryBalanceProjection(
           inventoryItemId: event.aggregateId,
@@ -141,6 +169,7 @@ class InventoryEventHandler {
         createdEventId: existing.createdEventId,
         lastEventId: event.eventId,
         lastServerSequence: event.serverSequence ?? existing.lastServerSequence,
+        originVariantId: existing.originVariantId,
       ),
       expectedBaseEventId: payload.baseEventId,
       expectedBaseVersion: event.baseVersion!,
@@ -192,6 +221,7 @@ class InventoryEventHandler {
         createdEventId: item.createdEventId,
         lastEventId: event.eventId,
         lastServerSequence: event.serverSequence ?? item.lastServerSequence,
+        originVariantId: item.originVariantId,
       ),
       balance: InventoryBalanceProjection(
         inventoryItemId: balance.inventoryItemId,

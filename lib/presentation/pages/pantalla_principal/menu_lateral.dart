@@ -1,3 +1,5 @@
+import '../../../application/commands/cotizaciones/recuperar_cotizacion_result.dart';
+import '../cotizaciones/quotations_screen.dart';
 import '../caja/cash_management_screen.dart';
 import '../cuenta/declarar_saldo_cuenta_screen.dart';
 import '../gestion_clientes/clientes_screen.dart';
@@ -5,29 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/presentation/pages/finanzas/ingresos_y_gastos_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 
 class MenuLateral extends StatelessWidget {
-  const MenuLateral({super.key});
+  const MenuLateral({this.onOpenCaja, this.beforeNavigate, super.key});
 
-  Widget _buildBadge(int count) {
-    return count > 0
-        ? Container(
-            padding: EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              count.toString(),
-              style: TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          )
-        : SizedBox.shrink();
-  }
+  final VoidCallback? onOpenCaja;
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -46,17 +36,14 @@ class MenuLateral extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       backgroundColor: Colors.white,
-                      child: Text("M", style: TextStyle(color: Colors.black)),
+                      child: Text("P", style: TextStyle(color: Colors.black)),
                     ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "Miradent",
-                            style: TextStyle(color: Colors.white),
-                          ),
+                          Text("PASTOR", style: TextStyle(color: Colors.white)),
                           Text(
                             "+524341548804",
                             style: TextStyle(
@@ -91,8 +78,8 @@ class MenuLateral extends StatelessWidget {
               ],
             ),
           ),
-          const _CashMenuTile(),
-          const _BankMenuTile(),
+          _CashMenuTile(beforeNavigate: beforeNavigate),
+          _BankMenuTile(beforeNavigate: beforeNavigate),
           // Usuario
           ListTile(
             title: Text("BENJAMÍN ALVARADO GONZÁLEZ (staff)"),
@@ -113,74 +100,44 @@ class MenuLateral extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.settings),
             title: Text("Configuracion"),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => const SyncSettingsPage(),
-                  ),
-                );
-              });
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => const SyncSettingsPage(),
+            ),
           ),
-          ListTile(
-            leading: Icon(Icons.inventory),
-            title: Text("Gestión de inventarios"),
-            trailing: _buildBadge(329),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => const InventoryManagementScreen(),
-                  ),
-                );
-              });
-            },
+          _QuotationsMenuTile(
+            onOpenCaja: onOpenCaja,
+            beforeNavigate: beforeNavigate,
           ),
+          _InventoryMenuTile(beforeNavigate: beforeNavigate),
           ListTile(
             leading: Icon(Icons.swap_horiz),
             title: Text("Ingresos y gastos"),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => const IngresosYGastosScreen(),
-                  ),
-                );
-              });
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => const IngresosYGastosScreen(),
+            ),
           ),
           ListTile(
             leading: Icon(Icons.people),
             title: Text("Gestión de clientes"),
-            onTap: () {
-              final navigator = Navigator.of(context);
-              navigator.pop();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                navigator.push(
-                  MaterialPageRoute(builder: (_) => const ClientesScreen()),
-                );
-              });
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => const ClientesScreen(),
+            ),
           ),
           ListTile(
             leading: Icon(Icons.table_chart),
             title: Text("Gestión de la mesa"),
             trailing: _buildBadge(19),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TableManagementScreen(),
-                ),
-              );
-            },
+            onTap: () => _openMenuRoute<void>(
+              context,
+              beforeNavigate,
+              (_) => TableManagementScreen(),
+            ),
           ),
         ],
       ),
@@ -188,11 +145,60 @@ class MenuLateral extends StatelessWidget {
   }
 }
 
+/// La entrada de inventarios muestra cuantas variantes estan dadas de alta.
+/// El conteo viene del catalogo local y se actualiza solo cuando cambia. La
+/// consulta se abre una vez: el drawer se reconstruye con frecuencia.
+class _InventoryMenuTile extends StatefulWidget {
+  const _InventoryMenuTile({this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
+
+  @override
+  State<_InventoryMenuTile> createState() => _InventoryMenuTileState();
+}
+
+class _InventoryMenuTileState extends State<_InventoryMenuTile> {
+  late final Stream<int> _variantCount = getIt<ProductoRepository>()
+      .watchVariantesActivasCount();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: _variantCount,
+      builder: (context, snapshot) {
+        return ListTile(
+          leading: const Icon(Icons.inventory),
+          title: const Text("Gestión de inventarios"),
+          trailing: _buildBadge(snapshot.data ?? 0),
+          onTap: () => _openMenuRoute<void>(
+            context,
+            widget.beforeNavigate,
+            (_) => const InventoryManagementScreen(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+Widget _buildBadge(int count) {
+  return count > 0
+      ? Container(
+          padding: EdgeInsets.all(6),
+          decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+          child: Text(
+            count.toString(),
+            style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        )
+      : SizedBox.shrink();
+}
+
 /// La entrada de saldo en cuenta solo existe cuando la declaracion esta
 /// habilitada en la instalacion. Es una pantalla aparte de caja: el saldo
 /// bancario no es efectivo de cajon.
 class _BankMenuTile extends StatelessWidget {
-  const _BankMenuTile();
+  const _BankMenuTile({this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -205,14 +211,11 @@ class _BankMenuTile extends StatelessWidget {
         return ListTile(
           leading: const Icon(Icons.account_balance),
           title: const Text('Saldo en cuenta bancaria'),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const DeclararSaldoCuentaScreen(),
-              ),
-            );
-          },
+          onTap: () => _openMenuRoute<void>(
+            context,
+            beforeNavigate,
+            (_) => const DeclararSaldoCuentaScreen(),
+          ),
         );
       },
     );
@@ -222,7 +225,8 @@ class _BankMenuTile extends StatelessWidget {
 /// La entrada de caja solo existe cuando la captura esta habilitada en la
 /// instalacion. Escucha el ajuste para reflejarse sin reiniciar la app.
 class _CashMenuTile extends StatelessWidget {
-  const _CashMenuTile();
+  const _CashMenuTile({this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -235,16 +239,71 @@ class _CashMenuTile extends StatelessWidget {
         return ListTile(
           leading: const Icon(Icons.point_of_sale),
           title: const Text('Apertura y corte de caja'),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const CashManagementScreen(),
-              ),
-            );
-          },
+          onTap: () => _openMenuRoute<void>(
+            context,
+            beforeNavigate,
+            (_) => const CashManagementScreen(),
+          ),
         );
       },
     );
   }
+}
+
+/// El resultado vuelve al Home que abrió el drawer y selecciona su Caja.
+class _QuotationsMenuTile extends StatefulWidget {
+  const _QuotationsMenuTile({this.onOpenCaja, this.beforeNavigate});
+  final Future<bool> Function()? beforeNavigate;
+  final VoidCallback? onOpenCaja;
+  @override
+  State<_QuotationsMenuTile> createState() => _QuotationsMenuTileState();
+}
+
+class _QuotationsMenuTileState extends State<_QuotationsMenuTile> {
+  bool _opening = false;
+  Future<void> _open() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    final navigator = Navigator.of(context);
+    final ownerRoute = ModalRoute.of(context);
+    final onOpenCaja = widget.onOpenCaja;
+    try {
+      final result = await _openMenuRoute<RecuperarCotizacionResult>(
+        context,
+        widget.beforeNavigate,
+        (_) => const QuotationsScreen(),
+      );
+      if (result?.draftAvailable == true &&
+          navigator.mounted &&
+          ownerRoute?.isCurrent == true) {
+        onOpenCaja?.call();
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: const Icon(Icons.request_quote_outlined),
+    title: const Text('Cotizaciones'),
+    onTap: _opening ? null : _open,
+  );
+}
+
+/// Toda ruta del menú cruza la misma barrera de Caja, incluido un drawer
+/// abierto programáticamente. El dueño de la navegación sobrevive al drawer.
+Future<T?> _openMenuRoute<T>(
+  BuildContext context,
+  Future<bool> Function()? beforeNavigate,
+  WidgetBuilder builder,
+) async {
+  final navigator = Navigator.of(context);
+  final ownerRoute = ModalRoute.of(context);
+  if (beforeNavigate != null && !await beforeNavigate()) return null;
+  if (!context.mounted || !navigator.mounted) return null;
+  if (Scaffold.of(context).isDrawerOpen) navigator.pop();
+  await WidgetsBinding.instance.endOfFrame;
+  if (!navigator.mounted || ownerRoute?.isCurrent != true) return null;
+  return navigator.push<T>(MaterialPageRoute(builder: builder));
 }

@@ -1,3 +1,13 @@
+import '../../application/printing/printer_gateway.dart';
+import '../../application/printing/ticket_encoder.dart';
+import '../../data/printing/esc_pos_ticket_encoder.dart';
+import '../../application/printing/printer_settings_store.dart';
+import '../../data/local/printing/printer_settings_file_store.dart';
+import '../../data/printing/android_bluetooth_printer_gateway.dart';
+import '../../application/sync/projections/proveedor_projection_store.dart';
+import '../../data/local/drift/drift_proveedor_projection_store.dart';
+import '../../data/repositories/proveedor_repository_impl.dart';
+import '../../domain/repositories/proveedor_repository.dart';
 import '../../domain/repositories/cash_repository.dart';
 import '../../data/repositories/cash_repository_impl.dart';
 import '../../application/sync/projections/cash_projection_store.dart';
@@ -16,6 +26,8 @@ import 'package:get_it/get_it.dart';
 
 import '../../application/config/app_config.dart';
 import '../../application/config/app_config_store.dart';
+import '../../application/export/articulo_catalog_export_service.dart';
+import '../../application/import/articulo_catalog_import_service.dart';
 import '../../application/identity/device_identity_provider.dart';
 import '../../application/backup/backup_service.dart';
 import '../../application/backup/backup_store.dart';
@@ -32,6 +44,8 @@ import '../../application/sync/sync_persistence.dart';
 import '../../application/sync/synced_event_history.dart';
 import '../../application/sync/synced_event_store.dart';
 import '../../data/local/config/app_config_file_store.dart';
+import '../../data/local/export/drift_articulo_catalog_export_service.dart';
+import '../../data/local/import/articulo_import_csv.dart';
 import '../../data/google_drive/google_drive_auth_service.dart';
 import '../../data/google_drive/google_drive_backup_store.dart';
 import '../../data/local/backup/database_restore_service.dart';
@@ -44,6 +58,10 @@ import '../../data/local/drift/drift_financial_category_projection_store.dart';
 import '../../data/local/drift/drift_financial_entry_projection_store.dart';
 import '../../data/local/drift/drift_inventory_projection_store.dart';
 import '../../data/local/drift/drift_producto_projection_store.dart';
+import '../../application/sync/projections/variant_inventory_memory_store.dart';
+import '../../data/local/drift/drift_variant_inventory_memory_store.dart';
+import '../../application/sync/projections/variant_inventory_tracking_store.dart';
+import '../../data/local/drift/drift_variant_inventory_tracking_store.dart';
 import '../../data/local/drift/drift_sync_persistence.dart';
 import '../../data/local/drift/drift_synced_event_store.dart';
 import '../../data/local/identity/device_identity_file_store.dart';
@@ -66,6 +84,7 @@ import '../../domain/repositories/financial_entry_repository.dart';
 import '../../domain/repositories/recurso_inventario_repository.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
+import '../../application/sync/projections/quotation_projection_store.dart';
 
 class DataDependencyBootstrap {
   const DataDependencyBootstrap({
@@ -82,6 +101,14 @@ class DataDependencyBootstrap {
 }
 
 Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
+  getIt.registerLazySingleton<TicketEncoder>(() => const EscPosTicketEncoder());
+  getIt.registerLazySingleton<PrinterSettingsStore>(
+    () => PrinterSettingsFileStore(),
+  );
+  getIt.registerLazySingleton<PrinterGateway>(
+    () => AndroidBluetoothPrinterGateway(),
+    dispose: (gateway) => gateway.close(),
+  );
   final appConfigStore = AppConfigFileStore();
   final deviceIdentityProvider = DeviceIdentityFileStore();
   final syncEndpointStore = SyncEndpointFileStore();
@@ -109,6 +136,15 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => GoogleDriveBackupStore(authService: getIt<GoogleDriveAuthService>()),
   );
 
+  getIt.registerLazySingleton<ProveedorDao>(
+    () => getIt<AppDatabase>().proveedorDao,
+  );
+  getIt.registerLazySingleton<ProveedorProjectionStore>(
+    () => DriftProveedorProjectionStore(getIt<ProveedorDao>()),
+  );
+  getIt.registerLazySingleton<ProveedorRepository>(
+    () => ProveedorRepositoryImpl(getIt<ProveedorDao>()),
+  );
   getIt.registerLazySingleton<ClienteDao>(
     () => getIt<AppDatabase>().clienteDao,
   );
@@ -131,6 +167,12 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
     () => ProductoDao(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<EventDao>(() => EventDao(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<QuotationDao>(
+    () => getIt<AppDatabase>().quotationDao,
+  );
+  getIt.registerLazySingleton<QuotationProjectionStore>(
+    () => getIt<QuotationDao>(),
+  );
   getIt.registerLazySingleton<FinancialCategoryDao>(
     () => getIt<AppDatabase>().financialCategoryDao,
   );
@@ -191,6 +233,20 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
       unitDao: getIt<UnitDao>(),
     ),
   );
+  getIt.registerLazySingleton<VariantInventoryMemoryDao>(
+    () => VariantInventoryMemoryDao(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<VariantInventoryMemoryStore>(
+    () => DriftVariantInventoryMemoryStore(
+      dao: getIt<VariantInventoryMemoryDao>(),
+    ),
+  );
+  getIt.registerLazySingleton<VariantInventoryTrackingStore>(
+    () => DriftVariantInventoryTrackingStore(
+      inventoryDao: getIt<InventoryDao>(),
+      productoDao: getIt<ProductoDao>(),
+    ),
+  );
   getIt.registerLazySingleton<CashRepository>(
     () => CashRepositoryImpl(getIt<AppDatabase>()),
   );
@@ -239,6 +295,17 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<AccountBalanceBaselineRepository>(
     () => AccountBalanceBaselineRepositoryImpl(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<ArticuloCatalogExportService>(
+    () => DriftArticuloCatalogExportService(
+      productoDao: getIt<ProductoDao>(),
+      configStore: getIt<AppConfigStore>(),
+    ),
+  );
+  // El servicio de validación no lee la base: recibe el catálogo ya resuelto
+  // desde la pantalla, así que es una implementación pura, sin Drift.
+  getIt.registerLazySingleton<ArticuloCatalogImportService>(
+    () => const ArticuloImportCsv(),
   );
 
   return DataDependencyBootstrap(

@@ -1,3 +1,4 @@
+import '../../../../../domain/articulos/proveedor_variante.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../../domain/articulos/sale_configuration.dart';
@@ -27,18 +28,46 @@ class ArticuloFormVarianteResult {
     required this.nombre,
     required this.precioVenta,
     required this.costoEstandar,
+    this.codigoBarras,
     this.inventoryUnitId,
     this.existenciaInicial,
     this.recipeComponents = const [],
-  });
+    this.linkedInventoryItemId,
+  }) : proveedores = null;
 
+  ArticuloFormVarianteResult.conProveedores({
+    this.id,
+    required this.nombre,
+    required this.precioVenta,
+    required this.costoEstandar,
+    this.codigoBarras,
+    this.inventoryUnitId,
+    this.existenciaInicial,
+    this.recipeComponents = const [],
+    this.linkedInventoryItemId,
+    List<ProveedorVariante>? proveedores,
+  }) : proveedores = ProveedorVariante.canonical(proveedores);
+
+  /// Conjunto completo del borrador; se persiste al guardar el artículo.
+  final List<ProveedorVariante>? proveedores;
   final String? id;
   final String? nombre;
   final String precioVenta;
   final String? costoEstandar;
+
+  /// Código de barras capturado. Dato de entrada del comando, no un campo de
+  /// pantalla: la captura se agrega en la sesión de UI.
+  final String? codigoBarras;
   final String? inventoryUnitId;
   final String? existenciaInicial;
   final List<RecipeComponentFormResult> recipeComponents;
+
+  /// Recurso de inventario ya vinculado y persistido para esta variante.
+  ///
+  /// Solo identifica el recurso: no es un campo capturable ni una intención de
+  /// cambio del artículo. Su presencia decide si la variante muestra la captura
+  /// de existencia inicial o el acceso a movimientos de inventario.
+  final String? linkedInventoryItemId;
 
   bool get seguimientoExistencias => inventoryUnitId != null;
   bool get usaReceta => recipeComponents.isNotEmpty;
@@ -49,20 +78,27 @@ class ArticuloFormVarianteResult {
     String? precioVenta,
     String? costoEstandar,
     bool clearCostoEstandar = false,
+    String? codigoBarras,
+    bool clearCodigoBarras = false,
     String? inventoryUnitId,
     bool clearInventoryUnitId = false,
     String? existenciaInicial,
     bool clearExistenciaInicial = false,
     List<RecipeComponentFormResult>? recipeComponents,
     bool clearRecipeComponents = false,
+    List<ProveedorVariante>? proveedores,
   }) {
-    return ArticuloFormVarianteResult(
+    return ArticuloFormVarianteResult.conProveedores(
       id: id,
+      proveedores: proveedores ?? this.proveedores,
       nombre: clearNombre ? null : nombre ?? this.nombre,
       precioVenta: precioVenta ?? this.precioVenta,
       costoEstandar: clearCostoEstandar
           ? null
           : costoEstandar ?? this.costoEstandar,
+      codigoBarras: clearCodigoBarras
+          ? null
+          : codigoBarras ?? this.codigoBarras,
       inventoryUnitId: clearInventoryUnitId
           ? null
           : inventoryUnitId ?? this.inventoryUnitId,
@@ -72,6 +108,7 @@ class ArticuloFormVarianteResult {
       recipeComponents: clearRecipeComponents
           ? const []
           : recipeComponents ?? this.recipeComponents,
+      linkedInventoryItemId: linkedInventoryItemId,
     );
   }
 }

@@ -1,0 +1,82 @@
+{
+  "schema_version": 8,
+  "required_columns": {
+    "quotations": [
+      "id",
+      "active",
+      "version",
+      "created_event_id",
+      "last_event_id",
+      "last_server_sequence",
+      "user_id",
+      "device_id",
+      "issued_at_local",
+      "source_sale_id",
+      "source_draft_event_id",
+      "current_sale_id"
+    ],
+    "quotation_items": [
+      "id",
+      "active",
+      "version",
+      "created_event_id",
+      "last_event_id",
+      "last_server_sequence",
+      "quotation_id",
+      "variant_id",
+      "product_name_snapshot",
+      "variant_name_snapshot",
+      "sale_mode_snapshot",
+      "quantity",
+      "measured_quantity_atomic",
+      "sale_unit_code_snapshot",
+      "sale_unit_symbol_snapshot",
+      "sale_unit_atomic_factor_snapshot",
+      "sort_order"
+    ]
+  },
+  "forbidden_columns": {
+    "quotations": [
+      "currency",
+      "total_minor"
+    ],
+    "quotation_items": [
+      "unit_price_minor",
+      "standard_cost_minor_snapshot",
+      "total_minor",
+      "price_reference_quantity_atomic_snapshot",
+      "consumption_configuration_key"
+    ]
+  },
+  "required_indexes": [
+    "ix_quotations_listing",
+    "ux_quotations_current_sale",
+    "ux_quotation_items_order"
+  ],
+  "compatibility_cases": [
+    {
+      "id": "P19/P21",
+      "structure": "required_without_forbidden",
+      "restored": false,
+      "action": "preserve"
+    },
+    {
+      "id": "P20",
+      "structure": "required_plus_forbidden",
+      "restored": false,
+      "action": "reset_complete_temporary_copy"
+    },
+    {
+      "id": "P22",
+      "structure": "required_plus_forbidden",
+      "restored": true,
+      "action": "reject_and_preserve"
+    },
+    {
+      "id": "P21",
+      "structure": "required_without_forbidden",
+      "restored": true,
+      "action": "preserve"
+    }
+  ]
+}

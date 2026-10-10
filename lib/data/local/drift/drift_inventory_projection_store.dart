@@ -41,6 +41,7 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
             createdEventId: row.createdEventId,
             lastEventId: row.lastEventId,
             lastServerSequence: row.lastServerSequence,
+            originVariantId: row.originVariantId,
           );
   }
 
@@ -73,6 +74,7 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
         id: item.id,
         defaultUnitId: item.defaultUnitId,
         name: item.name,
+        originVariantId: drift.Value(item.originVariantId),
         active: drift.Value(item.active),
         version: drift.Value(item.version),
         createdEventId: drift.Value(item.createdEventId),

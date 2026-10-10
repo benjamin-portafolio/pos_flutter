@@ -7,6 +7,9 @@ part of '../app_database.dart';
     InventoryBalances,
     InventoryMovements,
     RecipeComponents,
+    Sales,
+    SaleItems,
+    InventoryItemDiscards,
   ],
 )
 class InventoryDao extends DatabaseAccessor<AppDatabase>
@@ -17,9 +20,28 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     String busqueda = '',
     String filtro = 'all',
   }) {
+    return _watchListing(busqueda: busqueda, filtro: filtro);
+  }
+
+  /// Listado de un solo recurso por su identificador. Emite `null` mientras no
+  /// exista una fila activa que coincida.
+  Stream<InventoryListingRow?> watchRecursoPorId(String id) {
+    return _watchListing(inventoryItemId: id).map((rows) => rows.firstOrNull);
+  }
+
+  Stream<List<InventoryListingRow>> _watchListing({
+    String busqueda = '',
+    String filtro = 'all',
+    String? inventoryItemId,
+  }) {
     final normalizedSearch = busqueda.trim().toLowerCase();
     final predicates = <String>[];
     final variables = <Variable<Object>>[];
+
+    if (inventoryItemId != null) {
+      predicates.add('ii.id = ?');
+      variables.add(Variable<String>(inventoryItemId));
+    }
 
     if (normalizedSearch.isNotEmpty) {
       predicates.add("LOWER(ii.name) LIKE ? ESCAPE '\\'");
@@ -100,6 +122,99 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     return (select(
       inventoryItems,
     )..where((item) => item.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Recursos con procedencia explícita de una variante autogenerada, en
+  /// cualquier estado. La ausencia de índice único es deliberada: varios
+  /// recursos históricos o creados en concurrencia pueden compartir origen, y
+  /// esapluralidad es ambigüedad que debe resolver la persona usuaria, no un
+  /// criterio automático.
+  Future<List<InventoryItemRow>> obtenerRecursosPorVarianteOrigen(
+    String variantId,
+  ) {
+    return (select(inventoryItems)
+          ..where((item) => item.originVariantId.equals(variantId))
+          ..orderBy([(item) => OrderingTerm(expression: item.id)]))
+        .get();
+  }
+
+  /// ¿Existe algún movimiento de cualquier tipo sobre el recurso? El descarte
+  /// exige cero movimientos, no cero saldo: una suma neta cero sigue siendo
+  /// historial.
+  Future<bool> tieneMovimientos(String inventoryItemId) async {
+    final row =
+        await (selectOnly(inventoryMovements)
+              ..addColumns([inventoryMovements.movementId])
+              ..where(
+                inventoryMovements.inventoryItemId.equals(inventoryItemId),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<int> contarMovimientos(String inventoryItemId) {
+    final count = inventoryMovements.movementId.count();
+    final query = selectOnly(inventoryMovements)
+      ..addColumns([count])
+      ..where(inventoryMovements.inventoryItemId.equals(inventoryItemId));
+    return query.map((row) => row.read(count) ?? 0).getSingle();
+  }
+
+  /// Ventas no cobradas cuya configuración capturada todavía nombra al recurso.
+  ///
+  /// `consumption_configuration_key` es el JSON de la configuración de consumo
+  /// congelada al capturar la línea (vínculo directo y componentes). Una venta
+  /// en borrador o confirmada sin resolver puede necesitar ese recurso para
+  /// cobrar o revertirse, así que su presencia bloquea el descarte.
+  ///
+  /// No usa `event_refs`: en `standalone` esas filas no existen.
+  Future<List<String>> obtenerVentasPendientesConRecurso(
+    String inventoryItemId,
+  ) {
+    final query =
+        select(db.saleItems).join([
+          innerJoin(db.sales, db.sales.id.equalsExp(db.saleItems.saleId)),
+        ])..where(
+          db.saleItems.active.equals(true) &
+              db.sales.status.isIn(['borrador', 'confirmada']),
+        );
+    return query.get().then(
+      (rows) => rows
+          .where((row) {
+            final key = row.readTable(db.saleItems).consumptionConfigurationKey;
+            // Una captura antigua sin configuración no demuestra ausencia de uso.
+            return key == null ||
+                InventoryConsumptionConfiguration.fromKey(
+                  key,
+                ).inventoryItemIds.contains(inventoryItemId);
+          })
+          .map((row) => row.readTable(db.sales).id)
+          .toSet()
+          .toList(),
+    );
+  }
+
+  Future<InventoryItemDiscardRow?> obtenerDescartePorRecurso(
+    String inventoryItemId,
+  ) {
+    return (select(db.inventoryItemDiscards)
+          ..where((row) => row.inventoryItemId.equals(inventoryItemId)))
+        .getSingleOrNull();
+  }
+
+  Future<void> registrarDescarte({
+    required String inventoryItemId,
+    required String discardEventId,
+    required String triggerProductEventId,
+  }) async {
+    await into(db.inventoryItemDiscards).insertOnConflictUpdate(
+      InventoryItemDiscardsCompanion.insert(
+        inventoryItemId: inventoryItemId,
+        discardEventId: discardEventId,
+        triggerProductEventId: triggerProductEventId,
+      ),
+    );
   }
 
   Future<InventoryMovementRow?> obtenerMovimientoPorId(String id) {

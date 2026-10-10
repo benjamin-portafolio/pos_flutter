@@ -111,10 +111,12 @@ class SyncPullService {
       throw const SyncPullException('Respuesta sin arreglo events.');
     }
 
-    final events = rawEvents
-        .whereType<Map>()
-        .map((event) => SyncEvent.fromJson(event.cast<String, Object?>()))
-        .toList();
+    final events = rawEvents.map((event) {
+      if (event is! Map) {
+        throw const SyncPullException('Evento remoto inválido.');
+      }
+      return SyncEvent.fromJson(event.cast<String, Object?>());
+    }).toList();
 
     return _PullPage(events: events, hasMore: data['has_more'] == true);
   }

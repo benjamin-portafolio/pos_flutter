@@ -1,3 +1,5 @@
+import '../../application/printing/ticket_print_service.dart';
+import '../../application/printing/printer_settings_controller.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../application/backup/backup_scheduler.dart';
@@ -24,6 +26,7 @@ Future<DependencyBootstrap> setupDependencyInjection() async {
     storedSyncBaseUrl: bootstrap.storedSyncBaseUrl,
     requireWifiForServerDetection: bootstrap.requireWifiForServerDetection,
   );
+  await getIt<PrinterSettingsController>().load();
   return DependencyBootstrap(appConfig: bootstrap.appConfig);
 }
 
@@ -54,6 +57,14 @@ Future<DependencyBootstrap> restartDependencyInjection({
   required AppConfig previousConfig,
 }) async {
   await stopConfiguredRuntimeServices(previousConfig);
+  // reset(dispose: false) cannot terminate native work. Drain printing first;
+  // any failed close stops the reset, preserving ownership of the old gateway.
+  if (getIt.isRegistered<TicketPrintService>()) {
+    await getIt<TicketPrintService>().dispose();
+  }
+  if (getIt.isRegistered<PrinterSettingsController>()) {
+    await getIt<PrinterSettingsController>().dispose();
+  }
   await getIt.reset(dispose: false);
 
   final bootstrap = await setupDependencyInjection();

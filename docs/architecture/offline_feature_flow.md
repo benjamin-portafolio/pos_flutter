@@ -170,6 +170,29 @@ Contratos existentes:
 | `categoria_movida` | `CategoriaMovidaPayload` | bases y cambios de `sort_order` de dos categorias |
 | `producto_creado` | `ProductoCreadoPayload` | `product`, una variante sencilla y dependencias locales opcionales |
 
+`producto_creado` y `producto_actualizado` admiten `barcode` opcional en cada
+variante: texto de hasta 32 dígitos, sin interpretación numérica, para conservar
+los ceros a la izquierda de UPC-A y admitir GS1-128. Vacío o ausente se
+normaliza a `null`. El campo se compara en `before`/`after` y en `sameState`,
+de modo que editar solo el barcode sí produce un cambio de estado. `sku` sigue
+cerrado: el contrato lo emite siempre como `null` y el servidor rechaza
+cualquier otro valor.
+
+El editor de variantes (`variant_editor_screen.dart`) ofrece captura manual
+con `FilteringTextInputFormatter.digitsOnly` y captura por cámara con el botón
+`ESCANEAR`. `BarcodeScannerScreen` usa `mobile_scanner`, acepta una sola lectura
+y devuelve el código como `String`; cancelar devuelve `null` y conserva el
+campo. El editor valida y llena el formulario, sin persistir hasta guardar por
+el flujo habitual. La cámara se libera al cerrar o pasar a segundo plano,
+incluido el cierre con un permiso pendiente. Android conserva el detector
+incluido para leer sin conexión. El botón `GENERAR` no se implementa: no fue
+solicitado.
+La normalización es responsabilidad del value object `CodigoBarras`
+(`domain/articulos/codigo_barras.dart`), que recorta, aplica NFKC y rechaza
+todo lo que no sean dígitos; la UI no reimplementa esa regla ni convierte el
+valor a entero en ningún punto. El formulario no valida duplicados porque no
+existe índice único.
+
 `producto_creado` conserva `product.category_id` y una referencia `category`
 con relacion `uses` cuando el articulo pertenece a una categoria. Una categoria
 oficial no agrega una base de estado al payload: cambios de nombre, color u
@@ -421,10 +444,24 @@ concurrente revierte las ediciones locales dependientes en orden inverso antes
 de aplicarse; un eco solo avanza metadatos. Standalone conserva
 `delivery_status = not_required` y no persiste `event_refs`.
 
-Cambiar recetas o desactivar seguimiento no modifica saldos ni borra recursos
-o movimientos anteriores. Activar seguimiento sin un vínculo existente crea
-un recurso mediante el flujo habitual, en el mismo lote local. Los saldos de
-un recurso ya vinculado se corrigen mediante movimientos de inventario.
+Cambiar recetas o desactivar seguimiento conserva cualquier recurso con historial.
+El handler de producto mantiene memoria durable del último recurso directo; al
+reactivar, el command valida y recupera ese mismo UUID, incluso con saldo cero,
+sin otro balance ni movimiento inicial. Una historia incompleta requiere selección
+explícita. Los saldos de un recurso existente se corrigen mediante movimientos.
+
+En standalone, la actualización y el descarte de un autogenerado vacío elegible
+comparten una transacción exterior que incluye preparación y comprobación. El
+handler revalida base, disparador y dependencias antes de borrar; las cascadas
+retiran balance/memoria y la prueba aplicada protege contra resurrección/replay.
+En server_sync siempre se conserva el recurso/balance y se rechaza el descarte
+externo. Undo restaura memoria exacta o ausencia; push/eco avanzan únicamente la
+fuente correspondiente, incluidos respaldos de cadenas pendientes.
+
+Core y transporte verificados el 2026-10-04: 43 pruebas nuevas SQLite y una HTTP
+con Nest/PG aislados, incluidas venta tardía A/B y reconstrucción por pull. La UI
+de recuperación y resultados del commit continúa pendiente en fase 4. Evidencia
+completa en el vault, Seguimiento de existencias/Evidencia/2026-10-04-correccion-fase3.
 
 
 ## Eliminación de variantes y del último producto
@@ -452,7 +489,11 @@ identidades y referencias de líneas cobradas; no se eliminan recursos, balances
 movimientos. La limpieza de creaciones en conflicto también protege esas referencias.
 
 Los índices de nombre y posición son únicos solo entre variantes activas. El
-recurso directo sigue siendo exclusivo incluso en una variante desactivada.
+`barcode` no participa de unicidad: no hay índice único, no existe referencia de
+conflicto `product_variant_barcode` ni código `duplicate_barcode`, y dos
+variantes pueden compartir el mismo código. La unicidad de barcode está diferida
+a una sesión posterior y no debe asumirse en ninguna revalidación de pendientes.
+El recurso directo sigue siendo exclusivo incluso en una variante desactivada.
 Los listados y snapshots editables omiten variantes inactivas. Los eventos son
 historial auditable y no se borran; el servidor impide reutilizar identificadores
 históricos y la repetición de una creación aceptada no resucita un producto.
@@ -470,11 +511,14 @@ ocurre en orden inverso y conserva identificadores de creación. El respaldo
 local se descarta al restaurar o confirmar su evento. Standalone no genera estos
 respaldos de sincronización ni `event_refs`, y conserva `not_required`.
 
-El esquema local mantiene la versión 7 según las reglas de desarrollo. Al abrir
-una base anterior sin `sale_payments`, `_resetDatabaseOnStartup` la recrea
-una vez; una base actual se conserva. Un respaldo restaurado de esquema anterior
-se rechaza sin eliminarlo. PostgreSQL incluye la migración
-`1788912000000-AddActiveVariantUniqueness` para los índices parciales.
+El esquema local mantiene la versión 8 según las reglas de desarrollo. Al abrir
+una base anterior a este conjunto de columnas y tablas, `_resetDatabaseOnStartup`
+la recrea una vez; una base actual se conserva. La detección exige
+`product_variants.barcode` y la ausencia de la columna legada `is_default`, de
+modo que agregar el código de barras no necesitó una migración en sitio. Un
+respaldo restaurado de esquema anterior se rechaza sin eliminarlo. PostgreSQL
+incluye la migración `1788912000000-AddActiveVariantUniqueness` para los
+índices parciales.
 
 ## Lectura y limpieza del borrador de venta
 

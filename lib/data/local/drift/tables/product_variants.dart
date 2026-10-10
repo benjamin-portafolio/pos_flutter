@@ -25,6 +25,11 @@ class ProductVariants extends Table with CommonFields {
   /// Clave NFKC en minúsculas derivada de [name] para unicidad por producto.
   TextColumn get nameKey => text().nullable()();
 
+  /// Código de barras opcional, solo dígitos de hasta 32 caracteres. Se guarda
+  /// como texto y no se interpreta numéricamente para conservar los ceros a la
+  /// izquierda de UPC-A y admitir GS1-128. Null significa variante sin código.
+  TextColumn get barcode => text().nullable()();
+
   /// Precio de venta entero expresado en la unidad monetaria menor. Siempre es
   /// positivo y es el único importe obligatorio de la variante.
   IntColumn get salePriceMinor => integer()();
@@ -53,6 +58,9 @@ class ProductVariants extends Table with CommonFields {
     'CHECK ((name IS NULL) = (name_key IS NULL))',
     'CHECK (name IS NULL OR length(name) <= 160)',
     'CHECK (name_key IS NULL OR length(name_key) <= 320)',
+    // SQLite no admite el operador ~; NOT GLOB cumple el mismo papel.
+    'CHECK (barcode IS NULL OR '
+        '(length(barcode) BETWEEN 1 AND 32 AND barcode NOT GLOB \'*[^0-9]*\'))',
     'CHECK (sale_price_minor > 0)',
     'CHECK (sale_price_minor <= 9007199254740991)',
     'CHECK (standard_cost_minor IS NULL OR '

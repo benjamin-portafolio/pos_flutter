@@ -1,3 +1,7 @@
+import 'proveedor_conflict_projection_restorer.dart';
+import 'payloads/proveedor_creado_payload.dart';
+import 'payloads/proveedor_actualizado_payload.dart';
+import 'projections/proveedor_projection_store.dart';
 import 'payloads/caja_abierta_payload.dart';
 import 'payloads/caja_cerrada_payload.dart';
 import 'payloads/cliente_creado_payload.dart';
@@ -28,6 +32,7 @@ import 'projections/inventory_projection_store.dart';
 class SyncConflictProjectionCleaner {
   SyncConflictProjectionCleaner({
     this.clienteProjectionStore,
+    this.proveedorProjectionStore,
     required EspacioProjectionStore espacioProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
@@ -50,6 +55,7 @@ class SyncConflictProjectionCleaner {
            categoriaEliminadaConflictProjectionRestorer;
 
   final ClienteProjectionStore? clienteProjectionStore;
+  final ProveedorProjectionStore? proveedorProjectionStore;
   final EspacioProjectionStore _espacioProjectionStore;
   final CategoriaProjectionStore _categoriaProjectionStore;
   final ProductoProjectionStore? _productoProjectionStore;
@@ -62,6 +68,17 @@ class SyncConflictProjectionCleaner {
   _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
+    if (event.eventType == ProveedorActualizadoPayload.eventType) {
+      final store = proveedorProjectionStore;
+      if (store != null) {
+        await ProveedorConflictProjectionRestorer(store).restore(event);
+      }
+      return;
+    }
+    if (event.eventType == ProveedorCreadoPayload.eventType) {
+      await proveedorProjectionStore?.deleteCreatedByEvent(event.eventId);
+      return;
+    }
     if (event.eventType == CajaAbiertaPayload.eventType ||
         event.eventType == CajaCerradaPayload.eventType) {
       return; // Estado operativo y hechos conservados.

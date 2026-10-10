@@ -186,7 +186,7 @@ void main() {
     final preview = tester.widget<Image>(find.byType(Image));
     expect(preview.image, isA<MemoryImage>());
     expect(preview.semanticLabel, contains(r'Cambio: $100.00'));
-    for (final tooltip in ['SMS', 'Descargar', 'Imprimir', 'Más opciones']) {
+    for (final tooltip in ['SMS', 'Descargar', 'Más opciones']) {
       expect(
         tester
             .widget<IconButton>(
@@ -198,6 +198,16 @@ void main() {
         isNull,
       );
     }
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byWidgetPredicate(
+              (w) => w is IconButton && w.tooltip == 'Imprimir',
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
     expect(tester.widget<IconButton>(_whatsAppButton()).onPressed, isNotNull);
     expect(tester.widget<IconButton>(_shareButton()).onPressed, isNotNull);
     for (final label in ['Regresar', 'Borrar', 'Editar']) {

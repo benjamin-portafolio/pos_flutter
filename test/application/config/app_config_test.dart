@@ -2,6 +2,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 
 void main() {
+  test('lee PASTOR como nombre predeterminado y reemplaza el anterior', () {
+    expect(AppConfig.initial.businessName, 'PASTOR');
+    expect(AppConfig.fromJson(const {}).businessName, 'PASTOR');
+    final decoded = AppConfig.fromJson(const {'business_name': 'Miradent'});
+    expect(decoded.businessName, 'PASTOR');
+    expect(decoded.toJson()['business_name'], 'PASTOR');
+  });
+
+  test('conserva el nombre personalizado del negocio al leerlo', () {
+    final decoded = AppConfig.fromJson(const {'business_name': 'Mi tienda'});
+
+    expect(decoded.businessName, 'Mi tienda');
+  });
+
   test('initial standalone usa Google Drive como respaldo conceptual', () {
     expect(AppConfig.initial.mode, AppMode.standalone);
     expect(AppConfig.initial.authProvider, 'google');
@@ -93,5 +107,33 @@ void main() {
 
     expect(disabled.copyWith(setupCompleted: true).cashEnabled, isFalse);
     expect(disabled.copyWith(cashEnabled: true).cashEnabled, isTrue);
+  });
+
+  test('el telefono del negocio es opcional y no viene puesto', () {
+    expect(AppConfig.initial.businessPhone, isNull);
+    expect(
+      AppConfig.fromJson(AppConfig.initial.toJson()).businessPhone,
+      isNull,
+    );
+  });
+
+  test('serializa y lee el telefono del negocio', () {
+    final config = AppConfig.initial.copyWith(
+      businessName: 'PASTOR',
+      businessPhone: '55 1234 5678',
+    );
+
+    expect(AppConfig.fromJson(config.toJson()).businessPhone, '55 1234 5678');
+    expect(config.copyWith(setupCompleted: true).businessPhone, '55 1234 5678');
+  });
+
+  test('un telefono en blanco se lee como vacio, no como un dato', () {
+    final decoded = AppConfig.fromJson(
+      AppConfig.initial.copyWith(businessPhone: '   ').toJson(),
+    );
+
+    // El pie del catálogo omite la línea de contacto: mejor sin línea que con un
+    // teléfono que no existe.
+    expect(decoded.businessPhone, isNull);
   });
 }

@@ -101,6 +101,33 @@ void main() {
     },
   );
 
+  test('el detalle trae el código de barras como texto y null si no hay', () async {
+    await _insertProduct(db, id: 'selected', name: 'Café');
+    await _insertVariant(
+      db,
+      id: 'large',
+      productId: 'selected',
+      price: 6075,
+      sortOrder: 0,
+      // Cero inicial: llega desde SQLite, no se reconstruye como número.
+      barcode: '012345678905',
+    );
+    await _insertVariant(
+      db,
+      id: 'small',
+      productId: 'selected',
+      price: 4550,
+      sortOrder: 1,
+    );
+
+    final detail = await repository.obtenerDetalle('selected');
+
+    expect(
+      detail!.variantes.map((v) => v.codigoBarras),
+      ['012345678905', null],
+    );
+  });
+
   test(
     'agrupa un solo join, filtra activos y ordena productos y variantes',
     () async {
@@ -512,6 +539,67 @@ void main() {
       emitsError(isA<StateError>()),
     );
   });
+
+  test('cuenta solo variantes activas de productos activos', () async {
+    await _insertProduct(db, id: 'coffee', name: 'Café');
+    await _insertVariant(
+      db,
+      id: 'coffee-small',
+      productId: 'coffee',
+      price: 4550,
+      sortOrder: 0,
+    );
+    await _insertVariant(
+      db,
+      id: 'coffee-large',
+      productId: 'coffee',
+      price: 6075,
+      sortOrder: 1,
+    );
+    await _insertVariant(
+      db,
+      id: 'coffee-hidden',
+      productId: 'coffee',
+      price: 1000,
+      sortOrder: 2,
+      active: false,
+    );
+    await _insertProduct(db, id: 'retired', name: 'Retirado', active: false);
+    await _insertVariant(
+      db,
+      id: 'retired-variant',
+      productId: 'retired',
+      price: 1000,
+      sortOrder: 0,
+    );
+
+    expect(await repository.watchVariantesActivasCount().first, 2);
+  });
+
+  test('el conteo de variantes emite cuando el catalogo cambia', () async {
+    final expectation = expectLater(
+      repository.watchVariantesActivasCount(),
+      emitsInOrder([0, 1, 0]),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await db.transaction(() async {
+      await _insertProduct(db, id: 'coffee', name: 'Café');
+      await _insertVariant(
+        db,
+        id: 'coffee-small',
+        productId: 'coffee',
+        price: 4550,
+        sortOrder: 0,
+      );
+    });
+
+    await (db.delete(
+      db.productVariants,
+    )..where((v) => v.id.equals('coffee-small'))).go();
+
+    await expectation;
+  });
 }
 
 Future<void> _insertCategory(
@@ -559,6 +647,7 @@ Future<void> _insertVariant(
   String? name,
   String? nameKey,
   int? standardCost,
+  String? barcode,
   required int sortOrder,
   bool active = true,
 }) {
@@ -570,6 +659,7 @@ Future<void> _insertVariant(
           productId: productId,
           name: Value(name),
           nameKey: Value(nameKey),
+          barcode: Value(barcode),
           salePriceMinor: price,
           standardCostMinor: Value(standardCost),
           sortOrder: sortOrder,

@@ -1,0 +1,55 @@
+{
+  "base_quotation_event_id": "20000000-0000-4000-8000-000000000002",
+  "previous_sale_id": "20000000-0000-4000-8000-000000000003",
+  "sale_id": "20000000-0000-4000-8000-000000000020",
+  "recovered_at_ms": 1791310200000,
+  "total_minor": 30000,
+  "lines": [
+    {
+      "id": "58f0d3d0-c022-4dec-94b4-0dea0191cbd3",
+      "quotation_item_id": "c847d35e-1c6e-5a7f-9ceb-30bf1959157f",
+      "product_id": "20000000-0000-4000-8000-000000000007",
+      "unit_id": null,
+      "sort_order": 0,
+      "catalog_unit_price_minor": 12000,
+      "snapshot": {
+        "variant_id": "20000000-0000-4000-8000-000000000009",
+        "product_name_snapshot": "Pan",
+        "variant_name_snapshot": "Original",
+        "sale_mode_snapshot": "unit",
+        "quantity": 2,
+        "measured_quantity_atomic": null,
+        "sale_unit_code_snapshot": null,
+        "sale_unit_symbol_snapshot": null,
+        "sale_unit_atomic_factor_snapshot": null,
+        "consumption_configuration_key": "[\"20000000-0000-4000-8000-000000000011\"]",
+        "unit_price_minor": 10000,
+        "standard_cost_minor_snapshot": 6000,
+        "price_reference_quantity_atomic_snapshot": null
+      }
+    },
+    {
+      "id": "13ed4410-5343-4160-acf7-899bdab08031",
+      "quotation_item_id": "572a2152-8675-5107-a812-ee5d562701b7",
+      "product_id": "20000000-0000-4000-8000-000000000008",
+      "unit_id": "10000000-0000-4000-8000-000000000002",
+      "sort_order": 1,
+      "catalog_unit_price_minor": 3000,
+      "snapshot": {
+        "variant_id": "20000000-0000-4000-8000-000000000010",
+        "product_name_snapshot": "Café medido",
+        "variant_name_snapshot": "Original",
+        "sale_mode_snapshot": "measured",
+        "quantity": null,
+        "measured_quantity_atomic": 500,
+        "sale_unit_code_snapshot": "g",
+        "sale_unit_symbol_snapshot": "g",
+        "sale_unit_atomic_factor_snapshot": 1,
+        "consumption_configuration_key": "[null]",
+        "unit_price_minor": 20,
+        "standard_cost_minor_snapshot": 8,
+        "price_reference_quantity_atomic_snapshot": 1
+      }
+    }
+  ]
+}

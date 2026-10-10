@@ -237,6 +237,88 @@ void main() {
     ]);
   });
 
+  test('acepta un barcode de dígitos y lo conserva al serializar', () {
+    final json = _advancedJson();
+    (json['variants']! as List)[0]['barcode'] = '  012345678905  ';
+
+    final payload = ProductoCreadoPayload.fromJson(json);
+
+    expect(payload.variantes.first.codigoBarras, '012345678905');
+    expect(
+      (payload.toJson()['variants']! as List).first['barcode'],
+      '012345678905',
+    );
+  });
+
+  test('trata barcode ausente o vacío como null y conserva ceros a la izquierda', () {
+    final ausente = _advancedJson();
+    ((ausente['variants']! as List)[0] as Map).remove('barcode');
+    expect(
+      ProductoCreadoPayload.fromJson(ausente).variantes.first.codigoBarras,
+      isNull,
+    );
+
+    final vacio = _advancedJson();
+    (vacio['variants']! as List)[0]['barcode'] = '   ';
+    final payload = ProductoCreadoPayload.fromJson(vacio);
+    expect(payload.variantes.first.codigoBarras, isNull);
+    expect((payload.toJson()['variants']! as List).first['barcode'], isNull);
+
+    const upcA = '012345678905';
+    final conCeros = _advancedJson();
+    (conCeros['variants']! as List)[0]['barcode'] = upcA;
+    expect(
+      ProductoCreadoPayload.fromJson(
+        conCeros,
+      ).variantes.first.codigoBarras,
+      upcA,
+    );
+  });
+
+  test('rechaza barcode que no sea solo dígitos', () {
+    for (final invalid in <String>[
+      'ABC123',
+      '12-345',
+      '12.5',
+      '12_45',
+      '7501234567890X',
+      '1' * 33,
+    ]) {
+      final json = _advancedJson();
+      (json['variants']! as List)[0]['barcode'] = invalid;
+      expect(
+        () => ProductoCreadoPayload.fromJson(json),
+        throwsFormatException,
+        reason: 'debe rechazar "$invalid"',
+      );
+    }
+  });
+
+  test('sigue rechazando un sku informado', () {
+    final json = _advancedJson();
+    (json['variants']! as List)[0]['sku'] = 'SKU-1';
+
+    expect(() => ProductoCreadoPayload.fromJson(json), throwsFormatException);
+  });
+
+  test('una edición que solo cambia el barcode sí es un cambio de estado', () {
+    // Regresión: sin `barcode` en `sameState`, esta edición se consideraría
+    // "sin cambios" y el evento nunca se emitiría.
+    final before = ProductoCreadoPayload.fromJson(_advancedJson());
+    final despues = _copyJson(_advancedJson());
+    (despues['variants']! as List)[0]['barcode'] = '7501234567890';
+
+    final after = ProductoCreadoPayload.fromJson(despues);
+
+    expect(
+      ProductoActualizadoPayload.sameState(before, after),
+      isFalse,
+      reason: 'el barcode es parte del estado comparable',
+    );
+    expect(before.variantes.first.codigoBarras, isNull);
+    expect(after.variantes.first.codigoBarras, '7501234567890');
+  });
+
   test('serializa receta canónica y rechaza configuraciones ambiguas', () {
     final component = ProductoCreadoComponenteReceta.create(
       inventoryItemId: _item1,

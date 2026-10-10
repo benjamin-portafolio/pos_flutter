@@ -1,3 +1,13 @@
+import '../../../application/config/app_config.dart';
+import '../../../application/config/app_config_controller.dart';
+import '../../../application/commands/proveedores/crear_proveedor_command.dart';
+import '../../../application/commands/proveedores/editar_proveedor_command.dart';
+import '../../../application/commands/proveedores/proveedor_command_service.dart';
+import '../../../domain/proveedores/proveedor.dart';
+import '../../../domain/repositories/proveedor_repository.dart';
+import 'proveedores/inventory_suppliers_tab.dart';
+import 'proveedores/proveedor_form_screen.dart';
+import '../../../application/import/articulo_import_batch_service.dart';
 import '../../../domain/articulos/articulo_listado.dart';
 import 'articulos/models/articulo_preview_form.dart';
 import 'dart:async';
@@ -11,6 +21,7 @@ import '../../../application/commands/articulos/crear_articulo_recipe_component_
 import '../../../application/commands/categorias/crear_categoria_command.dart';
 import '../../../application/commands/inventario/crear_recurso_inventario_command.dart';
 import '../../../application/commands/inventario/editar_recurso_inventario_command.dart';
+import '../../../application/commands/inventario/registrar_movimiento_inventario_command.dart';
 import '../../../application/commands/categorias/editar_categoria_command.dart';
 import '../../../application/commands/categorias/eliminar_categoria_command.dart';
 import '../../../application/commands/categorias/mover_categoria_command.dart';
@@ -37,9 +48,11 @@ import 'categorias/widgets/category_destination_picker_dialog.dart';
 import 'categorias/widgets/delete_category_dialog.dart';
 import 'categorias/widgets/delete_category_options_dialog.dart';
 import 'categorias/widgets/delete_category_products_confirmation_dialog.dart';
+import 'carga_masiva/bulk_import_screen.dart';
 import 'recursos/inventory_resource_form_screen.dart';
 import 'recursos/inventory_resources_tab.dart';
 import 'recursos/models/inventory_resource_form_result.dart';
+import 'recursos/models/inventory_movement_draft.dart';
 import 'widgets/inventory_add_options_bottom_sheet.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
@@ -51,6 +64,9 @@ class InventoryManagementScreen extends StatelessWidget {
     this.recursoInventarioRepository,
     this.unidadInventarioRepository,
     this.inventoryCommandService,
+    this.proveedorRepository,
+    this.proveedorCommandService,
+    this.appConfigController,
     super.key,
   });
 
@@ -61,25 +77,51 @@ class InventoryManagementScreen extends StatelessWidget {
   final RecursoInventarioRepository? recursoInventarioRepository;
   final UnidadInventarioRepository? unidadInventarioRepository;
   final InventoryCommandService? inventoryCommandService;
+  final ProveedorRepository? proveedorRepository;
+  final ProveedorCommandService? proveedorCommandService;
+  final AppConfigController? appConfigController;
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: _InventoryManagementBody(
-        categoriaRepository:
-            categoriaRepository ?? getIt<CategoriaRepository>(),
-        productoRepository: productoRepository ?? getIt<ProductoRepository>(),
-        categoriaCommandService: categoriaCommandService,
-        productoCommandService: productoCommandService,
-        recursoInventarioRepository:
-            recursoInventarioRepository ??
-            (getIt.isRegistered<RecursoInventarioRepository>()
-                ? getIt<RecursoInventarioRepository>()
-                : null),
-        unidadInventarioRepository: unidadInventarioRepository,
-        inventoryCommandService: inventoryCommandService,
-      ),
+    final config =
+        appConfigController ??
+        (getIt.isRegistered<AppConfigController>()
+            ? getIt<AppConfigController>()
+            : null);
+    return StreamBuilder<AppConfig>(
+      stream: config?.changes,
+      initialData: config?.config,
+      builder: (context, snapshot) {
+        final suppliersEnabled = snapshot.hasData;
+        return DefaultTabController(
+          key: ValueKey(suppliersEnabled),
+          length: suppliersEnabled ? 4 : 3,
+          child: _InventoryManagementBody(
+            categoriaRepository:
+                categoriaRepository ?? getIt<CategoriaRepository>(),
+            productoRepository:
+                productoRepository ?? getIt<ProductoRepository>(),
+            categoriaCommandService: categoriaCommandService,
+            productoCommandService: productoCommandService,
+            recursoInventarioRepository:
+                recursoInventarioRepository ??
+                (getIt.isRegistered<RecursoInventarioRepository>()
+                    ? getIt<RecursoInventarioRepository>()
+                    : null),
+            unidadInventarioRepository: unidadInventarioRepository,
+            inventoryCommandService: inventoryCommandService,
+            proveedoresEnabled: suppliersEnabled,
+            config: config,
+            proveedorCommandService: proveedorCommandService,
+            proveedorRepository: suppliersEnabled
+                ? proveedorRepository ??
+                      (getIt.isRegistered<ProveedorRepository>()
+                          ? getIt<ProveedorRepository>()
+                          : null)
+                : null,
+          ),
+        );
+      },
     );
   }
 }
@@ -93,6 +135,10 @@ class _InventoryManagementBody extends StatefulWidget {
     required this.recursoInventarioRepository,
     required this.unidadInventarioRepository,
     required this.inventoryCommandService,
+    required this.proveedoresEnabled,
+    required this.proveedorRepository,
+    required this.proveedorCommandService,
+    required this.config,
   });
 
   final CategoriaRepository categoriaRepository;
@@ -102,6 +148,10 @@ class _InventoryManagementBody extends StatefulWidget {
   final RecursoInventarioRepository? recursoInventarioRepository;
   final UnidadInventarioRepository? unidadInventarioRepository;
   final InventoryCommandService? inventoryCommandService;
+  final bool proveedoresEnabled;
+  final ProveedorRepository? proveedorRepository;
+  final ProveedorCommandService? proveedorCommandService;
+  final AppConfigController? config;
 
   @override
   State<_InventoryManagementBody> createState() =>
@@ -147,11 +197,16 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         title: showingSearch ? _buildSearchField() : _buildTitle(),
         centerTitle: true,
         actions: _buildAppBarActions(showingSearch),
-        bottom: const TabBar(
+        bottom: TabBar(
+          isScrollable: MediaQuery.sizeOf(context).width < 600,
+          tabAlignment: MediaQuery.sizeOf(context).width < 600
+              ? TabAlignment.start
+              : TabAlignment.fill,
           tabs: [
-            Tab(text: 'ARTÍCULOS'),
-            Tab(text: 'CATEGORÍA'),
-            Tab(text: 'RECURSOS'),
+            const Tab(text: 'ARTÍCULOS'),
+            const Tab(text: 'CATEGORÍA'),
+            const Tab(text: 'RECURSOS'),
+            if (widget.proveedoresEnabled) const Tab(text: 'PROVEEDORES'),
           ],
         ),
       ),
@@ -185,6 +240,18 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
               key: Key('inventory_resources_unavailable'),
               child: Text('Recursos de inventario'),
             ),
+          if (widget.proveedoresEnabled)
+            if (widget.proveedorRepository case final repository?)
+              InventorySuppliersTab(
+                repository: repository,
+                onOpen: (supplier) =>
+                    _openSupplierForm(context, proveedor: supplier),
+                onAdd: () => _openSupplierForm(context),
+              )
+            else
+              const Center(
+                child: Text('No se pudieron cargar los proveedores.'),
+              ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -207,21 +274,9 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       autofocus: true,
       textInputAction: TextInputAction.search,
       onChanged: _onSearchChanged,
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         hintText: 'Buscar artículos',
         border: InputBorder.none,
-        suffixIcon: ValueListenableBuilder<TextEditingValue>(
-          valueListenable: _searchController,
-          builder: (context, value, _) {
-            if (value.text.isEmpty) return const SizedBox.shrink();
-            return IconButton(
-              key: const Key('clear_article_search_button'),
-              onPressed: _clearSearch,
-              tooltip: 'Limpiar búsqueda',
-              icon: const Icon(Icons.clear),
-            );
-          },
-        ),
       ),
     );
   }
@@ -296,6 +351,78 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       onAddArticle: () => _openArticleForm(context),
       onAddCategory: () => _openCategoryForm(context),
       onAddInventoryResource: () => _openInventoryResourceForm(context),
+      onBulkImport: () => _openBulkImport(context),
+      supplierAvailability: widget.config?.changes.map((config) => true),
+      onAddSupplier: widget.proveedoresEnabled
+          ? () => _openSupplierForm(context)
+          : null,
+    );
+  }
+
+  Future<void> _openSupplierForm(
+    BuildContext context, {
+    Proveedor? proveedor,
+  }) async {
+    final config = widget.config;
+    if (config == null) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ProveedorFormScreen(
+          config: config,
+          proveedor: proveedor,
+          onSave: (result) {
+            final service =
+                widget.proveedorCommandService ??
+                getIt<ProveedorCommandService>();
+            return proveedor == null
+                ? service.crearProveedor(
+                    CrearProveedorCommand(
+                      nombre: result.nombre,
+                      telefono: result.telefono,
+                      notas: result.notas,
+                    ),
+                  )
+                : service.editarProveedor(
+                    EditarProveedorCommand(
+                      base: proveedor,
+                      nombre: result.nombre,
+                      telefono: result.telefono,
+                      notas: result.notas,
+                    ),
+                  );
+          },
+        ),
+      ),
+    );
+    if (saved == true && context.mounted) {
+      _tabController?.animateTo(3);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Proveedor guardado.')));
+    }
+  }
+
+  /// La carga masiva abre su propia pantalla (D11): allí se baja la plantilla
+  /// y se elige el archivo.
+  void _openBulkImport(BuildContext context) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => BulkImportScreen(
+          batchService: widget.productoCommandService == null
+              ? null
+              : ArticuloImportBatchService(
+                  productoCommandService: widget.productoCommandService!,
+                  unidadInventarioRepository:
+                      widget.unidadInventarioRepository ??
+                      getIt<UnidadInventarioRepository>(),
+                ),
+          categoriaRepository: widget.categoriaRepository,
+          productoRepository: widget.productoRepository,
+          unidadInventarioRepository:
+              widget.unidadInventarioRepository ??
+              getIt<UnidadInventarioRepository>(),
+        ),
+      ),
     );
   }
 
@@ -342,6 +469,22 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         defaultUnitId: result.unidad.id,
         quantityDeltaAtomic: result.quantityDeltaAtomic,
         movementReason: result.movementReason,
+      ),
+    );
+  }
+
+  Future<void> _registerInventoryMovement(
+    String inventoryItemId,
+    InventoryMovementDraft movement,
+  ) {
+    final service =
+        widget.inventoryCommandService ?? getIt<InventoryCommandService>();
+    return service.registrarMovimiento(
+      RegistrarMovimientoInventarioCommand(
+        inventoryItemId: inventoryItemId,
+        movementType: movement.movementType,
+        quantityDeltaAtomic: movement.quantityDeltaAtomic,
+        movementReason: movement.reason,
       ),
     );
   }
@@ -429,12 +572,15 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             categorias: categories,
             unidadesVenta: units,
             initialValue: initial,
+            proveedorRepository: widget.proveedorRepository,
+            appConfigController: widget.config,
             inventoryResourceRepository:
                 resourceRepository ??
                 (getIt.isRegistered<RecursoInventarioRepository>()
                     ? getIt<RecursoInventarioRepository>()
                     : null),
             onCreateInventoryResource: _createInventoryResource,
+            onRegisterInventoryMovement: _registerInventoryMovement,
             onSave: detail.lastEventId == null
                 ? null
                 : (result) {
@@ -493,8 +639,11 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           builder: (_) => ArticleFormScreen(
             categorias: categorias,
             unidadesVenta: unidades,
+            proveedorRepository: widget.proveedorRepository,
+            appConfigController: widget.config,
             inventoryResourceRepository: widget.recursoInventarioRepository,
             onCreateInventoryResource: _createInventoryResource,
+            onRegisterInventoryMovement: _registerInventoryMovement,
             onSave: _createArticle,
           ),
         ),
@@ -524,10 +673,12 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         categoriaId: result.categoriaId,
         variantes: result.variantes
             .map(
-              (variant) => CrearArticuloVarianteCommand(
+              (variant) => CrearArticuloVarianteCommand.conProveedores(
                 nombre: variant.nombre,
                 precioVenta: variant.precioVenta,
                 costoEstandar: variant.costoEstandar,
+                codigoBarras: variant.codigoBarras,
+                proveedores: variant.proveedores,
                 inventoryUnitId: variant.inventoryUnitId,
                 initialStockQuantity: variant.existenciaInicial,
                 recipeComponents: variant.recipeComponents

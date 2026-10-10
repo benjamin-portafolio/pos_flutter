@@ -1,3 +1,4 @@
+import 'package:pos_flutter/data/local/drift/drift_variant_inventory_memory_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_inventory_projection_store.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
@@ -218,6 +219,9 @@ void main() {
             );
             await ProductoEventHandler(
               projection,
+              variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+                dao: VariantInventoryMemoryDao(db),
+              ),
             ).applyProductoActualizado(deletion);
           }
           final renamed = ProductoCreadoPayload.create(
@@ -316,6 +320,9 @@ void main() {
           );
           await ProductoEventHandler(
             projection,
+            variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+              dao: VariantInventoryMemoryDao(db),
+            ),
           ).applyProductoActualizado(deleteProduct);
           expect(
             (await productoDao.obtenerProductoPorId('product_1'))?.active,
@@ -390,6 +397,9 @@ void main() {
             );
             await ProductoEventHandler(
               projection,
+              variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+                dao: VariantInventoryMemoryDao(db),
+              ),
             ).applyProductoActualizado(deleteProduct);
             await persistence.updateEventSyncStatus(
               deleteProduct.eventId,
@@ -544,7 +554,12 @@ void main() {
           ).toJson(),
         );
         await store.appendAndApply(update, refs: refs);
-        await ProductoEventHandler(projection).applyProductoActualizado(update);
+        await ProductoEventHandler(
+          projection,
+          variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+            dao: VariantInventoryMemoryDao(db),
+          ),
+        ).applyProductoActualizado(update);
         final product = (await projection.findProductById('product_1'))!;
         expect(product.nombre, 'Café editado');
         expect(product.version, 2);
@@ -742,7 +757,12 @@ void main() {
     final projectionStore = DriftProductoProjectionStore(
       productoDao: productoDao,
     );
-    final handler = ProductoEventHandler(projectionStore);
+    final handler = ProductoEventHandler(
+      projectionStore,
+      variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+        dao: VariantInventoryMemoryDao(db),
+      ),
+    );
 
     await handler.applyProductoCreado(_event());
     await handler.applyProductoCreado(_event());
@@ -788,7 +808,12 @@ void main() {
       final projectionStore = DriftProductoProjectionStore(
         productoDao: productoDao,
       );
-      final handler = ProductoEventHandler(projectionStore);
+      final handler = ProductoEventHandler(
+        projectionStore,
+        variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+          dao: VariantInventoryMemoryDao(db),
+        ),
+      );
       await handler.applyProductoCreado(_event());
 
       await handler.applyProductoCreado(
@@ -826,6 +851,9 @@ DriftLocalEventStore _store(
       handlers: productoEventHandlers(
         ProductoEventHandler(
           DriftProductoProjectionStore(productoDao: productoDao),
+          variantInventoryMemoryStore: DriftVariantInventoryMemoryStore(
+            dao: VariantInventoryMemoryDao(db),
+          ),
           inventoryProjectionStore: DriftInventoryProjectionStore(
             inventoryDao: InventoryDao(db),
             unitDao: UnitDao(db),

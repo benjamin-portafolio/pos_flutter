@@ -1,5 +1,9 @@
+import '../../domain/articulos/proveedor_variante.dart';
+import '../local/drift/drift_producto_projection_store.dart';
 import '../../domain/articulos/articulo_listado.dart';
 import '../../domain/articulos/articulo_detalle.dart';
+import '../../domain/articulos/codigo_barras.dart';
+import '../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../domain/articulos/variante_detalle.dart';
 import '../../domain/articulos/sale_configuration.dart';
 import '../../domain/articulos/articulo_vinculado_categoria.dart';
@@ -18,11 +22,39 @@ class ProductoRepositoryImpl implements ProductoRepository {
   final drift.ProductoDao _productoDao;
 
   @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async {
+    final normalized = CodigoBarras.fromInput(codigo).value;
+    if (normalized == null) return const [];
+    final rows = await _productoDao.buscarVariantesPorCodigoBarras(normalized);
+    return List.unmodifiable(
+      rows.map(
+        (row) => VariantePorCodigoBarras(
+          productoId: row.producto.id,
+          varianteId: row.variante.id,
+          nombreProducto: row.producto.name,
+          nombreVariante: row.variante.name,
+          codigoBarras: row.variante.barcode!,
+          precioVentaMenor: row.variante.salePriceMinor,
+          saleConfiguration: _saleConfiguration(row.producto),
+          unidadVenta: row.unidadVenta == null
+              ? null
+              : _toUnit(row.unidadVenta!),
+        ),
+      ),
+    );
+  }
+
+  @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async {
     final product = await _productoDao.obtenerProductoPorId(productoId);
     if (product == null || !product.active) return null;
     final rows = await _productoDao.obtenerVariantesPorProducto(productoId);
     final variants = <VarianteDetalle>[];
+    final supplierSets = await DriftProductoProjectionStore(
+      productoDao: _productoDao,
+    ).supplierSets(productoId);
     for (final row in rows.where((row) => row.active)) {
       final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
         row.id,
@@ -30,9 +62,19 @@ class ProductoRepositoryImpl implements ProductoRepository {
       variants.add(
         VarianteDetalle(
           id: row.id,
+          proveedores: supplierSets?[row.id]
+              ?.map(
+                (s) => ProveedorVariante(
+                  proveedorId: s.supplierId,
+                  precioInformadoMenor: s.quotedPriceMinor,
+                  fechaInformadaMs: s.quotedAtMs,
+                ),
+              )
+              .toList(),
           nombre: row.name,
           precioVentaMenor: row.salePriceMinor,
           costoEstandarMenor: row.standardCostMinor,
+          codigoBarras: row.barcode,
           inventoryItemId: row.inventoryItemId,
           componentesReceta: Map.unmodifiable({
             for (final component in recipe)
@@ -45,13 +87,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       lastEventId: product.lastEventId,
       nombre: product.name,
       categoriaId: product.categoryId,
-      saleConfiguration: product.saleMode == 'unit'
-          ? const UnitSaleConfiguration()
-          : MeasuredSaleConfiguration(
-              saleUnitId: product.saleUnitId!,
-              priceReferenceQuantityAtomic:
-                  product.priceReferenceQuantityAtomic!,
-            ),
+      saleConfiguration: _saleConfiguration(product),
       variantes: List.unmodifiable(variants),
     );
   }
@@ -84,6 +120,11 @@ class ProductoRepositoryImpl implements ProductoRepository {
           incluirSinCategoria: incluirSinCategoria,
         )
         .map(_toDomain);
+  }
+
+  @override
+  Stream<int> watchVariantesActivasCount() {
+    return _productoDao.watchVariantesActivasCount();
   }
 
   List<ArticuloListado> _toDomain(List<drift.ProductoListadoRow> rows) {
@@ -157,6 +198,14 @@ class ProductoRepositoryImpl implements ProductoRepository {
         })
         .toList(growable: false);
   }
+
+  SaleConfiguration _saleConfiguration(drift.ProductRow row) =>
+      row.saleMode == 'unit'
+      ? const UnitSaleConfiguration()
+      : MeasuredSaleConfiguration(
+          saleUnitId: row.saleUnitId!,
+          priceReferenceQuantityAtomic: row.priceReferenceQuantityAtomic!,
+        );
 
   UnidadInventario _toUnit(drift.UnitRow row) => UnidadInventario(
     id: row.unitId,

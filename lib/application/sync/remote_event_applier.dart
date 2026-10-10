@@ -1,3 +1,4 @@
+import 'payloads/recurso_inventario_descartado_payload.dart';
 import 'event_processor.dart';
 import 'models/sync_event.dart';
 import 'server_echo_acknowledger.dart';
@@ -24,6 +25,18 @@ class RemoteEventApplier {
     List<SyncEvent> events, {
     Future<void> Function()? afterApply,
   }) async {
+    for (final event in events) {
+      if (!_eventProcessor.supports(event.eventType)) {
+        throw UnsupportedError('Evento no soportado: ${event.eventType}');
+      }
+    }
+    if (events.any(
+      (e) => e.eventType == RecursoInventarioDescartadoPayload.eventType,
+    )) {
+      throw StateError(
+        'El descarte standalone no se acepta por sincronización remota.',
+      );
+    }
     await _eventStore.applySyncedEvents(
       events,
       applyEvent: _eventProcessor.apply,

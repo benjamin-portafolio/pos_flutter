@@ -11,6 +11,7 @@ import '../../sync/payloads/recurso_inventario_creado_payload.dart';
 import '../../sync/projections/inventory_projection_store.dart';
 import 'crear_recurso_inventario_command.dart';
 import 'editar_recurso_inventario_command.dart';
+import 'registrar_movimiento_inventario_command.dart';
 import '../local_command_context.dart';
 
 class InventoryCommandService {
@@ -97,6 +98,35 @@ class InventoryCommandService {
     );
   }
 
+  /// Registra un movimiento suelto sobre un recurso existente.
+  ///
+  /// No acepta nombre: el movimiento se aplica y se persiste por sí solo, sin
+  /// tocar la identidad del recurso ni encadenar un evento de edición.
+  Future<void> registrarMovimiento(
+    RegistrarMovimientoInventarioCommand command,
+  ) async {
+    final item = await _inventoryProjectionStore.findItemById(
+      command.inventoryItemId.trim(),
+    );
+    if (item == null || !item.active) {
+      throw StateError('El recurso de inventario no existe o está inactivo.');
+    }
+    final baseEventId = item.lastEventId ?? item.createdEventId;
+    if (baseEventId == null) {
+      throw StateError('El recurso no tiene un evento base trazable.');
+    }
+    final entry = _movementAppend(
+      item: item,
+      movementType: command.movementType,
+      quantityDeltaAtomic: command.quantityDeltaAtomic,
+      reason: InventoryMovementPayload.normalizeReason(command.movementReason),
+      baseEventId: baseEventId,
+      baseVersion: item.version,
+      baseServerSequence: item.lastServerSequence,
+    );
+    await _eventStore.appendAndApply(entry.event, refs: entry.refs);
+  }
+
   Future<bool> editarRecurso(EditarRecursoInventarioCommand command) async {
     final item = await _inventoryProjectionStore.findItemById(
       command.inventoryItemId.trim(),
@@ -126,13 +156,14 @@ class InventoryCommandService {
 
     if (command.quantityDeltaAtomic != null) {
       entries.add(
-        _buildMovementEvent(
-          command,
+        _movementAppend(
           item: item,
+          movementType: command.movementType!,
+          quantityDeltaAtomic: command.quantityDeltaAtomic!,
           reason: reason,
-          nextBaseEventId: nextBaseEventId,
-          nextBaseVersion: nextBaseVersion,
-          nextBaseServerSequence: nextBaseServerSequence,
+          baseEventId: nextBaseEventId,
+          baseVersion: nextBaseVersion,
+          baseServerSequence: nextBaseServerSequence,
         ),
       );
     }
@@ -191,18 +222,19 @@ class InventoryCommandService {
     );
   }
 
-  LocalEventAppend _buildMovementEvent(
-    EditarRecursoInventarioCommand command, {
+  LocalEventAppend _movementAppend({
     required InventoryItemProjection item,
+    required TipoMovimientoInventario movementType,
+    required int quantityDeltaAtomic,
     required String? reason,
-    required String nextBaseEventId,
-    required int nextBaseVersion,
-    required int? nextBaseServerSequence,
+    required String baseEventId,
+    required int baseVersion,
+    required int? baseServerSequence,
   }) {
     final movement = InventoryMovementPayload.create(
       movementId: _uuid.v4(),
-      movementType: command.movementType!,
-      quantityDeltaAtomic: command.quantityDeltaAtomic!,
+      movementType: movementType,
+      quantityDeltaAtomic: quantityDeltaAtomic,
       reason: reason,
     );
     if (movement.movementType == TipoMovimientoInventario.initialBalance ||
@@ -210,11 +242,11 @@ class InventoryCommandService {
       throw ArgumentError.value(
         movement.movementType,
         'movementType',
-        'La edición solo admite reposiciones o correcciones manuales.',
+        'El movimiento solo admite reposiciones o correcciones manuales.',
       );
     }
     final payload = MovimientoInventarioRegistradoPayload.create(
-      baseEventId: nextBaseEventId,
+      baseEventId: baseEventId,
       movement: movement,
     );
     return LocalEventAppend(
@@ -225,8 +257,8 @@ class InventoryCommandService {
         eventType: MovimientoInventarioRegistradoPayload.eventType,
         deviceId: _commandContext.deviceId,
         userId: _commandContext.userId,
-        baseServerSequence: nextBaseServerSequence,
-        baseVersion: nextBaseVersion,
+        baseServerSequence: baseServerSequence,
+        baseVersion: baseVersion,
         createdAtLocal: DateTime.now(),
         payload: payload.toJson(),
       ),

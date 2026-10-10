@@ -1,3 +1,7 @@
+import 'tables/suppliers.dart';
+import 'tables/variant_suppliers.dart';
+import 'current_database_schema.dart';
+import '../../../domain/inventario/inventory_consumption_configuration.dart';
 import 'tables/credit_sales.dart';
 import 'tables/customer_payments.dart';
 import 'tables/credit_allocations.dart';
@@ -19,6 +23,7 @@ import 'package:pos_flutter/data/local/drift/tables/espacios.dart';
 import 'package:pos_flutter/data/local/drift/tables/event_refs.dart';
 import 'package:pos_flutter/data/local/drift/tables/events.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_balances.dart';
+import 'package:pos_flutter/data/local/drift/tables/inventory_item_discards.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_items.dart';
 import 'package:pos_flutter/data/local/drift/tables/inventory_movements.dart';
 import 'package:pos_flutter/data/local/drift/tables/product_variants.dart';
@@ -26,6 +31,7 @@ import 'package:pos_flutter/data/local/drift/tables/products.dart';
 import 'package:pos_flutter/data/local/drift/tables/recipe_components.dart';
 import 'package:pos_flutter/data/local/drift/tables/sync_checkpoints.dart';
 import 'package:pos_flutter/data/local/drift/tables/units.dart';
+import 'package:pos_flutter/data/local/drift/tables/variant_inventory_memory.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
@@ -41,10 +47,19 @@ import 'tables/product_update_undo.dart';
 import 'tables/sale_items.dart';
 import 'tables/sales.dart';
 import 'tables/sale_payments.dart';
+import 'tables/quotations.dart';
+import 'tables/quotation_items.dart';
+import '../../../application/sync/models/sync_event.dart';
+import '../../../application/sync/projections/quotation_projection_store.dart';
+import '../../../application/sync/projections/quotation_projection.dart';
+import '../../../application/sync/projections/quotation_item_projection.dart';
+import '../../../application/sync/payloads/quotation_selection_snapshot.dart';
 
 part 'app_database.g.dart';
 part 'daos/cliente_dao.dart';
+part 'daos/proveedor_dao.dart';
 part 'daos/sale_dao.dart';
+part 'daos/quotation_dao.dart';
 part 'daos/categoria_dao.dart';
 part 'daos/espacio_dao.dart';
 part 'daos/event_dao.dart';
@@ -53,9 +68,11 @@ part 'daos/financial_category_dao.dart';
 part 'daos/financial_entry_dao.dart';
 part 'daos/inventory_dao.dart';
 part 'daos/producto_dao.dart';
+part 'daos/producto_codigo_barras_row.dart';
 part 'daos/producto_listado_row.dart';
 part 'daos/sync_checkpoint_dao.dart';
 part 'daos/unit_dao.dart';
+part 'daos/variant_inventory_memory_dao.dart';
 
 const _databaseFileName = 'pos_db.sqlite';
 const _preserveRestoredDatabaseFileName = '.pos_db_restored';
@@ -69,6 +86,8 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     ProductVariants,
     ProductUpdateUndo,
     RecipeComponents,
+    Suppliers,
+    VariantSuppliers,
     Espacios,
     Events,
     EventRefs,
@@ -77,9 +96,13 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     InventoryItems,
     InventoryBalances,
     InventoryMovements,
+    VariantInventoryMemory,
+    InventoryItemDiscards,
     Sales,
     SaleItems,
     SalePayments,
+    Quotations,
+    QuotationItems,
     CreditSales,
     CustomerPayments,
     CreditAllocations,
@@ -91,6 +114,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
   ],
   daos: [
     ClienteDao,
+    ProveedorDao,
     CategoriaDao,
     ProductoDao,
     EspacioDao,
@@ -100,8 +124,10 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     UnitDao,
     InventoryDao,
     SaleDao,
+    QuotationDao,
     FinancialCategoryDao,
     FinancialEntryDao,
+    VariantInventoryMemoryDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -216,67 +242,21 @@ LazyDatabase _openConnection() {
 
 /// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
 /// ni cambiar schemaVersion. Las tablas de crédito y clientes deben existir,
-/// sales debe incluir cliente_id, no puede conservarse la
-/// columna legada is_default y el módulo de ingresos/gastos requiere
-/// financial_categories y financial_entries; las bases actuales se conservan
-/// entre arranques.
+/// sales debe incluir cliente_id, product_variants debe incluir barcode, no
+/// puede conservarse la columna legada is_default y el módulo de
+/// ingresos/gastos requiere financial_categories y financial_entries; el
+/// seguimiento de existencias requiere inventory_items.origin_variant_id y las
+/// tablas variant_inventory_memory e inventory_item_discards; las bases
+/// actuales se conservan entre arranques. Cotizaciones requiere quotations,
+/// quotation_items sin condiciones monetarias y sus índices. Una base previa
+/// o con columnas retiradas se reinicia, salvo respaldos restaurados protegidos.
+/// Proveedores exige suppliers con CommonFields y variant_suppliers con precio/fecha.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
   final connection = sqlite.sqlite3.open(file.path);
   final bool current;
   try {
-    final variantColumns = connection.select(
-      'PRAGMA table_info(product_variants)',
-    );
-    final paymentColumns = connection.select(
-      'PRAGMA table_info(sale_payments)',
-    );
-    current =
-        connection
-                .select(
-                  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('cash_sessions', 'cash_movements')",
-                )
-                .length ==
-            2 &&
-        paymentColumns.any((column) => column['name'] == 'method') &&
-        paymentColumns.any((column) => column['name'] == 'reference') &&
-        connection
-                .select(
-                  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('credit_allocations', 'credit_sales', 'customer_payments')",
-                )
-                .length ==
-            3 &&
-        connection
-                .select(
-                  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name IN ('financial_categories', 'financial_entries')",
-                )
-                .length ==
-            2 &&
-        connection
-            .select('PRAGMA table_info(sales)')
-            .any((column) => column['name'] == 'cliente_id') &&
-        connection
-            .select(
-              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'clientes'",
-            )
-            .isNotEmpty &&
-        connection
-            .select(
-              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'product_update_undo'",
-            )
-            .isNotEmpty &&
-        connection
-            .select(
-              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sale_payments'",
-            )
-            .isNotEmpty &&
-        connection
-            .select(
-              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sale_items'",
-            )
-            .isNotEmpty &&
-        variantColumns.isNotEmpty &&
-        !variantColumns.any((column) => column['name'] == 'is_default');
+    current = hasCurrentAppDatabaseSchema(connection);
   } finally {
     connection.close();
   }

@@ -1,23 +1,36 @@
-import '../../../domain/repositories/confirmed_sale_repository.dart';
-import 'confirmed_sales_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../application/commands/cotizaciones/cotizacion_command_service.dart';
+import '../../../application/commands/cotizaciones/guardar_cotizacion_command.dart';
+import '../../../application/commands/cotizaciones/quotation_already_linked_exception.dart';
 import '../../../application/commands/ventas/limpiar_venta_borrador_command.dart';
 import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
+import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
+import '../../../domain/repositories/quotation_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/repositories/unidad_inventario_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
 import '../../widgets/article_search_bar.dart';
+import '../articulos/article_search_screen.dart';
+import '../cotizaciones/quotation_ticket_screen.dart';
+import 'barcode/barcode_read_gate.dart';
+import 'barcode/physical_barcode_reader.dart';
+import 'barcode/sale_barcode_read_coordinator.dart';
+import 'confirmed_sales_screen.dart';
 import 'draft_item_edit_sheet.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
+import 'sale_barcode_scanner_screen.dart';
 
 class CajaScreen extends StatefulWidget {
   const CajaScreen({
     this.saleDraftRepository,
+    this.quotationRepository,
+    this.cotizacionCommandService,
     this.ventaBorradorCommandService,
     this.productoRepository,
     this.unidadInventarioRepository,
@@ -26,28 +39,202 @@ class CajaScreen extends StatefulWidget {
   });
 
   final SaleDraftRepository? saleDraftRepository;
+  final QuotationRepository? quotationRepository;
+  final CotizacionCommandService? cotizacionCommandService;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final ProductoRepository? productoRepository;
   final UnidadInventarioRepository? unidadInventarioRepository;
   final VoidCallback? onOpenCaja;
 
   @override
-  State<CajaScreen> createState() => _CajaScreenState();
+  CajaScreenState createState() => CajaScreenState();
 }
 
-class _CajaScreenState extends State<CajaScreen> {
+class CajaScreenState extends State<CajaScreen> {
   late final _repository =
       widget.saleDraftRepository ?? getIt<SaleDraftRepository>();
   late final _draft = _repository.watchCurrentDraft();
-  bool _clearing = false;
+  final _physicalReader = GlobalKey<PhysicalBarcodeReaderState>();
+  bool _resolvingReads = false;
+  bool get isReaderEnabled => _physicalReader.currentState?.isEnabled == true;
+  int? get readerInterruptionGeneration =>
+      _physicalReader.currentState?.interruptionGeneration;
 
-  Future<void> _clear(SaleDraft sale) async {
-    if (_clearing) return;
+  void restoreReader(int? generation) {
+    if (mounted && !_busy) {
+      _physicalReader.currentState?.enableReader(
+        restoringGeneration: generation,
+      );
+    }
+  }
+
+  bool get _desktopReader =>
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows;
+
+  /// Home/menu deben esperar esta barrera antes de salir o abrir otra ruta.
+  Future<bool> prepareToLeave() async {
+    if (_busy) return false;
+    setState(() => _resolvingReads = true);
+    try {
+      await _physicalReader.currentState?.finish();
+      return mounted;
+    } finally {
+      if (mounted) setState(() => _resolvingReads = false);
+    }
+  }
+
+  Future<void> _runAction(Future<void> Function() action) async {
+    if (_busy) return;
+    final reader = _physicalReader.currentState;
+    final restoreMode = reader?.isEnabled == true;
+    final generation = reader?.interruptionGeneration;
+    setState(() => _resolvingReads = true);
+    try {
+      await reader?.finish();
+      if (mounted) await action();
+    } finally {
+      if (mounted) {
+        setState(() => _resolvingReads = false);
+        if (restoreMode) reader?.enableReader(restoringGeneration: generation);
+      }
+    }
+  }
+
+  Future<void> _openSearch() => _runAction(
+    () => Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ArticleSearchScreen(
+          productoRepository:
+              widget.productoRepository ?? getIt<ProductoRepository>(),
+          saleDraftRepository: _repository,
+          ventaBorradorCommandService: widget.ventaBorradorCommandService,
+          onOpenCaja: widget.onOpenCaja,
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _openConfirmedSales() => _runAction(
+    () => Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const ConfirmedSalesScreen()),
+    ),
+  );
+
+  bool _clearing = false;
+  bool _quoting = false;
+  GuardarCotizacionCommand? _quotationIntent;
+  bool get _busy => _resolvingReads;
+
+  Future<void> _quote() => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted ||
+        sale == null ||
+        sale.items.isEmpty ||
+        sale.lastEventId == null) {
+      return;
+    }
+    setState(() => _quoting = true);
+    try {
+      if (_quotationIntent?.saleId != sale.id ||
+          _quotationIntent?.expectedDraftEventId != sale.lastEventId) {
+        _quotationIntent = GuardarCotizacionCommand(
+          saleId: sale.id,
+          expectedDraftEventId: sale.lastEventId!,
+        );
+      }
+      String quotationId;
+      LimpiarVentaBorradorCommand? emissionDraft;
+      try {
+        final result =
+            await (widget.cotizacionCommandService ??
+                    getIt<CotizacionCommandService>())
+                .guardar(_quotationIntent!);
+        quotationId = result.quotationId;
+        emissionDraft = LimpiarVentaBorradorCommand(
+          saleId: sale.id,
+          expectedDraftEventId: sale.lastEventId,
+        );
+      } on QuotationAlreadyLinkedException catch (linked) {
+        quotationId = linked.quotationId;
+      }
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => QuotationTicketScreen(
+            quotationId: quotationId,
+            repository: widget.quotationRepository,
+            emissionDraft: emissionDraft,
+            draftCommands: widget.ventaBorradorCommandService,
+          ),
+        ),
+      );
+      // Una consulta posterior se abre como historial, sin limpiar la captura.
+      _quotationIntent = null;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo guardar la cotización. Revisa la captura e intenta nuevamente.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _quoting = false);
+    }
+  });
+
+  Future<void> _openPayment() => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null || sale.items.isEmpty) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => PaymentMethodScreen(
+          totalMinor: sale.totalMinor,
+          saleId: sale.id,
+          expectedDraftEventId: sale.lastEventId,
+        ),
+      ),
+    );
+  });
+
+  final _barcodeClock = Stopwatch()..start();
+  late final _barcodeGate = BarcodeReadGate(clock: () => _barcodeClock.elapsed);
+
+  Future<void> _openBarcodeScanner() => _runAction(() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => SaleBarcodeScannerScreen(
+          productoRepository: widget.productoRepository,
+          saleDraftRepository: _repository,
+          ventaBorradorCommandService: widget.ventaBorradorCommandService,
+          readGate: _barcodeGate,
+        ),
+      ),
+    );
+  });
+
+  @override
+  void dispose() {
+    _barcodeClock.stop();
+    super.dispose();
+  }
+
+  Future<void> _clear() => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null) return;
     setState(() => _clearing = true);
     try {
       await (widget.ventaBorradorCommandService ??
               getIt<VentaBorradorCommandService>())
-          .limpiar(LimpiarVentaBorradorCommand(saleId: sale.id));
+          .limpiar(
+            LimpiarVentaBorradorCommand(
+              saleId: sale.id,
+              expectedDraftEventId: sale.lastEventId,
+            ),
+          );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,10 +246,15 @@ class _CajaScreenState extends State<CajaScreen> {
     } finally {
       if (mounted) setState(() => _clearing = false);
     }
-  }
+  });
 
-  Future<void> _openEditor(SaleDraftItem item) {
-    return showModalBottomSheet<void>(
+  Future<void> _openEditor(String itemId) => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null) return;
+    final items = sale.items.where((item) => item.id == itemId);
+    if (items.isEmpty) return;
+    final item = items.single;
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => DraftItemEditSheet(
@@ -73,7 +265,7 @@ class _CajaScreenState extends State<CajaScreen> {
             getIt<UnidadInventarioRepository>(),
       ),
     );
-  }
+  });
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -81,19 +273,34 @@ class _CajaScreenState extends State<CajaScreen> {
       children: [
         if (getIt.isRegistered<ConfirmedSaleRepository>())
           TextButton.icon(
-            onPressed: () => Navigator.of(context).push<void>(
-              MaterialPageRoute(builder: (_) => const ConfirmedSalesScreen()),
-            ),
+            onPressed: _busy ? null : _openConfirmedSales,
             icon: const Icon(Icons.receipt_long),
             label: const Text('Ventas cobradas'),
           ),
-        ArticleSearchBar(
-          showQuickAdd: false,
-          productoRepository: widget.productoRepository,
-          saleDraftRepository: _repository,
-          ventaBorradorCommandService: widget.ventaBorradorCommandService,
-          onOpenCaja: widget.onOpenCaja,
+        AbsorbPointer(
+          absorbing: _busy,
+          child: ArticleSearchBar(
+            showQuickAdd: false,
+            productoRepository: widget.productoRepository,
+            saleDraftRepository: _repository,
+            ventaBorradorCommandService: widget.ventaBorradorCommandService,
+            onOpenCaja: widget.onOpenCaja,
+            onOpenSearch: _openSearch,
+            onScanBarcode: _busy ? null : _openBarcodeScanner,
+          ),
         ),
+        if (_desktopReader)
+          PhysicalBarcodeReader(
+            key: _physicalReader,
+            interactionEnabled: !_busy,
+            coordinator: SaleBarcodeReadCoordinator(
+              products:
+                  widget.productoRepository ?? getIt<ProductoRepository>(),
+              commands:
+                  widget.ventaBorradorCommandService ??
+                  getIt<VentaBorradorCommandService>(),
+            ),
+          ),
         Expanded(
           child: StreamBuilder<SaleDraft?>(
             stream: _draft,
@@ -136,26 +343,28 @@ class _CajaScreenState extends State<CajaScreen> {
                                     if (i > 0) const Divider(height: 1),
                                     _SaleLine(
                                       item: sale.items[i],
-                                      onEdit: () => _openEditor(sale.items[i]),
+                                      onEdit: _busy
+                                          ? null
+                                          : () => _openEditor(sale.items[i].id),
                                     ),
                                   ],
                                 ],
                               ),
                             ),
                           const SizedBox(height: 8),
-                          const Row(
+                          Row(
                             children: [
-                              Expanded(
+                              const Expanded(
                                 child: OutlinedButton(
                                   onPressed: null,
                                   child: Text('Añadir artículo nuevo'),
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               IconButton.outlined(
-                                onPressed: null,
-                                tooltip: 'Código de barras',
-                                icon: Icon(Icons.qr_code_scanner),
+                                onPressed: _busy ? null : _openBarcodeScanner,
+                                tooltip: 'Escanear código de barras',
+                                icon: const Icon(Icons.barcode_reader),
                               ),
                             ],
                           ),
@@ -206,9 +415,7 @@ class _CajaScreenState extends State<CajaScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           FilledButton.icon(
-                            onPressed: sale == null || _clearing
-                                ? null
-                                : () => _clear(sale),
+                            onPressed: sale == null || _busy ? null : _clear,
                             style: FilledButton.styleFrom(
                               backgroundColor: Theme.of(
                                 context,
@@ -220,20 +427,32 @@ class _CajaScreenState extends State<CajaScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          FilledButton(
-                            onPressed:
-                                sale == null || sale.items.isEmpty || _clearing
-                                ? null
-                                : () => Navigator.of(context).push<void>(
-                                    MaterialPageRoute(
-                                      builder: (_) => PaymentMethodScreen(
-                                        totalMinor: sale.totalMinor,
-                                        saleId: sale.id,
-                                        expectedDraftEventId: sale.lastEventId,
-                                      ),
-                                    ),
-                                  ),
-                            child: Text('Cobrar: $total'),
+                          Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed:
+                                    sale == null ||
+                                        sale.items.isEmpty ||
+                                        sale.lastEventId == null ||
+                                        _busy
+                                    ? null
+                                    : _quote,
+                                icon: const Icon(Icons.request_quote_outlined),
+                                label: Text(
+                                  _quoting ? 'Guardando…' : 'Cotizar',
+                                ),
+                              ),
+                              FilledButton(
+                                onPressed:
+                                    sale == null || sale.items.isEmpty || _busy
+                                    ? null
+                                    : _openPayment,
+                                child: Text('Cobrar: $total'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -252,7 +471,7 @@ class _CajaScreenState extends State<CajaScreen> {
 class _SaleLine extends StatelessWidget {
   const _SaleLine({required this.item, required this.onEdit});
   final SaleDraftItem item;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) => Padding(

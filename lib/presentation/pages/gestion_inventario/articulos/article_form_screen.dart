@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../application/config/app_config_controller.dart';
+import '../../../../domain/repositories/proveedor_repository.dart';
 import '../../../../domain/articulos/nombre_producto.dart';
 import '../../../../domain/articulos/nombre_variante.dart';
+import '../../../../domain/articulos/codigo_barras.dart';
 import '../../../../domain/articulos/costo_estandar.dart';
 import '../../../../domain/articulos/precio_venta.dart';
 import '../../../../domain/articulos/sale_configuration.dart';
@@ -11,6 +14,7 @@ import '../../../../domain/categorias/categoria.dart';
 import '../../../../domain/inventario/dimension_unidad.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
 import '../../../../domain/repositories/recurso_inventario_repository.dart';
+import '../recursos/models/inventory_movement_draft.dart';
 import '../recursos/models/inventory_resource_form_result.dart';
 import 'models/articulo_form_result.dart';
 import 'widgets/advanced_variants_section.dart';
@@ -25,6 +29,9 @@ class ArticleFormScreen extends StatefulWidget {
     this.initialValue,
     this.inventoryResourceRepository,
     this.onCreateInventoryResource,
+    this.onRegisterInventoryMovement,
+    this.proveedorRepository,
+    this.appConfigController,
     super.key,
   });
 
@@ -32,11 +39,18 @@ class ArticleFormScreen extends StatefulWidget {
   final List<UnidadInventario> unidadesVenta;
   final Future<void> Function(ArticuloFormResult result)? onSave;
   final ArticuloFormResult? initialValue;
+  final ProveedorRepository? proveedorRepository;
+  final AppConfigController? appConfigController;
   bool get editing => initialValue != null;
   bool get preview => editing && onSave == null;
   final RecursoInventarioRepository? inventoryResourceRepository;
   final Future<void> Function(InventoryResourceFormResult result)?
   onCreateInventoryResource;
+
+  /// Registra un movimiento sobre el recurso ya vinculado de una variante. Se
+  /// guarda por separado del artículo y no transporta nombre ni unidad.
+  final Future<void> Function(String inventoryItemId, InventoryMovementDraft)?
+  onRegisterInventoryMovement;
 
   @override
   State<ArticleFormScreen> createState() => _ArticleFormScreenState();
@@ -348,6 +362,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             (variant) =>
                 NombreVariante.fromInput(variant.nombre).value != null ||
                 CostoEstandar.fromInput(variant.costoEstandar) != null ||
+                CodigoBarras.fromInput(variant.codigoBarras).value != null ||
                 variant.seguimientoExistencias,
           );
       if (cannotRepresent) {
@@ -405,11 +420,15 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         builder: (context) => VariantEditorScreen(
           initialValue: variants[index],
           preview: widget.preview,
-          editing: widget.editing && variants[index].id != null,
           inventoryUnit: inventoryUnit,
           inventoryUnits: widget.unidadesVenta,
           inventoryResourceRepository: widget.inventoryResourceRepository,
           onCreateInventoryResource: widget.onCreateInventoryResource,
+          onRegisterInventoryMovement: widget.onRegisterInventoryMovement,
+          productName: _nameController.text.trim(),
+          proveedorRepository: widget.proveedorRepository,
+          appConfigController: widget.appConfigController,
+          saleConfiguration: _saleConfiguration,
           canDelete: true,
           isLastVariant: variants.length == 1,
           existingNameKeys: _variantNameKeys(excludingIndex: index),
@@ -452,6 +471,11 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           inventoryUnits: widget.unidadesVenta,
           inventoryResourceRepository: widget.inventoryResourceRepository,
           onCreateInventoryResource: widget.onCreateInventoryResource,
+          onRegisterInventoryMovement: widget.onRegisterInventoryMovement,
+          productName: _nameController.text.trim(),
+          proveedorRepository: widget.proveedorRepository,
+          appConfigController: widget.appConfigController,
+          saleConfiguration: _saleConfiguration,
           canDelete: false,
           existingNameKeys: _variantNameKeys(),
         ),
@@ -488,8 +512,10 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     return (variant.nombre?.trim().isEmpty ?? true) &&
         variant.precioVenta.trim().isEmpty &&
         (variant.costoEstandar?.trim().isEmpty ?? true) &&
+        (variant.codigoBarras?.trim().isEmpty ?? true) &&
         !variant.seguimientoExistencias &&
         !variant.usaReceta &&
+        (variant.proveedores?.isEmpty ?? true) &&
         (variant.existenciaInicial?.trim().isEmpty ?? true);
   }
 
@@ -631,10 +657,15 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (!validSaleUnit) setState(() => _showSaleUnitError = true);
     final variants = _creationMode == _ArticleCreationMode.simple
         ? [
-            ArticuloFormVarianteResult(
+            ArticuloFormVarianteResult.conProveedores(
+              id: _advancedVariants?.firstOrNull?.id,
+              proveedores: _advancedVariants?.firstOrNull?.proveedores,
               nombre: null,
               precioVenta: _priceController.text,
               costoEstandar: null,
+              // El modo Sencillo no captura código de barras; el bloqueo de
+              // `_selectCreationMode` impide llegar aquí con uno puesto.
+              codigoBarras: null,
             ),
           ]
         : List<ArticuloFormVarianteResult>.of(_advancedVariants ?? const []);
@@ -644,12 +675,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     }
     if (!validFields || !validSaleUnit || variantError != null) return;
 
-    final saleConfiguration = _saleMode == SaleMode.unit
-        ? const UnitSaleConfiguration()
-        : MeasuredSaleConfiguration(
-            saleUnitId: _selectedSaleUnit!.id,
-            priceReferenceQuantityAtomic: _selectedSaleUnit!.factorAtomico,
-          );
+    final saleConfiguration = _saleConfiguration;
     setState(() {
       _saving = true;
       _saveError = null;
@@ -676,6 +702,16 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     }
   }
 
+  /// Una edición conserva la cantidad de referencia original del producto.
+  SaleConfiguration get _saleConfiguration =>
+      widget.initialValue?.saleConfiguration ??
+      (_saleMode == SaleMode.unit
+          ? const UnitSaleConfiguration()
+          : MeasuredSaleConfiguration(
+              saleUnitId: _selectedSaleUnit!.id,
+              priceReferenceQuantityAtomic: _selectedSaleUnit!.factorAtomico,
+            ));
+
   String? _validateVariants(List<ArticuloFormVarianteResult> variants) {
     if (variants.isEmpty) return 'Agrega al menos una variante.';
     final nameKeys = <String>{};
@@ -684,6 +720,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         final name = NombreVariante.fromInput(variant.nombre);
         PrecioVenta.fromInput(variant.precioVenta);
         CostoEstandar.fromInput(variant.costoEstandar);
+        CodigoBarras.fromInput(variant.codigoBarras);
         if (variant.seguimientoExistencias) {
           final expectedUnit = _directInventoryUnit;
           if (expectedUnit == null ||
@@ -755,6 +792,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                   variant.nombre != null ||
                   variant.precioVenta.isNotEmpty ||
                   variant.costoEstandar != null ||
+                  variant.codigoBarras != null ||
                   variant.seguimientoExistencias ||
                   variant.usaReceta ||
                   variant.existenciaInicial != null,
@@ -774,6 +812,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           a.nombre != b.nombre ||
           a.precioVenta != b.precioVenta ||
           a.costoEstandar != b.costoEstandar ||
+          a.codigoBarras != b.codigoBarras ||
+          !listEquals(a.proveedores, b.proveedores) ||
           a.inventoryUnitId != b.inventoryUnitId ||
           a.existenciaInicial != b.existenciaInicial ||
           !listEquals(

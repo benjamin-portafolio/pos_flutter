@@ -1,0 +1,16 @@
+name: pos_bluetooth_printer
+description: Minimal Android paired-device SPP transport for POS.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: '>=3.11.4 <4.0.0'
+  flutter: '>=3.41.6'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.pos.printing
+        pluginClass: PosBluetoothPrinterPlugin

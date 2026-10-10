@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,15 +25,25 @@ import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_mana
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
+import 'dart:async';
+import 'package:pos_flutter/application/printing/printer_gateway.dart';
+import 'package:pos_flutter/application/printing/printer_settings_controller.dart';
+import 'package:pos_flutter/application/printing/ticket_print_service.dart';
+import 'package:pos_flutter/presentation/pages/impresoras/printer_settings_screen.dart';
+import '../../../support/fake_printer_gateway.dart';
+import '../../../support/fake_printer_settings_store.dart';
 
 void main() {
   late _FakeSyncDetectionSettingsStore detectionSettingsStore;
   late SyncServerDetectionConfig serverDetectionConfig;
+  late _FakeProductoRepository productoRepository;
 
   setUp(() async {
     await getIt.reset();
     detectionSettingsStore = _FakeSyncDetectionSettingsStore();
     serverDetectionConfig = SyncServerDetectionConfig();
+    productoRepository = _FakeProductoRepository();
+    addTearDown(productoRepository.varianteCounts.close);
     final appConfig = AppConfig.initial.copyWith(
       mode: AppMode.serverSync,
       setupCompleted: true,
@@ -51,11 +62,97 @@ void main() {
     getIt.registerSingleton<SyncOrchestrator>(_FakeSyncOrchestrator());
     getIt.registerSingleton<DatabaseStateReader>(_FakeDatabaseStateReader());
     getIt.registerSingleton<CategoriaRepository>(_FakeCategoriaRepository());
-    getIt.registerSingleton<ProductoRepository>(_FakeProductoRepository());
+    getIt.registerSingleton<ProductoRepository>(productoRepository);
   });
 
   tearDown(() async {
     await getIt.reset();
+  });
+
+  for (final mode in AppMode.values) {
+    testWidgets('Configuracion opens local Impresoras in ${mode.name}', (
+      tester,
+    ) async {
+      getIt<AppConfigController>().update(
+        getIt<AppConfigController>().config.copyWith(mode: mode),
+      );
+      final gateway = FakePrinterGateway();
+      final printers = PrinterSettingsController(FakePrinterSettingsStore());
+      await printers.load();
+      final service = TicketPrintService(gateway);
+      getIt.registerSingleton<PrinterGateway>(gateway);
+      getIt.registerSingleton<PrinterSettingsController>(printers);
+      getIt.registerSingleton<TicketPrintService>(service);
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: SyncSettingsScreen())),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Impresoras'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Impresoras'));
+      await tester.pumpAndSettle();
+      final screen = tester.widget<PrinterSettingsScreen>(
+        find.byType(PrinterSettingsScreen),
+      );
+      expect(screen.controller, same(printers));
+      expect(screen.gateway, same(gateway));
+      expect(screen.printService, same(service));
+      expect(gateway.calls, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+      await printers.dispose();
+      await service.dispose();
+    });
+  }
+
+  testWidgets('ruta del menú espera permiso de navegación y puede denegarse', (
+    tester,
+  ) async {
+    final scaffoldKey = GlobalKey<ScaffoldState>();
+    final gate = Completer<bool>();
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: MenuLateral(
+            beforeNavigate: () {
+              calls++;
+              return gate.future;
+            },
+          ),
+        ),
+      ),
+    );
+    scaffoldKey.currentState!.openDrawer();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Configuracion'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Configuracion'));
+    await tester.pump();
+    expect(calls, 1);
+    expect(find.byType(SyncSettingsPage), findsNothing);
+    expect(scaffoldKey.currentState!.isDrawerOpen, isTrue);
+    gate.complete(false);
+    await tester.pumpAndSettle();
+    expect(find.byType(SyncSettingsPage), findsNothing);
+    expect(scaffoldKey.currentState!.isDrawerOpen, isTrue);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: MenuLateral(beforeNavigate: () async => true),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Configuracion'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SyncSettingsPage), findsOneWidget);
+    expect(scaffoldKey.currentState!.isDrawerOpen, isFalse);
   });
 
   testWidgets('Configuracion opens settings as a full page', (tester) async {
@@ -120,6 +217,59 @@ void main() {
     expect(find.byType(InventoryManagementScreen), findsOneWidget);
     expect(
       find.widgetWithText(AppBar, 'GESTIÓN DEL INVENTARIO'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('el badge de inventarios muestra las variantes dadas de alta', (
+    tester,
+  ) async {
+    final counts = productoRepository.varianteCounts;
+    final scaffoldKey = GlobalKey<ScaffoldState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          key: scaffoldKey,
+          drawer: const MenuLateral(),
+          body: const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    scaffoldKey.currentState!.openDrawer();
+    await tester.pumpAndSettle();
+
+    // El ListView del drawer es lazy: la entrada se construye al hacer scroll.
+    await tester.scrollUntilVisible(
+      find.text('Gestión de inventarios'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    final inventoryTile = find.widgetWithText(
+      ListTile,
+      'Gestión de inventarios',
+    );
+    expect(
+      find.descendant(of: inventoryTile, matching: find.text('0')),
+      findsNothing,
+    );
+
+    counts.add(7);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: inventoryTile, matching: find.text('7')),
+      findsOneWidget,
+    );
+
+    counts.add(1);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: inventoryTile, matching: find.text('1')),
       findsOneWidget,
     );
   });
@@ -351,6 +501,18 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
 class _FakeProductoRepository implements ProductoRepository {
   @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
+  // Un controlador sin oyentes también debe poder cerrarse en tearDown.
+  _FakeProductoRepository()
+    : varianteCounts = StreamController<int>.broadcast();
+
+  /// Emisiones sucesivas del conteo de variantes; cada una rebuilds el badge.
+  final StreamController<int> varianteCounts;
+
+  @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async => null;
 
   @override
@@ -366,4 +528,7 @@ class _FakeProductoRepository implements ProductoRepository {
   }) {
     return Stream.value(const []);
   }
+
+  @override
+  Stream<int> watchVariantesActivasCount() => varianteCounts.stream;
 }

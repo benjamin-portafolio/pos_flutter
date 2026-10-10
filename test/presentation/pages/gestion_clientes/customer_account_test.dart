@@ -112,7 +112,7 @@ void main() {
     final account = await _Account().watchAccount('ana').first;
     final statement = CustomerStatement.build(
       clienteNombre: 'Ana',
-      businessName: 'Miradent',
+      businessName: 'PASTOR',
       account: account,
       sales: const [],
     );
@@ -133,7 +133,7 @@ void main() {
           repository: _Account(),
           clienteRepository: _Clientes(),
           salesRepository: _Sales(const []),
-          businessName: 'Miradent',
+          businessName: 'PASTOR',
         ),
       ),
     );
@@ -169,7 +169,7 @@ void main() {
           repository: _Account(),
           clienteRepository: _Clientes(),
           salesRepository: _Sales(const []),
-          businessName: 'Miradent',
+          businessName: 'PASTOR',
         ),
       ),
     );
@@ -226,7 +226,7 @@ void main() {
           clienteNombre: 'Ana',
           repository: _Account(),
           salesRepository: _Sales(const []),
-          businessName: 'Miradent',
+          businessName: 'PASTOR',
           shareReceipt: (params) {
             requests.add(params);
             return pending.future;
@@ -268,7 +268,7 @@ void main() {
       ]);
       final statement = CustomerStatement.build(
         clienteNombre: 'Ana',
-        businessName: 'Miradent',
+        businessName: 'PASTOR',
         account: account,
         sales: const [],
         operationId: 'a2',

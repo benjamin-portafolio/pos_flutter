@@ -35,13 +35,15 @@ void main() {
         nombre: 'Pan',
         categoriaId: null,
         saleConfiguration: configuration,
-        variantes: const [
+        variantes: [
           VarianteDetalle(
             nombre: null,
             precioVentaMenor: 1001,
             costoEstandarMenor: 0,
             inventoryItemId: 'resource',
             componentesReceta: {},
+            // El cero inicial debe sobrevivir al round-trip del formulario.
+            codigoBarras: '012345678905',
           ),
           VarianteDetalle(
             nombre: 'Especial',
@@ -60,6 +62,8 @@ void main() {
     expect(result.variantes.first.inventoryUnitId, 'kg');
     expect(result.variantes.first.existenciaInicial, isNull);
     expect(result.variantes.last.costoEstandar, isNull);
+    expect(result.variantes.first.codigoBarras, '012345678905');
+    expect(result.variantes.last.codigoBarras, isNull);
     expect(result.variantes.last.recipeComponents.single.quantity, '0.125');
     expect(
       result.variantes.last.recipeComponents.single.resource.nombre,

@@ -12,6 +12,8 @@ class ArticleSearchBar extends StatelessWidget {
     this.saleDraftRepository,
     this.ventaBorradorCommandService,
     this.onOpenCaja,
+    this.onScanBarcode,
+    this.onOpenSearch,
     this.showQuickAdd = true,
     super.key,
   });
@@ -19,6 +21,8 @@ class ArticleSearchBar extends StatelessWidget {
   final SaleDraftRepository? saleDraftRepository;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final VoidCallback? onOpenCaja;
+  final VoidCallback? onScanBarcode;
+  final VoidCallback? onOpenSearch;
   final ProductoRepository? productoRepository;
   final bool showQuickAdd;
 
@@ -33,17 +37,20 @@ class ArticleSearchBar extends StatelessWidget {
             child: TextField(
               readOnly: true,
               showCursor: false,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => ArticleSearchScreen(
-                    saleDraftRepository: saleDraftRepository,
-                    ventaBorradorCommandService: ventaBorradorCommandService,
-                    onOpenCaja: onOpenCaja,
-                    productoRepository:
-                        productoRepository ?? getIt<ProductoRepository>(),
+              onTap:
+                  onOpenSearch ??
+                  () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ArticleSearchScreen(
+                        saleDraftRepository: saleDraftRepository,
+                        ventaBorradorCommandService:
+                            ventaBorradorCommandService,
+                        onOpenCaja: onOpenCaja,
+                        productoRepository:
+                            productoRepository ?? getIt<ProductoRepository>(),
+                      ),
+                    ),
                   ),
-                ),
-              ),
               decoration: InputDecoration(
                 hintText: 'Quiero vender…',
                 prefixIcon: Icon(Icons.search, color: primaryColor),
@@ -57,10 +64,12 @@ class ArticleSearchBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton.outlined(
-            onPressed: null,
-            tooltip: 'Código de barras',
+            onPressed: onScanBarcode,
+            tooltip: onScanBarcode == null
+                ? 'Código de barras'
+                : 'Escanear código de barras',
             disabledColor: primaryColor,
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: const Icon(Icons.barcode_reader),
           ),
           if (showQuickAdd) ...[
             const SizedBox(width: 8),

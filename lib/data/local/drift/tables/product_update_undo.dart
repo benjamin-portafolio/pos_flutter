@@ -12,6 +12,10 @@ class ProductUpdateUndo extends Table {
 
   /// Filas Drift originales (producto, variantes y recetas) serializadas como JSON.
   TextColumn get snapshotJson => text()();
+
+  /// Memoria de variantes serializada como JSON (lista de filas o estado).
+  TextColumn get memoryJson => text().withDefault(const Constant('[]'))();
+
   @override
   Set<Column> get primaryKey => {eventId};
 }

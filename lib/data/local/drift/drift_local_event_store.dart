@@ -10,10 +10,15 @@ import '../../../application/sync/payloads/producto_agregado_borrador_payload.da
 import '../../../application/sync/payloads/producto_actualizado_borrador_payload.dart';
 import '../../../application/sync/payloads/producto_eliminado_borrador_payload.dart';
 import '../../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
+import '../../../application/sync/payloads/cotizacion_guardada_payload.dart';
+import '../../../application/sync/payloads/cotizacion_recuperada_payload.dart';
 import 'app_database.dart';
 
 class DriftLocalEventStore
-    implements LocalEventStore, LocalAtomicEventBatchStore {
+    implements
+        LocalEventStore,
+        LocalAtomicEventBatchStore,
+        LocalTransactionalEventStore {
   DriftLocalEventStore({
     required AppDatabase db,
     required EventDao eventDao,
@@ -27,6 +32,13 @@ class DriftLocalEventStore
        _eventProcessor = eventProcessor,
        _appConfigController = appConfigController,
        _uuid = uuid;
+
+  @override
+  bool get isStandalone => _appConfigController?.mode == AppMode.standalone;
+
+  @override
+  Future<T> runInTransaction<T>(Future<T> Function() action) =>
+      _db.transaction(action);
 
   static const _localPendingSource = 'local_pending';
 
@@ -95,7 +107,13 @@ class DriftLocalEventStore
           ProductoEliminadoBorradorPayload.eventType,
           VentaBorradorLimpiadaPayload.eventType,
         }.contains(event.eventType);
-    if (mode == AppMode.standalone || localDraft) {
+    final localQuotation =
+        event.aggregateType == CotizacionGuardadaPayload.aggregateType &&
+        const {
+          CotizacionGuardadaPayload.eventType,
+          CotizacionRecuperadaPayload.eventType,
+        }.contains(event.eventType);
+    if (mode == AppMode.standalone || localDraft || localQuotation) {
       return event.copyWith(
         applicationStatus: 'applied',
         deliveryStatus: 'not_required',

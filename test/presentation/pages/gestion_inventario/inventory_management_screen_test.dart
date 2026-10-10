@@ -1,3 +1,5 @@
+import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
+import 'package:pos_flutter/application/commands/articulos/producto_inventory_update_result.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 import 'package:pos_flutter/domain/articulos/variante_detalle.dart';
 import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
@@ -62,7 +64,7 @@ void main() {
   ) async {
     final repository = _FakeProductoRepository(
       productoRepository.articulos,
-      detail: const ArticuloDetalle(
+      detail: ArticuloDetalle(
         nombre: 'Café',
         categoriaId: 'category-1',
         saleConfiguration: UnitSaleConfiguration(),
@@ -375,13 +377,43 @@ void main() {
         'Caf',
       );
 
-      await tester.tap(find.byKey(const Key('clear_article_search_button')));
+      // La búsqueda actual conserva sólo la X de cerrar; vaciar el campo
+      // limpia el término mediante el mismo debounce de la captura textual.
+      await tester.enterText(find.byKey(const Key('article_search_field')), '');
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.pump();
 
       expect(repository.queries.last.search, '');
       expect(repository.queries.last.categoryIds, {'category-1'});
     },
   );
+
+  testWidgets('Carga masiva abre su propia pantalla y no toca el catálogo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryManagementScreen(
+          categoriaRepository: categoriaRepository,
+          productoRepository: productoRepository,
+          unidadInventarioRepository: _PreviewUnitRepository(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Agregar'));
+    await tester.pumpAndSettle();
+
+    final lecturasAntes = productoRepository.queries.length;
+    await tester.tap(find.byKey(const Key('bulk_import_option')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bulk_import_screen')), findsOneWidget);
+    expect(find.text('Descargar plantilla'), findsOneWidget);
+    expect(find.text('Elegir archivo CSV'), findsOneWidget);
+    // Abrir la pantalla no da de alta nada: ni una lectura del catálogo de más.
+    expect(productoRepository.queries, hasLength(lecturasAntes));
+  });
 
   testWidgets('abre el menú completo y crea una categoría con color', (
     tester,
@@ -405,6 +437,7 @@ void main() {
     expect(find.text('Añadir modificador'), findsOneWidget);
     expect(find.text('Añadir recurso de inventario'), findsOneWidget);
     expect(find.text('Edición masiva'), findsOneWidget);
+    expect(find.text('Carga masiva'), findsOneWidget);
 
     await tester.tap(find.text('Añadir categoría'));
     await tester.pumpAndSettle();
@@ -901,6 +934,11 @@ class _FakeCategoriaRepository implements CategoriaRepository {
 
 class _FakeProductoRepository implements ProductoRepository {
   @override
+  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
+    String codigo,
+  ) async => const [];
+
+  @override
   Future<ArticuloDetalle?> obtenerDetalle(String productoId) async {
     requestedId = productoId;
     return detail;
@@ -959,12 +997,21 @@ class _FakeProductoRepository implements ProductoRepository {
           .toList(growable: false),
     );
   }
+
+  @override
+  Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
 }
 
 class _FakeInventoryResourceRepository implements RecursoInventarioRepository {
   const _FakeInventoryResourceRepository(this.resources);
 
   final List<RecursoInventarioListado> resources;
+
+  @override
+  Stream<RecursoInventarioListado?> watchRecursoPorId(String id) =>
+      Stream.value(
+        resources.where((resource) => resource.id == id).firstOrNull,
+      );
 
   @override
   Stream<List<RecursoInventarioListado>> watchRecursos({
@@ -1017,19 +1064,23 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
 
 class _FakeProductoCommandService implements ProductoCommandService {
   @override
+  Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) async {}
+
+  @override
   Future<void> eliminarArticulo({
     required String productId,
     required String baseEventId,
   }) async {}
 
   @override
-  Future<void> actualizarArticulo({
+  Future<ProductoInventoryUpdateResult> actualizarArticulo({
     required String productId,
     required String baseEventId,
     required CrearArticuloCommand command,
     required List<String?> variantIds,
   }) async {
     this.command = command;
+    return ProductoInventoryUpdateResult();
   }
 
   CrearArticuloCommand? command;

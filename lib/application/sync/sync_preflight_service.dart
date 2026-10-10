@@ -206,10 +206,12 @@ class SyncPreflightService {
       );
     }
 
-    final events = rawEvents
-        .whereType<Map>()
-        .map((event) => SyncEvent.fromJson(event.cast<String, Object?>()))
-        .toList();
+    final events = rawEvents.map((event) {
+      if (event is! Map) {
+        throw const SyncPreflightException('Evento remoto inválido.');
+      }
+      return SyncEvent.fromJson(event.cast<String, Object?>());
+    }).toList();
 
     return _PreflightResponse(
       events: events,

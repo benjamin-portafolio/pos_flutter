@@ -38,6 +38,12 @@ extension LocalEventStoreBatch on LocalEventStore {
   }
 }
 
+/// Mantiene lectura, preparación y aplicación bajo el mismo límite atómico.
+abstract interface class LocalTransactionalEventStore {
+  bool get isStandalone;
+  Future<T> runInTransaction<T>(Future<T> Function() action);
+}
+
 class LocalEventRef {
   const LocalEventRef({
     required this.refType,

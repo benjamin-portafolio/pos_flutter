@@ -221,7 +221,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('No se pudo guardar el registro. Inténtalo nuevamente.'),
+      find.text('fallo inyectado'),
       findsOneWidget,
     );
     expect(find.text('1200.50'), findsOneWidget);
