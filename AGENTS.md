@@ -173,6 +173,13 @@ para funcionar offline; iOS y macOS declaran el uso de camara y macOS incluye
 el entitlement correspondiente.
 Los dos accesos de codigo de barras de Caja abren `SaleBarcodeScannerScreen`,
 con escaneo continuo, `BarcodeReadGate` y la misma venta persistida que Caja.
+El lector fisico de Caja ofrece asignar codigos desconocidos a una variante
+existente y agregarla a la misma venta. Reutiliza el selector y la confirmacion
+de Inventario, pausa la admision durante el recorrido y conserva la cola.
+Guardar el codigo y agregar a la venta son operaciones separadas: cancelar
+cantidad o fallar al agregar conserva el codigo y lo informa, sin reintento
+automatico. La camara mantiene su comportamiento anterior. Verificacion:
+`test/presentation/pages/caja/physical_barcode_assignment_test.dart`.
 La compuerta temporal conserva pruebas fisicas pendientes de retirada/enfoque;
 no bloquean la integracion (plan de Escaneo en caja, revision 2).
 `ArticleSearchBar` recibe `onScanBarcode` opcional. Articulos no lo proporciona

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../application/commands/articulos/producto_command_service.dart';
 import '../../../application/commands/cotizaciones/cotizacion_command_service.dart';
 import '../../../application/commands/cotizaciones/guardar_cotizacion_command.dart';
 import '../../../application/commands/cotizaciones/quotation_already_linked_exception.dart';
@@ -33,6 +34,7 @@ class CajaScreen extends StatefulWidget {
     this.cotizacionCommandService,
     this.ventaBorradorCommandService,
     this.productoRepository,
+    this.productoCommandService,
     this.unidadInventarioRepository,
     this.onOpenCaja,
     super.key,
@@ -43,6 +45,7 @@ class CajaScreen extends StatefulWidget {
   final CotizacionCommandService? cotizacionCommandService;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final ProductoRepository? productoRepository;
+  final ProductoCommandService? productoCommandService;
   final UnidadInventarioRepository? unidadInventarioRepository;
   final VoidCallback? onOpenCaja;
 
@@ -293,6 +296,12 @@ class CajaScreenState extends State<CajaScreen> {
         if (_physicalReaderAvailable)
           PhysicalBarcodeReader(
             key: _physicalReader,
+            productoRepository:
+                widget.productoRepository ?? getIt<ProductoRepository>(),
+            assignBarcode: (command) =>
+                (widget.productoCommandService ??
+                        getIt<ProductoCommandService>())
+                    .asignarCodigoBarrasVariante(command),
             saleDraftRepository:
                 widget.saleDraftRepository ?? getIt<SaleDraftRepository>(),
             automaticallyEnabled: defaultTargetPlatform != TargetPlatform.macOS,

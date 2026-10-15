@@ -4,7 +4,9 @@ import 'dart:ui' show ViewFocusEvent, ViewFocusState;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../../application/commands/articulos/asignar_codigo_barras_variante_command.dart';
 import '../../../../domain/articulos/variante_por_codigo_barras.dart';
+import '../../../../domain/repositories/producto_repository.dart';
 import '../../../../domain/repositories/sale_draft_repository.dart';
 import '../../articulos/sale_quantity_form_result.dart';
 import '../../articulos/sale_quantity_dialog.dart';
@@ -12,6 +14,8 @@ import 'barcode_product_selection_dialog.dart';
 import 'physical_barcode_finish_dialog.dart';
 import 'physical_barcode_read_admission.dart';
 import 'physical_barcode_reader_controller.dart';
+import 'sale_barcode_assigned_exception.dart';
+import 'sale_barcode_assignment_flow.dart';
 import 'sale_barcode_read_coordinator.dart';
 import 'sale_barcode_read_outcome.dart';
 import 'sale_barcode_read_result.dart';
@@ -22,6 +26,8 @@ class PhysicalBarcodeReader extends StatefulWidget {
   const PhysicalBarcodeReader({
     required this.coordinator,
     required this.saleDraftRepository,
+    required this.productoRepository,
+    required this.assignBarcode,
     this.automaticallyEnabled = false,
     this.interactionEnabled = true,
     super.key,
@@ -29,6 +35,8 @@ class PhysicalBarcodeReader extends StatefulWidget {
 
   final SaleBarcodeReadCoordinator coordinator;
   final SaleDraftRepository saleDraftRepository;
+  final ProductoRepository productoRepository;
+  final Future<void> Function(AsignarCodigoBarrasVarianteCommand) assignBarcode;
   final bool automaticallyEnabled;
   final bool interactionEnabled;
 
@@ -161,6 +169,12 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
           draft: widget.saleDraftRepository.watchCurrentDraft(),
         ),
       ),
+      assignUnknownCode: (code, canContinue) => _showReaderInteraction(
+        () => SaleBarcodeAssignmentFlow(
+          repository: widget.productoRepository,
+          assign: widget.assignBarcode,
+        ).run(context, code, canContinue: canContinue),
+      ),
     );
     _session = session;
     _shownResult = null;
@@ -273,12 +287,20 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
           'La unidad de venta no está disponible.',
         SaleBarcodeReadOutcome.interrupted => 'Lectura interrumpida.',
       };
+      if (result.barcodeAssigned) _notice = 'Código guardado. $_notice';
     }
     if (session.isPaused) _text.clear();
     setState(() {});
   }
 
-  Future<T?> _showReaderDialog<T>(WidgetBuilder builder) async {
+  Future<T?> _showReaderDialog<T>(WidgetBuilder builder) =>
+      _showReaderInteraction(
+        () => showDialog<T>(context: context, builder: builder),
+      );
+
+  /// Mantiene la pausa propia durante toda la selección/confirmación, incluso
+  /// cuando usa rutas completas. Una ruta externa sigue requiriendo reanudar.
+  Future<T?> _showReaderInteraction<T>(Future<T?> Function() show) async {
     final session = _session;
     final generation = _interruptionGeneration;
     if (!mounted || session == null || session.isFinished) return null;
@@ -287,7 +309,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _readerDialogClosed = closed;
     _text.clear();
     try {
-      return await showDialog<T>(context: context, builder: builder);
+      return await show();
     } finally {
       _ownDialogDepth--;
       _readerDialogClosed = null;
@@ -358,10 +380,12 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
           barrierDismissible: false,
           builder: (context) => AlertDialog(
             title: const Text('Error de lectura'),
-            content: const Text(
-              'No se pudo confirmar el agregado. Revisa la venta; '
-              'la lectura fallida no se reintentará. '
-              'Los artículos guardados se conservan.',
+            content: Text(
+              session.error is SaleBarcodeAssignedException
+                  ? SaleBarcodeAssignedException.message
+                  : 'No se pudo confirmar el agregado. Revisa la venta; '
+                        'la lectura fallida no se reintentará. '
+                        'Los artículos guardados se conservan.',
             ),
             actions: [
               TextButton(
@@ -491,12 +515,15 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
             ),
             if (session.error != null)
               Text(
-                'No se pudo agregar el artículo. ${switch (session.error) {
-                  FormatException error => error.message,
-                  StateError error => error.message,
-                  _ => '',
-                }} Reanuda las otras lecturas; '
-                'la intención fallida no se reintentará.',
+                session.error is SaleBarcodeAssignedException
+                    ? '${SaleBarcodeAssignedException.message} '
+                          'Reanuda las otras lecturas.'
+                    : 'No se pudo agregar el artículo. ${switch (session.error) {
+                            FormatException error => error.message,
+                            StateError error => error.message,
+                            _ => '',
+                          }} Reanuda las otras lecturas; '
+                          'la intención fallida no se reintentará.',
               )
             else if (_notice != null)
               Semantics(liveRegion: true, child: Text(_notice!)),

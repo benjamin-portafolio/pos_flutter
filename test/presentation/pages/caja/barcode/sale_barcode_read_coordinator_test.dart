@@ -10,6 +10,7 @@ import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/sale_barcode_read_outcome.dart';
+import 'package:pos_flutter/presentation/pages/caja/barcode/sale_barcode_assigned_exception.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/sale_barcode_read_result.dart';
 
 import '../../../../support/barcode_sale_fixture.dart';
@@ -29,6 +30,7 @@ void main() {
     select,
     Future<SaleQuantityFormResult?> Function(VariantePorCodigoBarras)? quantity,
     void Function()? onSaving,
+    Future<VariantePorCodigoBarras?> Function(String)? assign,
   }) => fixture.coordinator.read(
     code,
     canContinue: canContinue ?? () => true,
@@ -37,6 +39,7 @@ void main() {
     requestQuantity:
         quantity ?? (_) async => throw StateError('Cantidad inesperada'),
     onSaving: onSaving,
+    assignUnknownCode: assign,
   );
 
   for (final mode in AppMode.values) {
@@ -82,6 +85,74 @@ void main() {
     expect(fixture.attempts, isEmpty);
     await fixture.expectNoWrites();
   });
+
+  test('cancelar asignación no agrega ni escribe', () async {
+    final result = await read('999', assign: (_) async => null);
+    expect(result.outcome, SaleBarcodeReadOutcome.selectionCancelled);
+    expect(result.barcodeAssigned, isFalse);
+    await fixture.expectNoWrites();
+  });
+
+  test('respuesta tardía de asignación no agrega en otra sesión', () async {
+    final answer = Completer<VariantePorCodigoBarras?>();
+    var current = true;
+    final operation = read(
+      '999',
+      canContinue: () => current,
+      assign: (_) => answer.future,
+    );
+    final candidate = (await fixture.products.buscarVariantesPorCodigoBarras(
+      '001',
+    )).single;
+    current = false;
+    answer.complete(candidate);
+    expect((await operation).outcome, SaleBarcodeReadOutcome.interrupted);
+    await fixture.expectNoWrites();
+  });
+
+  for (final committed in [false, true]) {
+    test(
+      'fallo de venta tras asignar informa guardado, commit=$committed',
+      () async {
+        Future<void> fail(_) async =>
+            throw StateError('respuesta de venta fallida');
+        if (committed) {
+          fixture.afterSave = fail;
+        } else {
+          fixture.beforeSave = fail;
+        }
+        await expectLater(
+          read(
+            '999',
+            assign: (_) async =>
+                (await fixture.products.buscarVariantesPorCodigoBarras(
+                  '001',
+                )).single,
+          ),
+          throwsA(isA<SaleBarcodeAssignedException>()),
+        );
+        expect(fixture.attempts, hasLength(1));
+        expect(await fixture.draft, committed ? isNotNull : isNull);
+      },
+    );
+  }
+
+  test(
+    'cantidad cancelada tras asignar conserva aviso de código guardado',
+    () async {
+      final result = await read(
+        '999',
+        assign: (_) async =>
+            (await fixture.products.buscarVariantesPorCodigoBarras(
+              '004',
+            )).single,
+        quantity: (_) async => null,
+      );
+      expect(result.barcodeAssigned, isTrue);
+      expect(result.outcome, SaleBarcodeReadOutcome.quantityCancelled);
+      await fixture.expectNoWrites();
+    },
+  );
 
   test('consulta omite producto o variante inactivos', () async {
     await (fixture.db.update(fixture.db.products)

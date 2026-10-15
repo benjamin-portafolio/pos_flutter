@@ -24,15 +24,23 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
       VariantePorCodigoBarras candidate,
     )
     requestQuantity,
+    Future<VariantePorCodigoBarras?> Function(
+      String code,
+      bool Function() canContinue,
+    )?
+    assignUnknownCode,
   }) : _coordinator = coordinator,
        _selectProduct = selectProduct,
-       _requestQuantity = requestQuantity;
+       _requestQuantity = requestQuantity,
+       _assignUnknownCode = assignUnknownCode;
 
   final SaleBarcodeReadCoordinator _coordinator;
   final Future<VariantePorCodigoBarras?> Function(List<VariantePorCodigoBarras>)
   _selectProduct;
   final Future<SaleQuantityFormResult?> Function(VariantePorCodigoBarras)
   _requestQuantity;
+  final Future<VariantePorCodigoBarras?> Function(String, bool Function())?
+  _assignUnknownCode;
   final _queue = Queue<String>();
   final _done = Completer<void>();
   Completer<void>? _resumeSignal;
@@ -186,6 +194,11 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
                 _interact(() => _selectProduct(candidates)),
             requestQuantity: (candidate) =>
                 _interact(() => _requestQuantity(candidate)),
+            assignUnknownCode: _assignUnknownCode == null
+                ? null
+                : (code) => _interact(
+                    () => _assignUnknownCode(code, () => !_terminated),
+                  ),
             onSaving: () {
               _saving = true;
               _notify();

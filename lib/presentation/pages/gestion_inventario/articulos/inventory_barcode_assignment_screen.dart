@@ -13,6 +13,9 @@ class InventoryBarcodeAssignmentScreen extends StatefulWidget {
     required this.code,
     required this.repository,
     required this.assign,
+    this.confirmationLabel,
+    this.alreadyAssignedLabel,
+    this.description,
     super.key,
   });
 
@@ -20,6 +23,9 @@ class InventoryBarcodeAssignmentScreen extends StatefulWidget {
   final String code;
   final ProductoRepository repository;
   final Future<void> Function(AsignarCodigoBarrasVarianteCommand) assign;
+  final String? confirmationLabel;
+  final String? alreadyAssignedLabel;
+  final String? description;
 
   @override
   State<InventoryBarcodeAssignmentScreen> createState() =>
@@ -163,6 +169,10 @@ class _InventoryBarcodeAssignmentScreenState
                   if (current != null) Text('Código actual: $current'),
                 ],
                 Text('Código nuevo: ${widget.code}'),
+                if (widget.description != null) ...[
+                  const SizedBox(height: 16),
+                  Text(widget.description!),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(
@@ -201,10 +211,12 @@ class _InventoryBarcodeAssignmentScreenState
                         : _save,
                     child: Text(
                       same
-                          ? 'Volver al inventario'
-                          : current == null
-                          ? 'Asignar código'
-                          : 'Reemplazar código',
+                          ? widget.alreadyAssignedLabel ??
+                                'Volver al inventario'
+                          : widget.confirmationLabel ??
+                                (current == null
+                                    ? 'Asignar código'
+                                    : 'Reemplazar código'),
                     ),
                   ),
                 TextButton(

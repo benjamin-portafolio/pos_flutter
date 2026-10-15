@@ -9,12 +9,14 @@ class SaleBarcodeReadResult {
     required this.outcome,
     this.candidate,
     this.quantity,
+    this.barcodeAssigned = false,
   });
 
   final String code;
   final SaleBarcodeReadOutcome outcome;
   final VariantePorCodigoBarras? candidate;
   final SaleQuantityFormResult? quantity;
+  final bool barcodeAssigned;
 
   /// Cantidad física revisada para mensajes, cualquiera que sea la fuente.
   String? get measuredQuantity =>

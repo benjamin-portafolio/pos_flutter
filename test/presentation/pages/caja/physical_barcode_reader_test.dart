@@ -458,10 +458,9 @@ void main() {
     await send(tester, '0' * 32);
     await settle(tester);
     expect(f.lookups.last, '0' * 32);
-    expect(
-      find.text('No se encontró un artículo con este código.'),
-      findsOneWidget,
-    );
+    expect(find.text('Código no encontrado'), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await settle(tester);
     await send(tester, '002');
     await settle(tester);
     expect(find.text('Agregado: B · 1 unidad'), findsOneWidget);

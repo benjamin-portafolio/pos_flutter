@@ -217,6 +217,19 @@ resultados tardíos. Se mantienen las referencias en ambos modos, persistidas
 solo en `server_sync`; `standalone` usa `not_required` sin servicios remotos.
 No hay cambios de esquema ni unicidad de barcode.
 
+El lector físico de Caja también ofrece asignar un código desconocido a una
+variante existente. Reutiliza el selector y la confirmación del catálogo, con
+el código actual visible en reemplazos. Tras guardar `producto_actualizado`,
+relee la coincidencia por el identificador de la variante elegida y continúa
+el agregado habitual al mismo borrador; los artículos medidos solicitan cantidad.
+La asignación y el agregado son operaciones separadas: cancelar la cantidad o
+fallar al agregar conserva el código guardado y lo informa, sin reintentar la
+lectura automáticamente. Durante todo el recorrido se suspende la admisión del
+lector, se conserva su cola y se recupera el foco al volver. Una interrupción
+externa exige reanudar antes de continuar la venta. La salida normal espera
+que se resuelva el recorrido y cualquier comando iniciado. La cámara de Caja
+conserva su comportamiento anterior para códigos desconocidos.
+
 La fase 3 cerró la verificación automatizada I01–I19 con SQLite temporal,
 incluido CSV sin códigos y reapertura en ambos modos. La cámara nativa I20
 permanece pendiente; la cámara falsa solo acredita lógica y ciclo de vida
