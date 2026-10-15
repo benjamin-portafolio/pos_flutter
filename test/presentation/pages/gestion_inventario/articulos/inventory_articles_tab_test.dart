@@ -1,3 +1,4 @@
+import '../../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
 
@@ -587,7 +588,7 @@ Future<void> _openAndSelectCategory(
   await tester.pump();
 }
 
-class _FakeProductoRepository implements ProductoRepository {
+class _FakeProductoRepository extends FakeProductoRepository {
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,
@@ -641,7 +642,7 @@ class _FakeProductoRepository implements ProductoRepository {
   Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
 }
 
-class _SequencedProductoRepository implements ProductoRepository {
+class _SequencedProductoRepository extends FakeProductoRepository {
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,

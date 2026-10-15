@@ -293,6 +293,8 @@ class CajaScreenState extends State<CajaScreen> {
         if (_physicalReaderAvailable)
           PhysicalBarcodeReader(
             key: _physicalReader,
+            saleDraftRepository:
+                widget.saleDraftRepository ?? getIt<SaleDraftRepository>(),
             automaticallyEnabled: defaultTargetPlatform != TargetPlatform.macOS,
             interactionEnabled: !_busy,
             coordinator: SaleBarcodeReadCoordinator(

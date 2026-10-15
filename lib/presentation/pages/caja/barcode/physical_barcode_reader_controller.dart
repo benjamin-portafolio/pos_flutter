@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../domain/articulos/codigo_barras.dart';
 import '../../../../domain/articulos/variante_por_codigo_barras.dart';
+import '../../articulos/sale_quantity_form_result.dart';
 import 'physical_barcode_read_admission.dart';
 import 'sale_barcode_read_coordinator.dart';
 import 'sale_barcode_read_result.dart';
@@ -19,7 +20,9 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
       List<VariantePorCodigoBarras> candidates,
     )
     selectProduct,
-    required Future<String?> Function(VariantePorCodigoBarras candidate)
+    required Future<SaleQuantityFormResult?> Function(
+      VariantePorCodigoBarras candidate,
+    )
     requestQuantity,
   }) : _coordinator = coordinator,
        _selectProduct = selectProduct,
@@ -28,7 +31,8 @@ class PhysicalBarcodeReaderController extends ChangeNotifier {
   final SaleBarcodeReadCoordinator _coordinator;
   final Future<VariantePorCodigoBarras?> Function(List<VariantePorCodigoBarras>)
   _selectProduct;
-  final Future<String?> Function(VariantePorCodigoBarras) _requestQuantity;
+  final Future<SaleQuantityFormResult?> Function(VariantePorCodigoBarras)
+  _requestQuantity;
   final _queue = Queue<String>();
   final _done = Completer<void>();
   Completer<void>? _resumeSignal;

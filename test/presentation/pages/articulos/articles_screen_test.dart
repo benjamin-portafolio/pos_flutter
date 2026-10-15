@@ -1,3 +1,4 @@
+import '../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
 
@@ -174,7 +175,7 @@ class _Categories implements CategoriaRepository {
   Future<List<Categoria>> obtenerCategorias() => throw UnimplementedError();
 }
 
-class _Products implements ProductoRepository {
+class _Products extends FakeProductoRepository {
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,

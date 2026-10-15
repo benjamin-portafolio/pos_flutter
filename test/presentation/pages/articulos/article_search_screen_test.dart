@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/ventas/measured_sale_conditions.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
 
@@ -243,6 +244,7 @@ void main() {
     expect(find.text('No hay artículos.'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'café grande');
+    await tester.pump();
     controller.add(_catalog);
     await tester.pumpAndSettle();
     expect(find.text('Grande'), findsOneWidget);
@@ -345,6 +347,7 @@ void main() {
         find.widgetWithText(TextField, 'Cantidad (kg)'),
         '0',
       );
+      await tester.pump();
       await tester.tap(find.text('Agregar'));
       await tester.pumpAndSettle();
       expect(find.text('La cantidad debe ser mayor que cero.'), findsOneWidget);
@@ -358,6 +361,7 @@ void main() {
         find.widgetWithText(TextField, 'Cantidad (kg)'),
         '0.25',
       );
+      await tester.pump();
       await tester.tap(find.text('Agregar'));
       await tester.pumpAndSettle();
       expect(capture.commands.single.measuredQuantity, '0.25');
@@ -418,6 +422,30 @@ Future<void> _pump(
 }
 
 class _Products implements ProductoRepository {
+  @override
+  Future<MeasuredSaleConditions?> obtenerCondicionesVentaMedida(
+    String id,
+  ) async {
+    for (final article in await stream().first) {
+      for (final variant in article.variantesActivas) {
+        if (variant.varianteId == id && article.unidadVenta != null) {
+          return MeasuredSaleConditions(
+            variantId: id,
+            productName: article.nombre,
+            variantName: variant.nombre,
+            unit: article.unidadVenta!,
+            unitPriceMinor: variant.precioVentaMenor,
+            priceReferenceQuantityAtomic:
+                article.cantidadReferenciaPrecioAtomica!,
+            standardCostMinor: variant.costoEstandarMenor,
+            consumptionConfigurationKey: 'none',
+          );
+        }
+      }
+    }
+    return null;
+  }
+
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,

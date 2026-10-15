@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../domain/articulos/variante_por_codigo_barras.dart';
+import '../../../../domain/repositories/sale_draft_repository.dart';
+import '../../articulos/sale_quantity_form_result.dart';
 import '../../articulos/sale_quantity_dialog.dart';
 import 'barcode_product_selection_dialog.dart';
 import 'physical_barcode_finish_dialog.dart';
@@ -19,12 +21,14 @@ import 'sale_barcode_read_result.dart';
 class PhysicalBarcodeReader extends StatefulWidget {
   const PhysicalBarcodeReader({
     required this.coordinator,
+    required this.saleDraftRepository,
     this.automaticallyEnabled = false,
     this.interactionEnabled = true,
     super.key,
   });
 
   final SaleBarcodeReadCoordinator coordinator;
+  final SaleDraftRepository saleDraftRepository;
   final bool automaticallyEnabled;
   final bool interactionEnabled;
 
@@ -150,13 +154,11 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
       selectProduct: (candidates) => _showReaderDialog<VariantePorCodigoBarras>(
         (_) => BarcodeProductSelectionDialog(candidates: candidates),
       ),
-      requestQuantity: (candidate) => _showReaderDialog<String>(
+      requestQuantity: (candidate) => _showReaderDialog<SaleQuantityFormResult>(
         (_) => SaleQuantityDialog(
-          productName: [
-            candidate.nombreProducto,
-            if (candidate.nombreVariante != null) candidate.nombreVariante!,
-          ].join(' · '),
-          unit: candidate.unidadVenta!,
+          loadConditions: () =>
+              widget.coordinator.conditionsFor(candidate.varianteId),
+          draft: widget.saleDraftRepository.watchCurrentDraft(),
         ),
       ),
     );
@@ -262,7 +264,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         SaleBarcodeReadOutcome.added =>
           'Agregado: ${result.candidate!.nombreProducto} · '
               '${result.measuredQuantity ?? "1"} '
-              '${result.candidate!.unidadVenta?.simbolo ?? "unidad"}',
+              '${result.quantity?.displayUnitSymbol ?? "unidad"}',
         SaleBarcodeReadOutcome.notFound =>
           'No se encontró un artículo con este código.',
         SaleBarcodeReadOutcome.selectionCancelled => 'Selección cancelada.',
@@ -488,8 +490,12 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
               ),
             ),
             if (session.error != null)
-              const Text(
-                'No se pudo agregar el artículo. Reanuda las otras lecturas; '
+              Text(
+                'No se pudo agregar el artículo. ${switch (session.error) {
+                  FormatException error => error.message,
+                  StateError error => error.message,
+                  _ => '',
+                }} Reanuda las otras lecturas; '
                 'la intención fallida no se reintentará.',
               )
             else if (_notice != null)

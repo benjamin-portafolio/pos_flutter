@@ -3,6 +3,8 @@ import '../../../../application/commands/ventas/venta_borrador_command_service.d
 import '../../../../domain/articulos/sale_configuration.dart';
 import '../../../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../../../domain/repositories/producto_repository.dart';
+import '../../../../domain/ventas/measured_sale_conditions.dart';
+import '../../articulos/sale_quantity_form_result.dart';
 import 'sale_barcode_read_outcome.dart';
 import 'sale_barcode_read_result.dart';
 
@@ -19,6 +21,9 @@ class SaleBarcodeReadCoordinator {
   final ProductoRepository _products;
   final VentaBorradorCommandService _commands;
 
+  Future<MeasuredSaleConditions?> conditionsFor(String variantId) =>
+      _products.obtenerCondicionesVentaMedida(variantId);
+
   Future<SaleBarcodeReadResult> read(
     String code, {
     required bool Function() canContinue,
@@ -26,7 +31,9 @@ class SaleBarcodeReadCoordinator {
       List<VariantePorCodigoBarras> candidates,
     )
     selectProduct,
-    required Future<String?> Function(VariantePorCodigoBarras candidate)
+    required Future<SaleQuantityFormResult?> Function(
+      VariantePorCodigoBarras candidate,
+    )
     requestQuantity,
     Future<void> Function()? waitUntilReady,
     void Function()? onSaving,
@@ -35,12 +42,12 @@ class SaleBarcodeReadCoordinator {
     SaleBarcodeReadResult result(
       SaleBarcodeReadOutcome outcome, {
       VariantePorCodigoBarras? candidate,
-      String? quantity,
+      SaleQuantityFormResult? quantity,
     }) => SaleBarcodeReadResult(
       code: code,
       outcome: outcome,
       candidate: candidate,
-      measuredQuantity: quantity,
+      quantity: quantity,
     );
 
     if (!canContinue()) return result(SaleBarcodeReadOutcome.interrupted);
@@ -58,7 +65,7 @@ class SaleBarcodeReadCoordinator {
       return result(SaleBarcodeReadOutcome.selectionCancelled);
     }
 
-    String? quantity;
+    SaleQuantityFormResult? quantity;
     final unit = candidate.unidadVenta;
     if (candidate.saleConfiguration is MeasuredSaleConfiguration) {
       if (unit == null || !unit.activa) {
@@ -86,11 +93,8 @@ class SaleBarcodeReadCoordinator {
     if (!canContinue()) return result(SaleBarcodeReadOutcome.interrupted);
     onCommandStarted?.call();
     await _commands.agregar(
-      AgregarProductoBorradorCommand(
-        variantId: candidate.varianteId,
-        measuredQuantity: quantity,
-        expectedUnitId: unit?.id,
-      ),
+      quantity?.toCommand(candidate.varianteId) ??
+          AgregarProductoBorradorCommand(variantId: candidate.varianteId),
     );
     return result(
       SaleBarcodeReadOutcome.added,

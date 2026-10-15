@@ -1,3 +1,4 @@
+import '../../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
 
@@ -21,7 +22,6 @@ import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
-import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/carga_masiva/bulk_import_screen.dart';
 import 'package:share_plus/share_plus.dart';
@@ -586,7 +586,7 @@ class _FakeCategoriaRepository implements CategoriaRepository {
   ];
 }
 
-class _FakeProductoRepository implements ProductoRepository {
+class _FakeProductoRepository extends FakeProductoRepository {
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,

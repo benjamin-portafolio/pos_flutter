@@ -376,13 +376,17 @@ void main() {
     expect(await db.select(db.eventRefs).get(), isEmpty);
   });
 
-  Future<void> measured({int price = 20000, int reference = 1000}) async {
+  Future<void> measured({
+    int price = 20000,
+    int reference = 1000,
+    String unitId = InventoryUnitIds.kilogram,
+  }) async {
     await db
         .update(db.products)
         .write(
           ProductsCompanion(
             saleMode: const Value('measured'),
-            saleUnitId: Value(InventoryUnitIds.kilogram),
+            saleUnitId: Value(unitId),
             priceReferenceQuantityAtomic: Value(reference),
           ),
         );
@@ -397,6 +401,378 @@ void main() {
       expectedUnitId: InventoryUnitIds.kilogram,
     ),
   );
+
+  AgregarProductoBorradorCommand byAmount({
+    int amount = 2000,
+    int price = 6000,
+    int reference = 1000,
+    String unitId = InventoryUnitIds.kilogram,
+  }) => AgregarProductoBorradorCommand(
+    variantId: 'coffee',
+    targetAmountMinor: amount,
+    expectedUnitId: unitId,
+    expectedUnitPriceMinor: price,
+    expectedPriceReferenceQuantityAtomic: reference,
+  );
+
+  Future<void> rejectsWithoutWrites(
+    Future<void> Function() action,
+    Matcher error,
+  ) async {
+    Future<List<Object>> state() async => [
+      await db.select(db.sales).get(),
+      await db.select(db.saleItems).get(),
+      await db.select(db.events).get(),
+      await db.select(db.eventRefs).get(),
+      await db.select(db.inventoryMovements).get(),
+    ];
+    final before = await state();
+    await expectLater(action(), error);
+    expect(await state(), before);
+  }
+
+  for (final mode in AppMode.values) {
+    group('importe objetivo en ${mode.name}', () {
+      setUp(() {
+        config.dispose();
+        config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+      });
+
+      for (final (unitId, code, price, reference, amount, atomic, total) in [
+        (InventoryUnitIds.kilogram, 'kg', 6000, 1000, 2000, 334, 2004),
+        (InventoryUnitIds.gram, 'g', 6000, 1000, 2000, 334, 2004),
+        (InventoryUnitIds.kilogram, 'kg', 8000, 1000, 2000, 250, 2000),
+        (InventoryUnitIds.gram, 'g', 1200, 100, 2000, 167, 2004),
+        (InventoryUnitIds.liter, 'l', 4000, 1000, 1500, 375, 1500),
+        (InventoryUnitIds.milliliter, 'ml', 4000, 1000, 1500, 375, 1500),
+        (InventoryUnitIds.kilogram, 'kg', 6000, 1000, 1, 1, 6),
+        (InventoryUnitIds.gram, 'g', 3, 2, 1, 1, 2),
+      ]) {
+        test('$amount a $price por $reference átomos, unidad $code', () async {
+          await measured(price: price, reference: reference, unitId: unitId);
+          await service().agregar(
+            byAmount(
+              amount: amount,
+              price: price,
+              reference: reference,
+              unitId: unitId,
+            ),
+          );
+          final sale = (await db.select(db.sales).get()).single;
+          final line = (await db.saleDao.items(sale.id)).single;
+          expect(line.snapshot.measuredQuantityAtomic, atomic);
+          expect(line.snapshot.quantity, isNull);
+          expect(line.snapshot.unitPriceMinor, price);
+          expect(line.snapshot.priceReferenceQuantityAtomic, reference);
+          expect(line.snapshot.unitCode, code);
+          expect(
+            line.snapshot.unitAtomicFactor,
+            ['kg', 'l'].contains(code) ? 1000 : 1,
+          );
+          expect(line.snapshot.totalMinor, total);
+          expect(sale.totalMinor, total);
+          final event = (await db.select(db.events).get()).single;
+          expect(event.eventType, ProductoAgregadoBorradorPayload.eventType);
+          expect(event.deliveryStatus, 'not_required');
+          expect(event.applicationStatus, 'applied');
+          final payload = jsonDecode(event.payload) as Map<String, dynamic>;
+          expect(payload, {
+            'sale_item_id': line.id,
+            'sort_order': 0,
+            ...line.snapshot.toJson(),
+          });
+          expect(
+            ProductoAgregadoBorradorPayload.fromJson(payload).toJson(),
+            payload,
+          );
+          final refs = await db.select(db.eventRefs).get();
+          if (mode == AppMode.standalone) {
+            expect(refs, isEmpty);
+          } else {
+            expect(
+              refs.map((ref) => (ref.refType, ref.refId, ref.relationship)),
+              unorderedEquals([
+                ('sale', sale.id, 'affects'),
+                ('sale_item', line.id, 'affects'),
+                ('product', 'product', 'uses'),
+                ('product_variant', 'coffee', 'uses'),
+                ('unit', unitId, 'uses'),
+              ]),
+            );
+          }
+          expect(await db.eventDao.obtenerEventosPendientes(), isEmpty);
+          expect(await db.select(db.inventoryMovements).get(), isEmpty);
+        });
+      }
+
+      test('acumula 668 g y 4008 centavos; replay no duplica', () async {
+        await measured(price: 6000);
+        await service().agregar(byAmount());
+        await service().agregar(byAmount());
+        final sale = (await db.select(db.sales).get()).single;
+        final originalLine = (await db.select(db.saleItems).get()).single;
+        expect(originalLine.measuredQuantityAtomic, 668);
+        expect(originalLine.totalMinor, 4008);
+        final records = await db.select(db.events).get();
+        expect(records, hasLength(2));
+        expect(
+          records.every((event) => event.deliveryStatus == 'not_required'),
+          isTrue,
+        );
+        for (final record in [records.first, records.last, records.last]) {
+          await handler.apply(eventFrom(record));
+        }
+        expect((await db.select(db.saleItems).get()).single, originalLine);
+        expect((await db.select(db.sales).get()).single, sale);
+        expect(await db.select(db.events).get(), records);
+      });
+
+      test(
+        'mezcla peso e importe y redondea solo la cantidad acumulada',
+        () async {
+          await measured(price: 1, reference: 3);
+          await weigh('0.001');
+          expect((await db.select(db.saleItems).get()).single.totalMinor, 0);
+          await service().agregar(byAmount(amount: 1, price: 1, reference: 3));
+          var line = (await db.select(db.saleItems).get()).single;
+          expect(line.measuredQuantityAtomic, 4);
+          expect(line.totalMinor, 1);
+          await service().agregar(byAmount(amount: 2, price: 1, reference: 3));
+          line = (await db.select(db.saleItems).get()).single;
+          expect(line.measuredQuantityAtomic, 10);
+          expect(line.totalMinor, 3);
+          expect((await db.select(db.sales).get()).single.totalMinor, 3);
+        },
+      );
+
+      test('exige una fuente y condiciones esperadas completas', () async {
+        await measured(price: 6000);
+        for (final command in [
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            expectedUnitId: InventoryUnitIds.kilogram,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            measuredQuantity: '0.3',
+            targetAmountMinor: 2000,
+            expectedUnitId: InventoryUnitIds.kilogram,
+            expectedUnitPriceMinor: 6000,
+            expectedPriceReferenceQuantityAtomic: 1000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            targetAmountMinor: 2000,
+            expectedUnitPriceMinor: 6000,
+            expectedPriceReferenceQuantityAtomic: 1000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            targetAmountMinor: 2000,
+            expectedUnitId: InventoryUnitIds.kilogram,
+            expectedPriceReferenceQuantityAtomic: 1000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            targetAmountMinor: 2000,
+            expectedUnitId: InventoryUnitIds.kilogram,
+            expectedUnitPriceMinor: 6000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            measuredQuantity: '0.3',
+            expectedUnitId: InventoryUnitIds.kilogram,
+            expectedUnitPriceMinor: 6000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            measuredQuantity: '0.3',
+            expectedUnitId: InventoryUnitIds.kilogram,
+            expectedPriceReferenceQuantityAtomic: 1000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            measuredQuantity: '0.3',
+            expectedUnitPriceMinor: 6000,
+            expectedPriceReferenceQuantityAtomic: 1000,
+          ),
+          const AgregarProductoBorradorCommand(
+            variantId: 'coffee',
+            measuredQuantity: ' ',
+            expectedUnitId: InventoryUnitIds.kilogram,
+          ),
+        ]) {
+          await rejectsWithoutWrites(
+            () => service().agregar(command),
+            throwsFormatException,
+          );
+        }
+        expect(await db.select(db.events).get(), isEmpty);
+        expect(await db.select(db.sales).get(), isEmpty);
+      });
+
+      test('rechaza importes inválidos y excedentes sin escrituras', () async {
+        await measured(price: 6000);
+        for (final amount in [0, -1, SaleItemSnapshot.maxInteger + 1]) {
+          await rejectsWithoutWrites(
+            () => service().agregar(byAmount(amount: amount)),
+            throwsFormatException,
+          );
+        }
+        await measured(price: 1, reference: SaleItemSnapshot.maxInteger);
+        await rejectsWithoutWrites(
+          () => service().agregar(
+            byAmount(
+              amount: SaleItemSnapshot.maxInteger,
+              price: 1,
+              reference: SaleItemSnapshot.maxInteger,
+            ),
+          ),
+          throwsFormatException,
+        );
+        await measured(price: 2, reference: 1);
+        await rejectsWithoutWrites(
+          () => service().agregar(
+            byAmount(
+              amount: SaleItemSnapshot.maxInteger,
+              price: 2,
+              reference: 1,
+            ),
+          ),
+          throwsFormatException,
+        );
+      });
+
+      for (final captureAmount in [true, false]) {
+        for (final change in ['price', 'reference', 'unit']) {
+          test(
+            'rechaza $change obsoleto por ${captureAmount ? 'importe' : 'peso'}',
+            () async {
+              await measured(price: 6000);
+              await service().agregar(byAmount());
+              final command = captureAmount
+                  ? byAmount()
+                  : const AgregarProductoBorradorCommand(
+                      variantId: 'coffee',
+                      measuredQuantity: '0.333',
+                      expectedUnitId: InventoryUnitIds.kilogram,
+                      expectedUnitPriceMinor: 6000,
+                      expectedPriceReferenceQuantityAtomic: 1000,
+                    );
+              if (change == 'price') {
+                await (db.update(
+                  db.productVariants,
+                )..where((t) => t.id.equals('coffee'))).write(
+                  const ProductVariantsCompanion(salePriceMinor: Value(8000)),
+                );
+              } else if (change == 'reference') {
+                await db
+                    .update(db.products)
+                    .write(
+                      const ProductsCompanion(
+                        priceReferenceQuantityAtomic: Value(100),
+                      ),
+                    );
+              } else {
+                await db
+                    .update(db.products)
+                    .write(
+                      const ProductsCompanion(
+                        saleUnitId: Value(InventoryUnitIds.gram),
+                      ),
+                    );
+              }
+              await rejectsWithoutWrites(
+                () => service().agregar(command),
+                throwsStateError,
+              );
+            },
+          );
+        }
+      }
+
+      test(
+        'captura manual acepta condiciones completas y normaliza texto',
+        () async {
+          await measured(price: 6000);
+          await service().agregar(
+            const AgregarProductoBorradorCommand(
+              variantId: ' coffee ',
+              measuredQuantity: ' 0,333 ',
+              expectedUnitId: ' ${InventoryUnitIds.kilogram} ',
+              expectedUnitPriceMinor: 6000,
+              expectedPriceReferenceQuantityAtomic: 1000,
+            ),
+          );
+          final line = (await db.select(db.saleItems).get()).single;
+          expect(line.measuredQuantityAtomic, 333);
+          expect(line.totalMinor, 1998);
+        },
+      );
+
+      test(
+        'piezas rechazan importe o condiciones medidas; legado funciona',
+        () async {
+          for (final command in [
+            byAmount(),
+            const AgregarProductoBorradorCommand(
+              variantId: 'coffee',
+              targetAmountMinor: 2000,
+            ),
+            const AgregarProductoBorradorCommand(
+              variantId: 'coffee',
+              expectedUnitPriceMinor: 3500,
+            ),
+            const AgregarProductoBorradorCommand(
+              variantId: 'coffee',
+              expectedPriceReferenceQuantityAtomic: 1,
+            ),
+          ]) {
+            await rejectsWithoutWrites(
+              () => service().agregar(command),
+              throwsStateError,
+            );
+          }
+          await add();
+          expect((await db.select(db.saleItems).get()).single.quantity, 1);
+        },
+      );
+
+      test('valida contexto y refs antes de escribir en ambos modos', () async {
+        await measured(price: 6000);
+        await rejectsWithoutWrites(
+          () => service(user: ' ').agregar(byAmount()),
+          throwsStateError,
+        );
+        await rejectsWithoutWrites(
+          () => service(device: '').agregar(byAmount()),
+          throwsStateError,
+        );
+      });
+
+      test(
+        'BigInt admite límite seguro y rechaza acumulación fuera de rango',
+        () async {
+          const max = SaleItemSnapshot.maxInteger;
+          await measured(price: max, reference: max);
+          await service().agregar(
+            byAmount(amount: max, price: max, reference: max),
+          );
+          expect(
+            (await db.select(db.saleItems).get()).single.measuredQuantityAtomic,
+            max,
+          );
+          expect((await db.select(db.sales).get()).single.totalMinor, max);
+          await rejectsWithoutWrites(
+            () => service().agregar(
+              byAmount(amount: 1, price: max, reference: max),
+            ),
+            throwsFormatException,
+          );
+        },
+      );
+    });
+  }
 
   test(
     'cantidad medida usa snapshot y redondea una vez sobre la cantidad acumulada',

@@ -29,6 +29,8 @@ class ConfirmedSaleRepositoryImpl implements ConfirmedSaleRepository {
             SaleDraftItem(
               id: l.id,
               variantId: l.snapshot.variantId,
+              consumptionConfigurationKey:
+                  l.snapshot.consumptionConfigurationKey,
               productName: l.snapshot.productName,
               variantName: l.snapshot.variantName,
               quantity: l.snapshot.quantity,

@@ -1,3 +1,4 @@
+import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_form_result.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,8 @@ void main() {
   late PhysicalBarcodeReaderController reader;
   late Future<VariantePorCodigoBarras?> Function(List<VariantePorCodigoBarras>)
   select;
-  late Future<String?> Function(VariantePorCodigoBarras) quantity;
+  late Future<SaleQuantityFormResult?> Function(VariantePorCodigoBarras)
+  quantity;
   late List<SaleBarcodeReadOutcome> outcomes;
 
   setUp(() async {
@@ -215,7 +217,7 @@ void main() {
   test(
     'cancelar cantidad conserva lo aceptado y no crea evento medido',
     () async {
-      final dialog = Completer<String?>();
+      final dialog = Completer<SaleQuantityFormResult?>();
       quantity = (_) => dialog.future;
       reader.activate();
       accept('004');
@@ -237,14 +239,14 @@ void main() {
   test(
     'pausa externa durante diálogo requiere reanudación explícita',
     () async {
-      final dialog = Completer<String?>();
+      final dialog = Completer<SaleQuantityFormResult?>();
       quantity = (_) => dialog.future;
       reader.activate();
       accept('004');
       accept('001');
       await fixture.waitFor(() => reader.isPaused);
       reader.pause();
-      dialog.complete('0.750');
+      dialog.complete(measuredBarcodeResult('0.750'));
       await Future<void>.delayed(Duration.zero);
       expect(fixture.attempts, isEmpty);
       expect(reader.isPaused, isTrue);
@@ -478,7 +480,7 @@ void main() {
       'respuesta de diálogo tras terminar no agrega, medida=$measured',
       () async {
         final selection = Completer<VariantePorCodigoBarras?>();
-        final amount = Completer<String?>();
+        final amount = Completer<SaleQuantityFormResult?>();
         select = (_) => selection.future;
         quantity = (_) => amount.future;
         reader.activate();
@@ -487,7 +489,7 @@ void main() {
         await fixture.waitFor(() => reader.isPaused);
         final finished = reader.finish(discardPending: true);
         if (measured) {
-          amount.complete('0.750');
+          amount.complete(measuredBarcodeResult('0.750'));
         } else {
           selection.complete(
             (await fixture.products.buscarVariantesPorCodigoBarras(

@@ -1,3 +1,4 @@
+import '../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_inventory_update_result.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
@@ -26,7 +27,6 @@ import 'package:pos_flutter/domain/inventario/inventory_resource_filter.dart';
 import 'package:pos_flutter/domain/inventario/recurso_inventario_listado.dart';
 import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
-import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/domain/repositories/recurso_inventario_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/inventory_categories_tab.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/categorias/widgets/inventory_category_card.dart';
@@ -932,7 +932,7 @@ class _FakeCategoriaRepository implements CategoriaRepository {
   Stream<List<Categoria>> watchCategorias() => Stream.value(categorias);
 }
 
-class _FakeProductoRepository implements ProductoRepository {
+class _FakeProductoRepository extends FakeProductoRepository {
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,

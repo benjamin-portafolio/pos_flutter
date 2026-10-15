@@ -14,6 +14,7 @@ import '../caja/models/sale_draft_display.dart';
 import '../gestion_inventario/categorias/category_color_palette.dart';
 import 'models/article_search_item.dart';
 import 'sale_quantity_dialog.dart';
+import 'sale_quantity_form_result.dart';
 
 class ArticleSearchScreen extends StatefulWidget {
   const ArticleSearchScreen({
@@ -53,16 +54,15 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
     _focusNode.unfocus();
     try {
       final unit = item.article.unidadVenta;
-      String? amount;
+      SaleQuantityFormResult? amount;
       if (unit != null) {
-        amount = await showDialog<String>(
+        amount = await showDialog<SaleQuantityFormResult>(
           context: context,
           builder: (_) => SaleQuantityDialog(
-            productName: [
-              item.article.nombre,
-              if (item.variant.nombre != null) item.variant.nombre!,
-            ].join(' · '),
-            unit: unit,
+            loadConditions: () => widget.productoRepository
+                .obtenerCondicionesVentaMedida(item.variant.varianteId),
+            draft: (widget.saleDraftRepository ?? getIt<SaleDraftRepository>())
+                .watchCurrentDraft(),
           ),
         );
         if (amount == null || !mounted) return;
@@ -70,11 +70,10 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
       await (widget.ventaBorradorCommandService ??
               getIt<VentaBorradorCommandService>())
           .agregar(
-            AgregarProductoBorradorCommand(
-              variantId: item.variant.varianteId,
-              measuredQuantity: amount,
-              expectedUnitId: unit?.id,
-            ),
+            amount?.toCommand(item.variant.varianteId) ??
+                AgregarProductoBorradorCommand(
+                  variantId: item.variant.varianteId,
+                ),
           );
       if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
     } on FormatException catch (error) {

@@ -322,7 +322,11 @@ void main() {
         await settle(tester);
         expect(find.byType(BarcodeProductSelectionDialog), findsNothing);
         expect(find.byType(SaleQuantityDialog), findsOneWidget);
-        await tester.enterText(find.byType(TextField), '0.125');
+        await tester.enterText(
+          find.byKey(const ValueKey('sale-measured-quantity')),
+          '0.125',
+        );
+        await tester.pump();
         await tester.tap(find.text('Agregar'));
         await settle(tester);
         await emit(tester, ['003']);
@@ -458,6 +462,93 @@ void main() {
     },
   );
 
+  scannerTest('importe en cámara conserva intención, pausa y acumulación', (
+    tester,
+  ) async {
+    await fixture.db.productoDao.actualizarVariante(
+      'M',
+      const ProductVariantsCompanion(salePriceMinor: Value(6000)),
+    );
+    await open(tester);
+    for (var i = 0; i < 2; i++) {
+      if (i > 0) {
+        await emit(tester, ['004']); // Base fresca tras reanudar cámara.
+        now += const Duration(milliseconds: 1100);
+      }
+      await emit(tester, ['004']);
+      expect(camera.stops, greaterThan(0));
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-target-amount')),
+        '20',
+      );
+      await tester.pump();
+      expect(find.text(r'Cobro por esta cantidad: $20.04'), findsOneWidget);
+      if (i > 0) {
+        expect(
+          find.text(r'Línea acumulada prevista: 0.668 kg · $40.08'),
+          findsOneWidget,
+        );
+      }
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+    }
+    expect(fixture.commands.attempts, hasLength(2));
+    expect(
+      fixture.commands.attempts.every(
+        (c) => c.targetAmountMinor == 2000 && c.measuredQuantity == null,
+      ),
+      isTrue,
+    );
+    expect((await sale(tester))!.totalMinor, 4008);
+    expect((await sale(tester))!.items.single.measuredQuantityAtomic, 668);
+  });
+
+  scannerTest(
+    'precio obsoleto por importe no escribe; reabrir muestra nuevo cobro',
+    (tester) async {
+      await open(tester);
+      await emit(tester, ['004']);
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-target-amount')),
+        '20',
+      );
+      await tester.pump();
+      await tester.runAsync(
+        () => fixture.db.productoDao.actualizarVariante(
+          'M',
+          const ProductVariantsCompanion(salePriceMinor: Value(6000)),
+        ),
+      );
+      await tester.tap(find.text('Agregar'));
+      await settle(tester);
+      expect(
+        find.textContaining('El precio o su referencia cambió'),
+        findsOneWidget,
+      );
+      await expectNoWrites(tester);
+      await emit(tester, ['004']); // Base fresca tras reanudar cámara.
+      now += const Duration(milliseconds: 1100);
+      await emit(tester, ['004']);
+      expect(find.text(r'Precio: $60.00 / 1 kg'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('sale-target-amount')))
+            .controller!
+            .text,
+        isEmpty,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-target-amount')),
+        '20',
+      );
+      await tester.pump();
+      expect(find.text(r'Cobro por esta cantidad: $20.04'), findsOneWidget);
+      await tester.tap(find.text('Agregar'));
+      await settle(tester);
+      expect((await sale(tester))!.totalMinor, 2004);
+    },
+  );
+
   scannerTest(
     'venta medida valida y convierte la cantidad con expectedUnitId',
     (tester) async {
@@ -465,11 +556,19 @@ void main() {
       await emit(tester, ['004']);
       expect(find.byType(SaleQuantityDialog), findsOneWidget);
       expect(find.text('Café a granel · Medio'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), '0');
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-measured-quantity')),
+        '0',
+      );
+      await tester.pump();
       await tester.tap(find.text('Agregar'));
       await tester.pump();
       expect(fixture.commands.attempts, isEmpty);
-      await tester.enterText(find.byType(TextField), '0.750');
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-measured-quantity')),
+        '0.750',
+      );
+      await tester.pump();
       await tester.tap(find.text('Agregar'));
       await settle(tester);
       final command = fixture.commands.attempts.single;
@@ -513,7 +612,11 @@ void main() {
           const ProductsCompanion(saleUnitId: Value(InventoryUnitIds.gram)),
         ),
       );
-      await tester.enterText(find.byType(TextField), '0.750');
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-measured-quantity')),
+        '0.750',
+      );
+      await tester.pump();
       await tester.tap(find.text('Agregar'));
       await settle(tester);
       expect(find.textContaining('La unidad de venta cambió'), findsOneWidget);
@@ -538,7 +641,11 @@ void main() {
       await settle(tester);
       expect(fixture.commands.attempts, isEmpty);
       await expectNoWrites(tester);
-      await tester.enterText(find.byType(TextField), '0.125');
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-measured-quantity')),
+        '0.125',
+      );
+      await tester.pump();
       await tester.tap(find.text('Agregar'));
       await settle(tester);
       await emit(tester, ['004']);
@@ -1089,7 +1196,11 @@ void main() {
   ) async {
     await open(tester);
     await emit(tester, ['004']);
-    await tester.enterText(find.byType(TextField), '0.750');
+    await tester.enterText(
+      find.byKey(const ValueKey('sale-measured-quantity')),
+      '0.750',
+    );
+    await tester.pump();
     await tester.tap(find.text('Agregar'));
     await settle(tester);
     await tester.runAsync(
@@ -1102,7 +1213,11 @@ void main() {
     await emit(tester, ['004']);
     now += const Duration(milliseconds: 1100);
     await emit(tester, ['004']);
-    await tester.enterText(find.byType(TextField), '750');
+    await tester.enterText(
+      find.byKey(const ValueKey('sale-measured-quantity')),
+      '750',
+    );
+    await tester.pump();
     await tester.tap(find.text('Agregar'));
     await settle(tester);
     final draft = (await sale(tester))!;

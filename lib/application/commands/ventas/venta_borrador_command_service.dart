@@ -4,6 +4,7 @@ import '../../../domain/articulos/sale_configuration.dart';
 import '../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../domain/inventario/unidad_inventario.dart';
 import '../../../domain/repositories/unidad_inventario_repository.dart';
+import '../../../domain/ventas/measured_sale_calculator.dart';
 import '../../../domain/ventas/sale_status.dart';
 import '../../sync/local_event_store.dart';
 import '../../sync/models/sync_event.dart';
@@ -264,7 +265,12 @@ class VentaBorradorCommandService {
     final unit = config is MeasuredSaleConfiguration
         ? await units.obtenerUnidadPorId(config.saleUnitId)
         : null;
-    final atomic = _readMeasuredQuantity(command, config, unit);
+    final atomic = _readMeasuredQuantity(
+      command,
+      config,
+      unit,
+      variant.precioVentaMenor,
+    );
     final snapshot = SaleItemSnapshot(
       variantId: variant.id,
       consumptionConfigurationKey: await products.consumptionConfigurationKey(
@@ -293,25 +299,63 @@ class VentaBorradorCommandService {
     AgregarProductoBorradorCommand command,
     SaleConfiguration config,
     UnidadInventario? unit,
+    int unitPriceMinor,
   ) {
-    int? atomic;
     if (config is MeasuredSaleConfiguration) {
-      if (unit == null || !unit.activa || command.expectedUnitId != unit.id) {
+      if ((command.measuredQuantity == null) ==
+          (command.targetAmountMinor == null)) {
+        throw const FormatException(
+          'Ingresa una cantidad o un importe, solo uno.',
+        );
+      }
+      final hasExpectedPrice =
+          command.expectedUnitPriceMinor != null ||
+          command.expectedPriceReferenceQuantityAtomic != null;
+      if ((command.targetAmountMinor != null || hasExpectedPrice) &&
+          (command.expectedUnitId == null ||
+              command.expectedUnitId!.trim().isEmpty ||
+              command.expectedUnitPriceMinor == null ||
+              command.expectedPriceReferenceQuantityAtomic == null)) {
+        throw const FormatException(
+          'La captura requiere unidad, precio y referencia esperados.',
+        );
+      }
+      if (unit == null ||
+          !unit.activa ||
+          command.expectedUnitId?.trim() != unit.id) {
         throw StateError(
           'La unidad de venta cambió o no está disponible. Vuelve a seleccionar el artículo.',
         );
       }
-      atomic = const InventoryQuantityCodec().parsePositiveAtomic(
-        command.measuredQuantity ?? '',
+      if (hasExpectedPrice &&
+          (command.expectedUnitPriceMinor != unitPriceMinor ||
+              command.expectedPriceReferenceQuantityAtomic !=
+                  config.priceReferenceQuantityAtomic)) {
+        throw StateError(
+          'El precio o su referencia cambió. Vuelve a seleccionar el artículo.',
+        );
+      }
+      if (command.targetAmountMinor case final amount?) {
+        return const MeasuredSaleCalculator().quantityAtomicForAmount(
+          targetAmountMinor: amount,
+          unitPriceMinor: unitPriceMinor,
+          priceReferenceQuantityAtomic: config.priceReferenceQuantityAtomic,
+        );
+      }
+      return const InventoryQuantityCodec().parsePositiveAtomic(
+        command.measuredQuantity!,
         unit,
       );
     } else if (command.measuredQuantity != null ||
-        command.expectedUnitId != null) {
+        command.targetAmountMinor != null ||
+        command.expectedUnitId != null ||
+        command.expectedUnitPriceMinor != null ||
+        command.expectedPriceReferenceQuantityAtomic != null) {
       throw StateError(
         'El modo de venta cambió. Vuelve a seleccionar el artículo.',
       );
     }
-    return atomic;
+    return null;
   }
 
   ProductoAgregadoBorradorPayload _buildDraftLine(

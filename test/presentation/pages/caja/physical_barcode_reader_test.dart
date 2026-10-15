@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show ViewFocusEvent, ViewFocusState, ViewFocusDirection;
 
-import 'package:drift/drift.dart' show DatabaseConnection;
+import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -332,6 +332,7 @@ void main() {
       );
       expect(tester.testTextInput.isVisible, isTrue);
       await tester.enterText(find.byKey(inputKey), '002');
+      await tester.pump();
       await tester.tap(find.byKey(inputKey));
       await tester.pump();
       expect(field(tester).controller!.text, '002');
@@ -361,6 +362,7 @@ void main() {
       );
       await settle(tester);
       await tester.enterText(find.byType(TextField), '001');
+      await tester.pump();
       expect(
         tester.testTextInput.setClientArgs!['inputType']['name'],
         'TextInputType.text',
@@ -373,9 +375,10 @@ void main() {
       await settle(tester);
       final quantity = find.descendant(
         of: find.byType(SaleQuantityDialog),
-        matching: find.byType(TextField),
+        matching: find.byKey(const ValueKey('sale-measured-quantity')),
       );
       await tester.enterText(quantity, '0.500');
+      await tester.pump();
       expect(
         tester.testTextInput.setClientArgs!['inputType']['name'],
         'TextInputType.number',
@@ -391,6 +394,7 @@ void main() {
       await settle(tester);
       expect(find.byType(CashPaymentScreen), findsOneWidget);
       await tester.enterText(find.byType(TextField), '200');
+      await tester.pump();
       expect(
         tester.testTextInput.setClientArgs!['inputType']['name'],
         'TextInputType.number',
@@ -506,10 +510,11 @@ void main() {
         await tester.enterText(
           find.descendant(
             of: find.byType(SaleQuantityDialog),
-            matching: find.byType(TextField),
+            matching: find.byKey(const ValueKey('sale-measured-quantity')),
           ),
           '0.750',
         );
+        await tester.pump();
       }
       await tester.tap(find.text(cancel ? 'Cancelar' : 'Agregar'));
       await settle(tester);
@@ -556,6 +561,7 @@ void main() {
     await pumpCaja(tester);
     await enable(tester);
     await tester.enterText(find.byKey(inputKey), '00');
+    await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
     expect(field(tester).focusNode!.hasFocus, isFalse);
@@ -578,6 +584,7 @@ void main() {
         await pumpCaja(tester);
         await enable(tester);
         await tester.enterText(find.byKey(inputKey), '00');
+        await tester.pump();
         if (window) {
           focusWindow(tester, false);
         } else {
@@ -621,6 +628,7 @@ void main() {
     await settle(tester);
     expect(find.byType(ArticleSearchScreen), findsOneWidget);
     await tester.enterText(find.byType(TextField), '001');
+    await tester.pump();
     await enter(tester);
     await settle(tester);
     expect(f.attempts, isEmpty);
@@ -997,6 +1005,96 @@ void main() {
     },
   );
 
+  readerTest('importe cede foco, conserva objetivo y vuelve al lector', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => f.db.productoDao.actualizarVariante(
+        'M',
+        const ProductVariantsCompanion(salePriceMinor: Value(6000)),
+      ),
+    );
+    await pumpCaja(tester);
+    await enable(tester);
+    for (var i = 0; i < 2; i++) {
+      await send(tester, '004');
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isFalse);
+      final money = find.byKey(const ValueKey('sale-target-amount'));
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(of: money, matching: find.byType(EditableText)),
+            )
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
+      await tester.enterText(money, '20');
+      await tester.pump();
+      expect(find.text(r'Cobro por esta cantidad: $20.04'), findsOneWidget);
+      if (i > 0) {
+        expect(
+          find.text(r'Línea acumulada prevista: 0.668 kg · $40.08'),
+          findsOneWidget,
+        );
+      }
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+    }
+    expect(f.attempts, hasLength(2));
+    expect(
+      f.attempts.every(
+        (c) => c.targetAmountMinor == 2000 && c.measuredQuantity == null,
+      ),
+      isTrue,
+    );
+    expect((await tester.runAsync(() => f.draft))!.totalMinor, 4008);
+  });
+
+  readerTest(
+    'importe obsoleto pausa sin escrituras y permite revisar antes de reintentar',
+    (tester) async {
+      await pumpCaja(tester);
+      await enable(tester);
+      await send(tester, '004');
+      await settle(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-target-amount')),
+        '20',
+      );
+      await tester.pump();
+      await tester.runAsync(
+        () => f.db.productoDao.actualizarVariante(
+          'M',
+          const ProductVariantsCompanion(salePriceMinor: Value(6000)),
+        ),
+      );
+      await tester.tap(find.text('Agregar'));
+      await settle(tester);
+      expect(
+        find.textContaining('El precio o su referencia cambió'),
+        findsOneWidget,
+      );
+      await tester.runAsync(f.expectNoWrites);
+      await tester.tap(find.text('Reanudar lector'));
+      await settle(tester);
+      await send(tester, '004');
+      await settle(tester);
+      expect(find.text(r'Precio: $60.00 / 1 kg'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('sale-target-amount')),
+        '20',
+      );
+      await tester.pump();
+      expect(find.text(r'Cobro por esta cantidad: $20.04'), findsOneWidget);
+      await tester.tap(find.text('Agregar'));
+      await settle(tester);
+      expect((await tester.runAsync(() => f.draft))!.totalMinor, 2004);
+    },
+  );
+
   readerTest('pausa externa durante cantidad no se reanuda al cerrar diálogo', (
     tester,
   ) async {
@@ -1011,10 +1109,11 @@ void main() {
     await tester.enterText(
       find.descendant(
         of: find.byType(SaleQuantityDialog),
-        matching: find.byType(TextField),
+        matching: find.byKey(const ValueKey('sale-measured-quantity')),
       ),
       '0.500',
     );
+    await tester.pump();
     await tester.tap(find.text('Agregar'));
     await settle(tester);
     expect(f.attempts, isEmpty);

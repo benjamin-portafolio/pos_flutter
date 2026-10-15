@@ -1,3 +1,5 @@
+import '../../../domain/ventas/measured_sale_calculator.dart';
+
 /// Datos capturados de una línea. Los cambios de catálogo no los reescriben.
 class SaleItemSnapshot {
   SaleItemSnapshot({
@@ -54,7 +56,7 @@ class SaleItemSnapshot {
     totalMinor; // Valida también el rango del importe calculado.
   }
 
-  static const maxInteger = 9007199254740991;
+  static const maxInteger = MeasuredSaleCalculator.maxInteger;
   final String variantId;
   final String? consumptionConfigurationKey;
   final String productName;
@@ -70,6 +72,13 @@ class SaleItemSnapshot {
   final int? unitAtomicFactor;
 
   int get totalMinor {
+    if (saleMode == 'measured') {
+      return const MeasuredSaleCalculator().totalMinor(
+        unitPriceMinor: unitPriceMinor,
+        quantityAtomic: measuredQuantityAtomic!,
+        priceReferenceQuantityAtomic: priceReferenceQuantityAtomic!,
+      );
+    }
     final numerator =
         BigInt.from(unitPriceMinor) *
         BigInt.from(quantity ?? measuredQuantityAtomic!);

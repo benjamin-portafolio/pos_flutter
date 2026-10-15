@@ -9,6 +9,7 @@ class SaleDraftItem {
     required this.measuredQuantityAtomic,
     required this.unitPriceMinor,
     this.standardCostMinor,
+    this.consumptionConfigurationKey,
     required this.priceReferenceQuantityAtomic,
     required this.unitCode,
     required this.unitSymbol,
@@ -18,6 +19,10 @@ class SaleDraftItem {
 
   final String id;
   final String variantId;
+
+  /// Configuración de consumo capturada; participa en la agrupación de líneas.
+  /// Null conserva la ausencia explícita en snapshots legados.
+  final String? consumptionConfigurationKey;
   final String productName;
   final String? variantName;
   final int? quantity;

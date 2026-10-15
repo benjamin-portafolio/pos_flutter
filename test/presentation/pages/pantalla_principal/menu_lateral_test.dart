@@ -1,3 +1,4 @@
+import '../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
@@ -499,7 +500,7 @@ class _FakeCategoriaRepository implements CategoriaRepository {
   Stream<List<Categoria>> watchCategorias() => Stream.value(const []);
 }
 
-class _FakeProductoRepository implements ProductoRepository {
+class _FakeProductoRepository extends FakeProductoRepository {
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
     String codigo,

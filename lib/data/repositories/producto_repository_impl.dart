@@ -1,3 +1,4 @@
+import '../../domain/ventas/measured_sale_conditions.dart';
 import '../../domain/articulos/proveedor_variante.dart';
 import '../local/drift/drift_producto_projection_store.dart';
 import '../../domain/articulos/articulo_listado.dart';
@@ -20,6 +21,34 @@ class ProductoRepositoryImpl implements ProductoRepository {
     : _productoDao = productoDao;
 
   final drift.ProductoDao _productoDao;
+
+  @override
+  Future<MeasuredSaleConditions?> obtenerCondicionesVentaMedida(
+    String variantId,
+  ) => _productoDao.attachedDatabase.transaction(() async {
+    final variant = await _productoDao.obtenerVariantePorId(variantId);
+    if (variant == null || !variant.active) return null;
+    final product = await _productoDao.obtenerProductoPorId(variant.productId);
+    if (product == null || !product.active || product.saleMode != 'measured') {
+      return null;
+    }
+    final unit = await _productoDao.attachedDatabase.unitDao.obtenerUnidadPorId(
+      product.saleUnitId!,
+    );
+    if (unit == null || !unit.active) return null;
+    return MeasuredSaleConditions(
+      variantId: variant.id,
+      productName: product.name,
+      variantName: variant.name,
+      unit: _toUnit(unit),
+      unitPriceMinor: variant.salePriceMinor,
+      priceReferenceQuantityAtomic: product.priceReferenceQuantityAtomic!,
+      standardCostMinor: variant.standardCostMinor,
+      consumptionConfigurationKey: await DriftProductoProjectionStore(
+        productoDao: _productoDao,
+      ).consumptionConfigurationKey(variant.id),
+    );
+  });
 
   @override
   Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(

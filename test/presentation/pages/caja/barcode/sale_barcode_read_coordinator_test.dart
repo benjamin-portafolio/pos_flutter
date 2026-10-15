@@ -1,3 +1,4 @@
+import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_form_result.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -26,7 +27,7 @@ void main() {
     bool Function()? canContinue,
     Future<VariantePorCodigoBarras?> Function(List<VariantePorCodigoBarras>)?
     select,
-    Future<String?> Function(VariantePorCodigoBarras)? quantity,
+    Future<SaleQuantityFormResult?> Function(VariantePorCodigoBarras)? quantity,
     void Function()? onSaving,
   }) => fixture.coordinator.read(
     code,
@@ -119,7 +120,7 @@ void main() {
       '004',
       quantity: (candidate) async {
         expect(candidate.unidadVenta!.simbolo, 'kg');
-        return '0.750';
+        return measuredBarcodeResult('0.750');
       },
     );
     expect(result.outcome, SaleBarcodeReadOutcome.added);
@@ -155,7 +156,7 @@ void main() {
           )..where((row) => row.id.equals('product-M'))).write(
             const ProductsCompanion(saleUnitId: Value(InventoryUnitIds.gram)),
           );
-          return '0.750';
+          return measuredBarcodeResult('0.750');
         },
       ),
       throwsStateError,

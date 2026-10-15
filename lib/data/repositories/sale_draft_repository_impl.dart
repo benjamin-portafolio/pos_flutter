@@ -29,6 +29,7 @@ class SaleDraftRepositoryImpl implements SaleDraftRepository {
                 SaleDraftItem(
                   id: item.id,
                   variantId: item.variantId,
+                  consumptionConfigurationKey: item.consumptionConfigurationKey,
                   productName: item.productNameSnapshot,
                   variantName: item.variantNameSnapshot,
                   quantity: item.quantity,

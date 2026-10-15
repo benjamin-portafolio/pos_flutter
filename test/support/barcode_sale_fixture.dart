@@ -1,3 +1,4 @@
+import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_form_result.dart';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -168,3 +169,14 @@ class _Commands extends VentaBorradorCommandService {
     await fixture.afterSave?.call(command);
   }
 }
+
+SaleQuantityFormResult measuredBarcodeResult(String text) =>
+    SaleQuantityFormResult(
+      measuredQuantity: text,
+      targetAmountMinor: null,
+      expectedUnitId: InventoryUnitIds.kilogram,
+      expectedUnitPriceMinor: 20000,
+      expectedPriceReferenceQuantityAtomic: 1000,
+      displayQuantity: text,
+      displayUnitSymbol: 'kg',
+    );
