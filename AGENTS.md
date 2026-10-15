@@ -177,3 +177,11 @@ La compuerta temporal conserva pruebas fisicas pendientes de retirada/enfoque;
 no bloquean la integracion (plan de Escaneo en caja, revision 2).
 `ArticleSearchBar` recibe `onScanBarcode` opcional. Articulos no lo proporciona
 y conserva su lector deshabilitado y su busqueda textual.
+Gestion del inventario ofrece un lector sobre `+` solo en Articulos. Reutiliza
+`BarcodeScannerScreen`: una coincidencia abre edicion y destaca la variante;
+varias requieren elegir; sin coincidencias ofrece seleccionar una variante y
+confirmar asignacion o reemplazo. El comando `AsignarCodigoBarrasVarianteCommand`
+guarda solo ese barcode mediante `producto_actualizado`, con la base confirmada.
+No agrega lineas de venta ni movimientos. La verificacion automatizada I01-I19
+esta cerrada; la prueba fisica I20 sigue pendiente por decision del usuario.
+Evidencia y limites: `docs/testing/inventory_barcode_verification.md`.

@@ -29,6 +29,7 @@ import '../../sync/payloads/recurso_inventario_creado_payload.dart';
 import '../../sync/projections/categoria_projection_store.dart';
 import '../../sync/projections/inventory_projection_store.dart';
 import '../../sync/synced_event_history.dart';
+import 'asignar_codigo_barras_variante_command.dart';
 import 'crear_articulo_command.dart';
 import 'crear_articulo_variante_command.dart';
 import '../../sync/payloads/producto_actualizado_payload.dart';
@@ -120,6 +121,94 @@ class ProductoCommandService {
     ),
   );
 
+  Future<void> asignarCodigoBarrasVariante(
+    AsignarCodigoBarrasVarianteCommand command,
+  ) => _runInTransaction(() => _asignarCodigoBarrasVariante(command));
+
+  Future<void> _asignarCodigoBarrasVariante(
+    AsignarCodigoBarrasVarianteCommand command,
+  ) async {
+    final codigo = CodigoBarras.fromInput(command.codigoBarras).value;
+    if (codigo == null) {
+      throw ArgumentError.value(
+        command.codigoBarras,
+        'codigoBarras',
+        'El código de barras es obligatorio.',
+      );
+    }
+    final product = await _obtenerBaseEdicion(command.productId);
+    if (product.lastEventId != command.baseEventId) {
+      throw StateError('El artículo cambió. Vuelve a abrirlo.');
+    }
+    final variant = await _productoProjectionStore!.findVariantById(
+      command.variantId,
+    );
+    if (variant == null || !variant.active) {
+      throw StateError('La variante no está disponible.');
+    }
+    if (variant.productoId != product.id) {
+      throw StateError('La variante pertenece a otro artículo.');
+    }
+
+    // Conservar también el desconocimiento legado de proveedores: esta
+    // intención no edita ni promueve sus conjuntos a listas vacías.
+    final before = await _productoProjectionStore.snapshot(product.id);
+    final selected = before.variantes.singleWhere(
+      (v) => v.id == command.variantId,
+    );
+    if (selected.codigoBarras == codigo) return;
+
+    final variants = [
+      for (final v in before.variantes)
+        if (v.id != selected.id)
+          v
+        else
+          ProductoCreadoVariante.create(
+            id: v.id,
+            nombre: v.nombre,
+            codigoBarras: codigo,
+            precioVentaMenor: v.precioVentaMenor,
+            costoEstandarMenor: v.costoEstandarMenor,
+            inventoryItemId: v.inventoryItemId,
+            componentesReceta: v.componentesReceta,
+            proveedores: v.proveedores,
+            orden: v.orden,
+          ),
+    ];
+    final after = ProductoCreadoPayload.create(
+      nombre: before.nombre,
+      categoriaId: before.categoriaId,
+      saleConfiguration: before.saleConfiguration,
+      variantes: variants,
+      dependenciaCategoria: before.categoriaId == null
+          ? null
+          : await _categoryDependency(before.categoriaId!),
+      dependenciasInventario: [
+        for (final dependency in before.dependenciasInventario)
+          ProductoCreadoInventarioDependencia(
+            refId: dependency.refId,
+            dependsOnEventId: await _pendingCreationDependency(
+              dependency.refId,
+            ),
+          ),
+      ],
+      dependenciasProveedores: await _supplierDependencies(variants),
+    );
+    final payload = ProductoActualizadoPayload(
+      baseEventId: command.baseEventId,
+      before: before,
+      after: after,
+    );
+    await _eventStore.appendAndApply(
+      await _updateEvent(product, payload),
+      refs: _buildArticleRefs(
+        productId: product.id,
+        payload: after,
+        updatePayload: payload,
+      ),
+    );
+  }
+
   Future<T> _runInTransaction<T>(Future<T> Function() action) {
     final store = _eventStore;
     return store is LocalTransactionalEventStore
@@ -152,23 +241,10 @@ class ProductoCommandService {
       before: before,
       after: article.payload,
     );
-    final event = SyncEvent(
+    final event = await _updateEvent(
+      product,
+      payload,
       eventId: article.eventId,
-      aggregateType: ProductoActualizadoPayload.aggregateType,
-      aggregateId: article.productId,
-      eventType: ProductoActualizadoPayload.eventType,
-      deviceId: _commandContext.deviceId,
-      userId: _commandContext.userId,
-      baseVersion: product.version,
-      baseServerSequence:
-          (await _syncedEventHistory.eventById(
-                product.lastEventId!,
-              ))?.deliveryStatus ==
-              'pending'
-          ? null
-          : product.lastServerSequence,
-      createdAtLocal: DateTime.now(),
-      payload: payload.toJson(),
     );
     await _appendArticulo(article, event, updatePayload: payload);
     final store = _eventStore;
@@ -263,24 +339,7 @@ class ProductoCommandService {
       deleteProduct: true,
     );
     await _eventStore.appendAndApply(
-      SyncEvent(
-        eventId: _uuid.v4(),
-        aggregateType: ProductoActualizadoPayload.aggregateType,
-        aggregateId: productId,
-        eventType: ProductoActualizadoPayload.eventType,
-        deviceId: _commandContext.deviceId,
-        userId: _commandContext.userId,
-        baseVersion: product.version,
-        baseServerSequence:
-            (await _syncedEventHistory.eventById(
-                  product.lastEventId!,
-                ))?.deliveryStatus ==
-                'pending'
-            ? null
-            : product.lastServerSequence,
-        createdAtLocal: DateTime.now(),
-        payload: payload.toJson(),
-      ),
+      await _updateEvent(product, payload),
       refs: [
         LocalEventRef.affects(refType: 'product', refId: productId),
         for (final v in variants) ...[
@@ -291,6 +350,29 @@ class ProductoCommandService {
       ],
     );
   }
+
+  Future<SyncEvent> _updateEvent(
+    ProductoProjection product,
+    ProductoActualizadoPayload payload, {
+    String? eventId,
+  }) async => SyncEvent(
+    eventId: eventId ?? _uuid.v4(),
+    aggregateType: ProductoActualizadoPayload.aggregateType,
+    aggregateId: product.id,
+    eventType: ProductoActualizadoPayload.eventType,
+    deviceId: _commandContext.deviceId,
+    userId: _commandContext.userId,
+    baseVersion: product.version,
+    baseServerSequence:
+        (await _syncedEventHistory.eventById(
+              payload.baseEventId,
+            ))?.deliveryStatus ==
+            'pending'
+        ? null
+        : product.lastServerSequence,
+    createdAtLocal: DateTime.now(),
+    payload: payload.toJson(),
+  );
 
   Future<void> crearArticulo(CrearArticuloCommand command) =>
       _runInTransaction(() => _crearArticulo(command));

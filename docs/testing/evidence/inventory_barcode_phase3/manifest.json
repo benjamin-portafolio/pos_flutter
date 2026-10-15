@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-15",
+  "head": "d4e66bb",
+  "scope": "Archivos previos de fases 1 y 2. Comparacion con baseline capturado al iniciar fase 3; no es un hash historico de fase 2.",
+  "unchanged_during_phase3": {
+    "lib/application/commands/articulos/asignar_codigo_barras_variante_command.dart": "dca14780f76acde4102bd62d8a34b3ada88c18a7cac18465ebf37976220025c9",
+    "lib/application/commands/articulos/producto_command_service.dart": "c34448b843171979a4906f6b355a11685e4db0a28253de4c59c0ccd8b38f7798",
+    "lib/presentation/pages/gestion_inventario/articulos/article_form_screen.dart": "51285ed74149437ce56e6e6928432da83122b932a17c633be3c78ae655500035",
+    "lib/presentation/pages/gestion_inventario/articulos/inventory_barcode_assignment_screen.dart": "f5d8605aa7e955738621c9e7a5a6f584629b48c62575d048206f75057f9e3d23",
+    "lib/presentation/pages/gestion_inventario/articulos/inventory_barcode_flow_screen.dart": "ceade00d823918eb058c1feb273b22af1c84e7df54d733ae19765f9f35d7367b",
+    "lib/presentation/pages/gestion_inventario/articulos/inventory_barcode_matches_dialog.dart": "f8bf4f47a3529f40b90eeb359fc20d4dbda4be9b7318bb893ea96a580b31be32",
+    "lib/presentation/pages/gestion_inventario/articulos/inventory_barcode_variant_selector.dart": "b1741cb4a7be8b726be80bf9cbdeffa932cf427469964670d66da2fa72bcc476",
+    "lib/presentation/pages/gestion_inventario/articulos/widgets/advanced_variants_section.dart": "336c079a3124a5336f3ee46bf61d0a593a3caedb00f75450d335ec2f5dc80a52",
+    "lib/presentation/pages/gestion_inventario/inventory_management_screen.dart": "4762549a5c083ec115b743317f0f97a5e1145a57ae329a67302776cee3bddcfe",
+    "test/application/commands/articulos/asignar_codigo_barras_variante_test.dart": "367d0cfea47eeeec670137534e4af846c52bbf91f26209eeab960521a8f9a2f4",
+    "test/presentation/pages/gestion_inventario/inventory_management_screen_test.dart": "a9cd8d21cbf80286baef69f79ea3ba0f9cc6245730c36fbca3dfc83aac21908e"
+  },
+  "changed_tests_during_phase3": {
+    "test/presentation/pages/gestion_inventario/articulos/inventory_barcode_flow_test.dart": {
+      "initial": "ed7c600ed769e4bd935eaf5e5ee1c8debe95977cd9beb4662ac03870c270c943",
+      "final": "9063efe94faf38d2af54623b22cfc840838330c85fe67ab0798fab91a7b6d531"
+    },
+    "test/support/inventory_barcode_fixture.dart": {
+      "initial": "06d2a898a707f768540962f974a5e6f966d0f9efd572f05309403be1e813cd10",
+      "final": "84d437c5bc8fd93abdf60c348482ada74d3b24e59cb3baef29863c93efe0d04b"
+    }
+  },
+  "reused_phase2_logs": {
+    "/tmp/pos_flutter_barcode_phase2_analyze.log": {
+      "sha256": "647c0365bc804adf3eb128df7629b74b9b1cfe6ac56a0a04d7220f882242b155"
+    },
+    "/tmp/pos_flutter_barcode_phase2_contract.log": {
+      "sha256": "5624c27811736806b3250564814e80b5c3ef1c6ffabe823c5a91efcd4e37edfe"
+    },
+    "/tmp/pos_flutter_barcode_phase2_navigation.log": {
+      "sha256": "7bcfb1e24c036f59430f32ae5048db167b2a4c0518de533629321aa773a53646"
+    },
+    "/tmp/pos_flutter_barcode_phase2_full_test.log": {
+      "sha256": "3d09e8487c264945159699c832441715cc10212016a46e4039f07c6ec114e419"
+    }
+  },
+  "phase3_logs": {
+    "navigation.log": "96ba689fd24ef4eecfa24f1afa32551fc6a29e16664598d7c0a70dd7dfba3de5",
+    "analyze.log": "647c0365bc804adf3eb128df7629b74b9b1cfe6ac56a0a04d7220f882242b155"
+  }
+}

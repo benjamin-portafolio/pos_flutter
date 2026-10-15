@@ -16,6 +16,7 @@ import 'package:pos_flutter/application/commands/categorias/editar_categoria_com
 import 'package:pos_flutter/application/commands/categorias/eliminar_categoria_command.dart';
 import 'package:pos_flutter/application/commands/categorias/mover_categoria_command.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
+import 'package:pos_flutter/application/commands/articulos/asignar_codigo_barras_variante_command.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
@@ -1063,6 +1064,11 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
 }
 
 class _FakeProductoCommandService implements ProductoCommandService {
+  @override
+  Future<void> asignarCodigoBarrasVariante(
+    AsignarCodigoBarrasVarianteCommand command,
+  ) => throw StateError('Esta prueba no debe asignar códigos de barras.');
+
   @override
   Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) async {}
 

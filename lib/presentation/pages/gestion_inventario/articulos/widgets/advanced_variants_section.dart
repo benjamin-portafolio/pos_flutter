@@ -7,6 +7,8 @@ import '../models/articulo_form_result.dart';
 class AdvancedVariantsSection extends StatelessWidget {
   const AdvancedVariantsSection({
     required this.variants,
+    this.highlightedVariantId,
+    this.highlightedVariantKey,
     this.preview = false,
     this.allowAdd = true,
     required this.enabled,
@@ -19,6 +21,8 @@ class AdvancedVariantsSection extends StatelessWidget {
   });
 
   final List<ArticuloFormVarianteResult> variants;
+  final String? highlightedVariantId;
+  final GlobalKey? highlightedVariantKey;
   final bool preview;
   final bool allowAdd;
   final bool enabled;
@@ -35,18 +39,28 @@ class AdvancedVariantsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var index = 0; index < variants.length; index++) ...[
-          _VariantDraftCard(
-            key: Key('article_variant_card_$index'),
-            variant: variants[index],
-            preview: preview,
-            enabled: enabled,
-            onTap: () => onEdit(index),
-            onMoveUp: enabled && !preview && index > 0
-                ? () => onMoveUp(index)
+          KeyedSubtree(
+            key:
+                highlightedVariantId != null &&
+                    variants[index].id == highlightedVariantId
+                ? highlightedVariantKey
                 : null,
-            onMoveDown: enabled && !preview && index < variants.length - 1
-                ? () => onMoveDown(index)
-                : null,
+            child: _VariantDraftCard(
+              key: Key('article_variant_card_$index'),
+              variant: variants[index],
+              highlighted:
+                  highlightedVariantId != null &&
+                  variants[index].id == highlightedVariantId,
+              preview: preview,
+              enabled: enabled,
+              onTap: () => onEdit(index),
+              onMoveUp: enabled && !preview && index > 0
+                  ? () => onMoveUp(index)
+                  : null,
+              onMoveDown: enabled && !preview && index < variants.length - 1
+                  ? () => onMoveDown(index)
+                  : null,
+            ),
           ),
           const SizedBox(height: 10),
         ],
@@ -74,6 +88,7 @@ class AdvancedVariantsSection extends StatelessWidget {
 class _VariantDraftCard extends StatelessWidget {
   const _VariantDraftCard({
     required this.variant,
+    required this.highlighted,
     required this.preview,
     required this.enabled,
     required this.onTap,
@@ -83,6 +98,7 @@ class _VariantDraftCard extends StatelessWidget {
   });
 
   final ArticuloFormVarianteResult variant;
+  final bool highlighted;
   final bool preview;
   final bool enabled;
   final VoidCallback onTap;
@@ -99,6 +115,7 @@ class _VariantDraftCard extends StatelessWidget {
         : 'Sin costo estándar';
     return Card(
       margin: EdgeInsets.zero,
+      color: highlighted ? colorScheme.secondaryContainer : null,
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(4),
@@ -107,6 +124,11 @@ class _VariantDraftCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (highlighted)
+                const Text(
+                  'Variante escaneada',
+                  key: Key('article_scanned_variant'),
+                ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

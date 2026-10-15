@@ -27,6 +27,7 @@ class ArticleFormScreen extends StatefulWidget {
     required this.unidadesVenta,
     this.onSave,
     this.initialValue,
+    this.initialVariantId,
     this.inventoryResourceRepository,
     this.onCreateInventoryResource,
     this.onRegisterInventoryMovement,
@@ -39,6 +40,9 @@ class ArticleFormScreen extends StatefulWidget {
   final List<UnidadInventario> unidadesVenta;
   final Future<void> Function(ArticuloFormResult result)? onSave;
   final ArticuloFormResult? initialValue;
+
+  /// Variante encontrada por el lector; se ubica y destaca sin cambiar datos.
+  final String? initialVariantId;
   final ProveedorRepository? proveedorRepository;
   final AppConfigController? appConfigController;
   bool get editing => initialValue != null;
@@ -60,6 +64,7 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   static const _noCategoryValue = '';
 
   final _formKey = GlobalKey<FormState>();
+  final _initialVariantKey = GlobalKey();
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   String? _selectedCategoryId;
@@ -88,6 +93,14 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     _advancedVariants = List.of(initial.variantes);
     _priceController.text = initial.variantes.first.precioVenta;
     _creationMode = _ArticleCreationMode.advanced;
+    if (widget.initialVariantId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final target = _initialVariantKey.currentContext;
+        if (mounted && target != null) {
+          Scrollable.ensureVisible(target, alignment: 0.1);
+        }
+      });
+    }
   }
 
   @override
@@ -292,6 +305,8 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
                     else
                       AdvancedVariantsSection(
                         variants: _advancedVariants ?? const [],
+                        highlightedVariantId: widget.initialVariantId,
+                        highlightedVariantKey: _initialVariantKey,
                         preview: widget.preview,
                         allowAdd: !widget.preview,
                         enabled: !_saving,

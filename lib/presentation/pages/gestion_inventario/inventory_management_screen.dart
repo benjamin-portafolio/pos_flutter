@@ -8,8 +8,8 @@ import '../../../domain/repositories/proveedor_repository.dart';
 import 'proveedores/inventory_suppliers_tab.dart';
 import 'proveedores/proveedor_form_screen.dart';
 import '../../../application/import/articulo_import_batch_service.dart';
-import '../../../domain/articulos/articulo_listado.dart';
 import 'articulos/models/articulo_preview_form.dart';
+import 'articulos/inventory_barcode_flow_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -168,6 +168,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
   int _selectedTab = 0;
   bool _searchOpen = false;
   bool _deletingCategory = false;
+  bool _scanningBarcode = false;
   String _appliedSearch = '';
 
   @override
@@ -218,7 +219,8 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             busqueda: _appliedSearch,
             onClearSearch: _clearSearch,
             onAddArticle: () => _openArticleForm(context),
-            onOpenArticle: (article) => _openArticlePreview(context, article),
+            onOpenArticle: (article) =>
+                _openArticlePreview(context, article.productoId),
           ),
           InventoryCategoriesTab(
             categoriaRepository: widget.categoriaRepository,
@@ -254,10 +256,25 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
               ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddOptions(context),
-        tooltip: 'Agregar',
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_selectedTab == 0) ...[
+            FloatingActionButton.small(
+              key: const Key('inventory_scan_barcode_button'),
+              heroTag: 'inventory_scan_barcode',
+              tooltip: 'Escanear código de barras',
+              onPressed: _scanningBarcode ? null : _openBarcodeFlow,
+              child: const Icon(Icons.qr_code_scanner),
+            ),
+            const SizedBox(height: 12),
+          ],
+          FloatingActionButton(
+            onPressed: () => _showAddOptions(context),
+            tooltip: 'Agregar',
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
@@ -527,17 +544,50 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
 
   bool _openingArticlePreview = false;
 
-  Future<void> _openArticlePreview(
+  Future<void> _openBarcodeFlow() async {
+    if (_scanningBarcode || _selectedTab != 0) return;
+    setState(() => _scanningBarcode = true);
+    try {
+      final message = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => InventoryBarcodeFlowScreen(
+            repository: widget.productoRepository,
+            assign: (command) =>
+                (widget.productoCommandService ??
+                        getIt<ProductoCommandService>())
+                    .asignarCodigoBarrasVariante(command),
+            openArticle: (flowContext, productId, variantId) =>
+                _openArticlePreview(
+                  flowContext,
+                  productId,
+                  initialVariantId: variantId,
+                ),
+          ),
+        ),
+      );
+      if (mounted && message != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } finally {
+      if (mounted) setState(() => _scanningBarcode = false);
+    }
+  }
+
+  Future<bool> _openArticlePreview(
     BuildContext context,
-    ArticuloListado article,
-  ) async {
-    if (_openingArticlePreview) return;
+    String productId, {
+    String? initialVariantId,
+  }) async {
+    if (_openingArticlePreview) return false;
     _openingArticlePreview = true;
     try {
-      final detail = await widget.productoRepository.obtenerDetalle(
-        article.productoId,
-      );
-      if (detail == null || detail.variantes.isEmpty) {
+      final detail = await widget.productoRepository.obtenerDetalle(productId);
+      if (detail == null ||
+          detail.variantes.isEmpty ||
+          (initialVariantId != null &&
+              !detail.variantes.any((v) => v.id == initialVariantId))) {
         throw StateError('El artículo ya no está disponible.');
       }
       final unitRepository =
@@ -565,13 +615,16 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                 .first
           : const <RecursoInventarioListado>[];
       final initial = ArticuloPreviewForm.fromDetalle(detail, resources);
-      if (!context.mounted) return;
+      if (!context.mounted || ModalRoute.of(context)?.isCurrent != true) {
+        return false;
+      }
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => ArticleFormScreen(
             categorias: categories,
             unidadesVenta: units,
             initialValue: initial,
+            initialVariantId: initialVariantId,
             proveedorRepository: widget.proveedorRepository,
             appConfigController: widget.config,
             inventoryResourceRepository:
@@ -589,12 +642,12 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                         getIt<ProductoCommandService>();
                     if (result.eliminarProducto) {
                       return service.eliminarArticulo(
-                        productId: article.productoId,
+                        productId: productId,
                         baseEventId: detail.lastEventId!,
                       );
                     }
                     return service.actualizarArticulo(
-                      productId: article.productoId,
+                      productId: productId,
                       baseEventId: detail.lastEventId!,
                       variantIds: result.variantes.map((v) => v.id).toList(),
                       command: _articleCommand(result),
@@ -603,8 +656,11 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           ),
         ),
       );
+      return true;
     } catch (_) {
-      if (!context.mounted) return;
+      if (!context.mounted || ModalRoute.of(context)?.isCurrent != true) {
+        return false;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -612,6 +668,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           ),
         ),
       );
+      return false;
     } finally {
       _openingArticlePreview = false;
     }

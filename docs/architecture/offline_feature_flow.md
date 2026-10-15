@@ -193,6 +193,35 @@ todo lo que no sean dígitos; la UI no reimplementa esa regla ni convierte el
 valor a entero en ningún punto. El formulario no valida duplicados porque no
 existe índice único.
 
+Gestión del inventario incorpora «Escanear código de barras» sobre `+`, solo en
+Artículos. `InventoryBarcodeFlowScreen` reutiliza el lector de una lectura y la
+consulta exacta del repositorio: una coincidencia abre la edición y destaca la
+variante; varias muestran una elección explícita; cero ofrecen asignar a una
+variante existente. El selector busca por artículo/variante, con y sin barcode
+o seguimiento de existencias, sin operaciones de venta.
+
+`InventoryBarcodeAssignmentScreen` relee el destino y muestra el código nuevo
+y, en reemplazos, el actual. Confirmar ejecuta
+`ProductoCommandService.asignarCodigoBarrasVariante` con
+`AsignarCodigoBarrasVarianteCommand` y la base mostrada. La transacción valida
+producto/variante activos, pertenencia y base; construye `producto_actualizado`
+desde el snapshot tipado cambiando solo el barcode seleccionado. Conserva
+precios, costos, proveedores, recetas, identidades y vínculos; no crea recursos,
+movimientos ni líneas de venta. Un código ya igual no produce evento. El código
+anterior deja de resolver esa variante; otras que lo conserven siguen apareciendo.
+
+Cancelar antes de confirmar no escribe. El guardado bloquea doble toque y salida
+hasta su resultado; una base obsoleta se recarga y exige nueva confirmación. Los
+errores conservan código/destino para reintentar y las rutas cerradas descartan
+resultados tardíos. Se mantienen las referencias en ambos modos, persistidas
+solo en `server_sync`; `standalone` usa `not_required` sin servicios remotos.
+No hay cambios de esquema ni unicidad de barcode.
+
+La fase 3 cerró la verificación automatizada I01–I19 con SQLite temporal,
+incluido CSV sin códigos y reapertura en ambos modos. La cámara nativa I20
+permanece pendiente; la cámara falsa solo acredita lógica y ciclo de vida
+simulado. Ver [casos, comandos y evidencia](../testing/inventory_barcode_verification.md).
+
 `producto_creado` conserva `product.category_id` y una referencia `category`
 con relacion `uses` cuando el articulo pertenece a una categoria. Una categoria
 oficial no agrega una base de estado al payload: cambios de nombre, color u
