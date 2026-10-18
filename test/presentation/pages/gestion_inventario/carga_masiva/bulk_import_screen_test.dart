@@ -1,9 +1,11 @@
-import '../../../../support/fake_producto_repository.dart';
-import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
+import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
+import 'package:pos_flutter/application/import/articulo_import_catalog_reader.dart';
+import 'package:pos_flutter/application/import/articulo_import_solicitud.dart';
 import 'dart:async';
 
 import 'package:pos_flutter/application/import/articulo_catalog_import_service.dart';
 import 'package:pos_flutter/application/import/articulo_import_batch_service.dart';
+import 'package:pos_flutter/application/import/articulo_import_actualizacion.dart';
 import 'package:pos_flutter/application/import/articulo_import_progreso.dart';
 import 'package:pos_flutter/application/import/articulo_import_lote_fallido.dart';
 import 'dart:io';
@@ -12,17 +14,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/export/articulo_catalog_export_service.dart';
 import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
-import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
-import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
-import 'package:pos_flutter/domain/categorias/categoria.dart';
-import 'package:pos_flutter/domain/categorias/color_categoria.dart';
 import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
-import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
-import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/carga_masiva/bulk_import_screen.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -54,11 +50,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: BulkImportScreen(
-          categoriaRepository: _FakeCategoriaRepository(),
-          productoRepository: _FakeProductoRepository(catalogo ?? const []),
-          unidadInventarioRepository: const _FakeUnidadInventarioRepository(),
           exportService: servicio ?? exportador,
-          importService: const ArticuloImportCsv(),
+          preparationService: ArticuloImportPreparationService(
+            parser: const ArticuloImportCsv(),
+            reader: _CatalogReader(catalogo ?? const []),
+          ),
           batchService: batchService,
           pickFile: pickFile ?? () async => archivoElegido,
           shareFile: (params) async {
@@ -159,7 +155,7 @@ void main() {
       reason: 'La pantalla tiene que decir qué archivo se revisó.',
     );
     expect(
-      find.text('2 artículos y 2 filas listos para dar de alta.'),
+      find.textContaining('Nuevos: 2 productos · 2 filas.'),
       findsOneWidget,
     );
     expect(find.text('1 problema:'), findsOneWidget);
@@ -197,6 +193,10 @@ void main() {
       isTrue,
     );
 
+    await tester.ensureVisible(
+      find.byKey(const Key('import_only_valid_switch')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('import_only_valid_switch')));
     await tester.pumpAndSettle();
 
@@ -224,7 +224,7 @@ void main() {
 
     expect(find.byKey(const Key('bulk_import_blocked')), findsOneWidget);
     expect(
-      find.text('0 artículos y 0 filas listos para dar de alta.'),
+      find.textContaining('Nuevos: 0 productos · 0 filas.'),
       findsOneWidget,
     );
     final interruptor = tester.widget<SwitchListTile>(
@@ -273,7 +273,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('0 artículos y 0 filas listos para dar de alta.'),
+      find.textContaining('Nuevos: 0 productos · 0 filas.'),
       findsOneWidget,
     );
   });
@@ -297,8 +297,9 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(
+    await tester.scrollUntilVisible(
       find.byKey(const Key('confirm_bulk_import_button')),
+      200,
     );
     await tester.pumpAndSettle();
   }
@@ -393,8 +394,9 @@ void main() {
     );
     await tester.tap(switchFinder);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(
+    await tester.scrollUntilVisible(
       find.byKey(const Key('confirm_bulk_import_button')),
+      200,
     );
     await tester.tap(find.byKey(const Key('confirm_bulk_import_button')));
     await tester.pumpAndSettle();
@@ -569,66 +571,19 @@ class _FakeExportService implements ArticuloCatalogExportService {
   ) => throw UnimplementedError();
 }
 
-class _FakeCategoriaRepository implements CategoriaRepository {
-  @override
-  Stream<List<Categoria>> watchCategorias() => Stream.value(_categorias);
-
-  @override
-  Future<List<Categoria>> obtenerCategorias() async => _categorias;
-
-  static const _categorias = [
-    Categoria(
-      id: 'cat-bebidas',
-      nombre: 'Bebidas',
-      color: ColorCategoria.blue,
-      orden: 0,
-    ),
-  ];
-}
-
-class _FakeProductoRepository extends FakeProductoRepository {
-  @override
-  Future<List<VariantePorCodigoBarras>> buscarVariantesPorCodigoBarras(
-    String codigo,
-  ) async => const [];
-
-  _FakeProductoRepository(this.articulos);
-
+class _CatalogReader implements ArticuloImportCatalogReader {
+  _CatalogReader(this.articulos);
   final List<ArticuloListado> articulos;
-
   @override
-  Stream<List<ArticuloListado>> watchArticulos({
-    String busqueda = '',
-    Set<String> categoriaIds = const <String>{},
-    bool incluirSinCategoria = false,
-  }) => Stream.value(articulos);
-
-  @override
-  Stream<int> watchVariantesActivasCount() => throw UnimplementedError();
-
-  @override
-  Future<ArticuloDetalle?> obtenerDetalle(String productoId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<List<ArticuloVinculadoCategoria>> obtenerArticulosPorCategoria(
-    String categoriaId,
-  ) => throw UnimplementedError();
-}
-
-class _FakeUnidadInventarioRepository implements UnidadInventarioRepository {
-  const _FakeUnidadInventarioRepository();
-
-  @override
-  Future<List<UnidadInventario>> obtenerUnidadesActivas() async => _unidades;
-
-  @override
-  Future<UnidadInventario?> obtenerUnidadPorId(String unidadId) async {
-    for (final unidad in _unidades) {
-      if (unidad.id == unidadId) return unidad;
-    }
-    return null;
-  }
+  Future<ArticuloImportCatalogo> leer(
+    ArticuloImportSolicitud solicitud,
+  ) async => ArticuloImportCatalogo(
+    categorias: const [
+      ArticuloImportCategoria(id: 'cat-bebidas', nombre: 'Bebidas'),
+    ],
+    unidades: _unidades,
+    nombresArticulos: {for (final p in articulos) p.nombre},
+  );
 }
 
 const _unidades = <UnidadInventario>[
@@ -694,6 +649,8 @@ class _FakeBatchService implements ArticuloImportBatchService {
   @override
   Future<ArticuloImportProgreso> importar(
     List<ArticuloImportProducto> productos, {
+    List<ArticuloImportActualizacion> actualizaciones = const [],
+    List<ArticuloImportActualizacion> omitidos = const [],
     required void Function(ArticuloImportProgreso) onProgress,
   }) async {
     llamadas++;
@@ -710,6 +667,7 @@ class _FakeBatchService implements ArticuloImportBatchService {
       lotesProcesados: 1,
       productosTotales: productos.length,
       productosImportados: falla ? 0 : productos.length,
+      productosCreados: falla ? 0 : productos.length,
       productosFallidos: falla ? productos.length : 0,
       lotesFallidos: falla
           ? [

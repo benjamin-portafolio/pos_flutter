@@ -30,6 +30,9 @@ class BulkImportProgress extends StatelessWidget {
           Text(
             'Artículos importados: ${progreso.productosImportados}/${progreso.productosTotales}',
           ),
+          Text('Artículos creados: ${progreso.productosCreados}'),
+          Text('Artículos actualizados: ${progreso.productosActualizados}'),
+          Text('Artículos omitidos: ${progreso.productosOmitidos}'),
           Text('Artículos fallidos: ${progreso.productosFallidos}'),
           for (final fallo in progreso.lotesFallidos) ...[
             const SizedBox(height: 8),
@@ -38,6 +41,8 @@ class BulkImportProgress extends StatelessWidget {
               'Líneas: ${fallo.lineas.join(', ')}. ${fallo.motivo}',
             ),
             Text('Artículos: ${fallo.productos.join(', ')}'),
+            if (fallo.productIds.isNotEmpty)
+              Text('IDs: ${fallo.productIds.join(', ')}'),
           ],
         ],
       ),

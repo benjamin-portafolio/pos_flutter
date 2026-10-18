@@ -52,8 +52,9 @@ class ArticuloExportArchivo {
 /// Genera el archivo del catálogo en el dispositivo.
 ///
 /// El archivo de descarga es también la plantilla de carga: el mismo contrato
-/// de columnas, validado por round-trip. No expone estado interno, ni
-/// `product_id`, ni `version`, ni `last_event_id`.
+/// de columnas, validado por round-trip. El CSV incluye `product_id` y
+/// `variant_id` para editar registros existentes; no exporta versiones ni bases
+/// internas de eventos.
 abstract interface class ArticuloCatalogExportService {
   /// Escribe el catálogo con los filtros indicados, respetando los mismos
   /// joins y el mismo filtro de activos del listado.

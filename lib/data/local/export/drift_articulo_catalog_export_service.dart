@@ -26,6 +26,7 @@ class DriftArticuloCatalogExportService
     required AppConfigStore configStore,
     Future<Directory> Function()? directorio,
     DateTime Function()? ahora,
+    this.contratoConIds = true,
   }) : _productoDao = productoDao,
        _configStore = configStore,
        _directorio = directorio ?? getTemporaryDirectory,
@@ -35,6 +36,8 @@ class DriftArticuloCatalogExportService
   static const _nombrePlantilla = 'plantilla_catalogo.csv';
   static const _nombreNotas = 'catalogo_columnas.csv';
 
+  /// Catálogo y plantilla públicos incluyen la identidad para su reimportación.
+  final bool contratoConIds;
   final ProductoDao _productoDao;
   final AppConfigStore _configStore;
   final Future<Directory> Function() _directorio;
@@ -48,7 +51,7 @@ class DriftArticuloCatalogExportService
     return _escribir(
       nombreArchivo: '${_nombreCatalogo}_${_fecha()}.csv',
       bytes: ArticuloCatalogCsv.bytes(
-        ArticuloCatalogCsv.catalogo(lectura.filas),
+        ArticuloCatalogCsv.catalogo(lectura.filas, incluirIds: contratoConIds),
       ),
       productos: lectura.productos,
       filas: ArticuloCatalogCsv.filasExportables(lectura.filas).length,
@@ -81,7 +84,9 @@ class DriftArticuloCatalogExportService
   Future<ArticuloExportArchivo> exportarPlantilla() {
     return _escribir(
       nombreArchivo: _nombrePlantilla,
-      bytes: ArticuloCatalogCsv.bytes(ArticuloCatalogCsv.plantilla()),
+      bytes: ArticuloCatalogCsv.bytes(
+        ArticuloCatalogCsv.plantilla(incluirIds: contratoConIds),
+      ),
       productos: ArticuloCatalogCsv.productosPlantilla,
       filas: ArticuloCatalogCsv.filasPlantilla,
     );
@@ -91,7 +96,9 @@ class DriftArticuloCatalogExportService
   Future<ArticuloExportArchivo> exportarNotasColumnas() {
     return _escribir(
       nombreArchivo: _nombreNotas,
-      bytes: ArticuloCatalogCsv.bytes(ArticuloCatalogCsv.notasColumnas()),
+      bytes: ArticuloCatalogCsv.bytes(
+        ArticuloCatalogCsv.notasColumnas(incluirIds: contratoConIds),
+      ),
       productos: 0,
       filas: 0,
     );

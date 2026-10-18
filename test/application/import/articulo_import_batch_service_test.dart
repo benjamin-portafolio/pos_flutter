@@ -41,7 +41,8 @@ import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
 import 'package:pos_flutter/data/local/export/articulo_catalog_csv.dart';
 import 'package:pos_flutter/data/local/export/drift_articulo_catalog_export_service.dart';
 import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
-import 'package:pos_flutter/data/repositories/producto_repository_impl.dart';
+import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
+import 'package:pos_flutter/data/local/import/drift_articulo_import_catalog_reader.dart';
 import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
 import 'package:pos_flutter/domain/inventario/tipo_movimiento_inventario.dart';
 
@@ -333,17 +334,21 @@ void main() {
             .customSelect('SELECT * FROM products ORDER BY id')
             .get();
         final balancesBefore = await db.select(db.inventoryBalances).get();
-        final nombres = (await ProductoRepositoryImpl(
-          productoDao: ProductoDao(db),
-        ).watchArticulos().first).map((p) => p.nombre).toSet();
-        final vuelta = await validar(contenido, nombres: nombres);
+        final vuelta = await ArticuloImportPreparationService(
+          parser: const ArticuloImportCsv(),
+          reader: DriftArticuloImportCatalogReader(db),
+        ).preparar(contenido);
         expect(vuelta.productos, isEmpty);
-        expect(vuelta.errores, hasLength(3));
-        expect(
-          vuelta.errores.every((e) => e.motivo.contains('Ya existe')),
-          isTrue,
+        expect(vuelta.errores, isEmpty);
+        expect(vuelta.productosSinCambios, hasLength(3));
+        final resultado = await servicio.importar(
+          vuelta.productos,
+          actualizaciones: vuelta.productosConCambios,
+          omitidos: vuelta.productosSinCambios,
+          onProgress: (_) {},
         );
-        await servicio.importar(vuelta.productos, onProgress: (_) {});
+        expect(resultado.productosOmitidos, 3);
+        expect(resultado.lotesTotales, 0);
         final after = await db
             .customSelect('SELECT * FROM products ORDER BY id')
             .get();
@@ -429,13 +434,24 @@ void main() {
 }
 
 String _csv(int filas) =>
-    '${ArticuloCatalogCsv.columnas.join(ArticuloCatalogCsv.separador)}\n'
+    '${ArticuloCatalogCsv.columnasAnteriores.join(ArticuloCatalogCsv.separador)}\n'
     '${List.generate(filas, (i) => ',Artículo $i,fraccion,kg,,18.005,10,si,1.250,00123').join('\n')}\n';
 
-class _RecordingStore implements LocalEventStore, LocalAtomicEventBatchStore {
+class _RecordingStore
+    implements
+        LocalEventStore,
+        LocalAtomicEventBatchStore,
+        LocalTransactionalEventStore {
   _RecordingStore(this.delegate);
   final DriftLocalEventStore delegate;
   final batches = <List<LocalEventAppend>>[];
+
+  @override
+  bool get isStandalone => delegate.isStandalone;
+
+  @override
+  Future<T> runInTransaction<T>(Future<T> Function() action) =>
+      delegate.runInTransaction(action);
 
   @override
   Future<void> appendAndApplyBatchAtomically(List<LocalEventAppend> entries) {

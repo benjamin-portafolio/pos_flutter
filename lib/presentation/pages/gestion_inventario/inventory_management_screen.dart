@@ -433,11 +433,6 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                       widget.unidadInventarioRepository ??
                       getIt<UnidadInventarioRepository>(),
                 ),
-          categoriaRepository: widget.categoriaRepository,
-          productoRepository: widget.productoRepository,
-          unidadInventarioRepository:
-              widget.unidadInventarioRepository ??
-              getIt<UnidadInventarioRepository>(),
         ),
       ),
     );

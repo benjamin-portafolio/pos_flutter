@@ -85,7 +85,7 @@ void main() {
   /// Archivo con el encabezado real del compositor, para que el test use el
   /// contrato de columnas y no una copia que puede quedar vieja.
   String archivo(List<String> filas) =>
-      '${ArticuloCatalogCsv.columnas.join(',')}\n${filas.join('\n')}\n';
+      '${ArticuloCatalogCsv.columnasAnteriores.join(',')}\n${filas.join('\n')}\n';
 
   /// Une los campos con el delimitador del contrato.
   String fila(List<String> campos) => campos.join(',');
@@ -127,10 +127,13 @@ void main() {
 
       // Sin encabezado no hay nada que interpretar: el archivo se rechaza
       // entero y no se ofrecen filas válidas.
-      expect(reporte.errores, hasLength(ArticuloCatalogCsv.columnas.length));
+      expect(
+        reporte.errores,
+        hasLength(ArticuloCatalogCsv.columnasAnteriores.length),
+      );
       expect(
         reporte.errores.map((error) => error.columna),
-        containsAll(ArticuloCatalogCsv.columnas),
+        containsAll(ArticuloCatalogCsv.columnasAnteriores),
       );
       expect(
         reporte.errores.every(
@@ -144,7 +147,7 @@ void main() {
 
     test('una columna desconocida es error y no se ignora', () {
       final reporte = servicio.validar(
-        '${ArticuloCatalogCsv.columnas.join(',')},columna_inventada\n'
+        '${ArticuloCatalogCsv.columnasAnteriores.join(',')},columna_inventada\n'
         'Bebidas,Cafe,unidad,,,45.50,,,no,0,,x\n',
         catalogo: catalogo(),
       );
@@ -156,7 +159,7 @@ void main() {
     });
 
     test('una columna obligatoria faltante es error', () {
-      final columnas = ArticuloCatalogCsv.columnas
+      final columnas = ArticuloCatalogCsv.columnasAnteriores
           .where((columna) => columna != 'precio_venta')
           .toList();
       final reporte = servicio.validar(
@@ -170,7 +173,7 @@ void main() {
     });
 
     test('las columnas en otro orden no se aceptan', () {
-      final columnas = List<String>.of(ArticuloCatalogCsv.columnas);
+      final columnas = List<String>.of(ArticuloCatalogCsv.columnasAnteriores);
       final primero = columnas[1];
       columnas[1] = columnas[4];
       columnas[4] = primero;

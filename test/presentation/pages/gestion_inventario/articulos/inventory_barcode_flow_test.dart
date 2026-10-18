@@ -294,7 +294,7 @@ void main() {
           f = connect();
           final units = UnidadInventarioRepositoryImpl(unitDao: f.h.db.unitDao);
           final report = const ArticuloImportCsv().validar(
-            '${ArticuloCatalogCsv.columnas.join(',')}\n'
+            '${ArticuloCatalogCsv.columnasAnteriores.join(',')}\n'
             ',Café,unidad,,Chico,10.00,3.21,no,0,\n'
             ',Café,unidad,,Grande,15.00,4.56,si,7,\n'
             ',Agua,unidad,,,5.00,,no,0,\n',

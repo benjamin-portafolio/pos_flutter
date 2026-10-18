@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../../application/import/articulo_csv_contract.dart';
 import '../../../domain/articulos/sale_mode.dart';
 import '../../../domain/inventario/dimension_unidad.dart';
 import '../../../domain/inventario/inventory_quantity_codec.dart';
@@ -15,28 +16,18 @@ import '../drift/app_database.dart';
 ///
 /// Cada fila sale de una lectura de [ProductoListadoRow], que ya trae producto,
 /// categoría, variante, unidad de venta, recurso, saldo y unidad de inventario.
-/// Aquí no hay SQL: solo la traducción a las 10 columnas.
+/// Aquí no hay SQL: solo la traducción al contrato elegido.
 abstract final class ArticuloCatalogCsv {
   /// Coma como delimitador de la plantilla y del catálogo de carga y descarga.
-  static const separador = ',';
+  static const separador = ArticuloCsvContract.separador;
 
   /// BOM UTF-8: Excel y LibreOffice abren el archivo con acentos correctos sin
   /// pedir nada.
-  static const bom = '\uFEFF';
+  static const bom = ArticuloCsvContract.bom;
 
   /// Orden de columnas del contrato. El importador exige coincidencia exacta.
-  static const columnas = <String>[
-    'categoria',
-    'nombre_articulo',
-    'tipo_venta',
-    'unidad_venta',
-    'nombre_variante',
-    'precio_venta',
-    'precio_coste',
-    'seguimiento_existencias',
-    'existencias',
-    'codigo_barras',
-  ];
+  static const columnas = ArticuloCsvContract.columnas;
+  static const columnasAnteriores = ArticuloCsvContract.columnasAnteriores;
 
   static const _columnasNotas = <String>[
     'columna',
@@ -60,11 +51,21 @@ abstract final class ArticuloCatalogCsv {
 
   /// Catálogo completo: encabezado y una línea por variante, agrupadas por
   /// producto y en el orden de `sort_order`. No emite líneas en blanco.
-  static String catalogo(List<ProductoListadoRow> rows) {
-    final lineas = <String>[columnas.join(separador)];
+  static String catalogo(
+    List<ProductoListadoRow> rows, {
+    bool incluirIds = true,
+  }) {
+    final lineas = <String>[
+      (incluirIds ? columnas : columnasAnteriores).join(separador),
+    ];
     for (final grupo in _agruparPorProducto(filasExportables(rows))) {
       for (final row in grupo) {
-        lineas.add(_campos(row).map(_campo).join(separador));
+        lineas.add(
+          [
+            if (incluirIds) ...[row.producto.id, row.variante!.id],
+            ..._campos(row),
+          ].map(_campo).join(separador),
+        );
       }
     }
     return '${lineas.join('\n')}\n';
@@ -72,11 +73,14 @@ abstract final class ArticuloCatalogCsv {
 
   /// Contrato de columnas con ejemplos para reemplazar al preparar una carga.
   /// La categoría vacía permite usarlos sin depender del catálogo del equipo.
-  static String plantilla() {
+  static String plantilla({bool incluirIds = true}) {
     final lineas = <String>[
-      columnas.join(separador),
+      (incluirIds ? columnas : columnasAnteriores).join(separador),
       for (final campos in _ejemplosPlantilla)
-        campos.map(_campo).join(separador),
+        [
+          if (incluirIds) ...['', ''],
+          ...campos,
+        ].map(_campo).join(separador),
     ];
     return '${lineas.join('\n')}\n';
   }
@@ -153,9 +157,28 @@ abstract final class ArticuloCatalogCsv {
 
   /// Notas de columna en un segundo archivo, porque el CSV no admite
   /// comentarios.
-  static String notasColumnas() {
+  static String notasColumnas({bool incluirIds = true}) {
     final lineas = <String>[_columnasNotas.join(separador)];
-    for (final nota in _notas) {
+    final notas = incluirIds
+        ? [
+            const _NotaColumna(
+              columna: 'product_id',
+              obligatoria: 'condicional',
+              valoresPermitidos: 'ID exportado o vacío',
+              descripcion:
+                  'Conserva ambos IDs exportados para editar. Con variant_id identifica una actualización. Ambos vacíos crean un producto; el formato anterior de diez columnas solo permite altas. No se identifica por nombre ni barcode.',
+            ),
+            const _NotaColumna(
+              columna: 'variant_id',
+              obligatoria: 'condicional',
+              valoresPermitidos: 'ID exportado o vacío',
+              descripcion:
+                  'Debe pertenecer al producto activo. No repetir ni informar solo uno de los IDs. Las variantes omitidas se conservan.',
+            ),
+            for (final nota in _notas) _notaConIds(nota),
+          ]
+        : _notas;
+    for (final nota in notas) {
       lineas.add(
         [
           nota.columna,
@@ -167,6 +190,29 @@ abstract final class ArticuloCatalogCsv {
     }
     return '${lineas.join('\n')}\n';
   }
+
+  static _NotaColumna _notaConIds(_NotaColumna nota) => _NotaColumna(
+    columna: nota.columna,
+    obligatoria: nota.obligatoria,
+    valoresPermitidos: nota.valoresPermitidos,
+    descripcion: switch (nota.columna) {
+      'nombre_articulo' =>
+        'Agrupa las altas sin IDs. Con IDs modifica el nombre visible del producto; debe coincidir entre todas sus filas.',
+      'categoria' =>
+        'Debe existir. Vacío retira la categoría también en actualizaciones.',
+      'tipo_venta' =>
+        'unidad o fraccion. En existentes debe coincidir con su configuración actual.',
+      'unidad_venta' =>
+        'g, kg, ml o l para fraccion; vacía para unidad. En existentes no puede cambiar.',
+      'seguimiento_existencias' =>
+        'si o no. En existentes debe coincidir; el CSV no activa ni desactiva seguimiento.',
+      'existencias' =>
+        'En altas es obligatoria con seguimiento. En existentes es informativa: vacía o cantidad válida, nunca ajusta el saldo ni se compara como cambio.',
+      'codigo_barras' =>
+        'Texto de hasta 32 dígitos; conserva ceros iniciales. Vacío retira el código en actualizaciones.',
+      _ => nota.descripcion,
+    },
+  );
 
   /// Bytes del archivo: BOM UTF-8 y el texto del CSV.
   static Uint8List bytes(String csv) {

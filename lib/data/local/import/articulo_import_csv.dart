@@ -3,23 +3,27 @@ import 'dart:math' as math;
 import 'package:unorm_dart/unorm_dart.dart' as unorm;
 
 import '../../../application/import/articulo_catalog_import_service.dart';
+import '../../../application/import/articulo_csv_contract.dart';
+import '../../../application/import/articulo_import_solicitud.dart';
+import '../../../application/import/articulo_import_actualizacion.dart';
+import '../../../application/import/articulo_import_producto_error.dart';
+import '../../../application/import/articulo_import_variante_cambio.dart';
+import '../../../domain/articulos/nombre_variante.dart';
 import '../../../domain/articulos/sale_mode.dart';
 import '../../../domain/inventario/dimension_unidad.dart';
 import '../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../domain/inventario/unidad_inventario.dart';
-import '../export/articulo_catalog_csv.dart';
 
 /// Lee el contrato de columnas del catálogo y lo valida, sin escribir nada.
 ///
-/// Es la mitad inversa de [ArticuloCatalogCsv]: el mismo contrato de columnas,
+/// Es la mitad inversa de [ArticuloCsvContract]: el mismo contrato de columnas,
 /// el mismo BOM y el mismo `,`. No hay SQL ni Drift, porque las categorías, las
 /// unidades y los nombres que ya existen llegan resueltos en el catálogo.
 ///
 /// Reglas que no se negocian aquí:
 /// - el encabezado tiene que coincidir exactamente; una columna desconocida o
 ///   faltante es error, no se ignora (R2);
-/// - el archivo nunca trae `product_id`, `variant_id`, `version` ni
-///   `last_event_id`: la identidad se genera al procesar (D4);
+/// - diez columnas son altas; doce columnas identifican ediciones por ambos IDs;
 /// - los importes se convierten a centavos una sola vez, en este límite, con
 ///   redondeo half-up a dos decimales (D7).
 class ArticuloImportCsv implements ArticuloCatalogImportService {
@@ -41,46 +45,80 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
   static const unidadesDeFraccion = <String>{'g', 'kg', 'ml', 'l'};
 
   @override
+  ArticuloImportSolicitud solicitarCatalogo(String contenido) {
+    final archivo = _leerArchivo(contenido);
+    if (archivo.errores.isNotEmpty) {
+      return ArticuloImportSolicitud(errores: archivo.errores);
+    }
+    return ArticuloImportSolicitud(
+      productIds: Set.unmodifiable({
+        if (archivo.conIds)
+          for (final fila in archivo.filas)
+            if (fila.isNotEmpty && fila[0].trim().isNotEmpty) fila[0].trim(),
+      }),
+      variantIds: Set.unmodifiable({
+        if (archivo.conIds)
+          for (final fila in archivo.filas)
+            if (fila.length > 1 && fila[1].trim().isNotEmpty) fila[1].trim(),
+      }),
+    );
+  }
+
+  @override
   ArticuloImportReporte validar(
     String contenido, {
     required ArticuloImportCatalogo catalogo,
   }) {
+    final archivo = _leerArchivo(contenido);
+    if (archivo.errores.isNotEmpty) {
+      return ArticuloImportReporte(errores: archivo.errores);
+    }
+    return _revisarFilas(archivo.filas, catalogo, conIds: archivo.conIds);
+  }
+
+  ({List<List<String>> filas, bool conIds, List<ArticuloImportError> errores})
+  _leerArchivo(String contenido) {
     final lineas = _lineas(contenido);
     if (lineas.isEmpty) {
-      return ArticuloImportReporte.rechazando(
-        const ArticuloImportError(
-          columna: 'archivo',
-          motivo: 'El archivo está vacío.',
-        ),
+      return (
+        filas: [],
+        conIds: false,
+        errores: [
+          const ArticuloImportError(
+            columna: 'archivo',
+            motivo: 'El archivo está vacío.',
+          ),
+        ],
       );
     }
-
     final encabezado = _campos(lineas.first);
-    final problemasEncabezado = _revisarEncabezado(encabezado);
-    if (problemasEncabezado.isNotEmpty) {
-      return ArticuloImportReporte(errores: problemasEncabezado);
-    }
-
-    final filas = lineas.skip(1).toList(growable: false);
-    if (filas.length > maximoFilas) {
-      return ArticuloImportReporte.rechazando(
+    final conIds =
+        encabezado.contains('product_id') || encabezado.contains('variant_id');
+    final errores = _revisarEncabezado(encabezado, conIds: conIds);
+    final cantidadFilas = lineas.length - 1;
+    if (cantidadFilas > maximoFilas) {
+      errores.add(
         ArticuloImportError(
           columna: 'archivo',
           motivo:
-              'El archivo tiene ${filas.length} filas y el máximo es '
-              '$maximoFilas. Divídelo en varios archivos.',
+              'El archivo tiene $cantidadFilas filas y el máximo es $maximoFilas. Divídelo en varios archivos.',
         ),
       );
     }
-
-    return _revisarFilas(filas, catalogo);
+    return (
+      filas: errores.isEmpty
+          ? lineas.skip(1).map(_campos).toList(growable: false)
+          : [],
+      conIds: conIds,
+      errores: errores,
+    );
   }
 
   /// Líneas con datos, sin el BOM y sin las líneas en blanco. Las líneas en
   /// blanco se ignoran y no se interpretan como separadores (H17).
   static List<String> _lineas(String contenido) {
-    final sinBom = contenido.startsWith(ArticuloCatalogCsv.bom)
-        ? contenido.substring(ArticuloCatalogCsv.bom.length)
+    final sinBom = contenido.startsWith(ArticuloCsvContract.bom)
+        ? contenido.substring(ArticuloCsvContract.bom.length)
         : contenido;
     return sinBom
         .replaceAll('\r\n', '\n')
@@ -115,7 +153,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         entrecomillado = true;
         continue;
       }
-      if (caracter == ArticuloCatalogCsv.separador) {
+      if (caracter == ArticuloCsvContract.separador) {
         campos.add(buffer.toString());
         buffer.clear();
         continue;
@@ -128,9 +166,15 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
 
   /// El encabezado tiene que coincidir exactamente con el contrato (R2). Sin
   /// esto, un archivo viejo se rompería en silencio cuando cambien las columnas.
-  static List<ArticuloImportError> _revisarEncabezado(List<String> encabezado) {
+  static List<ArticuloImportError> _revisarEncabezado(
+    List<String> encabezado, {
+    required bool conIds,
+  }) {
+    final columnas = conIds
+        ? ArticuloCsvContract.columnas
+        : ArticuloCsvContract.columnasAnteriores;
     final errores = <ArticuloImportError>[];
-    for (final columna in ArticuloCatalogCsv.columnas) {
+    for (final columna in columnas) {
       if (!encabezado.contains(columna)) {
         errores.add(
           ArticuloImportError(
@@ -146,7 +190,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     if (errores.isNotEmpty) return errores;
 
     for (final columna in encabezado) {
-      if (!ArticuloCatalogCsv.columnas.contains(columna)) {
+      if (!columnas.contains(columna)) {
         errores.add(
           ArticuloImportError(
             columna: columna.isEmpty ? 'encabezado' : columna,
@@ -162,10 +206,10 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     // Mismo conjunto de columnas pero en otro orden: el compositor emite
     // siempre el mismo, así que un archivo reordenado no viene de esta app.
     final coincide =
-        encabezado.length == ArticuloCatalogCsv.columnas.length &&
+        encabezado.length == columnas.length &&
         List.generate(
           encabezado.length,
-          (index) => encabezado[index] == ArticuloCatalogCsv.columnas[index],
+          (index) => encabezado[index] == columnas[index],
         ).every((igual) => igual);
     if (!coincide) {
       errores.add(
@@ -182,42 +226,234 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
   }
 
   ArticuloImportReporte _revisarFilas(
-    List<String> filas,
-    ArticuloImportCatalogo catalogo,
-  ) {
+    List<List<String>> filas,
+    ArticuloImportCatalogo catalogo, {
+    required bool conIds,
+  }) {
     final contexto = _Contexto(catalogo);
     final errores = <ArticuloImportError>[];
-    final aceptadas = <_Fila>[];
+    final altas = <_Fila>[];
+    final grupos = <String, List<_Fila>>{};
+    final rechazados = <String>{};
+    final variantesVistas = <String, String>{};
+    final nombresActualizados = <String>{};
+    final numeroColumnas = conIds ? 12 : 10;
 
     for (var indice = 0; indice < filas.length; indice++) {
       final linea = indice + 2;
-      final campos = _campos(filas[indice]);
-      if (campos.length != ArticuloCatalogCsv.columnas.length) {
-        errores.add(
-          ArticuloImportError(
-            linea: linea,
-            columna: 'archivo',
-            motivo:
-                'La fila tiene ${campos.length} campos y el encabezado declara '
-                '${ArticuloCatalogCsv.columnas.length}. Revisa que no falte un '
-                '"," o que un texto no se haya partido.',
-          ),
+      final campos = filas[indice];
+      final productId = conIds && campos.isNotEmpty ? campos[0].trim() : '';
+      final variantId = conIds && campos.length > 1 ? campos[1].trim() : '';
+      final existente = productId.isNotEmpty || variantId.isNotEmpty;
+      final antes = errores.length;
+      void error(String columna, String motivo) => errores.add(
+        ArticuloImportError(linea: linea, columna: columna, motivo: motivo),
+      );
+      if (campos.length != numeroColumnas) {
+        error(
+          'archivo',
+          'La fila tiene ${campos.length} campos y el encabezado declara $numeroColumnas. Revisa que no falte un "," o que un texto no se haya partido.',
         );
-        continue;
       }
-      final fila = _revisarFila(campos, linea, contexto, errores);
-      if (fila != null) aceptadas.add(fila);
+      if (existente) {
+        if (productId.isEmpty || variantId.isEmpty) {
+          error(
+            'product_id/variant_id',
+            'Ambos IDs deben estar informados para actualizar.',
+          );
+        }
+        final producto = catalogo.productosPorId[productId];
+        final variante = catalogo.variantesPorId[variantId];
+        if (productId.isNotEmpty && (producto == null || !producto.activo)) {
+          error('product_id', 'El producto no existe o está inactivo.');
+        }
+        if (variantId.isNotEmpty && (variante == null || !variante.activa)) {
+          error('variant_id', 'La variante no existe o está inactiva.');
+        }
+        if (producto != null &&
+            variante != null &&
+            variante.productId != productId) {
+          error('variant_id', 'La variante no pertenece al producto indicado.');
+        }
+        if (variantId.isNotEmpty) {
+          final anterior = variantesVistas[variantId];
+          if (anterior != null) {
+            error('variant_id', 'El variant_id está repetido en el archivo.');
+            rechazados.add(anterior);
+          } else {
+            variantesVistas[variantId] = productId;
+          }
+        }
+        if (campos.length > 3) nombresActualizados.add(_clave(campos[3]));
+      }
+      final fila = campos.length == numeroColumnas
+          ? _revisarFila(
+              conIds ? campos.sublist(2) : campos,
+              linea,
+              contexto,
+              errores,
+              existente: existente,
+              variantId: existente ? variantId : null,
+            )
+          : null;
+      if (existente) {
+        if (errores.length != antes) {
+          rechazados.add(productId);
+          // Solo excluye el propietario observado; nunca infiere una edición.
+          final propietario = catalogo.variantesPorId[variantId]?.productId;
+          if (propietario != null) rechazados.add(propietario);
+        }
+        if (fila != null) grupos.putIfAbsent(productId, () => []).add(fila);
+      } else if (fila != null) {
+        altas.add(fila);
+      }
     }
 
-    errores.addAll(_revisarNombres(aceptadas, contexto));
-    return ArticuloImportReporte(
-      productos: _agrupar(
-        aceptadas.where((fila) => !fila.rechazada).toList(growable: false),
-        contexto,
-        errores,
-      ),
-      errores: errores,
+    contexto.articulosExistentes.addAll(nombresActualizados);
+    errores.addAll(_revisarNombres(altas, contexto));
+    final nuevos = _agrupar(
+      altas.where((f) => !f.rechazada).toList(),
+      contexto,
+      errores,
     );
+    final cambiados = <ArticuloImportActualizacion>[];
+    final iguales = <ArticuloImportActualizacion>[];
+    for (final entry in grupos.entries) {
+      if (rechazados.contains(entry.key)) continue;
+      final actual = catalogo.productosPorId[entry.key]!;
+      final grupo = entry.value;
+      final primera = grupo.first;
+      final inicio = errores.length;
+      void error(_Fila fila, String columna, String motivo) => errores.add(
+        ArticuloImportError(
+          linea: fila.linea,
+          columna: columna,
+          motivo: motivo,
+        ),
+      );
+      final propuestas = {for (final fila in grupo) fila.variantId!: fila};
+      for (final fila in grupo) {
+        if (fila.nombre != primera.nombre ||
+            fila.categoriaId != primera.categoriaId ||
+            fila.modoVenta != primera.modoVenta ||
+            fila.unidadVenta?.id != primera.unidadVenta?.id) {
+          error(
+            fila,
+            'producto',
+            'Las filas del mismo product_id deben tener nombre, categoría y configuración comunes coherentes.',
+          );
+        }
+        if (fila.modoVenta != actual.modoVenta ||
+            fila.unidadVenta?.id != actual.unidadVentaId) {
+          error(
+            fila,
+            'tipo_venta/unidad_venta',
+            'El CSV no puede cambiar la configuración de venta.',
+          );
+        }
+        if (fila.seguimiento !=
+            catalogo.variantesPorId[fila.variantId]!.seguimientoExistencias) {
+          error(
+            fila,
+            'seguimiento_existencias',
+            'El CSV no puede cambiar el seguimiento de existencias.',
+          );
+        }
+      }
+      final activas = actual.variantes.where((v) => v.activa).toList();
+      final nombres = <String>{};
+      for (final variante in activas) {
+        final fila = propuestas[variante.id];
+        final nombre = NombreVariante.fromInput(
+          fila == null ? variante.nombre : fila.nombreVariante,
+        );
+        if ((activas.length > 1 && nombre.value == null) ||
+            (nombre.nameKey != null && !nombres.add(nombre.nameKey!))) {
+          error(
+            fila ?? primera,
+            'nombre_variante',
+            'Los nombres de todas las variantes del producto deben ser únicos y obligatorios si hay varias, incluidas las omitidas.',
+          );
+        }
+      }
+      if (errores.length != inicio) continue;
+      final propuesta = ArticuloImportActualizacion(
+        actual: actual,
+        nombre: primera.nombre,
+        categoriaId: primera.categoriaId,
+        variantes: List.unmodifiable([
+          for (final fila in grupo)
+            ArticuloImportVarianteCambio(
+              id: fila.variantId!,
+              linea: fila.linea,
+              nombre: fila.nombreVariante,
+              precioVentaMinor: fila.precioVentaMinor,
+              precioCosteMinor: fila.precioCosteMinor,
+              codigoBarras: fila.codigoBarras,
+            ),
+        ]),
+      );
+      final cambia =
+          unorm.nfkc(actual.nombre).trim() != primera.nombre ||
+          actual.categoriaId != primera.categoriaId ||
+          grupo.any((fila) {
+            final v = catalogo.variantesPorId[fila.variantId]!;
+            return NombreVariante.fromInput(v.nombre).value !=
+                    fila.nombreVariante ||
+                v.precioVentaMinor != fila.precioVentaMinor ||
+                v.precioCosteMinor != fila.precioCosteMinor ||
+                _opcional(v.codigoBarras) != fila.codigoBarras;
+          });
+      (cambia ? cambiados : iguales).add(propuesta);
+    }
+    final aceptadas = {
+      for (final p in nuevos)
+        for (final v in p.variantes) v.linea,
+      for (final p in [...cambiados, ...iguales])
+        for (final v in p.variantes) v.linea,
+    };
+    final excluidas = <String, List<int>>{};
+    for (var i = 0; i < filas.length; i++) {
+      if (aceptadas.contains(i + 2)) continue;
+      final campos = filas[i];
+      final id = conIds && campos.isNotEmpty ? campos[0].trim() : '';
+      final nombreIndex = conIds ? 3 : 1;
+      final nombre = campos.length > nombreIndex ? campos[nombreIndex] : '';
+      final clave = id.isNotEmpty
+          ? 'id:$id'
+          : nombre.trim().isNotEmpty
+          ? 'alta:${_clave(nombre)}'
+          : 'linea:${i + 2}';
+      excluidas.putIfAbsent(clave, () => []).add(i + 2);
+    }
+    return ArticuloImportReporte(
+      productos: nuevos,
+      productosConCambios: List.unmodifiable(cambiados),
+      productosSinCambios: List.unmodifiable(iguales),
+      errores: List.unmodifiable(errores),
+      categorias: catalogo.categorias,
+      productosConErrores: List.unmodifiable([
+        for (final entry in excluidas.entries)
+          ArticuloImportProductoError(
+            productId: entry.key.startsWith('id:')
+                ? entry.key.substring(3)
+                : null,
+            nombre: () {
+              final campos = filas[entry.value.first - 2];
+              final index = conIds ? 3 : 1;
+              return campos.length > index && campos[index].trim().isNotEmpty
+                  ? campos[index].trim()
+                  : 'Sin nombre';
+            }(),
+            lineas: List.unmodifiable(entry.value),
+          ),
+      ]),
+    );
+  }
+
+  static String? _opcional(String? valor) {
+    final normalizado = unorm.nfkc(valor ?? '').trim();
+    return normalizado.isEmpty ? null : normalizado;
   }
 
   /// Una fila del archivo ya normalizada. `rechazada` marca las filas cuyo
@@ -228,8 +464,10 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     List<String> campos,
     int linea,
     _Contexto contexto,
-    List<ArticuloImportError> errores,
-  ) {
+    List<ArticuloImportError> errores, {
+    bool existente = false,
+    String? variantId,
+  }) {
     final deFila = <ArticuloImportError>[];
 
     final nombre = _nombreProducto(campos[1], deFila);
@@ -247,6 +485,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       contexto,
       modoVenta,
       unidadVenta,
+      existente: existente,
     );
     final codigoBarras = _codigoBarras(campos[9], deFila);
 
@@ -255,6 +494,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       return null;
     }
     return _Fila(
+      variantId: variantId,
       linea: linea,
       nombre: nombre!,
       categoriaId: categoriaId,
@@ -509,10 +749,12 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     List<ArticuloImportError> errores,
     _Contexto contexto,
     SaleMode? modoVenta,
-    UnidadInventario? unidadVenta,
-  ) {
+    UnidadInventario? unidadVenta, {
+    bool existente = false,
+  }) {
     final normalizado = valor.trim().replaceAll(',', '.');
-    if (seguimiento != true) return 0;
+    if (existente && normalizado.isEmpty) return 0;
+    if (!existente && seguimiento != true) return 0;
     if (normalizado.isEmpty) {
       errores.add(
         const ArticuloImportError(
@@ -576,7 +818,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     return normalizado;
   }
 
-  /// Sin columna de identidad, el nombre del artículo es la única defensa contra
+  /// Para las altas, el nombre del artículo es la defensa contra
   /// dos productos distintos con el mismo nombre (R5). Repetir el mismo nombre
   /// es la forma de agrupar variantes, así que el rechazo es cuando dos
   /// escrituras distintas normalizan al mismo nombre: se fusionarían en un solo
@@ -767,8 +1009,10 @@ class _Fila {
     this.nombreVariante,
     this.precioCosteMinor,
     this.codigoBarras,
+    this.variantId,
   });
 
+  final String? variantId;
   final int linea;
   final String nombre;
   final String? categoriaId;

@@ -1,3 +1,8 @@
+import 'articulo_import_actualizacion.dart';
+import 'articulo_import_producto_error.dart';
+import 'articulo_import_producto_local.dart';
+import 'articulo_import_variante_local.dart';
+import 'articulo_import_solicitud.dart';
 import '../../domain/articulos/sale_mode.dart';
 import '../../domain/inventario/unidad_inventario.dart';
 
@@ -13,25 +18,26 @@ class ArticuloImportCategoria {
 }
 
 /// Foto del catálogo que la validación necesita para decidir qué filas son
-/// válidas, resuelta por quien llama.
+/// válidas, resuelta mediante una lectura local específica.
 ///
-/// El servicio de validación no lee la base: recibe las categorías, las unidades
-/// y los nombres de artículos que ya existen, porque son las tres cosas contra
-/// las que el archivo puede chocar. Así toda la validación se prueba sin Drift.
+/// El parser recibe categorías, unidades, nombres y productos involucrados.
+/// No conoce Drift ni consulta historial o saldos.
 class ArticuloImportCatalogo {
   const ArticuloImportCatalogo({
     this.categorias = const <ArticuloImportCategoria>[],
     this.unidades = const <UnidadInventario>[],
     this.nombresArticulos = const <String>{},
+    this.productosPorId = const {},
+    this.variantesPorId = const {},
   });
 
   final List<ArticuloImportCategoria> categorias;
   final List<UnidadInventario> unidades;
 
-  /// Nombres de artículos que ya existen en el catálogo. Sin columna de
-  /// identidad en el archivo (D5), el nombre es la única defensa contra un
-  /// duplicado.
+  /// Nombres activos para rechazar altas duplicadas, sin resolver identidad.
   final Set<String> nombresArticulos;
+  final Map<String, ArticuloImportProductoLocal> productosPorId;
+  final Map<String, ArticuloImportVarianteLocal> variantesPorId;
 }
 
 /// Problema del archivo, con el número de línea, la columna y el motivo.
@@ -67,8 +73,7 @@ class ArticuloImportError {
 /// Variante de un producto ya validada, con los importes convertidos a
 /// centavos y las existencias ya convertidas a átomos.
 ///
-/// El id lo genera el command service al procesar el lote: el archivo nunca
-/// lleva identidad (D4).
+/// Alta: el id lo genera el command service al procesar el lote.
 class ArticuloImportVariante {
   const ArticuloImportVariante({
     required this.linea,
@@ -127,7 +132,7 @@ class ArticuloImportProducto {
   final List<ArticuloImportVariante> variantes;
 }
 
-/// Resultado de validar el archivo: lo que se puede dar de alta y lo que no.
+/// Clasificación independiente de altas, actualizaciones, omisiones y errores.
 ///
 /// El archivo con problemas no se importa entero: la pantalla muestra este
 /// reporte y pregunta si se importan solo las filas válidas.
@@ -135,21 +140,39 @@ class ArticuloImportReporte {
   const ArticuloImportReporte({
     this.productos = const <ArticuloImportProducto>[],
     this.errores = const <ArticuloImportError>[],
+    this.productosConCambios = const [],
+    this.productosSinCambios = const [],
+    this.productosConErrores = const [],
+    this.categorias = const [],
   });
 
+  /// Exclusivamente altas; nunca incluye propuestas de actualización.
   final List<ArticuloImportProducto> productos;
+  final List<ArticuloImportActualizacion> productosConCambios;
+  final List<ArticuloImportActualizacion> productosSinCambios;
   final List<ArticuloImportError> errores;
+  final List<ArticuloImportProductoError> productosConErrores;
+  final List<ArticuloImportCategoria> categorias;
 
   /// Reporte de un archivo que no se puede ni leer: sin filas válidas y con el
   /// error que lo impide.
   factory ArticuloImportReporte.rechazando(ArticuloImportError error) =>
       ArticuloImportReporte(errores: <ArticuloImportError>[error]);
 
-  /// Filas válidas, una por variante.
-  int get filasValidas => productos.fold<int>(
+  /// Filas de alta válidas, una por variante.
+  int get filasNuevas => productos.fold<int>(
     0,
     (total, producto) => total + producto.variantes.length,
   );
+
+  int get filasConCambios =>
+      productosConCambios.fold(0, (n, p) => n + p.variantes.length);
+  int get filasSinCambios =>
+      productosSinCambios.fold(0, (n, p) => n + p.variantes.length);
+  int get filasValidas => filasNuevas + filasConCambios + filasSinCambios;
+  int get filasExcluidas =>
+      productosConErrores.fold(0, (n, p) => n + p.lineas.length);
+  int get productosEjecutables => productos.length + productosConCambios.length;
 
   bool get hayErrores => errores.isNotEmpty;
 
@@ -157,7 +180,9 @@ class ArticuloImportReporte {
   /// ofrecer importar las filas válidas.
   bool get erroresEstructurales => errores.any((error) => error.linea == null);
 
-  bool get importable => productos.isNotEmpty && !erroresEstructurales;
+  bool get importable =>
+      (productos.isNotEmpty || productosConCambios.isNotEmpty) &&
+      !erroresEstructurales;
 }
 
 /// Valida un archivo del contrato de columnas y devuelve el reporte.
@@ -165,6 +190,8 @@ class ArticuloImportReporte {
 /// No escribe nada: la escritura por lotes es una fase aparte. Tampoco toca la
 /// base; recibe el catálogo ya resuelto.
 abstract interface class ArticuloCatalogImportService {
+  ArticuloImportSolicitud solicitarCatalogo(String contenido);
+
   ArticuloImportReporte validar(
     String contenido, {
     required ArticuloImportCatalogo catalogo,

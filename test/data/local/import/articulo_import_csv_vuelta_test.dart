@@ -20,6 +20,7 @@ import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 /// lo comprueba de punta a punta: un catálogo exportado por la app tiene que
 /// volver a entrar en el importador sin quejarse de nada.
 ///
+/// Esta regresión usa explícitamente el formato anterior de diez columnas.
 /// El catálogo destino está vacío, como el de un dispositivo nuevo, porque
 /// un artículo que ya existe en el destino se rechaza a propósito.
 void main() {
@@ -36,6 +37,7 @@ void main() {
       configStore: _FakeConfigStore(),
       directorio: () async => tempDir,
       ahora: () => DateTime(2026, 10, 1),
+      contratoConIds: false,
     );
     await db
         .into(db.categories)
@@ -185,30 +187,27 @@ void main() {
     ]);
   });
 
-  test(
-    'el archivo nunca lleva identidad y el importador no la espera',
-    () async {
-      await _productoConVariantes(
-        db,
-        id: 'cafe',
-        nombre: 'Café',
-        categoryId: 'cat-bebidas',
-        venta: 4550,
-      );
+  test('el formato anterior no lleva identidad y conserva las altas', () async {
+    await _productoConVariantes(
+      db,
+      id: 'cafe',
+      nombre: 'Café',
+      categoryId: 'cat-bebidas',
+      venta: 4550,
+    );
 
-      final contenido = await exportar();
+    final contenido = await exportar();
 
-      for (final identidad in const [
-        'product_id',
-        'variant_id',
-        'version',
-        'last_event_id',
-      ]) {
-        expect(contenido, isNot(contains(identidad)));
-      }
-      expect(validar(contenido).errores, isEmpty);
-    },
-  );
+    for (final identidad in const [
+      'product_id',
+      'variant_id',
+      'version',
+      'last_event_id',
+    ]) {
+      expect(contenido, isNot(contains(identidad)));
+    }
+    expect(validar(contenido).errores, isEmpty);
+  });
 
   test('las líneas en blanco del archivo no cuentan como filas', () async {
     await _productoConVariantes(

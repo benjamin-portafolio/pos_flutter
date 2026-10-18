@@ -8,11 +8,10 @@ import '../../../../application/export/articulo_catalog_export_service.dart';
 import '../../../../application/import/articulo_catalog_import_service.dart';
 import '../../../../application/import/articulo_import_batch_service.dart';
 import '../../../../application/import/articulo_import_progreso.dart';
+import '../../../../application/import/articulo_import_preparation_service.dart';
+import 'bulk_import_review.dart';
 import 'bulk_import_progress.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../domain/repositories/categoria_repository.dart';
-import '../../../../domain/repositories/producto_repository.dart';
-import '../../../../domain/repositories/unidad_inventario_repository.dart';
 
 /// Archivo elegido por el usuario, ya leído.
 ///
@@ -23,27 +22,20 @@ typedef ArchivoCargaMasiva = ({String nombre, String contenido});
 
 /// Pantalla de carga masiva desde un archivo CSV (D11).
 ///
-/// Revisa el archivo y pide confirmación antes de ejecutar lotes de alta.
+/// Revisa el archivo y pide confirmación antes de ejecutar lotes de altas y actualizaciones.
 class BulkImportScreen extends StatefulWidget {
   const BulkImportScreen({
-    required this.categoriaRepository,
-    required this.productoRepository,
-    required this.unidadInventarioRepository,
     this.exportService,
-    this.importService,
+    this.preparationService,
     this.batchService,
     this.pickFile,
     this.shareFile,
     super.key,
   });
 
-  final CategoriaRepository categoriaRepository;
-  final ProductoRepository productoRepository;
-  final UnidadInventarioRepository unidadInventarioRepository;
-
   /// Null lo resuelve el contenedor de dependencias.
   final ArticuloCatalogExportService? exportService;
-  final ArticuloCatalogImportService? importService;
+  final ArticuloImportPreparationService? preparationService;
   final ArticuloImportBatchService? batchService;
 
   /// Inyectable para las pruebas; en producción abre el selector de archivos y
@@ -70,6 +62,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
   /// Interruptor de importar solo las válidas. El archivo con problemas no se
   /// importa entero: se muestra el reporte y se pregunta.
   bool _soloValidas = true;
+  bool _ejecucionIniciada = false;
 
   @override
   void dispose() {
@@ -94,10 +87,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                 const SizedBox(height: 16),
               ],
               const Text(
-                'Descarga la plantilla, pega los datos de tus artículos y elige '
-                'el archivo para revisarlo antes de darlo de alta. En esta '
-                'versión solo se dan de alta artículos nuevos: para cambiar uno '
-                'existente, edítalo en su pantalla.',
+                BulkImportReview.instrucciones,
                 key: Key('bulk_import_intro'),
                 style: TextStyle(height: 1.4),
               ),
@@ -127,12 +117,18 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
               // que el usuario acaba de hacer, y las reglas se leen una vez.
               if (_reporte != null) ...[
                 const SizedBox(height: 16),
-                _Reporte(
-                  reporte: _reporte!,
-                  soloValidas: _soloValidas,
-                  onSoloValidasChanged: _paso == null && _progreso == null
-                      ? (valor) => setState(() => _soloValidas = valor)
-                      : null,
+                Card(
+                  key: const Key('bulk_import_report'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: BulkImportReview(
+                      reporte: _reporte!,
+                      soloValidas: _soloValidas,
+                      onSoloValidasChanged: _paso == null && !_ejecucionIniciada
+                          ? (valor) => setState(() => _soloValidas = valor)
+                          : null,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
@@ -176,9 +172,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
     }
   }
 
-  /// El catálogo se lee una vez y se pasa ya resuelto al servicio de
-  /// validación, que no toca la base (H18: la lista es un `Stream` y aquí se
-  /// quiere una foto, no una suscripción).
+  /// Preparación de lectura sin escrituras mediante el puerto específico.
   Future<void> _elegirArchivo() async {
     setState(() => _paso = _Paso.archivo);
     try {
@@ -191,6 +185,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
         _archivoNombre = elegido.nombre;
         _contenido = elegido.contenido;
         _progreso = null;
+        _ejecucionIniciada = false;
       });
     } catch (_) {
       if (!mounted) return;
@@ -202,10 +197,10 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
 
   bool get _puedeImportar =>
       _paso == null &&
-      _progreso == null &&
+      !_ejecucionIniciada &&
       _reporte != null &&
       _reporte!.importable &&
-      _reporte!.productos.isNotEmpty &&
+      _reporte!.productosEjecutables > 0 &&
       (!_reporte!.hayErrores || _soloValidas);
 
   Future<void> _confirmarImportacion() async {
@@ -217,44 +212,73 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
       if (!mounted) return;
       setState(() => _reporte = reporte);
       if (!reporte.importable ||
-          reporte.productos.isEmpty ||
+          reporte.productosEjecutables == 0 ||
           (reporte.hayErrores && !_soloValidas)) {
         return;
       }
-      final cantidad = reporte.productos.length;
+      final cantidad = reporte.productosEjecutables;
       final lotes =
           (cantidad + ArticuloImportBatchService.productosPorLote - 1) ~/
           ArticuloImportBatchService.productosPorLote;
+      var dialogoResuelto = false;
       final confirmado = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Confirmar carga masiva'),
-          content: Text(
-            'Se darán de alta $cantidad artículos (${reporte.filasValidas} filas) '
-            'en $lotes lotes. Cada lote se guarda completo; si falla, se revierte '
-            'y los demás continúan.'
-            '${reporte.hayErrores ? '\nLas filas con problemas se omitirán.' : ''}',
+          scrollable: true,
+          content: SizedBox(
+            width: 640,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Revisión actualizada antes de confirmar.'),
+                const SizedBox(height: 8),
+                BulkImportReview(reporte: reporte, mostrarSeleccion: false),
+                const SizedBox(height: 12),
+                const Text(BulkImportReview.instrucciones),
+                const SizedBox(height: 12),
+                Text(
+                  'Se guardarán $cantidad productos en $lotes lotes. Cada lote '
+                  'se guarda completo; si falla, se revierte y los demás continúan.'
+                  '${reporte.hayErrores ? '\nLas filas con problemas se omitirán. '
+                            'Una fila inválida excluye toda la actualización del producto.' : ''}',
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               key: const Key('cancel_bulk_import_dialog'),
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                if (dialogoResuelto) return;
+                dialogoResuelto = true;
+                Navigator.pop(context, false);
+              },
               child: const Text('Cancelar'),
             ),
             FilledButton(
               key: const Key('accept_bulk_import_dialog'),
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                if (dialogoResuelto) return;
+                dialogoResuelto = true;
+                Navigator.pop(context, true);
+              },
               child: const Text('Confirmar importación'),
             ),
           ],
         ),
       );
       if (confirmado != true || !mounted) return;
-      setState(() => _paso = _Paso.importacion);
+      setState(() {
+        _paso = _Paso.importacion;
+        _ejecucionIniciada = true;
+      });
       final servicio =
           widget.batchService ?? getIt<ArticuloImportBatchService>();
-      await servicio.importar(
+      final resultado = await servicio.importar(
         reporte.productos,
+        actualizaciones: reporte.productosConCambios,
+        omitidos: reporte.productosSinCambios,
         onProgress: (progreso) {
           if (!mounted) return;
           final primerAvance = _progreso == null;
@@ -262,6 +286,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
           if (primerAvance && _scroll.hasClients) _scroll.jumpTo(0);
         },
       );
+      if (mounted) setState(() => _progreso = resultado);
     } catch (_) {
       if (mounted) {
         _avisar(
@@ -273,29 +298,9 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
     }
   }
 
-  Future<ArticuloImportReporte> _validar(String contenido) async {
-    final servicio =
-        widget.importService ?? getIt<ArticuloCatalogImportService>();
-    final categorias = await widget.categoriaRepository.obtenerCategorias();
-    final unidades = await widget.unidadInventarioRepository
-        .obtenerUnidadesActivas();
-    final articulos = await widget.productoRepository.watchArticulos().first;
-    return servicio.validar(
-      contenido,
-      catalogo: ArticuloImportCatalogo(
-        categorias: categorias
-            .map(
-              (categoria) => ArticuloImportCategoria(
-                id: categoria.id,
-                nombre: categoria.nombre,
-              ),
-            )
-            .toList(growable: false),
-        unidades: unidades,
-        nombresArticulos: {for (final articulo in articulos) articulo.nombre},
-      ),
-    );
-  }
+  Future<ArticuloImportReporte> _validar(String contenido) =>
+      (widget.preparationService ?? getIt<ArticuloImportPreparationService>())
+          .preparar(contenido);
 
   /// Adaptador de plataforma: abre el selector, lee lo elegido y devuelve su
   /// nombre y su texto. Cancelar devuelve null y nada más; un archivo que no se
@@ -356,112 +361,22 @@ class _ReglasDelArchivo extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              '• Es la plantilla que descargas, con las 10 columnas en el mismo '
+              '• Es la plantilla que descargas, con las 12 columnas en el mismo '
               'orden y separadas por comas (",").\n'
               '• Reemplaza o elimina las filas de ejemplo antes de cargar el '
               'archivo.\n'
-              '• El nombre del artículo agrupa sus variantes y no puede '
-              'repetirse ni existir ya.\n'
+              '• Los IDs identifican actualizaciones; el nombre agrupa las altas '
+              'y en altas no puede existir ya.\n'
               '• Si un artículo tiene más de una variante, todas necesitan '
               'nombre.\n'
               '• Venta por fracción: solo g, kg, ml o l.\n'
-              '• Con seguimiento de existencias la columna "existencias" es '
+              '• En altas con seguimiento de existencias la columna "existencias" es '
               'obligatoria, y 0 es válido.\n'
               '• La categoría se busca por nombre y debe existir: no se crean '
               'al importar.\n'
               '• Máximo 500 filas por archivo.',
               style: TextStyle(height: 1.5, fontSize: 13),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Reporte del archivo: cuántas filas se pueden dar de alta y, si hay
-/// problemas, la lista con línea, columna y motivo.
-///
-/// El interruptor de importar solo las válidas vive aquí porque el archivo con
-/// problemas no se importa entero: se muestra el reporte y se pregunta.
-class _Reporte extends StatelessWidget {
-  const _Reporte({
-    required this.reporte,
-    required this.soloValidas,
-    required this.onSoloValidasChanged,
-  });
-
-  final ArticuloImportReporte reporte;
-  final bool soloValidas;
-  final ValueChanged<bool>? onSoloValidasChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final filas = reporte.filasValidas;
-    final productos = reporte.productos.length;
-    return Card(
-      key: const Key('bulk_import_report'),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Revisión del archivo',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$productos artículos y $filas filas listos para dar de alta.',
-              key: const Key('bulk_import_valid_count'),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            if (!reporte.importable)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'Mientras haya un error de encabezado no se puede importar '
-                  'nada. Descarga la plantilla y vuelve a pegar los datos.',
-                  key: Key('bulk_import_blocked'),
-                  style: TextStyle(height: 1.4),
-                ),
-              ),
-            if (reporte.hayErrores) ...[
-              const SizedBox(height: 12),
-              Text(
-                '${reporte.errores.length} '
-                '${reporte.errores.length == 1 ? 'problema' : 'problemas'}:',
-                key: const Key('bulk_import_error_count'),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                key: const Key('import_only_valid_switch'),
-                value: soloValidas,
-                onChanged: reporte.importable ? onSoloValidasChanged : null,
-                title: const Text('Importar solo las filas válidas'),
-                subtitle: Text(
-                  reporte.importable
-                      ? 'Las filas con problemas se omiten.'
-                      : 'No disponible mientras el encabezado no coincida.',
-                ),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              ),
-              const SizedBox(height: 4),
-              ...reporte.errores.map(
-                (error) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '${error.descripcion}: ${error.motivo}',
-                    key: ValueKey<String>(
-                      'bulk_import_error_${error.linea}_${error.columna}',
-                    ),
-                    style: const TextStyle(fontSize: 13, height: 1.4),
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),

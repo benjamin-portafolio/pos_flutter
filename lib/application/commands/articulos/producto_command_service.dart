@@ -30,6 +30,9 @@ import '../../sync/projections/categoria_projection_store.dart';
 import '../../sync/projections/inventory_projection_store.dart';
 import '../../sync/synced_event_history.dart';
 import 'asignar_codigo_barras_variante_command.dart';
+import 'actualizar_articulo_csv_command.dart';
+import 'actualizar_articulo_variante_csv_command.dart';
+import 'producto_import_lote_result.dart';
 import 'crear_articulo_command.dart';
 import 'crear_articulo_variante_command.dart';
 import '../../sync/payloads/producto_actualizado_payload.dart';
@@ -214,6 +217,179 @@ class ProductoCommandService {
     return store is LocalTransactionalEventStore
         ? (store as LocalTransactionalEventStore).runInTransaction(action)
         : action();
+  }
+
+  /// Relee el agregado completo bajo la misma transacción que aplica el evento.
+  /// Devuelve false si el estado comercial final ya es idéntico.
+  Future<bool> actualizarArticuloDesdeCsv(
+    ActualizarArticuloCsvCommand command,
+  ) => _transactionalImportStore.runInTransaction(() async {
+    final entry = await _prepareActualizacionCsv(command);
+    if (entry == null) return false;
+    await _eventStore.appendAndApply(entry.event, refs: entry.refs);
+    return true;
+  });
+
+  LocalTransactionalEventStore get _transactionalImportStore {
+    final store = _eventStore;
+    if (store is! LocalTransactionalEventStore) {
+      throw StateError(
+        'La importación requiere un almacén de eventos transaccional.',
+      );
+    }
+    return store as LocalTransactionalEventStore;
+  }
+
+  Future<LocalEventAppend?> _prepareActualizacionCsv(
+    ActualizarArticuloCsvCommand command,
+  ) async {
+    final product = await _obtenerBaseEdicion(command.productId);
+    if (command.baseEventId.trim().isEmpty ||
+        product.lastEventId != command.baseEventId) {
+      throw StateError('El artículo cambió. Vuelve a revisar el archivo.');
+    }
+    if (command.variantes.isEmpty) {
+      throw const FormatException('La actualización requiere variantes.');
+    }
+    final changes = <String, ActualizarArticuloVarianteCsvCommand>{};
+    for (final change in command.variantes) {
+      if (changes.containsKey(change.variantId)) {
+        throw const FormatException('La variante está repetida.');
+      }
+      final variant = await _productoProjectionStore!.findVariantById(
+        change.variantId,
+      );
+      if (variant == null || !variant.active) {
+        throw StateError('La variante no está disponible.');
+      }
+      if (variant.productoId != product.id) {
+        throw StateError('La variante pertenece a otro artículo.');
+      }
+      changes[change.variantId] = change;
+    }
+
+    // No usar _snapshotForEdit: el CSV no promueve proveedores legados a [].
+    final before = await _productoProjectionStore!.snapshot(product.id);
+    final variants = [
+      for (final v in before.variantes)
+        if (changes[v.id] case final change?)
+          ProductoCreadoVariante.create(
+            id: v.id,
+            nombre: change.nombre,
+            codigoBarras: change.codigoBarras,
+            precioVentaMenor: change.precioVentaMinor,
+            costoEstandarMenor: change.precioCosteMinor,
+            inventoryItemId: v.inventoryItemId,
+            componentesReceta: v.componentesReceta,
+            proveedores: v.proveedores,
+            orden: v.orden,
+          )
+        else
+          v,
+    ];
+    final categoriaId = _normalizeOptional(command.categoriaId);
+    final after = ProductoCreadoPayload.create(
+      nombre: command.nombre,
+      categoriaId: categoriaId,
+      saleConfiguration: before.saleConfiguration,
+      variantes: variants,
+      dependenciaCategoria: categoriaId == null
+          ? null
+          : await _categoryDependency(categoriaId),
+      dependenciasInventario: [
+        for (final dependency in before.dependenciasInventario)
+          ProductoCreadoInventarioDependencia(
+            refId: dependency.refId,
+            dependsOnEventId: await _pendingCreationDependency(
+              dependency.refId,
+            ),
+          ),
+      ],
+      dependenciasProveedores: await _supplierDependencies(variants),
+    );
+    if (ProductoActualizadoPayload.sameState(before, after)) return null;
+    final payload = ProductoActualizadoPayload(
+      baseEventId: command.baseEventId,
+      before: before,
+      after: after,
+    );
+    return LocalEventAppend(
+      event: await _updateEvent(product, payload),
+      refs: _buildArticleRefs(
+        productId: product.id,
+        payload: after,
+        updatePayload: payload,
+      ),
+    );
+  }
+
+  /// Altas y ediciones comparten una transacción exterior desde la preparación.
+  /// El alta pura conserva su camino y todos los recursos preceden a productos.
+  Future<ProductoImportLoteResult> importarArticulosLote({
+    required List<CrearArticuloCommand> altas,
+    required List<ActualizarArticuloCsvCommand> actualizaciones,
+  }) async {
+    final total = altas.length + actualizaciones.length;
+    if (total > 50) {
+      throw const FormatException('Un lote admite hasta 50 productos.');
+    }
+    if (total == 0) {
+      return const ProductoImportLoteResult(
+        creados: 0,
+        actualizados: 0,
+        sinCambios: 0,
+      );
+    }
+    final ids = actualizaciones.map((c) => c.productId).toSet();
+    if (ids.length != actualizaciones.length) {
+      throw const FormatException('El producto está repetido en el lote.');
+    }
+    // No aceptar el fallback secuencial de appendAndApplyAll para importación.
+    if (_eventStore is! LocalAtomicEventBatchStore) {
+      throw StateError(
+        'La carga por lotes requiere un almacén de eventos transaccional.',
+      );
+    }
+    return _transactionalImportStore.runInTransaction(() async {
+      if (actualizaciones.isEmpty) {
+        await _crearArticulosLote(altas);
+        return ProductoImportLoteResult(
+          creados: altas.length,
+          actualizados: 0,
+          sinCambios: 0,
+        );
+      }
+      final entries = <LocalEventAppend>[];
+      for (final command in altas) {
+        final article = await _prepareArticulo(command);
+        entries.addAll(_articleAppends(article, _creationEvent(article)));
+      }
+      var updated = 0;
+      for (final command in actualizaciones) {
+        final entry = await _prepareActualizacionCsv(command);
+        if (entry != null) {
+          entries.add(entry);
+          updated++;
+        }
+      }
+      if (entries.isNotEmpty) {
+        await _eventStore.appendAndApplyAll([
+          ...entries.where(
+            (e) =>
+                e.event.eventType == RecursoInventarioCreadoPayload.eventType,
+          ),
+          ...entries.where(
+            (e) =>
+                e.event.eventType != RecursoInventarioCreadoPayload.eventType,
+          ),
+        ]);
+      }
+      return ProductoImportLoteResult(
+        creados: altas.length,
+        actualizados: updated,
+        sinCambios: actualizaciones.length - updated,
+      );
+    });
   }
 
   Future<ProductoInventoryUpdateResult> _actualizarArticulo({

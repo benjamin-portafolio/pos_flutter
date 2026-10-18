@@ -1,3 +1,6 @@
+import '../../application/import/articulo_import_catalog_reader.dart';
+import '../../application/import/articulo_import_preparation_service.dart';
+import '../../data/local/import/drift_articulo_import_catalog_reader.dart';
 import '../../application/printing/printer_gateway.dart';
 import '../../application/printing/ticket_encoder.dart';
 import '../../data/printing/esc_pos_ticket_encoder.dart';
@@ -302,8 +305,17 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
       configStore: getIt<AppConfigStore>(),
     ),
   );
-  // El servicio de validación no lee la base: recibe el catálogo ya resuelto
-  // desde la pantalla, así que es una implementación pura, sin Drift.
+  // La lectura específica y el parser puro se coordinan sin comandos de escritura.
+  getIt.registerLazySingleton<ArticuloImportCatalogReader>(
+    () => DriftArticuloImportCatalogReader(getIt<AppDatabase>()),
+  );
+  // Preparación de altas y actualizaciones con lectura específica, sin escribir.
+  getIt.registerLazySingleton<ArticuloImportPreparationService>(
+    () => ArticuloImportPreparationService(
+      parser: getIt<ArticuloCatalogImportService>(),
+      reader: getIt<ArticuloImportCatalogReader>(),
+    ),
+  );
   getIt.registerLazySingleton<ArticuloCatalogImportService>(
     () => const ArticuloImportCsv(),
   );

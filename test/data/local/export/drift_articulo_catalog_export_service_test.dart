@@ -11,6 +11,11 @@ import 'package:pos_flutter/data/local/config/app_config_file_store.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/export/drift_articulo_catalog_export_service.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
+import 'package:pos_flutter/application/import/articulo_csv_contract.dart';
+import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
+import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
+import 'package:pos_flutter/data/local/import/drift_articulo_import_catalog_reader.dart';
+import 'package:pos_flutter/data/local/export/articulo_catalog_csv.dart';
 
 void main() {
   late AppDatabase db;
@@ -42,7 +47,7 @@ void main() {
   });
 
   const encabezado =
-      'categoria,nombre_articulo,tipo_venta,unidad_venta,nombre_variante,'
+      'product_id,variant_id,categoria,nombre_articulo,tipo_venta,unidad_venta,nombre_variante,'
       'precio_venta,precio_coste,seguimiento_existencias,existencias,'
       'codigo_barras';
 
@@ -54,6 +59,84 @@ void main() {
         .where((linea) => linea.isNotEmpty)
         .toList(growable: false);
   }
+
+  test(
+    'C29 contrato con IDs preparado: catálogo real y round-trip sin cambios',
+    () async {
+      await _articuloSinInventario(
+        db,
+        id: 'cafe',
+        nombre: 'Café',
+        categoryId: 'cat-bebidas',
+      );
+      final nuevo = DriftArticuloCatalogExportService(
+        productoDao: ProductoDao(db),
+        configStore: _FakeConfigStore(),
+        directorio: () async => tempDir,
+        contratoConIds: true,
+      );
+      final archivo = await nuevo.exportarCatalogo(
+        ArticuloExportFiltro.sinFiltros,
+      );
+      final lineas = await leerLineas(archivo.ruta);
+      expect(lineas.first, encabezado);
+      final variante = (await db.select(db.productVariants).get()).single;
+      expect(lineas[1].split(',').take(2), ['cafe', variante.id]);
+      expect(lineas[1].split(','), hasLength(12));
+      final revision = await ArticuloImportPreparationService(
+        parser: const ArticuloImportCsv(),
+        reader: DriftArticuloImportCatalogReader(db),
+      ).preparar(await File(archivo.ruta).readAsString());
+      expect(revision.errores, isEmpty);
+      expect(revision.productosSinCambios.single.productId, 'cafe');
+      expect(revision.productos, isEmpty);
+      // El servicio público activa el mismo contrato de doce columnas.
+      final publico = await service.exportarCatalogo(
+        ArticuloExportFiltro.sinFiltros,
+      );
+      expect((await leerLineas(publico.ruta)).first, encabezado);
+    },
+  );
+
+  test(
+    'C29 plantilla/notas nuevas: IDs vacíos, conteos y reglas de existentes',
+    () async {
+      final nuevo = DriftArticuloCatalogExportService(
+        productoDao: ProductoDao(db),
+        configStore: _FakeConfigStore(),
+        directorio: () async => tempDir,
+        contratoConIds: true,
+      );
+      final plantilla = await nuevo.exportarPlantilla();
+      final lineas = await leerLineas(plantilla.ruta);
+      expect(lineas.first, ArticuloCsvContract.columnas.join(','));
+      expect(
+        lineas
+            .skip(1)
+            .every((l) => l.split(',').length == 12 && l.startsWith(',,')),
+        isTrue,
+      );
+      expect(
+        lineas.skip(1).map((l) => l.split(',')[3]).toSet(),
+        hasLength(plantilla.productos),
+      );
+      expect(plantilla.productos, 4);
+      expect(plantilla.filas, 5);
+      expect(ArticuloCatalogCsv.productosPlantilla, 4);
+      final notas = await nuevo.exportarNotasColumnas();
+      final texto = await File(notas.ruta).readAsString();
+      expect((await leerLineas(notas.ruta)), hasLength(13));
+      expect(texto, contains('variant_id'));
+      expect(texto, contains('nunca ajusta el saldo'));
+      expect(texto, contains('Vacío retira'));
+      expect(texto, contains('diez columnas solo permite altas'));
+      // El PDF no incorpora identidad aunque se prepare el contrato nuevo.
+      final pdf = await nuevo.exportarCatalogoPdf(
+        ArticuloExportFiltro.sinFiltros,
+      );
+      expect(pdf.ruta, endsWith('.pdf'));
+    },
+  );
 
   test(
     'el catálogo sale con BOM, separado por comas y el encabezado del contrato',
@@ -80,7 +163,7 @@ void main() {
   );
 
   test(
-    'escribe una fila por variante con las diez columnas del contrato',
+    'escribe una fila por variante con las doce columnas del contrato',
     () async {
       await _articuloSinInventario(
         db,
@@ -96,6 +179,8 @@ void main() {
 
       expect(lineas.first, encabezado);
       expect(lineas[1].split(','), [
+        'cafe',
+        'variante-cafe',
         'Bebidas',
         'Café',
         'unidad',
@@ -148,9 +233,9 @@ void main() {
 
       expect(lineas, hasLength(3));
       // Valencia va antes que Sevillana aunque se insertara al revés.
-      expect(lineas[1].split(',')[4], 'Valencia');
-      expect(lineas[2].split(',')[4], 'Sevillana');
-      expect(lineas[1].split(',')[0], 'Bebidas');
+      expect(lineas[1].split(',')[6], 'Valencia');
+      expect(lineas[2].split(',')[6], 'Sevillana');
+      expect(lineas[1].split(',')[2], 'Bebidas');
       expect(archivo.productos, 1);
       expect(archivo.filas, 2);
     },
@@ -169,9 +254,9 @@ void main() {
     );
     final campos = (await leerLineas(archivo.ruta))[1].split(',');
 
-    expect(campos[2], 'fraccion');
-    expect(campos[3], 'kg');
-    expect(campos[1], 'Naranja');
+    expect(campos[4], 'fraccion');
+    expect(campos[5], 'kg');
+    expect(campos[3], 'Naranja');
   });
 
   test(
@@ -200,11 +285,11 @@ void main() {
       final lineas = await leerLineas(archivo.ruta);
 
       // 1005 centavos son 10.05, no 10.00: no se pierde el centavo.
-      expect(lineas[1].split(',')[5], '10.05');
-      expect(lineas[1].split(',')[6], '');
-      expect(lineas[2].split(',')[5], '2500.00');
+      expect(lineas[1].split(',')[7], '10.05');
+      expect(lineas[1].split(',')[8], '');
+      expect(lineas[2].split(',')[7], '2500.00');
       // Costo cero es un costo conocido igual a cero, no vacío.
-      expect(lineas[2].split(',')[6], '0.00');
+      expect(lineas[2].split(',')[8], '0.00');
     },
   );
 
@@ -229,10 +314,10 @@ void main() {
       );
       final campos = (await leerLineas(archivo.ruta))[1].split(',');
 
-      expect(campos[7], 'si');
+      expect(campos[9], 'si');
       // 120000 átomos de un recurso en kg son 120 kg, no 120000.
-      expect(campos[8], '120');
-      expect(campos[9], '');
+      expect(campos[10], '120');
+      expect(campos[11], '');
     },
   );
 
@@ -255,7 +340,7 @@ void main() {
       );
 
       expect(
-        (await leerLineas(archivo.ruta))[1].split(',')[9],
+        (await leerLineas(archivo.ruta))[1].split(',')[11],
         '07501234567890',
       );
     },
@@ -268,7 +353,7 @@ void main() {
       ArticuloExportFiltro.sinFiltros,
     );
 
-    expect((await leerLineas(archivo.ruta))[1].split(',')[0], '');
+    expect((await leerLineas(archivo.ruta))[1].split(',')[2], '');
   });
 
   test('exporta en mayúsculas el carácter que el listado normaliza', () async {
@@ -279,7 +364,7 @@ void main() {
     );
 
     // Se escribe el nombre tal como está: el importador normaliza al leer.
-    expect((await leerLineas(archivo.ruta))[1].split(',')[1], 'CAFÉ');
+    expect((await leerLineas(archivo.ruta))[1].split(',')[3], 'CAFÉ');
   });
 
   test('entrecomilla los valores con comas o comillas', () async {
@@ -300,7 +385,7 @@ void main() {
     // duplican: es la forma de que un separador dentro del nombre no corra la fila.
     expect(
       lineas[1],
-      '"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,',
+      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,',
     );
   });
 
@@ -332,7 +417,7 @@ void main() {
       final lineas = await leerLineas(archivo.ruta);
 
       expect(lineas, hasLength(3));
-      expect(lineas.skip(1).map((linea) => linea.split(',')[1]), [
+      expect(lineas.skip(1).map((linea) => linea.split(',')[3]), [
         'Café',
         'Té',
       ]);
@@ -383,7 +468,7 @@ void main() {
     final lineas = await leerLineas(archivo.ruta);
 
     expect(lineas, hasLength(2));
-    expect(lineas[1].split(',')[1], 'Pastel');
+    expect(lineas[1].split(',')[3], 'Pastel');
     expect(archivo.productosTotales, 2);
   });
 
@@ -402,7 +487,7 @@ void main() {
     final lineas = await leerLineas(archivo.ruta);
 
     expect(lineas, hasLength(2));
-    expect(lineas[1].split(',')[1], 'Café');
+    expect(lineas[1].split(',')[3], 'Café');
   });
 
   test('la plantilla trae el encabezado y ejemplos de llenado', () async {
@@ -413,7 +498,7 @@ void main() {
     expect(lineas.first, encabezado);
     expect(lineas, hasLength(6));
     expect(
-      lineas.skip(1).every((linea) => linea.startsWith(',Ejemplo - ')),
+      lineas.skip(1).every((linea) => linea.startsWith(',,,Ejemplo - ')),
       isTrue,
     );
     expect(archivo.productos, 4);
@@ -427,13 +512,13 @@ void main() {
     expect(archivo.ruta.endsWith('catalogo_columnas.csv'), isTrue);
     final lineas = await leerLineas(archivo.ruta);
     expect(lineas.first, 'columna,obligatoria,valores_permitidos,descripcion');
-    expect(lineas, hasLength(11));
-    expect(lineas[1].split(',').first, 'categoria');
+    expect(lineas, hasLength(13));
+    expect(lineas[1].split(',').first, 'product_id');
     expect(lineas.last.split(',').first, 'codigo_barras');
   });
 
   test(
-    'el archivo no trae estado interno: ni id, ni version, ni event',
+    'el archivo incluye identidad pero no versiones ni eventos internos',
     () async {
       await _articuloSinInventario(db, id: 'cafe', nombre: 'Café');
 
@@ -443,8 +528,6 @@ void main() {
       final texto = (await File(archivo.ruta).readAsString()).toLowerCase();
 
       for (final prohibido in [
-        'product_id',
-        'variant_id',
         'last_event_id',
         'version',
         'activo',

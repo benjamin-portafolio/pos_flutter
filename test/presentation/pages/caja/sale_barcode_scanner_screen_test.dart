@@ -176,8 +176,8 @@ void main() {
           isNot(contains(BarcodeFormat.qrCode)),
         );
         expect(camera.lastScanWindow, isNotNull);
-        expect(camera.lastScanWindow!.width, lessThan(1));
-        expect(camera.lastScanWindow!.height, lessThan(1));
+        expect(camera.lastScanWindow!.width, lessThanOrEqualTo(1));
+        expect(camera.lastScanWindow!.height, lessThanOrEqualTo(1));
         expect(find.text('La venta está vacía.'), findsOneWidget);
         expect(find.text('Ir a caja (0 artículos)'), findsOneWidget);
         expect(

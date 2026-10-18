@@ -18,6 +18,8 @@ import 'package:pos_flutter/application/commands/categorias/mover_categoria_comm
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/articulos/asignar_codigo_barras_variante_command.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
+import 'package:pos_flutter/application/commands/articulos/actualizar_articulo_csv_command.dart';
+import 'package:pos_flutter/application/commands/articulos/producto_import_lote_result.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
 import 'package:pos_flutter/domain/articulos/variante_listado.dart';
@@ -1064,6 +1066,17 @@ class _FakeCategoriaCommandService implements CategoriaCommandService {
 }
 
 class _FakeProductoCommandService implements ProductoCommandService {
+  @override
+  Future<bool> actualizarArticuloDesdeCsv(
+    ActualizarArticuloCsvCommand command,
+  ) => throw StateError('Esta prueba no debe importar CSV.');
+
+  @override
+  Future<ProductoImportLoteResult> importarArticulosLote({
+    required List<CrearArticuloCommand> altas,
+    required List<ActualizarArticuloCsvCommand> actualizaciones,
+  }) => throw StateError('Esta prueba no debe importar CSV.');
+
   @override
   Future<void> asignarCodigoBarrasVariante(
     AsignarCodigoBarrasVarianteCommand command,

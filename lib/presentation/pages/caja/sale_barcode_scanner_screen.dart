@@ -314,11 +314,9 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
 
   Widget _camera() => LayoutBuilder(
     builder: (context, constraints) {
-      final window = Rect.fromCenter(
-        center: constraints.biggest.center(Offset.zero),
-        width: constraints.maxWidth * .85,
-        height: constraints.maxHeight * .35,
-      );
+      // Toda la vista visible admite lecturas. Conservar el filtro nativo evita
+      // agregar códigos fuera de lo que muestra la cámara al recortar la imagen.
+      final window = Offset.zero & constraints.biggest;
       return ColoredBox(
         color: const Color(0xFF101010),
         child: Stack(
@@ -448,9 +446,9 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
                       }
                       return Column(
                         children: [
-                          Expanded(flex: 3, child: _camera()),
+                          Expanded(flex: 5, child: _camera()),
                           _readerMessage(),
-                          Expanded(flex: 4, child: _draftCards(snapshot)),
+                          Expanded(flex: 3, child: _draftCards(snapshot)),
                         ],
                       );
                     },
