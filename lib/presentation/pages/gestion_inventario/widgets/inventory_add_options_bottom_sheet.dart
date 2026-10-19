@@ -6,6 +6,7 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
     required this.onAddCategory,
     required this.onAddInventoryResource,
     this.onBulkImport,
+    this.onBulkEdit,
     this.onAddSupplier,
     super.key,
   });
@@ -14,6 +15,7 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
   final VoidCallback onAddCategory;
   final VoidCallback onAddInventoryResource;
   final VoidCallback? onBulkImport;
+  final VoidCallback? onBulkEdit;
   final VoidCallback? onAddSupplier;
 
   static Future<void> show({
@@ -22,6 +24,7 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
     required VoidCallback onAddCategory,
     required VoidCallback onAddInventoryResource,
     VoidCallback? onBulkImport,
+    VoidCallback? onBulkEdit,
     VoidCallback? onAddSupplier,
     Stream<bool>? supplierAvailability,
   }) => showModalBottomSheet<void>(
@@ -35,6 +38,7 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
         onAddCategory: onAddCategory,
         onAddInventoryResource: onAddInventoryResource,
         onBulkImport: onBulkImport,
+        onBulkEdit: onBulkEdit,
         onAddSupplier: snapshot.data == true ? onAddSupplier : null,
       ),
     ),
@@ -64,7 +68,7 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
           'Añadir proveedor',
           onAddSupplier,
         ),
-      _option(context, 'bulk_edit_option', 'Edición masiva', null),
+      _option(context, 'bulk_edit_option', 'Edición masiva', onBulkEdit),
       if (onBulkImport != null)
         _option(context, 'bulk_import_option', 'Carga masiva', onBulkImport),
     ];

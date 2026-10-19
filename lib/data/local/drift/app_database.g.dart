@@ -3,6 +3,609 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $BulkEditOperationsTable extends BulkEditOperations
+    with TableInfo<$BulkEditOperationsTable, BulkEditOperationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BulkEditOperationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _operationIdMeta = const VerificationMeta(
+    'operationId',
+  );
+  @override
+  late final GeneratedColumn<String> operationId = GeneratedColumn<String>(
+    'operation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _batchIdMeta = const VerificationMeta(
+    'batchId',
+  );
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+    'batch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intentJsonMeta = const VerificationMeta(
+    'intentJson',
+  );
+  @override
+  late final GeneratedColumn<String> intentJson = GeneratedColumn<String>(
+    'intent_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localStateMeta = const VerificationMeta(
+    'localState',
+  );
+  @override
+  late final GeneratedColumn<String> localState = GeneratedColumn<String>(
+    'local_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _resultJsonMeta = const VerificationMeta(
+    'resultJson',
+  );
+  @override
+  late final GeneratedColumn<String> resultJson = GeneratedColumn<String>(
+    'result_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _confirmedAtMeta = const VerificationMeta(
+    'confirmedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> confirmedAt = GeneratedColumn<DateTime>(
+    'confirmed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _finishedAtMeta = const VerificationMeta(
+    'finishedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> finishedAt = GeneratedColumn<DateTime>(
+    'finished_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    operationId,
+    batchId,
+    productId,
+    mode,
+    intentJson,
+    localState,
+    resultJson,
+    confirmedAt,
+    finishedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bulk_edit_operations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BulkEditOperationRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('operation_id')) {
+      context.handle(
+        _operationIdMeta,
+        operationId.isAcceptableOrUnknown(
+          data['operation_id']!,
+          _operationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_operationIdMeta);
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(
+        _batchIdMeta,
+        batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('intent_json')) {
+      context.handle(
+        _intentJsonMeta,
+        intentJson.isAcceptableOrUnknown(data['intent_json']!, _intentJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_intentJsonMeta);
+    }
+    if (data.containsKey('local_state')) {
+      context.handle(
+        _localStateMeta,
+        localState.isAcceptableOrUnknown(data['local_state']!, _localStateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localStateMeta);
+    }
+    if (data.containsKey('result_json')) {
+      context.handle(
+        _resultJsonMeta,
+        resultJson.isAcceptableOrUnknown(data['result_json']!, _resultJsonMeta),
+      );
+    }
+    if (data.containsKey('confirmed_at')) {
+      context.handle(
+        _confirmedAtMeta,
+        confirmedAt.isAcceptableOrUnknown(
+          data['confirmed_at']!,
+          _confirmedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_confirmedAtMeta);
+    }
+    if (data.containsKey('finished_at')) {
+      context.handle(
+        _finishedAtMeta,
+        finishedAt.isAcceptableOrUnknown(data['finished_at']!, _finishedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {operationId};
+  @override
+  BulkEditOperationRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BulkEditOperationRow(
+      operationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation_id'],
+      )!,
+      batchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_id'],
+      )!,
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      intentJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}intent_json'],
+      )!,
+      localState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_state'],
+      )!,
+      resultJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}result_json'],
+      ),
+      confirmedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}confirmed_at'],
+      )!,
+      finishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}finished_at'],
+      ),
+    );
+  }
+
+  @override
+  $BulkEditOperationsTable createAlias(String alias) {
+    return $BulkEditOperationsTable(attachedDatabase, alias);
+  }
+}
+
+class BulkEditOperationRow extends DataClass
+    implements Insertable<BulkEditOperationRow> {
+  /// Identidad determinista de captura/producto, reutilizada en cada reintento.
+  final String operationId;
+
+  /// Identidad estable de la revisión confirmada, no del borrador sin confirmar.
+  final String batchId;
+
+  /// Producto destino; sin FK para conservar evidencia si se elimina después.
+  final String productId;
+
+  /// Modo al confirmar; impide continuar pendientes bajo otro modo.
+  final String mode;
+
+  /// JSON canónico versionado: variantes, intención explícita, proveedor/fecha,
+  /// bases de producto/recurso/saldo, vínculo, unidad y cantidades confirmados.
+  final String intentJson;
+
+  /// confirmada, aplicada o cerrada; los fallos dejan la reserva confirmada.
+  final String localState;
+
+  /// Resultado tipado con IDs originales de eventos/movimientos, solo aplicada.
+  final String? resultJson;
+
+  /// Instante UTC de reserva del conjunto confirmado antes de iniciar negocio.
+  final DateTime confirmedAt;
+
+  /// Instante UTC del commit aplicado o del cierre explícito de la propuesta.
+  final DateTime? finishedAt;
+  const BulkEditOperationRow({
+    required this.operationId,
+    required this.batchId,
+    required this.productId,
+    required this.mode,
+    required this.intentJson,
+    required this.localState,
+    this.resultJson,
+    required this.confirmedAt,
+    this.finishedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['operation_id'] = Variable<String>(operationId);
+    map['batch_id'] = Variable<String>(batchId);
+    map['product_id'] = Variable<String>(productId);
+    map['mode'] = Variable<String>(mode);
+    map['intent_json'] = Variable<String>(intentJson);
+    map['local_state'] = Variable<String>(localState);
+    if (!nullToAbsent || resultJson != null) {
+      map['result_json'] = Variable<String>(resultJson);
+    }
+    map['confirmed_at'] = Variable<DateTime>(confirmedAt);
+    if (!nullToAbsent || finishedAt != null) {
+      map['finished_at'] = Variable<DateTime>(finishedAt);
+    }
+    return map;
+  }
+
+  BulkEditOperationsCompanion toCompanion(bool nullToAbsent) {
+    return BulkEditOperationsCompanion(
+      operationId: Value(operationId),
+      batchId: Value(batchId),
+      productId: Value(productId),
+      mode: Value(mode),
+      intentJson: Value(intentJson),
+      localState: Value(localState),
+      resultJson: resultJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultJson),
+      confirmedAt: Value(confirmedAt),
+      finishedAt: finishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finishedAt),
+    );
+  }
+
+  factory BulkEditOperationRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BulkEditOperationRow(
+      operationId: serializer.fromJson<String>(json['operationId']),
+      batchId: serializer.fromJson<String>(json['batchId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      mode: serializer.fromJson<String>(json['mode']),
+      intentJson: serializer.fromJson<String>(json['intentJson']),
+      localState: serializer.fromJson<String>(json['localState']),
+      resultJson: serializer.fromJson<String?>(json['resultJson']),
+      confirmedAt: serializer.fromJson<DateTime>(json['confirmedAt']),
+      finishedAt: serializer.fromJson<DateTime?>(json['finishedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'operationId': serializer.toJson<String>(operationId),
+      'batchId': serializer.toJson<String>(batchId),
+      'productId': serializer.toJson<String>(productId),
+      'mode': serializer.toJson<String>(mode),
+      'intentJson': serializer.toJson<String>(intentJson),
+      'localState': serializer.toJson<String>(localState),
+      'resultJson': serializer.toJson<String?>(resultJson),
+      'confirmedAt': serializer.toJson<DateTime>(confirmedAt),
+      'finishedAt': serializer.toJson<DateTime?>(finishedAt),
+    };
+  }
+
+  BulkEditOperationRow copyWith({
+    String? operationId,
+    String? batchId,
+    String? productId,
+    String? mode,
+    String? intentJson,
+    String? localState,
+    Value<String?> resultJson = const Value.absent(),
+    DateTime? confirmedAt,
+    Value<DateTime?> finishedAt = const Value.absent(),
+  }) => BulkEditOperationRow(
+    operationId: operationId ?? this.operationId,
+    batchId: batchId ?? this.batchId,
+    productId: productId ?? this.productId,
+    mode: mode ?? this.mode,
+    intentJson: intentJson ?? this.intentJson,
+    localState: localState ?? this.localState,
+    resultJson: resultJson.present ? resultJson.value : this.resultJson,
+    confirmedAt: confirmedAt ?? this.confirmedAt,
+    finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
+  );
+  BulkEditOperationRow copyWithCompanion(BulkEditOperationsCompanion data) {
+    return BulkEditOperationRow(
+      operationId: data.operationId.present
+          ? data.operationId.value
+          : this.operationId,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      intentJson: data.intentJson.present
+          ? data.intentJson.value
+          : this.intentJson,
+      localState: data.localState.present
+          ? data.localState.value
+          : this.localState,
+      resultJson: data.resultJson.present
+          ? data.resultJson.value
+          : this.resultJson,
+      confirmedAt: data.confirmedAt.present
+          ? data.confirmedAt.value
+          : this.confirmedAt,
+      finishedAt: data.finishedAt.present
+          ? data.finishedAt.value
+          : this.finishedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BulkEditOperationRow(')
+          ..write('operationId: $operationId, ')
+          ..write('batchId: $batchId, ')
+          ..write('productId: $productId, ')
+          ..write('mode: $mode, ')
+          ..write('intentJson: $intentJson, ')
+          ..write('localState: $localState, ')
+          ..write('resultJson: $resultJson, ')
+          ..write('confirmedAt: $confirmedAt, ')
+          ..write('finishedAt: $finishedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    operationId,
+    batchId,
+    productId,
+    mode,
+    intentJson,
+    localState,
+    resultJson,
+    confirmedAt,
+    finishedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BulkEditOperationRow &&
+          other.operationId == this.operationId &&
+          other.batchId == this.batchId &&
+          other.productId == this.productId &&
+          other.mode == this.mode &&
+          other.intentJson == this.intentJson &&
+          other.localState == this.localState &&
+          other.resultJson == this.resultJson &&
+          other.confirmedAt == this.confirmedAt &&
+          other.finishedAt == this.finishedAt);
+}
+
+class BulkEditOperationsCompanion
+    extends UpdateCompanion<BulkEditOperationRow> {
+  final Value<String> operationId;
+  final Value<String> batchId;
+  final Value<String> productId;
+  final Value<String> mode;
+  final Value<String> intentJson;
+  final Value<String> localState;
+  final Value<String?> resultJson;
+  final Value<DateTime> confirmedAt;
+  final Value<DateTime?> finishedAt;
+  final Value<int> rowid;
+  const BulkEditOperationsCompanion({
+    this.operationId = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.intentJson = const Value.absent(),
+    this.localState = const Value.absent(),
+    this.resultJson = const Value.absent(),
+    this.confirmedAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BulkEditOperationsCompanion.insert({
+    required String operationId,
+    required String batchId,
+    required String productId,
+    required String mode,
+    required String intentJson,
+    required String localState,
+    this.resultJson = const Value.absent(),
+    required DateTime confirmedAt,
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : operationId = Value(operationId),
+       batchId = Value(batchId),
+       productId = Value(productId),
+       mode = Value(mode),
+       intentJson = Value(intentJson),
+       localState = Value(localState),
+       confirmedAt = Value(confirmedAt);
+  static Insertable<BulkEditOperationRow> custom({
+    Expression<String>? operationId,
+    Expression<String>? batchId,
+    Expression<String>? productId,
+    Expression<String>? mode,
+    Expression<String>? intentJson,
+    Expression<String>? localState,
+    Expression<String>? resultJson,
+    Expression<DateTime>? confirmedAt,
+    Expression<DateTime>? finishedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (operationId != null) 'operation_id': operationId,
+      if (batchId != null) 'batch_id': batchId,
+      if (productId != null) 'product_id': productId,
+      if (mode != null) 'mode': mode,
+      if (intentJson != null) 'intent_json': intentJson,
+      if (localState != null) 'local_state': localState,
+      if (resultJson != null) 'result_json': resultJson,
+      if (confirmedAt != null) 'confirmed_at': confirmedAt,
+      if (finishedAt != null) 'finished_at': finishedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BulkEditOperationsCompanion copyWith({
+    Value<String>? operationId,
+    Value<String>? batchId,
+    Value<String>? productId,
+    Value<String>? mode,
+    Value<String>? intentJson,
+    Value<String>? localState,
+    Value<String?>? resultJson,
+    Value<DateTime>? confirmedAt,
+    Value<DateTime?>? finishedAt,
+    Value<int>? rowid,
+  }) {
+    return BulkEditOperationsCompanion(
+      operationId: operationId ?? this.operationId,
+      batchId: batchId ?? this.batchId,
+      productId: productId ?? this.productId,
+      mode: mode ?? this.mode,
+      intentJson: intentJson ?? this.intentJson,
+      localState: localState ?? this.localState,
+      resultJson: resultJson ?? this.resultJson,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (operationId.present) {
+      map['operation_id'] = Variable<String>(operationId.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (intentJson.present) {
+      map['intent_json'] = Variable<String>(intentJson.value);
+    }
+    if (localState.present) {
+      map['local_state'] = Variable<String>(localState.value);
+    }
+    if (resultJson.present) {
+      map['result_json'] = Variable<String>(resultJson.value);
+    }
+    if (confirmedAt.present) {
+      map['confirmed_at'] = Variable<DateTime>(confirmedAt.value);
+    }
+    if (finishedAt.present) {
+      map['finished_at'] = Variable<DateTime>(finishedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BulkEditOperationsCompanion(')
+          ..write('operationId: $operationId, ')
+          ..write('batchId: $batchId, ')
+          ..write('productId: $productId, ')
+          ..write('mode: $mode, ')
+          ..write('intentJson: $intentJson, ')
+          ..write('localState: $localState, ')
+          ..write('resultJson: $resultJson, ')
+          ..write('confirmedAt: $confirmedAt, ')
+          ..write('finishedAt: $finishedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ClientesTable extends Clientes
     with TableInfo<$ClientesTable, ClienteRow> {
   @override
@@ -20850,6 +21453,8 @@ class AccountBalanceBaselinesCompanion
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $BulkEditOperationsTable bulkEditOperations =
+      $BulkEditOperationsTable(this);
   late final $ClientesTable clientes = $ClientesTable(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $UnitsTable units = $UnitsTable(this);
@@ -20901,6 +21506,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CashMovementsTable cashMovements = $CashMovementsTable(this);
   late final $AccountBalanceBaselinesTable accountBalanceBaselines =
       $AccountBalanceBaselinesTable(this);
+  late final Index uxBulkEditBatchProduct = Index(
+    'ux_bulk_edit_batch_product',
+    'CREATE UNIQUE INDEX ux_bulk_edit_batch_product ON bulk_edit_operations (batch_id, product_id)',
+  );
   late final Index uxProductVariantsProductSort = Index(
     'ux_product_variants_product_sort',
     'CREATE UNIQUE INDEX ux_product_variants_product_sort ON product_variants (product_id, sort_order) WHERE active = 1',
@@ -20977,6 +21586,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'ix_cash_movements_session',
     'CREATE INDEX ix_cash_movements_session ON cash_movements (session_id)',
   );
+  late final BulkEditOperationDao bulkEditOperationDao = BulkEditOperationDao(
+    this as AppDatabase,
+  );
   late final ClienteDao clienteDao = ClienteDao(this as AppDatabase);
   late final ProveedorDao proveedorDao = ProveedorDao(this as AppDatabase);
   late final CategoriaDao categoriaDao = CategoriaDao(this as AppDatabase);
@@ -21004,6 +21616,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    bulkEditOperations,
     clientes,
     categories,
     units,
@@ -21035,6 +21648,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     cashSessions,
     cashMovements,
     accountBalanceBaselines,
+    uxBulkEditBatchProduct,
     uxProductVariantsProductSort,
     uxProductVariantsProductNameKey,
     ixRecipeComponentsInventoryItem,
@@ -21106,6 +21720,307 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ]);
 }
 
+typedef $$BulkEditOperationsTableCreateCompanionBuilder =
+    BulkEditOperationsCompanion Function({
+      required String operationId,
+      required String batchId,
+      required String productId,
+      required String mode,
+      required String intentJson,
+      required String localState,
+      Value<String?> resultJson,
+      required DateTime confirmedAt,
+      Value<DateTime?> finishedAt,
+      Value<int> rowid,
+    });
+typedef $$BulkEditOperationsTableUpdateCompanionBuilder =
+    BulkEditOperationsCompanion Function({
+      Value<String> operationId,
+      Value<String> batchId,
+      Value<String> productId,
+      Value<String> mode,
+      Value<String> intentJson,
+      Value<String> localState,
+      Value<String?> resultJson,
+      Value<DateTime> confirmedAt,
+      Value<DateTime?> finishedAt,
+      Value<int> rowid,
+    });
+
+class $$BulkEditOperationsTableFilterComposer
+    extends Composer<_$AppDatabase, $BulkEditOperationsTable> {
+  $$BulkEditOperationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get operationId => $composableBuilder(
+    column: $table.operationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get intentJson => $composableBuilder(
+    column: $table.intentJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localState => $composableBuilder(
+    column: $table.localState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get resultJson => $composableBuilder(
+    column: $table.resultJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get confirmedAt => $composableBuilder(
+    column: $table.confirmedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BulkEditOperationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BulkEditOperationsTable> {
+  $$BulkEditOperationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get operationId => $composableBuilder(
+    column: $table.operationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get intentJson => $composableBuilder(
+    column: $table.intentJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localState => $composableBuilder(
+    column: $table.localState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get resultJson => $composableBuilder(
+    column: $table.resultJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get confirmedAt => $composableBuilder(
+    column: $table.confirmedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BulkEditOperationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BulkEditOperationsTable> {
+  $$BulkEditOperationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get operationId => $composableBuilder(
+    column: $table.operationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get intentJson => $composableBuilder(
+    column: $table.intentJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localState => $composableBuilder(
+    column: $table.localState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get resultJson => $composableBuilder(
+    column: $table.resultJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get confirmedAt => $composableBuilder(
+    column: $table.confirmedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get finishedAt => $composableBuilder(
+    column: $table.finishedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$BulkEditOperationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BulkEditOperationsTable,
+          BulkEditOperationRow,
+          $$BulkEditOperationsTableFilterComposer,
+          $$BulkEditOperationsTableOrderingComposer,
+          $$BulkEditOperationsTableAnnotationComposer,
+          $$BulkEditOperationsTableCreateCompanionBuilder,
+          $$BulkEditOperationsTableUpdateCompanionBuilder,
+          (
+            BulkEditOperationRow,
+            BaseReferences<
+              _$AppDatabase,
+              $BulkEditOperationsTable,
+              BulkEditOperationRow
+            >,
+          ),
+          BulkEditOperationRow,
+          PrefetchHooks Function()
+        > {
+  $$BulkEditOperationsTableTableManager(
+    _$AppDatabase db,
+    $BulkEditOperationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BulkEditOperationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BulkEditOperationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BulkEditOperationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> operationId = const Value.absent(),
+                Value<String> batchId = const Value.absent(),
+                Value<String> productId = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String> intentJson = const Value.absent(),
+                Value<String> localState = const Value.absent(),
+                Value<String?> resultJson = const Value.absent(),
+                Value<DateTime> confirmedAt = const Value.absent(),
+                Value<DateTime?> finishedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BulkEditOperationsCompanion(
+                operationId: operationId,
+                batchId: batchId,
+                productId: productId,
+                mode: mode,
+                intentJson: intentJson,
+                localState: localState,
+                resultJson: resultJson,
+                confirmedAt: confirmedAt,
+                finishedAt: finishedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String operationId,
+                required String batchId,
+                required String productId,
+                required String mode,
+                required String intentJson,
+                required String localState,
+                Value<String?> resultJson = const Value.absent(),
+                required DateTime confirmedAt,
+                Value<DateTime?> finishedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BulkEditOperationsCompanion.insert(
+                operationId: operationId,
+                batchId: batchId,
+                productId: productId,
+                mode: mode,
+                intentJson: intentJson,
+                localState: localState,
+                resultJson: resultJson,
+                confirmedAt: confirmedAt,
+                finishedAt: finishedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BulkEditOperationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BulkEditOperationsTable,
+      BulkEditOperationRow,
+      $$BulkEditOperationsTableFilterComposer,
+      $$BulkEditOperationsTableOrderingComposer,
+      $$BulkEditOperationsTableAnnotationComposer,
+      $$BulkEditOperationsTableCreateCompanionBuilder,
+      $$BulkEditOperationsTableUpdateCompanionBuilder,
+      (
+        BulkEditOperationRow,
+        BaseReferences<
+          _$AppDatabase,
+          $BulkEditOperationsTable,
+          BulkEditOperationRow
+        >,
+      ),
+      BulkEditOperationRow,
+      PrefetchHooks Function()
+    >;
 typedef $$ClientesTableCreateCompanionBuilder =
     ClientesCompanion Function({
       required String id,
@@ -36877,6 +37792,8 @@ typedef $$AccountBalanceBaselinesTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$BulkEditOperationsTableTableManager get bulkEditOperations =>
+      $$BulkEditOperationsTableTableManager(_db, _db.bulkEditOperations);
   $$ClientesTableTableManager get clientes =>
       $$ClientesTableTableManager(_db, _db.clientes);
   $$CategoriesTableTableManager get categories =>
@@ -36944,6 +37861,22 @@ class $AppDatabaseManager {
       $$AccountBalanceBaselinesTableTableManager(
         _db,
         _db.accountBalanceBaselines,
+      );
+}
+
+mixin _$BulkEditOperationDaoMixin on DatabaseAccessor<AppDatabase> {
+  $BulkEditOperationsTable get bulkEditOperations =>
+      attachedDatabase.bulkEditOperations;
+  BulkEditOperationDaoManager get managers => BulkEditOperationDaoManager(this);
+}
+
+class BulkEditOperationDaoManager {
+  final _$BulkEditOperationDaoMixin _db;
+  BulkEditOperationDaoManager(this._db);
+  $$BulkEditOperationsTableTableManager get bulkEditOperations =>
+      $$BulkEditOperationsTableTableManager(
+        _db.attachedDatabase,
+        _db.bulkEditOperations,
       );
 }
 

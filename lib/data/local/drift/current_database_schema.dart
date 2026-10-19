@@ -21,7 +21,28 @@ bool hasCurrentAppDatabaseSchema(Database connection) {
       .select('PRAGMA table_info(quotation_items)')
       .map((column) => column['name'])
       .toSet();
-  return hasCurrentSupplierSchema(connection) &&
+  final bulkColumns = connection
+      .select('PRAGMA table_info(bulk_edit_operations)')
+      .map((column) => column['name'])
+      .toSet();
+  return bulkColumns.containsAll({
+        'operation_id',
+        'batch_id',
+        'product_id',
+        'mode',
+        'intent_json',
+        'local_state',
+        'result_json',
+        'confirmed_at',
+        'finished_at',
+      }) &&
+      connection
+              .select(
+                "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'ux_bulk_edit_batch_product'",
+              )
+              .length ==
+          1 &&
+      hasCurrentSupplierSchema(connection) &&
       !quotationColumns.any({'currency', 'total_minor'}.contains) &&
       !quotationItemColumns.any(
         {

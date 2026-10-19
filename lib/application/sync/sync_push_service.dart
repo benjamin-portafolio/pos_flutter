@@ -154,7 +154,9 @@ class SyncPushService {
           rejected++;
           rejectedIds.add(event.eventId);
           if (event.aggregateType == ProveedorCreadoPayload.aggregateType ||
-              event.aggregateType == ProductoCreadoPayload.aggregateType) {
+              event.aggregateType == ProductoCreadoPayload.aggregateType ||
+              event.eventType ==
+                  MovimientoInventarioRegistradoPayload.eventType) {
             rejectedEvents.add(event);
           }
         case 'conflict':

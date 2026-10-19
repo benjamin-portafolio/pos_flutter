@@ -3,6 +3,10 @@ import '../../application/printing/ticket_encoder.dart';
 import '../../application/printing/printer_settings_controller.dart';
 import '../../application/printing/printer_settings_store.dart';
 import '../../application/printing/ticket_print_service.dart';
+import '../../application/commands/edicion_masiva/edicion_masiva_command_service.dart';
+import '../../application/edicion_masiva/catalogo_edicion_masiva.dart';
+import '../../data/local/drift/drift_diario_edicion_masiva.dart';
+import '../../data/repositories/drift_catalogo_edicion_masiva.dart';
 import '../../application/commands/proveedores/proveedor_command_service.dart';
 import '../../application/sync/projections/proveedor_projection_store.dart';
 import '../../application/sync/handlers/proveedor_creado_event_handler.dart';
@@ -624,6 +628,18 @@ void registerApplicationDependencies(
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
       variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
       variantInventoryTrackingStore: getIt<VariantInventoryTrackingStore>(),
+    ),
+  );
+  getIt.registerLazySingleton<CatalogoEdicionMasiva>(
+    () => DriftCatalogoEdicionMasiva(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<EdicionMasivaCommandService>(
+    () => EdicionMasivaCommandService(
+      DriftDiarioEdicionMasiva(
+        db: getIt<AppDatabase>(),
+        config: getIt<AppConfigController>(),
+        context: getIt<LocalCommandContext>(),
+      ),
     ),
   );
   getIt.registerLazySingleton<ArticuloImportBatchService>(

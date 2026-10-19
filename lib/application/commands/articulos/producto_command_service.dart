@@ -32,9 +32,12 @@ import '../../sync/synced_event_history.dart';
 import 'asignar_codigo_barras_variante_command.dart';
 import 'actualizar_articulo_csv_command.dart';
 import 'actualizar_articulo_variante_csv_command.dart';
+import 'editar_articulo_comercial_command.dart';
+import 'editar_articulo_comercial_result.dart';
 import 'producto_import_lote_result.dart';
 import 'crear_articulo_command.dart';
 import 'crear_articulo_variante_command.dart';
+import '../../edicion_masiva/cambio_variante_masiva.dart';
 import '../../sync/payloads/producto_actualizado_payload.dart';
 import '../../sync/projections/producto_projection_store.dart';
 import '../../sync/projections/variant_inventory_memory_store.dart';
@@ -186,15 +189,7 @@ class ProductoCommandService {
       dependenciaCategoria: before.categoriaId == null
           ? null
           : await _categoryDependency(before.categoriaId!),
-      dependenciasInventario: [
-        for (final dependency in before.dependenciasInventario)
-          ProductoCreadoInventarioDependencia(
-            refId: dependency.refId,
-            dependsOnEventId: await _pendingCreationDependency(
-              dependency.refId,
-            ),
-          ),
-      ],
+      dependenciasInventario: await _currentInventoryDependencies(before),
       dependenciasProveedores: await _supplierDependencies(variants),
     );
     final payload = ProductoActualizadoPayload(
@@ -228,6 +223,24 @@ class ProductoCommandService {
     if (entry == null) return false;
     await _eventStore.appendAndApply(entry.event, refs: entry.refs);
     return true;
+  });
+
+  /// Edición comercial acotada por producto. Relee el snapshot completo bajo
+  /// la transacción y superpone solo venta, costo estándar y la pareja de
+  /// proveedor solicitada, conservando todo lo ajeno al cambio. Devuelve el
+  /// evento emitido o la omisión sin escribir, versionar ni respaldar.
+  Future<EditarArticuloComercialResult> editarArticuloComercial(
+    EditarArticuloComercialCommand command,
+  ) => _transactionalImportStore.runInTransaction(() async {
+    final entry = await _prepareEdicionComercial(command);
+    if (entry == null) {
+      return EditarArticuloComercialResult.omitido(productId: command.productId);
+    }
+    await _eventStore.appendAndApply(entry.event, refs: entry.refs);
+    return EditarArticuloComercialResult.emitido(
+      productId: command.productId,
+      eventId: entry.event.eventId,
+    );
   });
 
   LocalTransactionalEventStore get _transactionalImportStore {
@@ -296,15 +309,7 @@ class ProductoCommandService {
       dependenciaCategoria: categoriaId == null
           ? null
           : await _categoryDependency(categoriaId),
-      dependenciasInventario: [
-        for (final dependency in before.dependenciasInventario)
-          ProductoCreadoInventarioDependencia(
-            refId: dependency.refId,
-            dependsOnEventId: await _pendingCreationDependency(
-              dependency.refId,
-            ),
-          ),
-      ],
+      dependenciasInventario: await _currentInventoryDependencies(before),
       dependenciasProveedores: await _supplierDependencies(variants),
     );
     if (ProductoActualizadoPayload.sameState(before, after)) return null;
@@ -321,6 +326,164 @@ class ProductoCommandService {
         updatePayload: payload,
       ),
     );
+  }
+
+  /// Prepara el evento comercial o `null` si el estado final es idéntico.
+  Future<LocalEventAppend?> _prepareEdicionComercial(
+    EditarArticuloComercialCommand command,
+  ) async {
+    final product = await _obtenerBaseEdicion(command.productId);
+    final base = command.base;
+    if (base.id != product.id ||
+        base.version != product.version ||
+        base.eventId == null ||
+        product.lastEventId != base.eventId) {
+      throw StateError('El artículo cambió. Vuelve a revisar la edición.');
+    }
+    if (command.cambios.isEmpty) {
+      throw const FormatException('La edición requiere al menos una variante.');
+    }
+    final changes = <String, CambioVarianteMasiva>{};
+    for (final cambio in command.cambios) {
+      if (cambio.clave.productId != command.productId) {
+        throw StateError('La variante pertenece a otro artículo.');
+      }
+      if (!cambio.baseProducto.mismoEstado(base)) {
+        throw StateError('El artículo cambió. Vuelve a revisar la edición.');
+      }
+      if (changes.containsKey(cambio.clave.variantId)) {
+        throw const FormatException('La variante está repetida.');
+      }
+      final variant = await _productoProjectionStore!.findVariantById(
+        cambio.clave.variantId,
+      );
+      if (variant == null || !variant.active) {
+        throw StateError('La variante no está disponible.');
+      }
+      if (variant.productoId != product.id) {
+        throw StateError('La variante pertenece a otro artículo.');
+      }
+      if (cambio.precioProveedor case final pareja?) {
+        await _validarProveedorIncorporado(pareja);
+      }
+      changes[cambio.clave.variantId] = cambio;
+    }
+
+    // No usar _snapshotForEdit: solo se promueve el conocimiento legado cuando
+    // una pareja explícita lo exige; editar otros campos conserva la ausencia.
+    final actual = await _productoProjectionStore!.snapshot(product.id);
+    final legado = actual.variantes.first.proveedores == null;
+    final incorporaPareja = command.cambios.any(
+      (cambio) => cambio.precioProveedor != null,
+    );
+    final before = legado && incorporaPareja
+        ? actual.withKnownSuppliers()
+        : actual;
+    final variants = [
+      for (final v in before.variantes)
+        if (changes[v.id] case final cambio?)
+          _aplicarCambioComercial(v, cambio)
+        else
+          v,
+    ];
+    final categoriaId = before.categoriaId;
+    final after = ProductoCreadoPayload.create(
+      nombre: before.nombre,
+      categoriaId: categoriaId,
+      saleConfiguration: before.saleConfiguration,
+      variantes: variants,
+      dependenciaCategoria: categoriaId == null
+          ? null
+          : await _categoryDependency(categoriaId),
+      dependenciasInventario: await _currentInventoryDependencies(before),
+      dependenciasProveedores: await _supplierDependencies(variants),
+    );
+    if (ProductoActualizadoPayload.sameState(before, after)) return null;
+    final payload = ProductoActualizadoPayload(
+      baseEventId: base.eventId!,
+      before: before,
+      after: after,
+    );
+    return LocalEventAppend(
+      event: await _updateEvent(product, payload),
+      refs: _buildArticleRefs(
+        productId: product.id,
+        payload: after,
+        updatePayload: payload,
+      ),
+    );
+  }
+
+  Future<void> _validarProveedorIncorporado(ProveedorVariante pareja) async {
+    final supplier = await _proveedorProjectionStore?.findById(
+      pareja.proveedorId,
+    );
+    if (supplier == null || !supplier.active) {
+      throw StateError('El proveedor no está disponible.');
+    }
+  }
+
+  /// Superpone venta, costo y la pareja solicitada sobre la variante releída.
+  ProductoCreadoVariante _aplicarCambioComercial(
+    ProductoCreadoVariante actual,
+    CambioVarianteMasiva cambio,
+  ) {
+    final pareja = cambio.precioProveedor;
+    final proveedores = pareja == null
+        ? actual.proveedores
+        : _superponerProveedor(actual.proveedores!, pareja);
+    return ProductoCreadoVariante.create(
+      id: actual.id,
+      nombre: actual.nombre,
+      codigoBarras: actual.codigoBarras,
+      precioVentaMenor: cambio.venta.establecer
+          ? cambio.venta.valor
+          : actual.precioVentaMenor,
+      costoEstandarMenor: cambio.costo.establecer
+          ? cambio.costo.valor
+          : actual.costoEstandarMenor,
+      inventoryItemId: actual.inventoryItemId,
+      componentesReceta: actual.componentesReceta,
+      proveedores: proveedores,
+      orden: actual.orden,
+    );
+  }
+
+  /// Conserva todas las demás parejas y refresca solo la indicada. Un precio
+  /// idéntico mantiene la fecha vigente; un precio o pareja nueva usa la
+  /// fecha informada, ya convertida a UTC por el borrador (M14).
+  List<ProductoProveedorPrecio> _superponerProveedor(
+    List<ProductoProveedorPrecio> existentes,
+    ProveedorVariante cambio,
+  ) {
+    final result = <ProductoProveedorPrecio>[];
+    var encontrada = false;
+    for (final actual in existentes) {
+      if (actual.supplierId != cambio.proveedorId) {
+        result.add(actual);
+        continue;
+      }
+      encontrada = true;
+      result.add(
+        actual.quotedPriceMinor == cambio.precioInformadoMenor
+            ? actual
+            : ProductoProveedorPrecio(
+                supplierId: cambio.proveedorId,
+                quotedPriceMinor: cambio.precioInformadoMenor,
+                quotedAtMs: cambio.fechaInformadaMs,
+              ),
+      );
+    }
+    if (!encontrada) {
+      result.add(
+        ProductoProveedorPrecio(
+          supplierId: cambio.proveedorId,
+          quotedPriceMinor: cambio.precioInformadoMenor,
+          quotedAtMs: cambio.fechaInformadaMs,
+        ),
+      );
+    }
+    return ProductoProveedorPrecio.validate(result)!;
   }
 
   /// Altas y ediciones comparten una transacción exterior desde la preparación.
@@ -1010,6 +1173,19 @@ class ProductoCommandService {
     }
     return result;
   }
+
+  /// Reconstruye las dependencias de recursos de un estado leído. Un recurso
+  /// recuperado o seleccionado puede tener su alta aún pendiente de aceptar por
+  /// el servidor: se declara como dependencia normal y el push espera su
+  /// aceptación antes de enviar el producto (contrato §3.1 y §6.2).
+  Future<List<ProductoCreadoInventarioDependencia>>
+  _currentInventoryDependencies(ProductoCreadoPayload before) async => [
+    for (final dependency in before.dependenciasInventario)
+      ProductoCreadoInventarioDependencia(
+        refId: dependency.refId,
+        dependsOnEventId: await _pendingCreationDependency(dependency.refId),
+      ),
+  ];
 
   List<LocalEventRef> _supplierRefs(List<ProductoCreadoPayload> states) {
     final variantIds = {

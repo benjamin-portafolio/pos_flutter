@@ -1,6 +1,9 @@
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
+import 'payloads/movimiento_inventario_registrado_payload.dart';
+import 'payloads/recurso_inventario_actualizado_payload.dart';
+import 'payloads/recurso_inventario_creado_payload.dart';
 import 'categoria_eliminada_conflict_projection_restorer.dart';
 import 'models/sync_event.dart';
 import 'payloads/categoria_eliminada_payload.dart';
@@ -31,6 +34,30 @@ class RemoteEventPreparer {
     final refs = await _syncPersistence.refsForEvents(
       pending.map((event) => event.eventId).toList(growable: false),
     );
+
+    if (officialEvent.aggregateType ==
+        RecursoInventarioCreadoPayload.aggregateType) {
+      // Restaurar primero la cadena optimista en orden inverso. El handler
+      // oficial exige su base; revalidar después de aplicarlo sería demasiado
+      // tarde. Los ecos ya aplicados se resuelven antes de este preparador.
+      for (final local in pending.reversed) {
+        if (local.aggregateId != officialEvent.aggregateId ||
+            local.eventId == officialEvent.eventId ||
+            (local.eventType !=
+                    MovimientoInventarioRegistradoPayload.eventType &&
+                local.eventType !=
+                    RecursoInventarioActualizadoPayload.eventType)) {
+          continue;
+        }
+        await _conflictProjectionCleaner.hideConflictProjection(local);
+        await _syncPersistence.updateEventSyncStatus(
+          local.eventId,
+          'conflict',
+          rejectionReason:
+              'El recurso cambió oficialmente desde la base local.',
+        );
+      }
+    }
 
     if (officialEvent.eventType == ProveedorCreadoPayload.eventType) {
       final failed = <String>{

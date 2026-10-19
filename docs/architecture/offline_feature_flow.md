@@ -641,3 +641,12 @@ secuencia oficial, sin sobrescribir ediciones posteriores. Una edición oficial
 concurrente restaura en orden inverso las ediciones locales pendientes antes
 de aplicar al ganador. Standalone conserva `not_required` y no persiste refs.
 El botón Borrar del formulario de edición permanece deshabilitado por alcance.
+
+## Recepción masiva y reintentos locales
+
+El coordinador de edición masiva reserva operaciones confirmadas por captura/
+producto y ejecuta catálogo, entradas y resultado del diario en una transacción
+exterior sobre la misma SQLite. La reapertura solo consulta pendientes y el
+reintento aplicado devuelve IDs originales antes de exigir bases antiguas.
+Ver [contrato, diario, modos, esquema y recuperación](bulk_receipt_operations.md).
+La interfaz pública permanece para las siguientes sesiones del plan.

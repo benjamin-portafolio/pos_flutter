@@ -1,3 +1,4 @@
+import 'tables/bulk_edit_operations.dart';
 import 'tables/suppliers.dart';
 import 'tables/variant_suppliers.dart';
 import 'current_database_schema.dart';
@@ -56,6 +57,7 @@ import '../../../application/sync/projections/quotation_item_projection.dart';
 import '../../../application/sync/payloads/quotation_selection_snapshot.dart';
 
 part 'app_database.g.dart';
+part 'daos/bulk_edit_operation_dao.dart';
 part 'daos/cliente_dao.dart';
 part 'daos/proveedor_dao.dart';
 part 'daos/sale_dao.dart';
@@ -80,6 +82,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
 /// Database class configuring connection, schema and registered tables/DAOs.
 @DriftDatabase(
   tables: [
+    BulkEditOperations,
     Clientes,
     Categories,
     Products,
@@ -113,6 +116,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     AccountBalanceBaselines,
   ],
   daos: [
+    BulkEditOperationDao,
     ClienteDao,
     ProveedorDao,
     CategoriaDao,
@@ -250,6 +254,7 @@ LazyDatabase _openConnection() {
 /// actuales se conservan entre arranques. Cotizaciones requiere quotations,
 /// quotation_items sin condiciones monetarias y sus índices. Una base previa
 /// o con columnas retiradas se reinicia, salvo respaldos restaurados protegidos.
+/// Edición masiva exige bulk_edit_operations y su índice de captura/producto.
 /// Proveedores exige suppliers con CommonFields y variant_suppliers con precio/fecha.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;

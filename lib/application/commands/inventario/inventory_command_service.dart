@@ -1,8 +1,10 @@
 import 'package:uuid/uuid.dart';
 
+import '../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../domain/inventario/nombre_recurso_inventario.dart';
 import '../../../domain/inventario/tipo_movimiento_inventario.dart';
 import '../../sync/local_event_store.dart';
+import '../../sync/synced_event_history.dart';
 import '../../sync/models/sync_event.dart';
 import '../../sync/payloads/inventory_movement_payload.dart';
 import '../../sync/payloads/movimiento_inventario_registrado_payload.dart';
@@ -12,6 +14,8 @@ import '../../sync/projections/inventory_projection_store.dart';
 import 'crear_recurso_inventario_command.dart';
 import 'editar_recurso_inventario_command.dart';
 import 'registrar_movimiento_inventario_command.dart';
+import 'registrar_entrada_confirmada_command.dart';
+import 'registrar_entrada_confirmada_result.dart';
 import '../local_command_context.dart';
 
 class InventoryCommandService {
@@ -19,16 +23,19 @@ class InventoryCommandService {
     required LocalEventStore eventStore,
     required LocalCommandContext commandContext,
     required InventoryProjectionStore inventoryProjectionStore,
+    SyncedEventHistory? history,
     Uuid uuid = const Uuid(),
   }) : _eventStore = eventStore,
        _commandContext = commandContext,
        _inventoryProjectionStore = inventoryProjectionStore,
+       _history = history,
        _uuid = uuid;
 
   final LocalEventStore _eventStore;
   final LocalCommandContext _commandContext;
   final InventoryProjectionStore _inventoryProjectionStore;
   final Uuid _uuid;
+  final SyncedEventHistory? _history;
 
   Future<void> crearRecurso(CrearRecursoInventarioCommand command) async {
     final name = NombreRecursoInventario.fromInput(command.nombre).value;
@@ -125,6 +132,97 @@ class InventoryCommandService {
       baseServerSequence: item.lastServerSequence,
     );
     await _eventStore.appendAndApply(entry.event, refs: entry.refs);
+  }
+
+  /// Variante estricta para recepción. Los consumidores de registrarMovimiento
+  /// conservan su semántica. Requiere transacción real e historial local.
+  Future<RegistrarEntradaConfirmadaResult> registrarEntradaConfirmada(
+    RegistrarEntradaConfirmadaCommand command,
+  ) {
+    final store = _eventStore;
+    final history = _history;
+    if (store is! LocalTransactionalEventStore || history == null) {
+      throw StateError(
+        'La entrada confirmada requiere transacción e historial.',
+      );
+    }
+    return (store as LocalTransactionalEventStore).runInTransaction(() async {
+      final base = command.base;
+      final item = await _inventoryProjectionStore.findItemById(
+        base.recurso.id,
+      );
+      final balance = await _inventoryProjectionStore.findBalanceByItemId(
+        base.recurso.id,
+      );
+      final unit = await _inventoryProjectionStore.findUnitById(base.unidad.id);
+      if (item == null ||
+          !item.active ||
+          item.version != base.recurso.version ||
+          base.recurso.eventId == null ||
+          (item.lastEventId ?? item.createdEventId) != base.recurso.eventId ||
+          item.defaultUnitId != base.unidad.id ||
+          unit == null ||
+          !unit.active ||
+          !base.unidad.activa ||
+          unit.dimension != base.unidad.dimension.code ||
+          unit.atomicFactor != base.unidad.factorAtomico ||
+          unit.maxFractionDigits != base.unidad.maximosDecimales ||
+          balance == null ||
+          balance.version != base.saldoVersion ||
+          balance.lastEventId != base.saldoEventId ||
+          balance.quantityOnHandAtomic != base.existenciaAtomic ||
+          balance.quantityAvailableAtomic != base.disponibleAtomic) {
+        throw StateError(
+          'El recurso, unidad o saldo cambió. Revisa la entrada.',
+        );
+      }
+      final baseEvent = await history.eventById(base.recurso.eventId!);
+      if (!(store as LocalTransactionalEventStore).isStandalone &&
+          baseEvent?.deliveryStatus == 'not_required') {
+        throw StateError(
+          'El historial local requiere una importación explícita.',
+        );
+      }
+      final quantity = command.cantidadAtomic;
+      if (quantity <= 0 || quantity > 9007199254740991) {
+        throw const FormatException('La entrada debe ser positiva y segura.');
+      }
+      const codec = InventoryQuantityCodec();
+      codec.parsePositiveAtomic(
+        codec.formatAtomic(quantity, base.unidad),
+        base.unidad,
+      );
+      for (final saldo in [base.existenciaAtomic, base.disponibleAtomic]) {
+        if ((BigInt.from(saldo) + BigInt.from(quantity)).abs() >
+            BigInt.from(9007199254740991)) {
+          throw const FormatException(
+            'El saldo previsto excede el límite permitido.',
+          );
+        }
+      }
+      final entry = _movementAppend(
+        item: item,
+        movementType: TipoMovimientoInventario.stockReceipt,
+        quantityDeltaAtomic: quantity,
+        reason: null,
+        baseEventId: base.recurso.eventId!,
+        baseVersion: base.recurso.version,
+        // Una base local pendiente aún no tiene secuencia oficial propia.
+        // La secuencia heredada del recurso pertenece a su antecesor.
+        baseServerSequence: baseEvent?.deliveryStatus == 'pending'
+            ? null
+            : item.lastServerSequence,
+      );
+      final payload = MovimientoInventarioRegistradoPayload.fromJson(
+        entry.event.payload,
+      );
+      await _eventStore.appendAndApply(entry.event, refs: entry.refs);
+      return RegistrarEntradaConfirmadaResult(
+        inventoryItemId: item.id,
+        eventId: entry.event.eventId,
+        movementId: payload.movement.movementId,
+      );
+    });
   }
 
   Future<bool> editarRecurso(EditarRecursoInventarioCommand command) async {

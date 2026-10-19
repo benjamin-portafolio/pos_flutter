@@ -49,6 +49,9 @@ import 'categorias/widgets/delete_category_dialog.dart';
 import 'categorias/widgets/delete_category_options_dialog.dart';
 import 'categorias/widgets/delete_category_products_confirmation_dialog.dart';
 import 'carga_masiva/bulk_import_screen.dart';
+import '../../../application/commands/edicion_masiva/edicion_masiva_command_service.dart';
+import '../../../application/edicion_masiva/catalogo_edicion_masiva.dart';
+import 'edicion_masiva/pantalla_edicion_masiva_por_tarea.dart';
 import 'recursos/inventory_resource_form_screen.dart';
 import 'recursos/inventory_resources_tab.dart';
 import 'recursos/models/inventory_resource_form_result.dart';
@@ -369,6 +372,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       onAddCategory: () => _openCategoryForm(context),
       onAddInventoryResource: () => _openInventoryResourceForm(context),
       onBulkImport: () => _openBulkImport(context),
+      onBulkEdit: () => _openBulkEdit(context),
       supplierAvailability: widget.config?.changes.map((config) => true),
       onAddSupplier: widget.proveedoresEnabled
           ? () => _openSupplierForm(context)
@@ -417,6 +421,18 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Proveedor guardado.')));
     }
+  }
+
+  void _openBulkEdit(BuildContext context) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => PantallaEdicionMasivaPorTarea(
+          catalogo: getIt<CatalogoEdicionMasiva>(),
+          comando: getIt<EdicionMasivaCommandService>(),
+          proveedorRepository: widget.proveedorRepository,
+        ),
+      ),
+    );
   }
 
   /// La carga masiva abre su propia pantalla (D11): allí se baja la plantilla

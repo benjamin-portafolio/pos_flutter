@@ -1,3 +1,9 @@
+import 'package:pos_flutter/application/commands/edicion_masiva/edicion_masiva_command_service.dart';
+import 'package:pos_flutter/application/edicion_masiva/catalogo_edicion_masiva.dart';
+import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/data/repositories/drift_catalogo_edicion_masiva.dart';
+import '../../../support/product_supplier_harness.dart';
+import '../../../support/recepcion_masiva_fixture.dart';
 import '../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_inventory_update_result.dart';
@@ -19,6 +25,8 @@ import 'package:pos_flutter/application/commands/articulos/crear_articulo_comman
 import 'package:pos_flutter/application/commands/articulos/asignar_codigo_barras_variante_command.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_command_service.dart';
 import 'package:pos_flutter/application/commands/articulos/actualizar_articulo_csv_command.dart';
+import 'package:pos_flutter/application/commands/articulos/editar_articulo_comercial_command.dart';
+import 'package:pos_flutter/application/commands/articulos/editar_articulo_comercial_result.dart';
 import 'package:pos_flutter/application/commands/articulos/producto_import_lote_result.dart';
 import 'package:pos_flutter/domain/articulos/articulo_listado.dart';
 import 'package:pos_flutter/domain/articulos/articulo_vinculado_categoria.dart';
@@ -388,6 +396,65 @@ void main() {
 
       expect(repository.queries.last.search, '');
       expect(repository.queries.last.categoryIds, {'category-1'});
+    },
+  );
+
+  testWidgets(
+    'M39: Edición masiva abre ambas vistas y conserva CSV y demás accesos',
+    (tester) async {
+      final h = ProductSupplierHarness();
+      addTearDown(h.dispose);
+      await seedRecepcion(h);
+      getIt.registerSingleton<CatalogoEdicionMasiva>(
+        DriftCatalogoEdicionMasiva(h.db),
+      );
+      getIt.registerSingleton<EdicionMasivaCommandService>(
+        coordinadorRecepcion(h),
+      );
+      addTearDown(() async {
+        await getIt.unregister<CatalogoEdicionMasiva>();
+        await getIt.unregister<EdicionMasivaCommandService>();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: InventoryManagementScreen(
+            categoriaRepository: categoriaRepository,
+            productoRepository: productoRepository,
+            unidadInventarioRepository: _PreviewUnitRepository(),
+          ),
+        ),
+      );
+      await tester.tap(find.byTooltip('Agregar'));
+      await tester.pumpAndSettle();
+      for (final clave in [
+        'add_article_option',
+        'add_category_option',
+        'add_inventory_resource_option',
+        'bulk_import_option',
+        'bulk_edit_option',
+      ]) {
+        expect(find.byKey(Key(clave)), findsOneWidget);
+      }
+      final antes = await fotoRecepcion(h.db);
+      await tester.tap(find.byKey(const Key('bulk_edit_option')));
+      await tester.pumpAndSettle();
+      expect(find.text('EDICIÓN MASIVA'), findsOneWidget);
+      expect(find.byKey(const Key('edicion_masiva_tarea')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('edicion_masiva_vista')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Recepción compacta').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Costo estándar'), findsWidgets);
+      expect(find.text('Precio de venta'), findsWidgets);
+      expect(
+        find.byKey(const Key('edicion_masiva_recuperacion')),
+        findsOneWidget,
+      );
+      expect(await fotoRecepcion(h.db), antes);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('GESTIÓN DEL INVENTARIO'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -1081,6 +1148,11 @@ class _FakeProductoCommandService implements ProductoCommandService {
   Future<void> asignarCodigoBarrasVariante(
     AsignarCodigoBarrasVarianteCommand command,
   ) => throw StateError('Esta prueba no debe asignar códigos de barras.');
+
+  @override
+  Future<EditarArticuloComercialResult> editarArticuloComercial(
+    EditarArticuloComercialCommand command,
+  ) => throw StateError('Esta prueba no debe editar comercialmente.');
 
   @override
   Future<void> crearArticulosLote(List<CrearArticuloCommand> commands) async {}
