@@ -719,6 +719,8 @@ void main() {
               id: ids.variantId,
               nombre: null,
               proveedores: before.variantes.single.proveedores,
+              minimumStockAtomic: before.variantes.single.minimumStockAtomic,
+              knowsMinimumStock: before.knowsMinimumStock,
               precioVentaMenor: 1000,
               costoEstandarMenor: null,
               inventoryItemId: officialId,

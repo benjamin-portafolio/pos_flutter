@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../application/config/app_config_controller.dart';
+import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import '../../../../domain/repositories/proveedor_repository.dart';
 import '../../../../domain/articulos/nombre_producto.dart';
 import '../../../../domain/articulos/nombre_variante.dart';
@@ -424,7 +425,11 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
     if (_saving) return;
     final variants = _advancedVariants;
     if (variants == null || index < 0 || index >= variants.length) return;
-    final inventoryUnit = _directInventoryUnit;
+    final inventoryUnit =
+        widget.unidadesVenta
+            .where((unit) => unit.id == variants[index].inventoryUnitId)
+            .firstOrNull ??
+        _directInventoryUnit;
     if (inventoryUnit == null) {
       _showInventoryUnitRequired();
       return;
@@ -675,6 +680,11 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             ArticuloFormVarianteResult.conProveedores(
               id: _advancedVariants?.firstOrNull?.id,
               proveedores: _advancedVariants?.firstOrNull?.proveedores,
+              minimumStockAtomic:
+                  _advancedVariants?.firstOrNull?.minimumStockAtomic,
+              minimumStock:
+                  _advancedVariants?.firstOrNull?.minimumStock ??
+                  const CambioExplicito.conservar(),
               nombre: null,
               precioVenta: _priceController.text,
               costoEstandar: null,
@@ -708,11 +718,13 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
       setState(() => _canPop = true);
       await Future<void>.delayed(Duration.zero);
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _saveError = 'No se pudo guardar el artículo.';
+        _saveError = error is StateError
+            ? error.message.toString()
+            : 'No se pudo guardar el artículo.';
       });
     }
   }
@@ -737,9 +749,13 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
         CostoEstandar.fromInput(variant.costoEstandar);
         CodigoBarras.fromInput(variant.codigoBarras);
         if (variant.seguimientoExistencias) {
-          final expectedUnit = _directInventoryUnit;
-          if (expectedUnit == null ||
-              variant.inventoryUnitId != expectedUnit.id) {
+          final originalUnitId = widget.initialValue?.variantes
+              .where((v) => v.id == variant.id && v.id != null)
+              .firstOrNull
+              ?.inventoryUnitId;
+          final expectedUnitId = originalUnitId ?? _directInventoryUnit?.id;
+          if (expectedUnitId == null ||
+              variant.inventoryUnitId != expectedUnitId) {
             return 'La unidad del seguimiento no coincide con la forma de venta.';
           }
         }
@@ -831,6 +847,10 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           !listEquals(a.proveedores, b.proveedores) ||
           a.inventoryUnitId != b.inventoryUnitId ||
           a.existenciaInicial != b.existenciaInicial ||
+          a.minimumStockAtomic != b.minimumStockAtomic ||
+          a.minimumStock.establecer != b.minimumStock.establecer ||
+          (a.minimumStock.establecer &&
+              a.minimumStock.valor != b.minimumStock.valor) ||
           !listEquals(
             a.recipeComponents.map((c) => (c.resource.id, c.quantity)).toList(),
             b.recipeComponents.map((c) => (c.resource.id, c.quantity)).toList(),

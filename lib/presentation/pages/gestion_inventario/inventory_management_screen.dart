@@ -15,9 +15,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../application/commands/categorias/categoria_command_service.dart';
-import '../../../application/commands/articulos/crear_articulo_command.dart';
-import '../../../application/commands/articulos/crear_articulo_variante_command.dart';
-import '../../../application/commands/articulos/crear_articulo_recipe_component_command.dart';
 import '../../../application/commands/categorias/crear_categoria_command.dart';
 import '../../../application/commands/inventario/crear_recurso_inventario_command.dart';
 import '../../../application/commands/inventario/editar_recurso_inventario_command.dart';
@@ -39,6 +36,7 @@ import '../../../domain/repositories/unidad_inventario_repository.dart';
 import 'articulos/article_form_screen.dart';
 import 'articulos/inventory_articles_tab.dart';
 import 'articulos/models/articulo_form_result.dart';
+import 'articulos/models/articulo_form_command.dart';
 import 'categorias/category_form_screen.dart';
 import 'categorias/inventory_categories_tab.dart';
 import 'categorias/models/categoria_form_result.dart';
@@ -625,6 +623,10 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                 .watchRecursos()
                 .first
           : const <RecursoInventarioListado>[];
+      for (final resource in resources) {
+        final unit = resource.unidadPredeterminada;
+        if (!units.any((candidate) => candidate.id == unit.id)) units.add(unit);
+      }
       final initial = ArticuloPreviewForm.fromDetalle(detail, resources);
       if (!context.mounted || ModalRoute.of(context)?.isCurrent != true) {
         return false;
@@ -661,7 +663,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                       productId: productId,
                       baseEventId: detail.lastEventId!,
                       variantIds: result.variantes.map((v) => v.id).toList(),
-                      command: _articleCommand(result),
+                      command: result.toCommand(),
                     );
                   },
           ),
@@ -732,36 +734,8 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
   Future<void> _createArticle(ArticuloFormResult result) {
     final service =
         widget.productoCommandService ?? getIt<ProductoCommandService>();
-    return service.crearArticulo(_articleCommand(result));
+    return service.crearArticulo(result.toCommand());
   }
-
-  CrearArticuloCommand _articleCommand(ArticuloFormResult result) =>
-      CrearArticuloCommand.conVariantes(
-        nombre: result.nombre,
-        categoriaId: result.categoriaId,
-        variantes: result.variantes
-            .map(
-              (variant) => CrearArticuloVarianteCommand.conProveedores(
-                nombre: variant.nombre,
-                precioVenta: variant.precioVenta,
-                costoEstandar: variant.costoEstandar,
-                codigoBarras: variant.codigoBarras,
-                proveedores: variant.proveedores,
-                inventoryUnitId: variant.inventoryUnitId,
-                initialStockQuantity: variant.existenciaInicial,
-                recipeComponents: variant.recipeComponents
-                    .map(
-                      (component) => CrearArticuloRecipeComponentCommand(
-                        inventoryItemId: component.resource.id,
-                        quantity: component.quantity,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            )
-            .toList(growable: false),
-        saleConfiguration: result.saleConfiguration,
-      );
 
   Future<void> _openCategoryForm(
     BuildContext context, {

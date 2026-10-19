@@ -176,6 +176,8 @@ class ProductoCommandService {
             precioVentaMenor: v.precioVentaMenor,
             costoEstandarMenor: v.costoEstandarMenor,
             inventoryItemId: v.inventoryItemId,
+            minimumStockAtomic: v.minimumStockAtomic,
+            knowsMinimumStock: v.knowsMinimumStock,
             componentesReceta: v.componentesReceta,
             proveedores: v.proveedores,
             orden: v.orden,
@@ -234,7 +236,9 @@ class ProductoCommandService {
   ) => _transactionalImportStore.runInTransaction(() async {
     final entry = await _prepareEdicionComercial(command);
     if (entry == null) {
-      return EditarArticuloComercialResult.omitido(productId: command.productId);
+      return EditarArticuloComercialResult.omitido(
+        productId: command.productId,
+      );
     }
     await _eventStore.appendAndApply(entry.event, refs: entry.refs);
     return EditarArticuloComercialResult.emitido(
@@ -293,6 +297,8 @@ class ProductoCommandService {
             precioVentaMenor: change.precioVentaMinor,
             costoEstandarMenor: change.precioCosteMinor,
             inventoryItemId: v.inventoryItemId,
+            minimumStockAtomic: v.minimumStockAtomic,
+            knowsMinimumStock: v.knowsMinimumStock,
             componentesReceta: v.componentesReceta,
             proveedores: v.proveedores,
             orden: v.orden,
@@ -443,6 +449,8 @@ class ProductoCommandService {
           ? cambio.costo.valor
           : actual.costoEstandarMenor,
       inventoryItemId: actual.inventoryItemId,
+      minimumStockAtomic: actual.minimumStockAtomic,
+      knowsMinimumStock: actual.knowsMinimumStock,
       componentesReceta: actual.componentesReceta,
       proveedores: proveedores,
       orden: actual.orden,
@@ -565,7 +573,10 @@ class ProductoCommandService {
     if (product.lastEventId != baseEventId) {
       throw StateError('El artículo cambió. Vuelve a abrirlo.');
     }
-    final before = await _snapshotForEdit(productId);
+    final current = await _snapshotForEdit(productId);
+    final before = command.variantes.any((v) => v.minimumStock.establecer)
+        ? current.withKnownMinimumStock()
+        : current;
     if (product.saleConfiguration != command.saleConfiguration) {
       throw const FormatException('No se puede cambiar la forma de venta.');
     }
@@ -575,6 +586,9 @@ class ProductoCommandService {
       before: before,
       existingVariantIds: variantIds,
     );
+    if (ProductoActualizadoPayload.sameState(before, article.payload)) {
+      return ProductoInventoryUpdateResult();
+    }
     final payload = ProductoActualizadoPayload(
       baseEventId: product.lastEventId!,
       before: before,
@@ -867,6 +881,8 @@ class ProductoCommandService {
           )?.unidadMenor,
           codigoBarras: CodigoBarras.fromInput(captured.codigoBarras).value,
           inventory: directInventory,
+          changesMinimumStock: captured.minimumStock.establecer,
+          minimumStockAtomic: _normalizeMinimumStock(captured, directInventory),
           recipeComponents: recipeComponents,
           proveedores: ProveedorVariante.canonical(captured.proveedores),
           existingInventoryItemId: _normalizeOptional(
@@ -876,6 +892,22 @@ class ProductoCommandService {
       );
     }
     return normalizedVariants;
+  }
+
+  int? _normalizeMinimumStock(
+    CrearArticuloVarianteCommand captured,
+    _NormalizedInventory? inventory,
+  ) {
+    if (!captured.minimumStock.establecer) return null;
+    if (inventory == null) {
+      throw const FormatException(
+        'Cambiar el mínimo requiere seguimiento directo de inventario.',
+      );
+    }
+    final quantity = captured.minimumStock.valor;
+    return quantity == null
+        ? null
+        : _quantityCodec.parseNonNegativeAtomic(quantity, inventory.unit);
   }
 
   List<String> _resolveVariantIds(
@@ -1075,6 +1107,13 @@ class ProductoCommandService {
           precioVentaMenor: normalizedVariants[index].precioVentaMenor,
           costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
           codigoBarras: normalizedVariants[index].codigoBarras,
+          minimumStockAtomic: normalizedVariants[index].changesMinimumStock
+              ? normalizedVariants[index].minimumStockAtomic
+              : before?.variantes
+                    .where((v) => v.id == variantIds[index])
+                    .firstOrNull
+                    ?.minimumStockAtomic,
+          knowsMinimumStock: before?.knowsMinimumStock ?? true,
           // Una binding existe siempre que la variante conserva o recupera
           // seguimiento directo; su `inventoryItemId` manda sobre `before`,
           // porque la resolución del command ocurre al guardar.
@@ -1583,6 +1622,8 @@ class _NormalizedVariant {
     required this.codigoBarras,
     required this.inventory,
     required this.recipeComponents,
+    required this.changesMinimumStock,
+    required this.minimumStockAtomic,
     this.existingInventoryItemId,
     this.proveedores,
   });
@@ -1592,6 +1633,8 @@ class _NormalizedVariant {
   final int? costoEstandarMenor;
   final String? codigoBarras;
   final _NormalizedInventory? inventory;
+  final bool changesMinimumStock;
+  final int? minimumStockAtomic;
   final List<_NormalizedRecipeComponent> recipeComponents;
   final List<ProveedorVariante>? proveedores;
 

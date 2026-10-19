@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/repositories/collection_repository.dart';
 import '../../../domain/repositories/confirmed_sale_repository.dart';
+import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/ventas/confirmed_sale.dart';
 import 'models/beneficio_bruto_report.dart';
 import 'models/report_money.dart';
@@ -11,6 +12,7 @@ import 'models/sales_reports_calculator.dart';
 import 'report_date_filter_screen.dart';
 import 'sales_by_method_screen.dart';
 import 'widgets/collections_report_card.dart';
+import 'widgets/remaining_stock_report_card.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
@@ -18,10 +20,12 @@ class ReportsScreen extends StatefulWidget {
     this.repository,
     this.now,
     this.collectionRepository,
+    this.productoRepository,
   });
 
   final ConfirmedSaleRepository? repository;
   final CollectionRepository? collectionRepository;
+  final ProductoRepository? productoRepository;
   final DateTime Function()? now;
 
   @override
@@ -74,7 +78,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           title: 'BAJO INVENTARIO DE EXISTENCIAS',
           child: Text('—'),
         ),
-        const _ReportCard(title: 'EXISTENCIAS RESTANTES', child: Text('—')),
+        RemainingStockReportCard(
+          repository: widget.productoRepository ?? getIt<ProductoRepository>(),
+        ),
         Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: Padding(

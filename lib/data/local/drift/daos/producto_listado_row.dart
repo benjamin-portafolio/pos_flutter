@@ -4,6 +4,8 @@ part of '../app_database.dart';
 class ProductoListadoRow {
   const ProductoListadoRow({
     required this.producto,
+    this.eventoBase,
+    this.hasMinimumStockValue = false,
     required this.categoria,
     required this.variante,
     required this.unidadVenta,
@@ -14,6 +16,8 @@ class ProductoListadoRow {
   });
 
   final ProductRow producto;
+  final EventRecord? eventoBase;
+  final bool hasMinimumStockValue;
   final CategoryRow? categoria;
   final ProductVariantRow? variante;
   final UnitRow? unidadVenta;

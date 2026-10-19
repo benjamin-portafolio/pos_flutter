@@ -49,6 +49,53 @@ class ProductoCreadoPayload {
     return known;
   }
 
+  /// Presencia uniforme del umbral; el valor null por sí solo no la acredita.
+  bool get knowsMinimumStock => variantes.first.knowsMinimumStock;
+
+  static bool knowsMinimumStockJson(Map<String, Object?> json) {
+    final variants = json['variants'];
+    if (variants is! List || variants.isEmpty) return false;
+    final known = variants
+        .map(
+          (v) => ProductoCreadoVariante.fromJson(
+            _requiredMap(v, 'variant'),
+            fieldName: 'variant',
+          ).knowsMinimumStock,
+        )
+        .toList();
+    if (known.any((v) => v != known.first)) {
+      throw const FormatException('Snapshot parcial de minimum_stock_atomic.');
+    }
+    return known.first;
+  }
+
+  /// Promoción explícita de una base legada: ausencia pasa a null conocido.
+  /// No reescribe eventos históricos ni cambia otros campos o proveedores.
+  ProductoCreadoPayload withKnownMinimumStock() => ProductoCreadoPayload.create(
+    nombre: nombre,
+    categoriaId: categoriaId,
+    saleConfiguration: saleConfiguration,
+    dependenciaCategoria: dependenciaCategoria,
+    dependenciasInventario: dependenciasInventario,
+    dependenciasProveedores: dependenciasProveedores,
+    variantes: [
+      for (final v in variantes)
+        ProductoCreadoVariante.create(
+          id: v.id,
+          nombre: v.nombre,
+          codigoBarras: v.codigoBarras,
+          precioVentaMenor: v.precioVentaMenor,
+          costoEstandarMenor: v.costoEstandarMenor,
+          inventoryItemId: v.inventoryItemId,
+          componentesReceta: v.componentesReceta,
+          proveedores: v.proveedores,
+          minimumStockAtomic: v.minimumStockAtomic,
+          knowsMinimumStock: true,
+          orden: v.orden,
+        ),
+    ],
+  );
+
   /// Completa una lectura actual sin alterar el formato de eventos históricos.
   /// Solo una base legada sin relaciones puede promoverse a conjuntos vacíos.
   ProductoCreadoPayload withKnownSuppliers() => ProductoCreadoPayload.create(
@@ -69,6 +116,8 @@ class ProductoCreadoPayload {
           inventoryItemId: v.inventoryItemId,
           componentesReceta: v.componentesReceta,
           proveedores: v.proveedores ?? const [],
+          minimumStockAtomic: v.minimumStockAtomic,
+          knowsMinimumStock: v.knowsMinimumStock,
           orden: v.orden,
         ),
     ],
@@ -291,6 +340,8 @@ class ProductoCreadoVariante {
     required this.precioVentaMenor,
     required this.costoEstandarMenor,
     required this.inventoryItemId,
+    required this.minimumStockAtomic,
+    required this.knowsMinimumStock,
     required this.componentesReceta,
     required this.proveedores,
     required this.orden,
@@ -303,10 +354,18 @@ class ProductoCreadoVariante {
     required int? costoEstandarMenor,
     String? codigoBarras,
     String? inventoryItemId,
+    int? minimumStockAtomic,
+    bool knowsMinimumStock = false,
     List<ProductoCreadoComponenteReceta> componentesReceta = const [],
     List<ProductoProveedorPrecio>? proveedores,
     required int orden,
   }) {
+    if (minimumStockAtomic != null &&
+        (minimumStockAtomic < 0 || minimumStockAtomic > 9007199254740991)) {
+      throw const FormatException(
+        'minimum_stock_atomic debe ser un entero seguro no negativo.',
+      );
+    }
     final normalizedName = NombreVariante.fromInput(nombre);
     final validatedComponents = _validateRecipeComponents(componentesReceta);
     final normalizedInventoryItemId = _optionalUuidV4(
@@ -330,6 +389,8 @@ class ProductoCreadoVariante {
           ? null
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
       inventoryItemId: normalizedInventoryItemId,
+      minimumStockAtomic: minimumStockAtomic,
+      knowsMinimumStock: knowsMinimumStock || minimumStockAtomic != null,
       componentesReceta: validatedComponents,
       proveedores: ProductoProveedorPrecio.validate(proveedores),
       orden: orden,
@@ -346,6 +407,14 @@ class ProductoCreadoVariante {
   final int precioVentaMenor;
   final int? costoEstandarMenor;
   final String? inventoryItemId;
+
+  /// Átomos no negativos, null desactiva el aviso. En constructores anteriores
+  /// el null por defecto conserva desconocimiento: no expresa una retirada.
+  final int? minimumStockAtomic;
+
+  /// Distingue ausencia legada de null explícito. Un valor numérico siempre
+  /// acredita conocimiento; para null explícito el constructor exige true.
+  final bool knowsMinimumStock;
   final List<ProductoCreadoComponenteReceta> componentesReceta;
 
   /// null: campo legado ausente/desconocido; []: sin relaciones explícitas.
@@ -388,6 +457,11 @@ class ProductoCreadoVariante {
           '$fieldName.sale_price_minor',
         ),
         costoEstandarMenor: parsedCost,
+        minimumStockAtomic: _optionalMinimumStockAtomic(
+          json['minimum_stock_atomic'],
+          '$fieldName.minimum_stock_atomic',
+        ),
+        knowsMinimumStock: json.containsKey('minimum_stock_atomic'),
         codigoBarras: rawBarcode as String?,
         inventoryItemId: _optionalNonEmptyString(
           json['inventory_item_id'],
@@ -411,6 +485,7 @@ class ProductoCreadoVariante {
     'barcode': codigoBarras,
     'sale_price_minor': precioVentaMenor,
     'standard_cost_minor': costoEstandarMenor,
+    if (knowsMinimumStock) 'minimum_stock_atomic': minimumStockAtomic,
     if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
     if (componentesReceta.isNotEmpty)
       'inventory_configuration': {
@@ -602,6 +677,11 @@ List<ProductoCreadoVariante> _validateVariants(
     throw const FormatException(
       'Todas las variantes deben declarar suppliers o conservar su ausencia legada.',
     );
+  }
+  if (variants.any(
+    (v) => v.knowsMinimumStock != variants.first.knowsMinimumStock,
+  )) {
+    throw const FormatException('Snapshot parcial de minimum_stock_atomic.');
   }
   final ids = <String>{};
   final nameKeys = <String>{};
@@ -842,3 +922,13 @@ Set<String> _supplierIds(List<ProductoCreadoVariante> variants) => {
         in variant.proveedores ?? const <ProductoProveedorPrecio>[])
       supplier.supplierId,
 };
+
+// El rango se valida también en create. Este guard evita convertir NaN o
+// infinito antes de que el contrato pueda rechazarlos como formato inválido.
+int? _optionalMinimumStockAtomic(Object? value, String fieldName) {
+  if (value == null) return null;
+  if (value is! num || !value.isFinite) {
+    throw FormatException('$fieldName debe ser un entero seguro o null.');
+  }
+  return _requiredInt(value, fieldName);
+}

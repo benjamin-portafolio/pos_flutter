@@ -101,6 +101,8 @@ class ProductoEventHandler {
           precioVentaMenor: variant.precioVentaMenor,
           costoEstandarMenor: variant.costoEstandarMenor,
           inventoryItemId: variant.inventoryItemId,
+          minimumStockAtomic: variant.minimumStockAtomic,
+          knowsMinimumStock: variant.knowsMinimumStock,
           orden: variant.orden,
           active: true,
           version: version,
@@ -158,6 +160,9 @@ class ProductoEventHandler {
       throw StateError('El artículo cambió desde que se abrió la edición.');
     }
     final current = await _productoProjectionStore.snapshot(product.id);
+    if (current.knowsMinimumStock && !payload.before.knowsMinimumStock) {
+      throw StateError('Actualiza la app para editar o borrar este artículo.');
+    }
     if (!ProductoActualizadoPayload.sameEditingBase(current, payload.before)) {
       throw StateError('La base del artículo no coincide.');
     }

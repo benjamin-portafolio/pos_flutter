@@ -1,3 +1,4 @@
+import '../../../../../application/edicion_masiva/cambio_explicito.dart';
 import '../../../../../domain/articulos/proveedor_variante.dart';
 import 'package:flutter/foundation.dart';
 
@@ -33,6 +34,8 @@ class ArticuloFormVarianteResult {
     this.existenciaInicial,
     this.recipeComponents = const [],
     this.linkedInventoryItemId,
+    this.minimumStockAtomic,
+    this.minimumStock = const CambioExplicito.conservar(),
   }) : proveedores = null;
 
   ArticuloFormVarianteResult.conProveedores({
@@ -45,6 +48,8 @@ class ArticuloFormVarianteResult {
     this.existenciaInicial,
     this.recipeComponents = const [],
     this.linkedInventoryItemId,
+    this.minimumStockAtomic,
+    this.minimumStock = const CambioExplicito.conservar(),
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
 
@@ -60,6 +65,13 @@ class ArticuloFormVarianteResult {
   final String? codigoBarras;
   final String? inventoryUnitId;
   final String? existenciaInicial;
+
+  /// Valor persistido para precargar; no expresa una intención de escritura.
+  final int? minimumStockAtomic;
+
+  /// Conserva por defecto, incluso para formularios de contratos legados.
+  final CambioExplicito<String?> minimumStock;
+
   final List<RecipeComponentFormResult> recipeComponents;
 
   /// Recurso de inventario ya vinculado y persistido para esta variante.
@@ -87,6 +99,7 @@ class ArticuloFormVarianteResult {
     List<RecipeComponentFormResult>? recipeComponents,
     bool clearRecipeComponents = false,
     List<ProveedorVariante>? proveedores,
+    CambioExplicito<String?>? minimumStock,
   }) {
     return ArticuloFormVarianteResult.conProveedores(
       id: id,
@@ -109,6 +122,8 @@ class ArticuloFormVarianteResult {
           ? const []
           : recipeComponents ?? this.recipeComponents,
       linkedInventoryItemId: linkedInventoryItemId,
+      minimumStockAtomic: minimumStockAtomic,
+      minimumStock: minimumStock ?? this.minimumStock,
     );
   }
 }

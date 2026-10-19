@@ -6,6 +6,8 @@ import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
 import 'package:pos_flutter/domain/ventas/confirmed_sale.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
 
+import '../../../support/fake_reports_producto_repository.dart';
+
 class _Repository implements ConfirmedSaleRepository {
   final controller = StreamController<List<ConfirmedSale>>.broadcast();
 
@@ -31,8 +33,15 @@ ConfirmedSale _sale(
 
 void main() {
   late _Repository repository;
-  setUp(() => repository = _Repository());
-  tearDown(() => repository.controller.close());
+  late FakeReportsProductoRepository productos;
+  setUp(() {
+    repository = _Repository();
+    productos = FakeReportsProductoRepository();
+  });
+  tearDown(() async {
+    await repository.controller.close();
+    await productos.controller.close();
+  });
 
   Future<void> pump(WidgetTester tester, {double scale = 1}) async {
     await tester.pumpWidget(
@@ -46,6 +55,7 @@ void main() {
         home: Scaffold(
           body: ReportsScreen(
             repository: repository,
+            productoRepository: productos,
             now: () => DateTime(2026, 9, 17, 12),
           ),
         ),
@@ -56,6 +66,8 @@ void main() {
   }
 
   Future<void> openFilter(WidgetTester tester) async {
+    await tester.ensureVisible(find.byIcon(Icons.calendar_month));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.calendar_month));
     await tester.pumpAndSettle();
   }
@@ -94,7 +106,8 @@ void main() {
       expect(find.byType(ReportsScreen), findsOneWidget);
       expect(find.text('BAJO INVENTARIO DE EXISTENCIAS'), findsOneWidget);
       expect(find.text('EXISTENCIAS RESTANTES'), findsOneWidget);
-      expect(find.text('—'), findsNWidgets(2));
+      expect(find.text('0 variantes con seguimiento'), findsOneWidget);
+      expect(find.text('—'), findsOneWidget);
       expect(find.text('Informes de TPV'), findsNothing);
     },
   );

@@ -7,6 +7,8 @@ import 'package:pos_flutter/domain/ventas/confirmed_sale.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft_item.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
 
+import '../../../support/fake_reports_producto_repository.dart';
+
 class _Repository implements ConfirmedSaleRepository {
   final controller = StreamController<List<ConfirmedSale>>.broadcast();
   @override
@@ -51,8 +53,15 @@ ConfirmedSale _sale({
 
 void main() {
   late _Repository repository;
-  setUp(() => repository = _Repository());
-  tearDown(() => repository.controller.close());
+  late FakeReportsProductoRepository productos;
+  setUp(() {
+    repository = _Repository();
+    productos = FakeReportsProductoRepository();
+  });
+  tearDown(() async {
+    await repository.controller.close();
+    await productos.controller.close();
+  });
 
   Future<void> pump(WidgetTester tester, List<ConfirmedSale> sales) async {
     await tester.pumpWidget(
@@ -60,6 +69,7 @@ void main() {
         home: Scaffold(
           body: ReportsScreen(
             repository: repository,
+            productoRepository: productos,
             now: () => DateTime(2026, 9, 17, 12),
           ),
         ),
@@ -179,6 +189,7 @@ void main() {
         home: Scaffold(
           body: ReportsScreen(
             repository: repository,
+            productoRepository: productos,
             now: () => DateTime(2026, 9, 17, 12),
           ),
         ),

@@ -9,6 +9,8 @@ import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
 import 'package:pos_flutter/presentation/pages/informes/sales_by_method_detail_screen.dart';
 import 'package:pos_flutter/presentation/pages/informes/sales_by_method_screen.dart';
 
+import '../../../support/fake_reports_producto_repository.dart';
+
 class _Repository implements ConfirmedSaleRepository {
   final controller = StreamController<List<ConfirmedSale>>.broadcast();
   @override
@@ -170,11 +172,14 @@ void main() {
   ) async {
     final repository = _Repository();
     addTearDown(repository.controller.close);
+    final productos = FakeReportsProductoRepository();
+    addTearDown(productos.controller.close);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: ReportsScreen(
             repository: repository,
+            productoRepository: productos,
             now: () => DateTime(2026, 9, 17, 12),
           ),
         ),

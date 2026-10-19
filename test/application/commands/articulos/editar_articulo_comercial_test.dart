@@ -79,6 +79,16 @@ void main() {
           expect(payload.after.saleConfiguration, t.state.saleConfiguration);
           expect(payload.after.variantes.map((x) => x.id), v.map((x) => x.id));
           expect(payload.after.variantes.map((x) => x.orden), [0, 1, 2]);
+          for (var i = 0; i < v.length; i++) {
+            expect(
+              payload.after.variantes[i].minimumStockAtomic,
+              v[i].minimumStockAtomic,
+            );
+            expect(
+              payload.after.variantes[i].knowsMinimumStock,
+              v[i].knowsMinimumStock,
+            );
+          }
 
           final directa = payload.after.variantes[0];
           expect(directa.precioVentaMenor, 3000);
@@ -410,6 +420,12 @@ void main() {
         );
         expect(legado.before.variantes.first.proveedores, isNull);
         expect(legado.after.variantes.first.proveedores, isNull);
+        expect(legado.before.knowsMinimumStock, isFalse);
+        expect(legado.after.knowsMinimumStock, isFalse);
+        expect(
+          (await h.tracking.products.snapshot(legacyId)).knowsMinimumStock,
+          isFalse,
+        );
         expect(
           h.appends.last.refs.any((r) => r.refType == 'variant_suppliers'),
           isFalse,
@@ -436,6 +452,13 @@ void main() {
         );
         expect(transicion.before.variantes.first.proveedores, isEmpty);
         expect(transicion.after.variantes.first.proveedores, hasLength(1));
+        // Conocer proveedores no promueve el campo independiente del mínimo.
+        expect(transicion.before.knowsMinimumStock, isFalse);
+        expect(transicion.after.knowsMinimumStock, isFalse);
+        expect(
+          (await h.tracking.products.snapshot(legacyId)).knowsMinimumStock,
+          isFalse,
+        );
         expect(
           transicion.after.variantes.first.proveedores!.single.supplierId,
           f.proveedorA,
@@ -853,6 +876,7 @@ Future<_Fixture> _complejo(
               ? InventoryUnitIds.kilogram
               : InventoryUnitIds.piece,
           initialStockQuantity: '4',
+          minimumStock: CambioExplicito.establecer(measured ? '1.5' : '5'),
           proveedores: [
             ProveedorVariante(
               proveedorId: a,

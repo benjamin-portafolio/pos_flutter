@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/edicion_masiva/cambio_explicito.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -603,6 +604,13 @@ void main() {
             final payload = ProductoActualizadoPayload.fromJson(
               h.appends.last.event.payload,
             );
+            expect(payload.before.knowsMinimumStock, !legacy);
+            expect(payload.after.knowsMinimumStock, !legacy);
+            expect(payload.after.variantes.first.minimumStockAtomic, isNull);
+            expect(
+              (await h.tracking.products.snapshot(target.id)).knowsMinimumStock,
+              !legacy,
+            );
             expect(
               payload.before.variantes.first.proveedores,
               legacy ? isNull : isEmpty,
@@ -822,6 +830,7 @@ Future<_Target> _complex(
               ? InventoryUnitIds.kilogram
               : InventoryUnitIds.piece,
           initialStockQuantity: '4',
+          minimumStock: CambioExplicito.establecer(measured ? '1.5' : '5'),
           proveedores: [
             ProveedorVariante(
               proveedorId: a,

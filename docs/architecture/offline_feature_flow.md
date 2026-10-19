@@ -556,7 +556,8 @@ respaldos de sincronización ni `event_refs`, y conserva `not_required`.
 El esquema local mantiene la versión 8 según las reglas de desarrollo. Al abrir
 una base anterior a este conjunto de columnas y tablas, `_resetDatabaseOnStartup`
 la recrea una vez; una base actual se conserva. La detección exige
-`product_variants.barcode` y la ausencia de la columna legada `is_default`, de
+`product_variants.barcode`, `product_variants.minimum_stock_atomic` y la
+ausencia de la columna legada `is_default`, de
 modo que agregar el código de barras no necesitó una migración en sitio. Un
 respaldo restaurado de esquema anterior se rechaza sin eliminarlo. PostgreSQL
 incluye la migración `1788912000000-AddActiveVariantUniqueness` para los
@@ -650,3 +651,15 @@ exterior sobre la misma SQLite. La reapertura solo consulta pendientes y el
 reintento aplicado devuelve IDs originales antes de exigir bases antiguas.
 Ver [contrato, diario, modos, esquema y recuperación](bulk_receipt_operations.md).
 La interfaz pública permanece para las siguientes sesiones del plan.
+
+
+## Contratos de existencias mínimas
+
+Las sesiones 1–4 integran contratos, esquema, persistencia local, receptor e
+interfaz. La captura compartida distingue conservar, cantidad y retirada; usa
+la unidad de inventario y conserva mínimos dormidos y bases legadas sin edición.
+El informe deriva distintivo, filtro y contador con MinimumStockPolicy desde el
+catálogo/balance observable. Se conservan CSV/masiva, undo exacto y la sincronización
+verificada con PostgreSQL/HTTP aislados en sesión 3. La sesión 5 acredita restore/informe
+en disco en ambos modos, manual macOS y 2567 pruebas incluidas 23 HTTP sin skips.
+A42 sigue parcial por hardware físico ausente; no hay cierre total. Ver [alcance, compatibilidad y evidencia](minimum_stock_contract.md).

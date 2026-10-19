@@ -3807,6 +3807,16 @@ class $ProductVariantsTable extends ProductVariants
       'UNIQUE REFERENCES inventory_items (id) ON DELETE RESTRICT',
     ),
   );
+  static const VerificationMeta _minimumStockAtomicMeta =
+      const VerificationMeta('minimumStockAtomic');
+  @override
+  late final GeneratedColumn<int> minimumStockAtomic = GeneratedColumn<int>(
+    'minimum_stock_atomic',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',
   );
@@ -3833,6 +3843,7 @@ class $ProductVariantsTable extends ProductVariants
     salePriceMinor,
     standardCostMinor,
     inventoryItemId,
+    minimumStockAtomic,
     sortOrder,
   ];
   @override
@@ -3946,6 +3957,15 @@ class $ProductVariantsTable extends ProductVariants
         ),
       );
     }
+    if (data.containsKey('minimum_stock_atomic')) {
+      context.handle(
+        _minimumStockAtomicMeta,
+        minimumStockAtomic.isAcceptableOrUnknown(
+          data['minimum_stock_atomic']!,
+          _minimumStockAtomicMeta,
+        ),
+      );
+    }
     if (data.containsKey('sort_order')) {
       context.handle(
         _sortOrderMeta,
@@ -4015,6 +4035,10 @@ class $ProductVariantsTable extends ProductVariants
         DriftSqlType.string,
         data['${effectivePrefix}inventory_item_id'],
       ),
+      minimumStockAtomic: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}minimum_stock_atomic'],
+      ),
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
@@ -4077,6 +4101,11 @@ class ProductVariantRow extends DataClass
   /// uno a uno sin transferir al catálogo la propiedad del recurso.
   final String? inventoryItemId;
 
+  /// Umbral opcional en átomos de la dimensión del recurso vinculado.
+  /// Null desactiva el aviso; cero es válido. Se conserva al desvincular el
+  /// inventario y no altera el saldo. Rango común seguro de Dart/JavaScript.
+  final int? minimumStockAtomic;
+
   /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   final int sortOrder;
   const ProductVariantRow({
@@ -4093,6 +4122,7 @@ class ProductVariantRow extends DataClass
     required this.salePriceMinor,
     this.standardCostMinor,
     this.inventoryItemId,
+    this.minimumStockAtomic,
     required this.sortOrder,
   });
   @override
@@ -4127,6 +4157,9 @@ class ProductVariantRow extends DataClass
     if (!nullToAbsent || inventoryItemId != null) {
       map['inventory_item_id'] = Variable<String>(inventoryItemId);
     }
+    if (!nullToAbsent || minimumStockAtomic != null) {
+      map['minimum_stock_atomic'] = Variable<int>(minimumStockAtomic);
+    }
     map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
@@ -4160,6 +4193,9 @@ class ProductVariantRow extends DataClass
       inventoryItemId: inventoryItemId == null && nullToAbsent
           ? const Value.absent()
           : Value(inventoryItemId),
+      minimumStockAtomic: minimumStockAtomic == null && nullToAbsent
+          ? const Value.absent()
+          : Value(minimumStockAtomic),
       sortOrder: Value(sortOrder),
     );
   }
@@ -4183,6 +4219,7 @@ class ProductVariantRow extends DataClass
       salePriceMinor: serializer.fromJson<int>(json['salePriceMinor']),
       standardCostMinor: serializer.fromJson<int?>(json['standardCostMinor']),
       inventoryItemId: serializer.fromJson<String?>(json['inventoryItemId']),
+      minimumStockAtomic: serializer.fromJson<int?>(json['minimumStockAtomic']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
@@ -4203,6 +4240,7 @@ class ProductVariantRow extends DataClass
       'salePriceMinor': serializer.toJson<int>(salePriceMinor),
       'standardCostMinor': serializer.toJson<int?>(standardCostMinor),
       'inventoryItemId': serializer.toJson<String?>(inventoryItemId),
+      'minimumStockAtomic': serializer.toJson<int?>(minimumStockAtomic),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
@@ -4221,6 +4259,7 @@ class ProductVariantRow extends DataClass
     int? salePriceMinor,
     Value<int?> standardCostMinor = const Value.absent(),
     Value<String?> inventoryItemId = const Value.absent(),
+    Value<int?> minimumStockAtomic = const Value.absent(),
     int? sortOrder,
   }) => ProductVariantRow(
     id: id ?? this.id,
@@ -4244,6 +4283,9 @@ class ProductVariantRow extends DataClass
     inventoryItemId: inventoryItemId.present
         ? inventoryItemId.value
         : this.inventoryItemId,
+    minimumStockAtomic: minimumStockAtomic.present
+        ? minimumStockAtomic.value
+        : this.minimumStockAtomic,
     sortOrder: sortOrder ?? this.sortOrder,
   );
   ProductVariantRow copyWithCompanion(ProductVariantsCompanion data) {
@@ -4273,6 +4315,9 @@ class ProductVariantRow extends DataClass
       inventoryItemId: data.inventoryItemId.present
           ? data.inventoryItemId.value
           : this.inventoryItemId,
+      minimumStockAtomic: data.minimumStockAtomic.present
+          ? data.minimumStockAtomic.value
+          : this.minimumStockAtomic,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
@@ -4293,6 +4338,7 @@ class ProductVariantRow extends DataClass
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
+          ..write('minimumStockAtomic: $minimumStockAtomic, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
@@ -4313,6 +4359,7 @@ class ProductVariantRow extends DataClass
     salePriceMinor,
     standardCostMinor,
     inventoryItemId,
+    minimumStockAtomic,
     sortOrder,
   );
   @override
@@ -4332,6 +4379,7 @@ class ProductVariantRow extends DataClass
           other.salePriceMinor == this.salePriceMinor &&
           other.standardCostMinor == this.standardCostMinor &&
           other.inventoryItemId == this.inventoryItemId &&
+          other.minimumStockAtomic == this.minimumStockAtomic &&
           other.sortOrder == this.sortOrder);
 }
 
@@ -4349,6 +4397,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
   final Value<int> salePriceMinor;
   final Value<int?> standardCostMinor;
   final Value<String?> inventoryItemId;
+  final Value<int?> minimumStockAtomic;
   final Value<int> sortOrder;
   final Value<int> rowid;
   const ProductVariantsCompanion({
@@ -4365,6 +4414,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.salePriceMinor = const Value.absent(),
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
+    this.minimumStockAtomic = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -4382,6 +4432,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     required int salePriceMinor,
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
+    this.minimumStockAtomic = const Value.absent(),
     required int sortOrder,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -4402,6 +4453,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Expression<int>? salePriceMinor,
     Expression<int>? standardCostMinor,
     Expression<String>? inventoryItemId,
+    Expression<int>? minimumStockAtomic,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
   }) {
@@ -4420,6 +4472,8 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       if (salePriceMinor != null) 'sale_price_minor': salePriceMinor,
       if (standardCostMinor != null) 'standard_cost_minor': standardCostMinor,
       if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
+      if (minimumStockAtomic != null)
+        'minimum_stock_atomic': minimumStockAtomic,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4439,6 +4493,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Value<int>? salePriceMinor,
     Value<int?>? standardCostMinor,
     Value<String?>? inventoryItemId,
+    Value<int?>? minimumStockAtomic,
     Value<int>? sortOrder,
     Value<int>? rowid,
   }) {
@@ -4456,6 +4511,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       salePriceMinor: salePriceMinor ?? this.salePriceMinor,
       standardCostMinor: standardCostMinor ?? this.standardCostMinor,
       inventoryItemId: inventoryItemId ?? this.inventoryItemId,
+      minimumStockAtomic: minimumStockAtomic ?? this.minimumStockAtomic,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
     );
@@ -4503,6 +4559,9 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     if (inventoryItemId.present) {
       map['inventory_item_id'] = Variable<String>(inventoryItemId.value);
     }
+    if (minimumStockAtomic.present) {
+      map['minimum_stock_atomic'] = Variable<int>(minimumStockAtomic.value);
+    }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
@@ -4528,6 +4587,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('salePriceMinor: $salePriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
+          ..write('minimumStockAtomic: $minimumStockAtomic, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -24989,6 +25049,7 @@ typedef $$ProductVariantsTableCreateCompanionBuilder =
       required int salePriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
+      Value<int?> minimumStockAtomic,
       required int sortOrder,
       Value<int> rowid,
     });
@@ -25007,6 +25068,7 @@ typedef $$ProductVariantsTableUpdateCompanionBuilder =
       Value<int> salePriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
+      Value<int?> minimumStockAtomic,
       Value<int> sortOrder,
       Value<int> rowid,
     });
@@ -25204,6 +25266,11 @@ class $$ProductVariantsTableFilterComposer
 
   ColumnFilters<int> get standardCostMinor => $composableBuilder(
     column: $table.standardCostMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get minimumStockAtomic => $composableBuilder(
+    column: $table.minimumStockAtomic,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -25424,6 +25491,11 @@ class $$ProductVariantsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get minimumStockAtomic => $composableBuilder(
+    column: $table.minimumStockAtomic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
@@ -25525,6 +25597,11 @@ class $$ProductVariantsTableAnnotationComposer
 
   GeneratedColumn<int> get standardCostMinor => $composableBuilder(
     column: $table.standardCostMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get minimumStockAtomic => $composableBuilder(
+    column: $table.minimumStockAtomic,
     builder: (column) => column,
   );
 
@@ -25729,6 +25806,7 @@ class $$ProductVariantsTableTableManager
                 Value<int> salePriceMinor = const Value.absent(),
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
+                Value<int?> minimumStockAtomic = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductVariantsCompanion(
@@ -25745,6 +25823,7 @@ class $$ProductVariantsTableTableManager
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
+                minimumStockAtomic: minimumStockAtomic,
                 sortOrder: sortOrder,
                 rowid: rowid,
               ),
@@ -25763,6 +25842,7 @@ class $$ProductVariantsTableTableManager
                 required int salePriceMinor,
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
+                Value<int?> minimumStockAtomic = const Value.absent(),
                 required int sortOrder,
                 Value<int> rowid = const Value.absent(),
               }) => ProductVariantsCompanion.insert(
@@ -25779,6 +25859,7 @@ class $$ProductVariantsTableTableManager
                 salePriceMinor: salePriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
+                minimumStockAtomic: minimumStockAtomic,
                 sortOrder: sortOrder,
                 rowid: rowid,
               ),

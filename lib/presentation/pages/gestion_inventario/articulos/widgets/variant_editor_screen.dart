@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../../application/edicion_masiva/cambio_explicito.dart';
 import '../../../../../application/config/app_config.dart';
 import '../../../../../application/config/app_config_controller.dart';
 import '../../../../../domain/articulos/proveedor_variante.dart';
@@ -33,6 +34,7 @@ import 'variant_suppliers_summary.dart';
 class VariantEditorScreen extends StatefulWidget {
   const VariantEditorScreen({
     required this.initialValue,
+    this.onSave,
     this.preview = false,
     required this.canDelete,
     this.isLastVariant = false,
@@ -50,6 +52,10 @@ class VariantEditorScreen extends StatefulWidget {
   });
 
   final ArticuloFormVarianteResult? initialValue;
+
+  /// Si se proporciona, confirma la operación local antes de cerrar. Sin este
+  /// callback el editor conserva su comportamiento de borrador del artículo.
+  final Future<void> Function(ArticuloFormVarianteResult result)? onSave;
   final bool preview;
   final bool canDelete;
   final bool isLastVariant;
@@ -86,6 +92,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late final TextEditingController _priceController;
   late final TextEditingController _costController;
   late final TextEditingController _initialStockController;
+  late final TextEditingController _minimumStockController;
+  late final String _initialMinimumStockText;
   late bool _trackingInventory;
   late bool _recipeEnabled;
   late List<RecipeComponentFormResult> _recipeComponents;
@@ -94,6 +102,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   String? _barcodeError;
   StreamSubscription<RecursoInventarioListado?>? _linkedResourceSubscription;
   RecursoInventarioListado? _linkedResource;
+  bool _saving = false;
+  bool _canPop = false;
 
   @override
   void initState() {
@@ -108,6 +118,17 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _costController = TextEditingController(text: initial?.costoEstandar ?? '');
     _initialStockController = TextEditingController(
       text: initial?.existenciaInicial ?? '',
+    );
+    _initialMinimumStockText = initial?.minimumStock.establecer == true
+        ? initial!.minimumStock.valor ?? ''
+        : initial?.minimumStockAtomic == null
+        ? ''
+        : _codec.formatAtomic(
+            initial!.minimumStockAtomic!,
+            widget.inventoryUnit,
+          );
+    _minimumStockController = TextEditingController(
+      text: _initialMinimumStockText,
     );
     _trackingInventory = initial?.seguimientoExistencias ?? false;
     _recipeComponents = List.of(initial?.recipeComponents ?? const []);
@@ -150,11 +171,17 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _priceController.dispose();
     _costController.dispose();
     _initialStockController.dispose();
+    _minimumStockController.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_saving || _canPop,
+    child: AbsorbPointer(absorbing: _saving, child: _buildEditor(context)),
+  );
+
+  Widget _buildEditor(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       key: const Key('variant_editor_screen'),
@@ -163,7 +190,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
         automaticallyImplyLeading: false,
         leading: IconButton(
           key: const Key('close_variant_editor_button'),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
           icon: const Icon(Icons.close),
           tooltip: 'Cerrar',
         ),
@@ -173,7 +200,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
             Expanded(
               child: FilledButton(
                 key: const Key('delete_variant_button'),
-                onPressed: widget.canDelete && !widget.preview
+                onPressed: widget.canDelete && !widget.preview && !_saving
                     ? _confirmDelete
                     : null,
                 style: FilledButton.styleFrom(
@@ -194,15 +221,18 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
             Expanded(
               child: FilledButton(
                 key: const Key('save_variant_button'),
-                onPressed: widget.preview ? null : _save,
+                onPressed: widget.preview || _saving ? null : _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: _saveColor,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(44),
                 ),
-                child: Text(
-                  widget.initialValue == null ? 'AGREGAR' : 'GUARDAR',
-                ),
+                child: _saving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(widget.initialValue == null ? 'AGREGAR' : 'GUARDAR'),
               ),
             ),
           ],
@@ -386,6 +416,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                           _buildLinkedInventoryResource()
                         else
                           _buildInitialStockField(),
+                        const SizedBox(height: 12),
+                        _buildMinimumStockField(),
                       ],
                     ],
                   ),
@@ -488,6 +520,36 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       ),
       validator: _validateInitialStock,
     );
+  }
+
+  Widget _buildMinimumStockField() => TextFormField(
+    key: const Key('variant_minimum_stock_field'),
+    controller: _minimumStockController,
+    readOnly: widget.preview,
+    keyboardType: TextInputType.numberWithOptions(
+      decimal: widget.inventoryUnit.maximosDecimales > 0,
+    ),
+    inputFormatters: [
+      InventoryQuantityInputFormatter(widget.inventoryUnit.maximosDecimales),
+    ],
+    decoration: InputDecoration(
+      labelText: 'Existencia mínima',
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      suffixText: widget.inventoryUnit.simbolo,
+      helperText: 'Vacío desactiva el aviso. Cero es válido.',
+      border: InputBorder.none,
+    ),
+    validator: _validateInitialStock,
+  );
+
+  CambioExplicito<String?> get _minimumStockChange {
+    if (!_trackingInventory) return const CambioExplicito.conservar();
+    if (_minimumStockController.text == _initialMinimumStockText) {
+      return widget.initialValue?.minimumStock ??
+          const CambioExplicito.conservar();
+    }
+    final text = _minimumStockController.text.trim().replaceAll(',', '.');
+    return CambioExplicito.establecer(text.isEmpty ? null : text);
   }
 
   /// Bloque de la variante con recurso ya vinculado: saldo vigente y acceso al
@@ -671,8 +733,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     }
   }
 
-  void _save() {
-    if (widget.preview) return;
+  Future<void> _save() async {
+    if (widget.preview || _saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_recipeEnabled && _recipeComponents.isEmpty) {
       setState(() {
@@ -681,34 +743,63 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       return;
     }
     final name = NombreVariante.fromInput(_nameController.text);
-    Navigator.of(context).pop(
-      VariantEditorResult.saved(
-        ArticuloFormVarianteResult.conProveedores(
-          id: widget.initialValue?.id,
-          proveedores: _suppliers,
-          nombre: name.value,
-          precioVenta: _priceController.text.trim().replaceAll(',', '.'),
-          costoEstandar: CostoEstandar.fromInput(_costController.text) == null
-              ? null
-              : _costController.text.trim().replaceAll(',', '.'),
-          codigoBarras: CodigoBarras.fromInput(_barcodeController.text).value,
-          inventoryUnitId: _trackingInventory ? widget.inventoryUnit.id : null,
-          existenciaInicial:
-              _trackingInventory &&
-                  _linkedItemId == null &&
-                  _initialStockController.text.trim().isNotEmpty
-              ? _initialStockController.text.trim().replaceAll(',', '.')
-              : null,
-          // La identidad del recurso vinculado sobrevive al guardado del
-          // artículo: no es un cambio, solo evita perder el enlace al reconstruir
-          // el resultado de la variante.
-          linkedInventoryItemId: _linkedItemId,
-          recipeComponents: _recipeEnabled
-              ? List.unmodifiable(_recipeComponents)
-              : const [],
-        ),
-      ),
+    final value = ArticuloFormVarianteResult.conProveedores(
+      id: widget.initialValue?.id,
+      proveedores: _suppliers,
+      nombre: name.value,
+      precioVenta: _priceController.text.trim().replaceAll(',', '.'),
+      costoEstandar: CostoEstandar.fromInput(_costController.text) == null
+          ? null
+          : _costController.text.trim().replaceAll(',', '.'),
+      codigoBarras: CodigoBarras.fromInput(_barcodeController.text).value,
+      inventoryUnitId: _trackingInventory ? widget.inventoryUnit.id : null,
+      minimumStockAtomic: widget.initialValue?.minimumStockAtomic,
+      minimumStock: _minimumStockChange,
+      existenciaInicial:
+          _trackingInventory &&
+              _linkedItemId == null &&
+              _initialStockController.text.trim().isNotEmpty
+          ? _initialStockController.text.trim().replaceAll(',', '.')
+          : null,
+      // La identidad del recurso vinculado sobrevive al guardado del
+      // artículo: no es un cambio, solo evita perder el enlace al reconstruir
+      // el resultado de la variante.
+      linkedInventoryItemId: _linkedItemId,
+      recipeComponents: _recipeEnabled
+          ? List.unmodifiable(_recipeComponents)
+          : const [],
     );
+    final onSave = widget.onSave;
+    if (onSave == null) {
+      Navigator.of(context).pop(VariantEditorResult.saved(value));
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _saving = true);
+    try {
+      await onSave(value);
+      if (!mounted) return;
+      setState(() => _canPop = true);
+      // PopScope debe reconstruirse antes del cierre programático.
+      await Future<void>.delayed(Duration.zero);
+      if (mounted) Navigator.of(context).pop(VariantEditorResult.saved(value));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      final message = switch (error) {
+        StateError() => error.message,
+        ArgumentError() => error.message?.toString(),
+        FormatException() => error.message,
+        _ => null,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message ?? 'No se pudo guardar la variante. Intenta de nuevo.',
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildSuppliers() {

@@ -77,6 +77,8 @@ class ProductoVarianteProjection extends SyncProjection {
     this.codigoBarras,
     required this.precioVentaMenor,
     this.costoEstandarMenor,
+    this.minimumStockAtomic,
+    this.knowsMinimumStock = false,
     this.inventoryItemId,
     required this.orden,
     required super.active,
@@ -93,6 +95,10 @@ class ProductoVarianteProjection extends SyncProjection {
   final String? codigoBarras;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+
+  /// Umbral atómico y conocimiento del contrato, independiente de SQL null.
+  final int? minimumStockAtomic;
+  final bool knowsMinimumStock;
   final String? inventoryItemId;
   final int orden;
 }

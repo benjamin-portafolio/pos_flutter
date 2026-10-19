@@ -9,6 +9,8 @@ class VarianteDetalle {
     required this.inventoryItemId,
     required this.componentesReceta,
     this.codigoBarras,
+    this.minimumStockAtomic,
+    this.knowsMinimumStock = false,
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
   final List<ProveedorVariante>? proveedores;
@@ -16,6 +18,10 @@ class VarianteDetalle {
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+
+  /// Umbral atómico y conocimiento del contrato, independiente de SQL null.
+  final int? minimumStockAtomic;
+  final bool knowsMinimumStock;
   final String? inventoryItemId;
 
   /// Código de barras opcional, solo dígitos, conservado como texto.

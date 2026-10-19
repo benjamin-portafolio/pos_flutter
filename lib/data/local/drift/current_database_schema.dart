@@ -143,6 +143,9 @@ bool hasCurrentAppDatabaseSchema(Database connection) {
           .isNotEmpty &&
       variantColumns.isNotEmpty &&
       variantColumns.any((column) => column['name'] == 'barcode') &&
+      variantColumns.any(
+        (column) => column['name'] == 'minimum_stock_atomic',
+      ) &&
       !variantColumns.any((column) => column['name'] == 'is_default') &&
       connection
           .select(

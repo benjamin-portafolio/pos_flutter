@@ -22,6 +22,11 @@ class ProductoActualizadoPayload {
         'La edición debe conocer suppliers en before y after, o conservar ambos estados legados.',
       );
     }
+    if (before.knowsMinimumStock != after.knowsMinimumStock) {
+      throw const FormatException(
+        'La edición debe conocer minimum_stock_atomic en before y after, o conservar ambos estados legados.',
+      );
+    }
     if (deleteProduct && !sameState(before, after)) {
       throw const FormatException(
         'El borrado debe conservar el estado anterior.',
@@ -87,6 +92,7 @@ class ProductoActualizadoPayload {
           v.precioVentaMenor != other.precioVentaMenor ||
           v.costoEstandarMenor != other.costoEstandarMenor ||
           v.inventoryItemId != other.inventoryItemId ||
+          v.minimumStockAtomic != other.minimumStockAtomic ||
           v.orden != other.orden ||
           !ProductoProveedorPrecio.sameList(v.proveedores, other.proveedores) ||
           v.componentesReceta.length != other.componentesReceta.length) {
@@ -111,17 +117,33 @@ class ProductoActualizadoPayload {
         ProductoCreadoPayload.knowsSuppliers(Map<String, Object?>.from(state));
   }
 
-  /// Transición explícita desde una proyección legada a una base actual completa.
-  /// No relaja sameState: el before conocido debe ser exactamente la lectura
-  /// actual con conjuntos vacíos, y una base legada jamás sustituye una conocida.
+  /// Consulta conocimiento desde el estado base sin exigir otros metadatos
+  /// históricos ajenos al mínimo. Un borrado conserva su estado en before.
+  static bool knowsMinimumStock(Map<String, Object?> json) {
+    final state = json['after'] ?? json['before'];
+    return state is Map &&
+        ProductoCreadoPayload.knowsMinimumStockJson(
+          Map<String, Object?>.from(state),
+        );
+  }
+
+  /// Compara la base de edición sin relajar los demás campos ni proveedores.
+  /// Solo permite promover ausencia legada a null conocido. El conocimiento
+  /// actual nunca admite un escritor legado, incluso para borrar el producto.
+  /// Evento, versión y secuencia se validan por los consumidores, como antes.
   static bool sameEditingBase(
     ProductoCreadoPayload current,
     ProductoCreadoPayload before,
-  ) =>
-      sameState(current, before) ||
-      (current.variantes.first.proveedores == null &&
-          before.variantes.first.proveedores != null &&
-          sameState(current.withKnownSuppliers(), before));
+  ) {
+    if (current.knowsMinimumStock && !before.knowsMinimumStock) return false;
+    final normalized = !current.knowsMinimumStock && before.knowsMinimumStock
+        ? current.withKnownMinimumStock()
+        : current;
+    return sameState(normalized, before) ||
+        (normalized.variantes.first.proveedores == null &&
+            before.variantes.first.proveedores != null &&
+            sameState(normalized.withKnownSuppliers(), before));
+  }
 
   Set<String> get dependencyEventIds => {
     baseEventId,

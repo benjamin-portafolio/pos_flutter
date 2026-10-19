@@ -47,6 +47,11 @@ class ProductVariants extends Table with CommonFields {
     onDelete: KeyAction.restrict,
   )();
 
+  /// Umbral opcional en átomos de la dimensión del recurso vinculado.
+  /// Null desactiva el aviso; cero es válido. Se conserva al desvincular el
+  /// inventario y no altera el saldo. Rango común seguro de Dart/JavaScript.
+  IntColumn get minimumStockAtomic => integer().nullable()();
+
   /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   IntColumn get sortOrder => integer()();
 
@@ -66,6 +71,9 @@ class ProductVariants extends Table with CommonFields {
     'CHECK (standard_cost_minor IS NULL OR '
         '(standard_cost_minor >= 0 AND '
         'standard_cost_minor <= 9007199254740991))',
+    "CHECK (minimum_stock_atomic IS NULL OR "
+        "(typeof(minimum_stock_atomic) = 'integer' AND "
+        "minimum_stock_atomic BETWEEN 0 AND 9007199254740991))",
     'CHECK (sort_order >= 0)',
   ];
 }

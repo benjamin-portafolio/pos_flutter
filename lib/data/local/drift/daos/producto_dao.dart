@@ -47,11 +47,20 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
   }) {
     final saleUnit = alias(db.units, 'sale_unit');
     final inventoryUnit = alias(db.units, 'inventory_unit');
+    final baseEvent = alias(db.events, 'product_base_event');
+    final minimumProducts = selectOnly(productVariants)
+      ..addColumns([productVariants.productId])
+      ..where(productVariants.minimumStockAtomic.isNotNull());
+    final hasMinimumStockValue = products.id.isInQuery(minimumProducts);
     final query = select(products).join([
       leftOuterJoin(
         db.events,
         db.events.eventId.equalsExp(products.createdEventId),
         useColumns: false,
+      ),
+      leftOuterJoin(
+        baseEvent,
+        baseEvent.eventId.equalsExp(products.lastEventId),
       ),
       leftOuterJoin(categories, categories.id.equalsExp(products.categoryId)),
       leftOuterJoin(
@@ -75,7 +84,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         inventoryUnit.unitId.equalsExp(db.inventoryItems.defaultUnitId),
       ),
     ])..where(products.active.equals(true));
-    query.addColumns([db.events.createdAtLocal]);
+    query.addColumns([db.events.createdAtLocal, hasMinimumStockValue]);
 
     final normalizedSearch = busqueda.trim().toLowerCase();
     if (normalizedSearch.isNotEmpty) {
@@ -118,6 +127,8 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
           .map(
             (row) => ProductoListadoRow(
               producto: row.readTable(products),
+              eventoBase: row.readTableOrNull(baseEvent),
+              hasMinimumStockValue: row.read(hasMinimumStockValue) ?? false,
               categoria: row.readTableOrNull(categories),
               variante: row.readTableOrNull(productVariants),
               unidadVenta: row.readTableOrNull(saleUnit),
@@ -521,7 +532,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     ].whereType<int>().fold<int?>(null, (a, b) => a == null || b > a ? b : a);
     // El producto puede haber sido eliminado físicamente. Recuperar primero el padre.
     await into(products).insertOnConflictUpdate(
-      product.copyWith(lastServerSequence: Value(sequence)),
+      product.copyWith(lastServerSequence: Value(sequence)).toCompanion(false),
     );
     final variants = (data['variants'] as List)
         .map(
@@ -539,9 +550,11 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
       await _removeUnreferencedVariant(v.id);
     }
     for (final v in variants) {
-      await into(
-        productVariants,
-      ).insertOnConflictUpdate(v.copyWith(lastServerSequence: Value(sequence)));
+      await into(productVariants).insertOnConflictUpdate(
+        // El null del respaldo es explícito: DataClass.toColumns(true) lo
+        // omitiría del UPDATE y conservaría indebidamente el mínimo optimista.
+        v.copyWith(lastServerSequence: Value(sequence)).toCompanion(false),
+      );
     }
     for (final r in data['recipes'] as List) {
       await into(recipeComponents).insert(

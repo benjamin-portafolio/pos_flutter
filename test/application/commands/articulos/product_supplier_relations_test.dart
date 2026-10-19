@@ -871,7 +871,7 @@ void main() {
         supplier.createdEventId!,
         'not_required',
       );
-      await save(p, [variant()]);
+      await save(p, [variant()], name: 'Café actualizado');
       final updated = ProductoActualizadoPayload.fromJson(
         h.appends.last.event.payload,
       );

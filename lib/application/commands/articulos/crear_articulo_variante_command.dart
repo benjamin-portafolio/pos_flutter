@@ -1,4 +1,5 @@
 import '../../../domain/articulos/proveedor_variante.dart';
+import '../../edicion_masiva/cambio_explicito.dart';
 import 'crear_articulo_recipe_component_command.dart';
 
 class CrearArticuloVarianteCommand {
@@ -11,6 +12,7 @@ class CrearArticuloVarianteCommand {
     this.initialStockQuantity,
     this.existingInventoryItemId,
     this.recipeComponents = const [],
+    this.minimumStock = const CambioExplicito.conservar(),
   }) : proveedores = null;
 
   /// Variante con una captura completa e inmutable del conjunto de proveedores.
@@ -25,6 +27,7 @@ class CrearArticuloVarianteCommand {
     this.initialStockQuantity,
     this.existingInventoryItemId,
     this.recipeComponents = const [],
+    this.minimumStock = const CambioExplicito.conservar(),
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
 
@@ -34,6 +37,11 @@ class CrearArticuloVarianteCommand {
 
   /// Código de barras capturado; vacío significa variante sin código.
   final String? codigoBarras;
+
+  /// Conservar por defecto; establecer cantidad en la unidad de inventario;
+  /// establecer(null) retira explícitamente el mínimo. Requiere vínculo activo
+  /// para cambiarlo; quitar seguimiento conserva el umbral dormido.
+  final CambioExplicito<String?> minimumStock;
   final String? inventoryUnitId;
   final String? initialStockQuantity;
 

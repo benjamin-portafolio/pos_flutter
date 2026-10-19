@@ -84,6 +84,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     final supplierSets = await DriftProductoProjectionStore(
       productoDao: _productoDao,
     ).supplierSets(productoId);
+    final knowsMinimumStock = await DriftProductoProjectionStore(
+      productoDao: _productoDao,
+    ).knowsMinimumStock(productoId);
     for (final row in rows.where((row) => row.active)) {
       final recipe = await _productoDao.obtenerComponentesRecetaPorVariante(
         row.id,
@@ -105,6 +108,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
           costoEstandarMenor: row.standardCostMinor,
           codigoBarras: row.barcode,
           inventoryItemId: row.inventoryItemId,
+          minimumStockAtomic: row.minimumStockAtomic,
+          knowsMinimumStock: knowsMinimumStock,
           componentesReceta: Map.unmodifiable({
             for (final component in recipe)
               component.inventoryItemId: component.quantityAtomic,
@@ -158,6 +163,14 @@ class ProductoRepositoryImpl implements ProductoRepository {
 
   List<ArticuloListado> _toDomain(List<drift.ProductoListadoRow> rows) {
     final grouped = <String, _ArticuloBuilder>{};
+    final knownProducts = {
+      for (final row in rows)
+        if (DriftProductoProjectionStore.minimumStockKnownFromEvent(
+              row.eventoBase,
+            ) ||
+            row.hasMinimumStockValue)
+          row.producto.id,
+    };
     for (final row in rows) {
       final builder = grouped.putIfAbsent(
         row.producto.id,
@@ -178,6 +191,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
             precioVentaMenor: variante.salePriceMinor,
             costoEstandarMenor: variante.standardCostMinor,
             orden: variante.sortOrder,
+            minimumStockAtomic: variante.minimumStockAtomic,
+            knowsMinimumStock: knownProducts.contains(row.producto.id),
             inventario: inventory == null
                 ? null
                 : RecursoInventarioListado(

@@ -38,6 +38,7 @@ Future<List<FilaCatalogoMasivo>> seedRecepcion(
               ? InventoryUnitIds.kilogram
               : InventoryUnitIds.piece,
           initialStockQuantity: '5',
+          minimumStock: const CambioExplicito.establecer('5'),
         ),
         CrearArticuloVarianteCommand(
           nombre: 'Peso',
