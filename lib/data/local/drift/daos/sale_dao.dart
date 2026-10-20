@@ -26,7 +26,11 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
                 sales.active.equals(true) &
                 sales.status.equals(SaleStatus.borrador.name),
           )
-          ..orderBy([OrderingTerm.asc(saleItems.sortOrder)]);
+          ..orderBy([
+            OrderingTerm.asc(sales.createdAtLocal),
+            OrderingTerm.asc(sales.id),
+            OrderingTerm.asc(saleItems.sortOrder),
+          ]);
     return query.watch().map(
       (rows) => [
         for (final row in rows)
@@ -69,13 +73,19 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
   @override
   Future<SaleProjection?> findDraft(String userId, String deviceId) async {
     final row =
-        await (select(sales)..where(
-              (t) =>
-                  t.userId.equals(userId) &
-                  t.deviceId.equals(deviceId) &
-                  t.active.equals(true) &
-                  t.status.equals('borrador'),
-            ))
+        await (select(sales)
+              ..where(
+                (t) =>
+                    t.userId.equals(userId) &
+                    t.deviceId.equals(deviceId) &
+                    t.active.equals(true) &
+                    t.status.equals('borrador'),
+              )
+              ..orderBy([
+                (t) => OrderingTerm.asc(t.createdAtLocal),
+                (t) => OrderingTerm.asc(t.id),
+              ])
+              ..limit(1))
             .getSingleOrNull();
     return row == null ? null : _sale(row);
   }

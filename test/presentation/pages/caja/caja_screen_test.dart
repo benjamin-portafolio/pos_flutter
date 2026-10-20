@@ -147,7 +147,7 @@ void main() {
     'limpiar envía la venta concreta, bloquea dobles toques y observa el estado vacío',
     (tester) async {
       _phone(tester);
-      final updates = StreamController<SaleDraft?>();
+      final updates = StreamController<SaleDraft?>.broadcast();
       addTearDown(updates.close);
       final gate = Completer<void>();
       final commands = _Commands()..gate = gate.future;

@@ -56,6 +56,8 @@ import 'package:pos_flutter/data/local/drift/drift_inventory_projection_store.da
 import 'package:pos_flutter/data/local/drift/drift_synced_event_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_sync_persistence.dart';
 import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/sale_draft_repository_impl.dart';
+import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 
 const productId = '00000000-0000-4000-8000-000000000001';
@@ -143,13 +145,15 @@ void main() {
     );
   }
 
-  VentaBorradorCommandService draft() => VentaBorradorCommandService(
-    store: db.saleDao,
-    products: DriftProductoProjectionStore(productoDao: db.productoDao),
-    units: UnidadInventarioRepositoryImpl(unitDao: db.unitDao),
-    events: events(),
-    context: context,
-  );
+  VentaBorradorCommandService draft({SaleDraftRepository? drafts}) =>
+      VentaBorradorCommandService(
+        store: db.saleDao,
+        products: DriftProductoProjectionStore(productoDao: db.productoDao),
+        units: UnidadInventarioRepositoryImpl(unitDao: db.unitDao),
+        events: events(),
+        context: context,
+        drafts: drafts,
+      );
   VentaCommandService service() => VentaCommandService(
     cash: cashService(),
     clientes: DriftClienteProjectionStore(db.clienteDao),
@@ -289,6 +293,51 @@ void main() {
     await directory.delete(recursive: true);
   });
   for (final mode in AppMode.values) {
+    test(
+      '${mode.name}: cobrar otra pestaña conserva la compra pendiente',
+      () async {
+        config.update(config.config.copyWith(mode: mode));
+        await seed();
+        final repository = SaleDraftRepositoryImpl(
+          saleDao: db.saleDao,
+          userId: context.userId,
+          deviceId: context.deviceId,
+        );
+        final commands = draft(drafts: repository);
+        repository.selectDraft('sale-pending');
+        await commands.agregar(
+          const AgregarProductoBorradorCommand(variantId: variantId),
+        );
+        final pending = (await db.saleDao.findById('sale-pending'))!;
+        repository.selectDraft('sale-quick');
+        await commands.agregar(
+          const AgregarProductoBorradorCommand(variantId: variantId),
+        );
+        final quick = (await repository.watchCurrentDraft().first)!;
+        await service().confirmar(
+          ConfirmarVentaCommand(
+            saleId: quick.id,
+            expectedDraftEventId: quick.lastEventId!,
+            expectedTotalMinor: quick.totalMinor,
+          ),
+        );
+        expect((await repository.watchDrafts().first).single.id, pending.id);
+        final retained = (await db.saleDao.findById(pending.id))!;
+        expect(retained.lastEventId, pending.lastEventId);
+        expect(retained.totalMinor, pending.totalMinor);
+        expect(
+          (await db.select(db.salePayments).get()).single.saleId,
+          quick.id,
+        );
+        final movements = await db.select(db.inventoryMovements).get();
+        expect(movements, hasLength(1));
+        expect(
+          (await db.saleDao.findById(quick.id))!.status.name,
+          'confirmada',
+        );
+      },
+    );
+
     for (final received in <int?>[null, 10000, 20000]) {
       test(
         '${mode.name}: efectivo $received, commit completo y reintento persistente',

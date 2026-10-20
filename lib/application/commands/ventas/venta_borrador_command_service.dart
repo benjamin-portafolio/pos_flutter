@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../../domain/articulos/sale_configuration.dart';
 import '../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../domain/inventario/unidad_inventario.dart';
+import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/repositories/unidad_inventario_repository.dart';
 import '../../../domain/ventas/measured_sale_calculator.dart';
 import '../../../domain/ventas/sale_status.dart';
@@ -16,6 +17,7 @@ import '../../sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../sync/projections/producto_projection_store.dart';
 import '../../sync/projections/sale_draft_projection_store.dart';
 import '../../sync/projections/sale_item_projection.dart';
+import '../../sync/projections/sale_projection.dart';
 import 'agregar_producto_borrador_command.dart';
 import 'actualizar_producto_borrador_command.dart';
 import 'eliminar_producto_borrador_command.dart';
@@ -29,12 +31,14 @@ class VentaBorradorCommandService {
     required this.units,
     required this.events,
     required this.context,
+    this.drafts,
   });
   final SaleDraftProjectionStore store;
   final ProductoProjectionStore products;
   final UnidadInventarioRepository units;
   final LocalEventStore events;
   final LocalCommandContext context;
+  final SaleDraftRepository? drafts;
   final _uuid = const Uuid();
 
   Future<void> limpiar(LimpiarVentaBorradorCommand command) =>
@@ -88,117 +92,141 @@ class VentaBorradorCommandService {
         );
       });
 
-  Future<void> agregar(AgregarProductoBorradorCommand command) =>
-      store.atomic(() async {
-        final item = await _prepareDraftItem(command);
-        final sale = await store.findDraft(context.userId, context.deviceId);
-        final saleId = sale?.id ?? _uuid.v4();
-        final lines = await store.items(saleId);
-        final payload = _buildDraftLine(item.snapshot, lines);
-        final refs = _buildDraftRefs(saleId, item, payload);
-        await events.appendAndApply(
-          SyncEvent(
-            eventId: _uuid.v4(),
-            aggregateType: ProductoAgregadoBorradorPayload.aggregateType,
-            aggregateId: saleId,
-            eventType: ProductoAgregadoBorradorPayload.eventType,
-            deviceId: context.deviceId,
-            userId: context.userId,
-            baseVersion: sale?.version ?? 0,
-            createdAtLocal: DateTime.now(),
-            deliveryStatus: 'not_required',
-            payload: payload.toJson(),
-          ),
-          refs: refs,
-        );
-      });
+  Future<void> agregar(AgregarProductoBorradorCommand command) {
+    // Captura la selección antes de cualquier espera, incluida la transacción.
+    final selectedId = drafts?.selectedDraftId;
+    return store.atomic(() async {
+      final item = await _prepareDraftItem(command);
+      final sale = await _findSelectedDraft(selectedId);
+      final saleId = sale?.id ?? selectedId ?? _uuid.v4();
+      if (sale == null && await store.wasCleared(saleId)) {
+        throw StateError('La venta ya fue limpiada. Abre otra captura.');
+      }
+      final lines = await store.items(saleId);
+      final payload = _buildDraftLine(item.snapshot, lines);
+      final refs = _buildDraftRefs(saleId, item, payload);
+      await events.appendAndApply(
+        SyncEvent(
+          eventId: _uuid.v4(),
+          aggregateType: ProductoAgregadoBorradorPayload.aggregateType,
+          aggregateId: saleId,
+          eventType: ProductoAgregadoBorradorPayload.eventType,
+          deviceId: context.deviceId,
+          userId: context.userId,
+          baseVersion: sale?.version ?? 0,
+          createdAtLocal: DateTime.now(),
+          deliveryStatus: 'not_required',
+          payload: payload.toJson(),
+        ),
+        refs: refs,
+      );
+    });
+  }
 
-  Future<void> actualizarProducto(ActualizarProductoBorradorCommand command) =>
-      store.atomic(() async {
-        final saleItemId = command.saleItemId.trim();
-        if (saleItemId.isEmpty) {
-          throw const FormatException('El artículo de la venta es obligatorio.');
+  Future<void> actualizarProducto(ActualizarProductoBorradorCommand command) {
+    final selectedId = drafts?.selectedDraftId;
+    return store.atomic(() async {
+      final saleItemId = command.saleItemId.trim();
+      if (saleItemId.isEmpty) {
+        throw const FormatException('El artículo de la venta es obligatorio.');
+      }
+      final sale = await _findSelectedDraft(selectedId);
+      if (sale == null) {
+        throw StateError('No hay una venta en preparación.');
+      }
+      final lines = await store.items(sale.id);
+      SaleItemProjection? line;
+      for (final candidate in lines) {
+        if (candidate.id == saleItemId && candidate.active) {
+          line = candidate;
+          break;
         }
-        final sale = await store.findDraft(context.userId, context.deviceId);
-        if (sale == null || !sale.active || sale.status != SaleStatus.borrador) {
-          throw StateError('No hay una venta en preparación.');
-        }
-        final lines = await store.items(sale.id);
-        SaleItemProjection? line;
-        for (final candidate in lines) {
-          if (candidate.id == saleItemId && candidate.active) {
-            line = candidate;
-            break;
-          }
-        }
-        if (line == null) {
-          throw StateError('El artículo ya no está en esta venta.');
-        }
-        final snapshot = await _updatedSnapshot(line.snapshot, command);
-        final currentlyEquals =
-            (snapshot.saleMode == 'unit' &&
-                snapshot.quantity == line.snapshot.quantity) ||
-            (snapshot.saleMode == 'measured' &&
-                snapshot.measuredQuantityAtomic ==
-                    line.snapshot.measuredQuantityAtomic);
-        if (currentlyEquals) return; // Sin cambios: no registra un evento nuevo.
-        final payload = ProductoActualizadoBorradorPayload(
-          saleItemId: line.id,
-          item: snapshot,
-        );
-        await events.appendAndApply(
-          SyncEvent(
-            eventId: _uuid.v4(),
-            aggregateType: ProductoActualizadoBorradorPayload.aggregateType,
-            aggregateId: sale.id,
-            eventType: ProductoActualizadoBorradorPayload.eventType,
-            deviceId: context.deviceId,
-            userId: context.userId,
-            baseVersion: sale.version,
-            createdAtLocal: DateTime.now(),
-            deliveryStatus: 'not_required',
-            payload: payload.toJson(),
-          ),
-          refs: _draftEditRefs(sale.id, line.id),
-        );
-      });
+      }
+      if (line == null) {
+        throw StateError('El artículo ya no está en esta venta.');
+      }
+      final snapshot = await _updatedSnapshot(line.snapshot, command);
+      final currentlyEquals =
+          (snapshot.saleMode == 'unit' &&
+              snapshot.quantity == line.snapshot.quantity) ||
+          (snapshot.saleMode == 'measured' &&
+              snapshot.measuredQuantityAtomic ==
+                  line.snapshot.measuredQuantityAtomic);
+      if (currentlyEquals) return; // Sin cambios: no registra un evento nuevo.
+      final payload = ProductoActualizadoBorradorPayload(
+        saleItemId: line.id,
+        item: snapshot,
+      );
+      await events.appendAndApply(
+        SyncEvent(
+          eventId: _uuid.v4(),
+          aggregateType: ProductoActualizadoBorradorPayload.aggregateType,
+          aggregateId: sale.id,
+          eventType: ProductoActualizadoBorradorPayload.eventType,
+          deviceId: context.deviceId,
+          userId: context.userId,
+          baseVersion: sale.version,
+          createdAtLocal: DateTime.now(),
+          deliveryStatus: 'not_required',
+          payload: payload.toJson(),
+        ),
+        refs: _draftEditRefs(sale.id, line.id),
+      );
+    });
+  }
 
-  Future<void> eliminarProducto(EliminarProductoBorradorCommand command) =>
-      store.atomic(() async {
-        final saleItemId = command.saleItemId.trim();
-        if (saleItemId.isEmpty) {
-          throw const FormatException('El artículo de la venta es obligatorio.');
+  Future<void> eliminarProducto(EliminarProductoBorradorCommand command) {
+    final selectedId = drafts?.selectedDraftId;
+    return store.atomic(() async {
+      final saleItemId = command.saleItemId.trim();
+      if (saleItemId.isEmpty) {
+        throw const FormatException('El artículo de la venta es obligatorio.');
+      }
+      final sale = await _findSelectedDraft(selectedId);
+      if (sale == null) {
+        throw StateError('No hay una venta en preparación.');
+      }
+      final lines = await store.items(sale.id);
+      var found = false;
+      for (final line in lines) {
+        if (line.id == saleItemId && line.active) {
+          found = true;
+          break;
         }
-        final sale = await store.findDraft(context.userId, context.deviceId);
-        if (sale == null || !sale.active || sale.status != SaleStatus.borrador) {
-          throw StateError('No hay una venta en preparación.');
-        }
-        final lines = await store.items(sale.id);
-        var found = false;
-        for (final line in lines) {
-          if (line.id == saleItemId && line.active) {
-            found = true;
-            break;
-          }
-        }
-        if (!found) throw StateError('El artículo ya no está en esta venta.');
-        final payload = ProductoEliminadoBorradorPayload(saleItemId: saleItemId);
-        await events.appendAndApply(
-          SyncEvent(
-            eventId: _uuid.v4(),
-            aggregateType: ProductoEliminadoBorradorPayload.aggregateType,
-            aggregateId: sale.id,
-            eventType: ProductoEliminadoBorradorPayload.eventType,
-            deviceId: context.deviceId,
-            userId: context.userId,
-            baseVersion: sale.version,
-            createdAtLocal: DateTime.now(),
-            deliveryStatus: 'not_required',
-            payload: payload.toJson(),
-          ),
-          refs: _draftEditRefs(sale.id, saleItemId),
-        );
-      });
+      }
+      if (!found) throw StateError('El artículo ya no está en esta venta.');
+      final payload = ProductoEliminadoBorradorPayload(saleItemId: saleItemId);
+      await events.appendAndApply(
+        SyncEvent(
+          eventId: _uuid.v4(),
+          aggregateType: ProductoEliminadoBorradorPayload.aggregateType,
+          aggregateId: sale.id,
+          eventType: ProductoEliminadoBorradorPayload.eventType,
+          deviceId: context.deviceId,
+          userId: context.userId,
+          baseVersion: sale.version,
+          createdAtLocal: DateTime.now(),
+          deliveryStatus: 'not_required',
+          payload: payload.toJson(),
+        ),
+        refs: _draftEditRefs(sale.id, saleItemId),
+      );
+    });
+  }
+
+  Future<SaleProjection?> _findSelectedDraft(String? selectedId) async {
+    final sale = selectedId == null
+        ? await store.findDraft(context.userId, context.deviceId)
+        : await store.findById(selectedId);
+    if (sale != null &&
+        (!sale.active ||
+            sale.status != SaleStatus.borrador ||
+            sale.userId != context.userId ||
+            sale.deviceId != context.deviceId)) {
+      throw StateError('La venta no corresponde a una captura propia abierta.');
+    }
+    return sale;
+  }
 
   Future<SaleItemSnapshot> _updatedSnapshot(
     SaleItemSnapshot snapshot,

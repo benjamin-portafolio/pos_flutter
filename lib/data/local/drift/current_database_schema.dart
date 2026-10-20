@@ -25,7 +25,17 @@ bool hasCurrentAppDatabaseSchema(Database connection) {
       .select('PRAGMA table_info(bulk_edit_operations)')
       .map((column) => column['name'])
       .toSet();
-  return bulkColumns.containsAll({
+  return connection
+          .select(
+            "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'ix_sales_local_drafts'",
+          )
+          .isNotEmpty &&
+      connection
+          .select(
+            "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'ux_sales_local_draft'",
+          )
+          .isEmpty &&
+      bulkColumns.containsAll({
         'operation_id',
         'batch_id',
         'product_id',

@@ -29,6 +29,7 @@ import 'package:pos_flutter/data/local/drift/drift_producto_projection_store.dar
 import 'package:pos_flutter/data/repositories/sale_draft_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
+import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
 
 void main() {
   late AppDatabase db;
@@ -37,11 +38,13 @@ void main() {
   VentaBorradorCommandService service({
     String user = 'user',
     String device = 'device',
+    SaleDraftRepository? drafts,
   }) => VentaBorradorCommandService(
     store: db.saleDao,
     products: DriftProductoProjectionStore(productoDao: db.productoDao),
     units: UnidadInventarioRepositoryImpl(unitDao: db.unitDao),
     context: LocalCommandContext(userId: user, deviceId: device),
+    drafts: drafts,
     events: DriftLocalEventStore(
       db: db,
       eventDao: db.eventDao,
@@ -122,6 +125,110 @@ void main() {
       },
     );
   }
+
+  for (final mode in AppMode.values) {
+    test(
+      'pestañas aíslan captura, edición y limpieza en ${mode.name}',
+      () async {
+        config.dispose();
+        config = AppConfigController(AppConfig.initial.copyWith(mode: mode));
+        final repository = SaleDraftRepositoryImpl(
+          saleDao: db.saleDao,
+          userId: 'user',
+          deviceId: 'device',
+        );
+        final commands = service(drafts: repository);
+        repository.selectDraft('sale-1');
+        final first = commands.agregar(
+          const AgregarProductoBorradorCommand(variantId: 'coffee'),
+        );
+        repository.selectDraft('sale-2');
+        final second = commands.agregar(
+          const AgregarProductoBorradorCommand(variantId: 'bread'),
+        );
+        await Future.wait([first, second]);
+        final open = await repository.watchDrafts().first;
+        expect(open.map((sale) => sale.id).toSet(), {'sale-1', 'sale-2'});
+        expect(
+          (await db.saleDao.items('sale-1')).single.snapshot.variantId,
+          'coffee',
+        );
+        expect(
+          (await db.saleDao.items('sale-2')).single.snapshot.variantId,
+          'bread',
+        );
+        expect((await repository.watchCurrentDraft().first)!.id, 'sale-2');
+        final line = (await db.saleDao.items('sale-2')).single;
+        await commands.actualizarProducto(
+          ActualizarProductoBorradorCommand(saleItemId: line.id, quantity: 3),
+        );
+        expect((await db.saleDao.findById('sale-2'))!.totalMinor, 7500);
+        expect((await db.saleDao.findById('sale-1'))!.totalMinor, 3500);
+        final otherLine = (await db.saleDao.items('sale-1')).single;
+        await expectLater(
+          commands.eliminarProducto(
+            EliminarProductoBorradorCommand(saleItemId: otherLine.id),
+          ),
+          throwsStateError,
+        );
+        await commands.eliminarProducto(
+          EliminarProductoBorradorCommand(saleItemId: line.id),
+        );
+        expect((await db.saleDao.findById('sale-2'))!.totalMinor, 0);
+        await commands.limpiar(
+          const LimpiarVentaBorradorCommand(saleId: 'sale-2'),
+        );
+        expect((await repository.watchDrafts().first).single.id, 'sale-1');
+        await expectLater(
+          commands.agregar(
+            const AgregarProductoBorradorCommand(variantId: 'bread'),
+          ),
+          throwsStateError,
+        );
+        expect(await db.saleDao.findById('sale-2'), isNull);
+        expect(
+          (await db.select(db.events).get()).every(
+            (event) => event.deliveryStatus == 'not_required',
+          ),
+          isTrue,
+        );
+        expect(await db.select(db.inventoryMovements).get(), isEmpty);
+        if (mode == AppMode.standalone) {
+          expect(await db.select(db.eventRefs).get(), isEmpty);
+        }
+      },
+    );
+  }
+
+  test(
+    'seleccionar una venta ajena o confirmada no permite editarla',
+    () async {
+      await add();
+      final original = (await db.select(db.sales).get()).single;
+      final repository = SaleDraftRepositoryImpl(
+        saleDao: db.saleDao,
+        userId: 'second',
+        deviceId: 'device',
+      )..selectDraft(original.id);
+      await expectLater(
+        service(
+          user: 'second',
+          drafts: repository,
+        ).agregar(const AgregarProductoBorradorCommand(variantId: 'bread')),
+        throwsStateError,
+      );
+      await (db.update(db.sales)..where((sale) => sale.id.equals(original.id)))
+          .write(const SalesCompanion(status: Value('confirmada')));
+      await expectLater(
+        service(
+          drafts: repository,
+        ).agregar(const AgregarProductoBorradorCommand(variantId: 'bread')),
+        throwsStateError,
+      );
+      expect((await db.saleDao.items(original.id)).single.snapshot.quantity, 1);
+      expect(await db.select(db.events).get(), hasLength(1));
+    },
+  );
 
   SyncEvent eventFrom(EventRecord record) => SyncEvent.fromJson({
     'event_id': record.eventId,

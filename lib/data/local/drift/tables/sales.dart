@@ -6,7 +6,7 @@ import 'clientes.dart';
 /// active indica borrado lógico, mientras status describe su ciclo de negocio.
 @DataClassName('SaleRow')
 @TableIndex.sql(
-  "CREATE UNIQUE INDEX ux_sales_local_draft ON sales(user_id, device_id) WHERE active = 1 AND status = 'borrador'",
+  "CREATE INDEX ix_sales_local_drafts ON sales(user_id, device_id, created_at_local, id) WHERE active = 1 AND status = 'borrador'",
 )
 class Sales extends Table with CommonFields {
   /// Cliente opcional en efectivo y obligatorio al confirmar a crédito.

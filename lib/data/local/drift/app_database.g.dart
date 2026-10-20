@@ -21602,9 +21602,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'ix_variant_inventory_memory_item',
     'CREATE INDEX ix_variant_inventory_memory_item ON variant_inventory_memory (inventory_item_id)',
   );
-  late final Index uxSalesLocalDraft = Index(
-    'ux_sales_local_draft',
-    'CREATE UNIQUE INDEX ux_sales_local_draft ON sales (user_id, device_id) WHERE active = 1 AND status = \'borrador\'',
+  late final Index ixSalesLocalDrafts = Index(
+    'ix_sales_local_drafts',
+    'CREATE INDEX ix_sales_local_drafts ON sales (user_id, device_id, created_at_local, id) WHERE active = 1 AND status = \'borrador\'',
   );
   late final Index uxSaleItemsOrder = Index(
     'ux_sale_items_order',
@@ -21717,7 +21717,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     uxSaleConsumption,
     ixMovementsEvent,
     ixVariantInventoryMemoryItem,
-    uxSalesLocalDraft,
+    ixSalesLocalDrafts,
     uxSaleItemsOrder,
     ixQuotationsListing,
     uxQuotationsCurrentSale,

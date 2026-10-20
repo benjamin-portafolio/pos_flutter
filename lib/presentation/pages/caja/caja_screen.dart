@@ -26,6 +26,8 @@ import 'draft_item_edit_sheet.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
 import 'sale_barcode_scanner_screen.dart';
+import 'sale_draft_tabs_bar.dart';
+import 'sale_draft_tabs_controller.dart';
 
 class CajaScreen extends StatefulWidget {
   const CajaScreen({
@@ -57,6 +59,18 @@ class CajaScreenState extends State<CajaScreen> {
   late final _repository =
       widget.saleDraftRepository ?? getIt<SaleDraftRepository>();
   late final _draft = _repository.watchCurrentDraft();
+  late final _tabStorage = PageStorage.maybeOf(context);
+  late final _tabs = SaleDraftTabsController(
+    _repository,
+    snapshot:
+        _tabStorage?.readState(context, identifier: _repository)
+            as SaleDraftTabsSnapshot?,
+  )..addListener(_rememberTabs);
+
+  void _rememberTabs() {
+    _tabStorage?.writeState(context, _tabs.snapshot, identifier: _repository);
+  }
+
   final _physicalReader = GlobalKey<PhysicalBarcodeReaderState>();
   bool _resolvingReads = false;
   bool get isReaderEnabled => _physicalReader.currentState?.isEnabled == true;
@@ -100,7 +114,11 @@ class CajaScreenState extends State<CajaScreen> {
     } finally {
       if (mounted) {
         setState(() => _resolvingReads = false);
-        if (restoreMode) reader?.enableReader(restoringGeneration: generation);
+        // La selección puede haber cambiado; reconstruir antes de reabrir el HID.
+        await WidgetsBinding.instance.endOfFrame;
+        if (mounted && restoreMode) {
+          reader?.enableReader(restoringGeneration: generation);
+        }
       }
     }
   }
@@ -222,6 +240,8 @@ class CajaScreenState extends State<CajaScreen> {
 
   @override
   void dispose() {
+    _tabs.removeListener(_rememberTabs);
+    _tabs.dispose();
     _barcodeClock.stop();
     super.dispose();
   }
@@ -275,6 +295,15 @@ class CajaScreenState extends State<CajaScreen> {
   Widget build(BuildContext context) => SafeArea(
     child: Column(
       children: [
+        SaleDraftTabsBar(
+          controller: _tabs,
+          enabled: !_busy,
+          onSelect: (index) {
+            if (index == _tabs.selectedIndex) return;
+            _runAction(() async => _tabs.select(index));
+          },
+          onAdd: () => _runAction(() async => _tabs.add()),
+        ),
         if (getIt.isRegistered<ConfirmedSaleRepository>())
           TextButton.icon(
             onPressed: _busy ? null : _openConfirmedSales,
@@ -328,149 +357,169 @@ class CajaScreenState extends State<CajaScreen> {
               final total = SaleDraftDisplay.money(sale?.totalMinor ?? 0);
               return ColoredBox(
                 color: const Color(0xFFE6E6E6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: [
-                          if (sale == null || sale.items.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: Text(
-                                'La venta está vacía.',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          else
-                            Card(
-                              margin: EdgeInsets.zero,
-                              child: Column(
-                                children: [
-                                  for (
-                                    var i = 0;
-                                    i < sale.items.length;
-                                    i++
-                                  ) ...[
-                                    if (i > 0) const Divider(height: 1),
-                                    _SaleLine(
-                                      item: sale.items[i],
-                                      onEdit: _busy
-                                          ? null
-                                          : () => _openEditor(sale.items[i].id),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: OutlinedButton(
-                                  onPressed: null,
-                                  child: Text('Añadir artículo nuevo'),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.all(12),
+                          children: [
+                            if (sale == null || sale.items.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
+                                child: Text(
+                                  'La venta está vacía.',
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton.outlined(
-                                onPressed: _busy ? null : _openBarcodeScanner,
-                                tooltip: 'Escanear código de barras',
-                                icon: const Icon(Icons.barcode_reader),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Card(
-                            margin: EdgeInsets.zero,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _AmountRow(label: 'Subtotal', amount: total),
-                                  const Divider(),
-                                  _AmountRow(
-                                    label: 'Total general',
-                                    amount: total,
-                                    bold: true,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(SaleDraftDisplay.summary(sale)),
-                                  const Wrap(
-                                    spacing: 8,
-                                    children: [
-                                      TextButton(
-                                        onPressed: null,
-                                        child: Text('Agregar impuesto'),
-                                      ),
-                                      TextButton(
-                                        onPressed: null,
-                                        child: Text('Agregar descuento'),
-                                      ),
-                                      TextButton(
-                                        onPressed: null,
-                                        child: Text('Agregar otros cargos'),
+                              )
+                            else
+                              Card(
+                                margin: EdgeInsets.zero,
+                                child: Column(
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i < sale.items.length;
+                                      i++
+                                    ) ...[
+                                      if (i > 0) const Divider(height: 1),
+                                      _SaleLine(
+                                        item: sale.items[i],
+                                        onEdit: _busy
+                                            ? null
+                                            : () =>
+                                                  _openEditor(sale.items[i].id),
                                       ),
                                     ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          FilledButton.icon(
-                            onPressed: sale == null || _busy ? null : _clear,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.error,
-                            ),
-                            icon: const Icon(Icons.delete_sweep_outlined),
-                            label: Text(
-                              _clearing ? 'Limpiando…' : 'Limpiar venta',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed:
-                                    sale == null ||
-                                        sale.items.isEmpty ||
-                                        sale.lastEventId == null ||
-                                        _busy
-                                    ? null
-                                    : _quote,
-                                icon: const Icon(Icons.request_quote_outlined),
-                                label: Text(
-                                  _quoting ? 'Guardando…' : 'Cotizar',
+                                  ],
                                 ),
                               ),
-                              FilledButton(
-                                onPressed:
-                                    sale == null || sale.items.isEmpty || _busy
-                                    ? null
-                                    : _openPayment,
-                                child: Text('Cobrar: $total'),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: null,
+                                    child: Text('Añadir artículo nuevo'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.outlined(
+                                  onPressed: _busy ? null : _openBarcodeScanner,
+                                  tooltip: 'Escanear código de barras',
+                                  icon: const Icon(Icons.barcode_reader),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Card(
+                              margin: EdgeInsets.zero,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _AmountRow(
+                                      label: 'Subtotal',
+                                      amount: total,
+                                    ),
+                                    const Divider(),
+                                    _AmountRow(
+                                      label: 'Total general',
+                                      amount: total,
+                                      bold: true,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(SaleDraftDisplay.summary(sale)),
+                                    const Wrap(
+                                      spacing: 8,
+                                      children: [
+                                        TextButton(
+                                          onPressed: null,
+                                          child: Text('Agregar impuesto'),
+                                        ),
+                                        TextButton(
+                                          onPressed: null,
+                                          child: Text('Agregar descuento'),
+                                        ),
+                                        TextButton(
+                                          onPressed: null,
+                                          child: Text('Agregar otros cargos'),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: constraints.maxHeight * 0.55,
+                        ),
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: sale == null || _busy
+                                      ? null
+                                      : _clear,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.error,
+                                  ),
+                                  icon: const Icon(Icons.delete_sweep_outlined),
+                                  label: Text(
+                                    _clearing ? 'Limpiando…' : 'Limpiar venta',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  alignment: WrapAlignment.end,
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed:
+                                          sale == null ||
+                                              sale.items.isEmpty ||
+                                              sale.lastEventId == null ||
+                                              _busy
+                                          ? null
+                                          : _quote,
+                                      icon: const Icon(
+                                        Icons.request_quote_outlined,
+                                      ),
+                                      label: Text(
+                                        _quoting ? 'Guardando…' : 'Cotizar',
+                                      ),
+                                    ),
+                                    FilledButton(
+                                      onPressed:
+                                          sale == null ||
+                                              sale.items.isEmpty ||
+                                              _busy
+                                          ? null
+                                          : _openPayment,
+                                      child: Text('Cobrar: $total'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

@@ -1,6 +1,6 @@
 import 'sale_draft_item.dart';
 
-/// Borrador actual del usuario y dispositivo, con importes persistidos.
+/// Una venta en preparación del usuario y dispositivo, con importes persistidos.
 class SaleDraft {
   SaleDraft({
     required this.id,

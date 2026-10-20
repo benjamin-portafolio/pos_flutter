@@ -256,6 +256,7 @@ LazyDatabase _openConnection() {
 /// o con columnas retiradas se reinicia, salvo respaldos restaurados protegidos.
 /// Edición masiva exige bulk_edit_operations y su índice de captura/producto.
 /// Proveedores exige suppliers con CommonFields y variant_suppliers con precio/fecha.
+/// Las pestañas de Caja requieren ix_sales_local_drafts, sin unicidad por dispositivo.
 Future<void> _resetDatabaseOnStartup(File file) async {
   if (!await file.exists()) return;
   final connection = sqlite.sqlite3.open(file.path);

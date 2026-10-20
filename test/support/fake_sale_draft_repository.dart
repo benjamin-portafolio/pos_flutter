@@ -6,6 +6,16 @@ class FakeSaleDraftRepository implements SaleDraftRepository {
   final Stream<SaleDraft?> Function()? source;
 
   @override
+  String? selectedDraftId;
+
+  @override
+  void selectDraft(String saleId) => selectedDraftId = saleId;
+
+  @override
+  Stream<List<SaleDraft>> watchDrafts() =>
+      watchCurrentDraft().map((sale) => [?sale]);
+
+  @override
   Stream<SaleDraft?> watchCurrentDraft() =>
       source?.call() ?? Stream.value(null);
 }

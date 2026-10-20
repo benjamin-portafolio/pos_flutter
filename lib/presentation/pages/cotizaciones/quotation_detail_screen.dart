@@ -8,6 +8,7 @@ import '../../../domain/cotizaciones/quotation.dart';
 import '../../../domain/cotizaciones/quotation_status.dart';
 import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/repositories/quotation_repository.dart';
+import '../../../domain/repositories/sale_draft_repository.dart';
 import '../caja/sale_receipt_screen.dart';
 import 'models/quotation_display.dart';
 import 'quotation_estimate_builder.dart';
@@ -70,6 +71,9 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
         );
         _intent = null;
         return;
+      }
+      if (getIt.isRegistered<SaleDraftRepository>()) {
+        getIt<SaleDraftRepository>().selectDraft(result.saleId);
       }
       Navigator.of(context).pop(result);
     } catch (error) {

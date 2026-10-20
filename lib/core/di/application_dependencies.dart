@@ -289,6 +289,7 @@ void registerApplicationDependencies(
       units: getIt<UnidadInventarioRepository>(),
       events: getIt<LocalEventStore>(),
       context: getIt<LocalCommandContext>(),
+      drafts: getIt<SaleDraftRepository>(),
     ),
   );
   getIt.registerLazySingleton<CustomerCreditStore>(

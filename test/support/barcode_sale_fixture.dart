@@ -158,6 +158,7 @@ class _Commands extends VentaBorradorCommandService {
         units: UnidadInventarioRepositoryImpl(unitDao: fixture.db.unitDao),
         context: const LocalCommandContext(userId: 'user', deviceId: 'device'),
         events: fixture.events,
+        drafts: fixture.drafts,
       );
   final BarcodeSaleFixture fixture;
 
