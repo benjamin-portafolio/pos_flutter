@@ -8,7 +8,6 @@ import '../../../application/commands/cotizaciones/quotation_already_linked_exce
 import '../../../application/commands/ventas/limpiar_venta_borrador_command.dart';
 import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
-import '../../../domain/repositories/confirmed_sale_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/quotation_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
@@ -21,7 +20,6 @@ import '../cotizaciones/quotation_ticket_screen.dart';
 import 'barcode/barcode_read_gate.dart';
 import 'barcode/physical_barcode_reader.dart';
 import 'barcode/sale_barcode_read_coordinator.dart';
-import 'confirmed_sales_screen.dart';
 import 'draft_item_edit_sheet.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
@@ -134,12 +132,6 @@ class CajaScreenState extends State<CajaScreen> {
           onOpenCaja: widget.onOpenCaja,
         ),
       ),
-    ),
-  );
-
-  Future<void> _openConfirmedSales() => _runAction(
-    () => Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => const ConfirmedSalesScreen()),
     ),
   );
 
@@ -304,12 +296,6 @@ class CajaScreenState extends State<CajaScreen> {
           },
           onAdd: () => _runAction(() async => _tabs.add()),
         ),
-        if (getIt.isRegistered<ConfirmedSaleRepository>())
-          TextButton.icon(
-            onPressed: _busy ? null : _openConfirmedSales,
-            icon: const Icon(Icons.receipt_long),
-            label: const Text('Ventas cobradas'),
-          ),
         AbsorbPointer(
           absorbing: _busy,
           child: ArticleSearchBar(
@@ -362,99 +348,116 @@ class CajaScreenState extends State<CajaScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.all(12),
-                          children: [
-                            if (sale == null || sale.items.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 32),
-                                child: Text(
-                                  'La venta está vacía.',
-                                  textAlign: TextAlign.center,
+                        child: LayoutBuilder(
+                          builder: (context, listConstraints) => ListView(
+                            padding: const EdgeInsets.all(12),
+                            children: [
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: (listConstraints.maxHeight - 24)
+                                      .clamp(0, double.infinity),
                                 ),
-                              )
-                            else
-                              Card(
-                                margin: EdgeInsets.zero,
-                                child: Column(
-                                  children: [
-                                    for (
-                                      var i = 0;
-                                      i < sale.items.length;
-                                      i++
-                                    ) ...[
-                                      if (i > 0) const Divider(height: 1),
-                                      _SaleLine(
-                                        item: sale.items[i],
-                                        onEdit: _busy
-                                            ? null
-                                            : () =>
-                                                  _openEditor(sale.items[i].id),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: null,
-                                    child: Text('Añadir artículo nuevo'),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton.outlined(
-                                  onPressed: _busy ? null : _openBarcodeScanner,
-                                  tooltip: 'Escanear código de barras',
-                                  icon: const Icon(Icons.barcode_reader),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Card(
-                              margin: EdgeInsets.zero,
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _AmountRow(
-                                      label: 'Subtotal',
-                                      amount: total,
-                                    ),
-                                    const Divider(),
-                                    _AmountRow(
-                                      label: 'Total general',
-                                      amount: total,
-                                      bold: true,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(SaleDraftDisplay.summary(sale)),
-                                    const Wrap(
-                                      spacing: 8,
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
-                                        TextButton(
-                                          onPressed: null,
-                                          child: Text('Agregar impuesto'),
-                                        ),
-                                        TextButton(
-                                          onPressed: null,
-                                          child: Text('Agregar descuento'),
-                                        ),
-                                        TextButton(
-                                          onPressed: null,
-                                          child: Text('Agregar otros cargos'),
-                                        ),
+                                        if (sale == null || sale.items.isEmpty)
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: 32,
+                                            ),
+                                            child: Text(
+                                              'La venta está vacía.',
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          )
+                                        else
+                                          Card(
+                                            margin: EdgeInsets.zero,
+                                            child: Column(
+                                              children: [
+                                                for (
+                                                  var i = sale.items.length - 1;
+                                                  i >= 0;
+                                                  i--
+                                                ) ...[
+                                                  if (i < sale.items.length - 1)
+                                                    const Divider(height: 1),
+                                                  _SaleLine(
+                                                    item: sale.items[i],
+                                                    onEdit: _busy
+                                                        ? null
+                                                        : () => _openEditor(
+                                                            sale.items[i].id,
+                                                          ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
                                       ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Card(
+                                      margin: EdgeInsets.zero,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            _AmountRow(
+                                              label: 'Subtotal',
+                                              amount: total,
+                                            ),
+                                            const Divider(),
+                                            _AmountRow(
+                                              label: 'Total general',
+                                              amount: total,
+                                              bold: true,
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              SaleDraftDisplay.summary(sale),
+                                            ),
+                                            const Wrap(
+                                              spacing: 8,
+                                              children: [
+                                                TextButton(
+                                                  onPressed: null,
+                                                  child: Text(
+                                                    'Agregar impuesto',
+                                                  ),
+                                                ),
+                                                TextButton(
+                                                  onPressed: null,
+                                                  child: Text(
+                                                    'Agregar descuento',
+                                                  ),
+                                                ),
+                                                TextButton(
+                                                  onPressed: null,
+                                                  child: Text(
+                                                    'Agregar otros cargos',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       ConstrainedBox(

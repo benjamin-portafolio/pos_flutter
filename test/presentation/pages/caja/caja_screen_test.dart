@@ -42,14 +42,8 @@ void main() {
         expect(button.onPressed, isNotNull);
       }
       expect(find.byTooltip('Editar artículo'), findsNWidgets(3));
-      expect(
-        tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Añadir artículo nuevo'),
-            )
-            .onPressed,
-        isNull,
-      );
+      expect(find.text('Añadir artículo nuevo'), findsNothing);
+      expect(find.text('Ventas cobradas'), findsNothing);
       expect(
         tester
             .widget<FilledButton>(
@@ -67,7 +61,7 @@ void main() {
       )) {
         expect(button.onPressed, isNotNull);
       }
-      expect(find.byIcon(Icons.barcode_reader), findsNWidgets(2));
+      expect(find.byIcon(Icons.barcode_reader), findsOneWidget);
       for (final button in tester.widgetList<TextButton>(
         find.byType(TextButton),
       )) {
@@ -247,7 +241,7 @@ void main() {
       await tester.tap(find.byTooltip('Editar artículo').first);
       await tester.pumpAndSettle();
       expect(find.byType(DraftItemEditSheet), findsOneWidget);
-      expect(find.text('Editar Test Variantes'), findsOneWidget);
+      expect(find.text('Editar Test Variantes · Variante 2'), findsOneWidget);
       expect(find.text('Precio de venta'), findsOneWidget);
       expect(find.text('Aplicar oferta'), findsOneWidget);
       await tester.tap(find.byTooltip('Aumentar cantidad'));

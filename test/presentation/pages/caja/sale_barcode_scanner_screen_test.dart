@@ -87,7 +87,6 @@ void main() {
   Future<void> open(
     WidgetTester tester, {
     bool fromCaja = false,
-    int access = 0,
     Size size = const Size(360, 800),
     double textScale = 1,
   }) async {
@@ -131,7 +130,7 @@ void main() {
     );
     await settle(tester);
     if (fromCaja) {
-      final button = find.byTooltip('Escanear código de barras').at(access);
+      final button = find.byTooltip('Escanear código de barras');
       await tester.ensureVisible(button);
       await tester.tap(button);
     } else {
@@ -161,42 +160,39 @@ void main() {
     });
   }
 
-  for (final access in [0, 1]) {
-    scannerTest(
-      'acceso ${access + 1} de Caja abre una sola cámara, sin crear venta',
-      (tester) async {
-        await open(tester, fromCaja: true, access: access);
-        expect(find.byType(SaleBarcodeScannerScreen), findsOneWidget);
-        expect(find.byType(MobileScanner), findsOneWidget);
-        expect(camera.starts, 1);
-        expect(camera.lastStartOptions!.detectionSpeed, DetectionSpeed.normal);
-        expect(camera.lastStartOptions!.detectionTimeoutMs, 200);
-        expect(
-          camera.lastStartOptions!.formats,
-          isNot(contains(BarcodeFormat.qrCode)),
-        );
-        expect(camera.lastScanWindow, isNotNull);
-        expect(camera.lastScanWindow!.width, lessThanOrEqualTo(1));
-        expect(camera.lastScanWindow!.height, lessThanOrEqualTo(1));
-        expect(find.text('La venta está vacía.'), findsOneWidget);
-        expect(find.text('Ir a caja (0 artículos)'), findsOneWidget);
-        expect(
-          tester
-              .widget<FilledButton>(
-                find.byKey(const Key('sale_barcode_go_to_caja')),
-              )
-              .onPressed,
-          isNull,
-        );
-        await expectNoWrites(tester);
-        await tester.tap(find.byKey(const Key('close_sale_barcode_scanner')));
-        await settle(tester);
-        expect(find.byType(CajaScreen), findsOneWidget);
-        expect(camera.stops, 1);
-        expect(camera.disposals, 1);
-      },
+  scannerTest('el acceso de Caja abre una sola cámara, sin crear venta', (
+    tester,
+  ) async {
+    await open(tester, fromCaja: true);
+    expect(find.byType(SaleBarcodeScannerScreen), findsOneWidget);
+    expect(find.byType(MobileScanner), findsOneWidget);
+    expect(camera.starts, 1);
+    expect(camera.lastStartOptions!.detectionSpeed, DetectionSpeed.normal);
+    expect(camera.lastStartOptions!.detectionTimeoutMs, 200);
+    expect(
+      camera.lastStartOptions!.formats,
+      isNot(contains(BarcodeFormat.qrCode)),
     );
-  }
+    expect(camera.lastScanWindow, isNotNull);
+    expect(camera.lastScanWindow!.width, lessThanOrEqualTo(1));
+    expect(camera.lastScanWindow!.height, lessThanOrEqualTo(1));
+    expect(find.text('La venta está vacía.'), findsOneWidget);
+    expect(find.text('Ir a caja (0 artículos)'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('sale_barcode_go_to_caja')),
+          )
+          .onPressed,
+      isNull,
+    );
+    await expectNoWrites(tester);
+    await tester.tap(find.byKey(const Key('close_sale_barcode_scanner')));
+    await settle(tester);
+    expect(find.byType(CajaScreen), findsOneWidget);
+    expect(camera.stops, 1);
+    expect(camera.disposals, 1);
+  });
 
   for (final mode in AppMode.values) {
     scannerTest(
@@ -1026,7 +1022,7 @@ void main() {
         );
         fixture.config.update(AppConfig.initial.copyWith(mode: mode));
       });
-      await open(tester, fromCaja: true, access: 1);
+      await open(tester, fromCaja: true);
       expect(find.text('Cantidad: 2'), findsNWidgets(2));
       expect(find.text(r'Total: $7.00'), findsOneWidget);
       final after = (await sale(tester))!;
