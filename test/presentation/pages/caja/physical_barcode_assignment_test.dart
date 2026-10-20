@@ -10,6 +10,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_variante_command.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
+import 'package:pos_flutter/application/weighing/scale_session_service.dart';
+import 'package:pos_flutter/application/weighing/scale_settings.dart';
+import 'package:pos_flutter/application/weighing/scale_settings_controller.dart';
+import 'package:pos_flutter/core/di/injection.dart';
+import 'package:pos_flutter/presentation/pages/caja/weighing/sale_weighing_dialog.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_agregado_borrador_payload.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
@@ -24,6 +29,9 @@ import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inve
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_barcode_variant_selector.dart';
 
 import '../../../support/inventory_barcode_fixture.dart';
+import '../../../support/fake_scale_gateway.dart';
+import '../../../support/fake_scale_settings_store.dart';
+import 'weighing/sale_weighing_controller_test.dart' show profile, weight;
 
 void main() {
   late InventoryBarcodeFixture f;
@@ -57,6 +65,7 @@ void main() {
     await initialize(AppMode.standalone);
   });
   tearDown(() async {
+    await getIt.reset();
     debugDefaultTargetPlatformOverride = null;
     await f.h.dispose();
     await directory.delete(recursive: true);
@@ -512,74 +521,134 @@ void main() {
     );
   });
 
-  for (final cancel in [false, true]) {
-    assignmentTest('cantidad medida después de asignar, cancelar=$cancel', (
-      tester,
-    ) async {
-      await tester.runAsync(
-        () => f.h.commands.crearArticulo(
-          CrearArticuloCommand.conVariantes(
-            nombre: 'A granel',
-            saleConfiguration: MeasuredSaleConfiguration(
-              saleUnitId: InventoryUnitIds.kilogram,
-              priceReferenceQuantityAtomic: 1000,
-            ),
-            variantes: [
-              const CrearArticuloVarianteCommand(
-                nombre: null,
-                costoEstandar: null,
-                precioVenta: '20',
+  for (final scenario in [
+    (false, false),
+    (true, false),
+    (false, true),
+    (true, true),
+  ]) {
+    final cancel = scenario.$1;
+    final weighed = scenario.$2;
+    assignmentTest(
+      'cantidad medida después de asignar, cancelar=$cancel, pesaje=$weighed',
+      (tester) async {
+        final resources = (await tester.runAsync(() async {
+          final gateway = FakeScaleGateway();
+          final service = ScaleSessionService(
+            gateway,
+            now: () => Duration.zero,
+          );
+          final settings = ScaleSettingsController(
+            FakeScaleSettingsStore()
+              ..settings = ScaleSettings(
+                profiles: [profile],
+                defaultId: profile.id,
               ),
-            ],
+            sessionService: () => service,
+          );
+          await settings.load();
+          return (gateway, service, settings);
+        }))!;
+        final (gateway, service, settings) = resources;
+        if (weighed) {
+          getIt.registerSingleton<ScaleSettingsController>(settings);
+          getIt.registerSingleton<ScaleSessionService>(service);
+        }
+        addTearDown(() async {
+          for (final read in gateway.reads) {
+            if (!read.isCompleted) read.complete([]);
+          }
+          await service.dispose();
+          await settings.dispose();
+        });
+        await tester.runAsync(
+          () => f.h.commands.crearArticulo(
+            CrearArticuloCommand.conVariantes(
+              nombre: 'A granel',
+              saleConfiguration: MeasuredSaleConfiguration(
+                saleUnitId: InventoryUnitIds.kilogram,
+                priceReferenceQuantityAtomic: 1000,
+              ),
+              variantes: [
+                const CrearArticuloVarianteCommand(
+                  nombre: null,
+                  costoEstandar: null,
+                  precioVenta: '20',
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-      final measured =
-          (await tester.runAsync(() => f.h.repository.watchArticulos().first))!
-              .singleWhere((a) => a.nombre == 'A granel')
-              .variantesActivas
-              .single
-              .varianteId;
-      await open(tester);
-      await send(tester, '00042');
-      await settle(tester);
-      await select(tester, measured);
-      await confirm(tester);
-      expect(find.byType(SaleQuantityDialog), findsOneWidget);
-      if (!cancel) {
-        await tester.enterText(
-          find.byKey(const ValueKey('sale-measured-quantity')),
-          '0.750',
         );
-        await tester.pump();
-      }
-      await tester.tap(find.text(cancel ? 'Cancelar' : 'Agregar'));
-      await settle(tester);
-      expect(input(tester).focusNode!.hasFocus, isTrue);
-      expect(
-        (await tester.runAsync(
-          () => f.products.buscarVariantesPorCodigoBarras('00042'),
-        ))!.single.varianteId,
-        measured,
-      );
-      final sale = (await tester.runAsync(
-        () => drafts.watchCurrentDraft().first,
-      ))!;
-      expect(sale.items, hasLength(cancel ? 1 : 2));
-      if (cancel) {
+        final measured =
+            (await tester.runAsync(
+                  () => f.h.repository.watchArticulos().first,
+                ))!
+                .singleWhere((a) => a.nombre == 'A granel')
+                .variantesActivas
+                .single
+                .varianteId;
+        await open(
+          tester,
+          platform: weighed ? TargetPlatform.windows : TargetPlatform.macOS,
+        );
+        await send(tester, '00042');
+        await settle(tester);
+        await select(tester, measured);
+        await confirm(tester);
         expect(
-          find.text('Código guardado. Cantidad cancelada.'),
+          find.byType(weighed ? SaleWeighingDialog : SaleQuantityDialog),
           findsOneWidget,
         );
-      } else {
-        expect(
-          sale.items
-              .singleWhere((v) => v.variantId == measured)
-              .measuredQuantityAtomic,
-          750,
+        if (weighed) {
+          gateway.reads.last.complete([weight(750)]);
+          await settle(tester);
+        } else if (!cancel) {
+          await tester.enterText(
+            find.byKey(const ValueKey('sale-measured-quantity')),
+            '0.750',
+          );
+          await tester.pump();
+        }
+        await tester.tap(
+          find.text(
+            cancel
+                ? 'Cancelar'
+                : weighed
+                ? 'Aceptar'
+                : 'Agregar',
+          ),
         );
-        expect(sale.totalMinor, 2500);
-      }
-    });
+        for (final read in gateway.reads) {
+          if (!read.isCompleted) read.complete([]);
+        }
+        await settle(tester);
+        expect(service.active, isNull);
+        expect(input(tester).focusNode!.hasFocus, isTrue);
+        expect(
+          (await tester.runAsync(
+            () => f.products.buscarVariantesPorCodigoBarras('00042'),
+          ))!.single.varianteId,
+          measured,
+        );
+        final sale = (await tester.runAsync(
+          () => drafts.watchCurrentDraft().first,
+        ))!;
+        expect(sale.items, hasLength(cancel ? 1 : 2));
+        if (cancel) {
+          expect(
+            find.text('Código guardado. Cantidad cancelada.'),
+            findsOneWidget,
+          );
+        } else {
+          expect(
+            sale.items
+                .singleWhere((v) => v.variantId == measured)
+                .measuredQuantityAtomic,
+            750,
+          );
+          expect(sale.totalMinor, 2500);
+        }
+      },
+    );
   }
 }

@@ -11,7 +11,7 @@ import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
-import '../articulos/sale_quantity_dialog.dart';
+import 'weighing/sale_barcode_quantity_dialog.dart';
 import '../articulos/sale_quantity_form_result.dart';
 import 'barcode/barcode_product_selection_dialog.dart';
 import 'barcode/barcode_read_gate.dart';
@@ -226,12 +226,13 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
             ),
         requestQuantity: (candidate) =>
             _showReaderDialog<SaleQuantityFormResult>(
-              (_) => SaleQuantityDialog(
+              (_) => SaleBarcodeQuantityDialog(
+                physicalReader: false,
                 loadConditions: () =>
                     _coordinator.conditionsFor(candidate.varianteId),
-                draft:
+                watchDraft:
                     (widget.saleDraftRepository ?? getIt<SaleDraftRepository>())
-                        .watchCurrentDraft(),
+                        .watchCurrentDraft,
               ),
             ),
         onSaving: () => _setMessage('Guardando artículo…'),

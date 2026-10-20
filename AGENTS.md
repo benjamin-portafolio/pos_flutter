@@ -192,3 +192,17 @@ guarda solo ese barcode mediante `producto_actualizado`, con la base confirmada.
 No agrega lineas de venta ni movimientos. La verificacion automatizada I01-I19
 esta cerrada; la prueba fisica I20 sigue pendiente por decision del usuario.
 Evidencia y limites: `docs/testing/inventory_barcode_verification.md`.
+
+Basculas en Windows ofrece perfiles locales, predeterminada opcional y prueba
+exclusiva para Rhino BAR-8RS. El acceso HID de Caja abre pesaje solo para masa
+kg/g con predeterminada; camara, captura manual, piezas, volumen, buscador y
+edicion conservan sus recorridos. El peso confirmado usa el comando/evento de
+borrador existente, sin cambios de esquema ni sincronizacion. La sesion 5
+verifica analisis, regresiones y build; con Rhino real y teclado manual verifica
+configuracion/reinicio, boton/Enter, acumulacion y ticket de prueba 700 g/$35.00,
+cancelacion, desconexion/silencio, recuperacion explicita y foco/segundo plano.
+Conserva HID fisico/cola pendientes (lector sin entrada), limites B04/B15 y suite
+global Windows no verde. Los datos del ensayo estan aislados de los del usuario.
+No declarar cierre ni compatibilidad fisica completa por los fakes/build.
+Resultados, revision y punto de reanudacion:
+`docs/testing/weighing_windows_verification.md` y evidencia S5 del plan del vault.

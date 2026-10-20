@@ -1,0 +1,14 @@
+{
+  "model": "Rhino BAR-8RS (confirmed by user)",
+  "serial": "9600/8N1, no flow control",
+  "request_hex": "50",
+  "delimiter_hex": "0d",
+  "stability": "unknown: no verified flag",
+  "observed": [
+    {"phase": "empty", "hex": "2020302e303030206b670d", "grams": 0},
+    {"phase": "load, display reported 0.278", "hex": "2020302e323738206b670d", "grams": 278},
+    {"phase": "load removed", "hex": "2020302e303030206b670d", "grams": 0},
+    {"phase": "Dart service, display reported 1.076", "hex": "2020312e303736206b670d", "grams": 1076}
+  ],
+  "limits": "Negative, overload and error wire formats were not physically observed. Tests for those are synthetic rejection cases, not protocol fixtures."
+}

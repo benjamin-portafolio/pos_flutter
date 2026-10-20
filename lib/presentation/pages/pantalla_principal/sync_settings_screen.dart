@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../application/weighing/scale_gateway.dart';
+import '../../../application/weighing/scale_session_service.dart';
+import '../../../application/weighing/scale_settings_controller.dart';
+import '../basculas/scale_settings_screen.dart';
 import '../../../application/printing/printer_gateway.dart';
 import '../../../application/printing/printer_settings_controller.dart';
 import '../../../application/printing/ticket_print_service.dart';
@@ -180,6 +184,25 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                   controller: getIt<PrinterSettingsController>(),
                   gateway: getIt<PrinterGateway>(),
                   printService: getIt<TicketPrintService>(),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.scale_outlined),
+            title: const Text('Básculas'),
+            subtitle: const Text(
+              'Perfiles, predeterminada y prueba de lectura local.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ScaleSettingsScreen(
+                  controller: getIt<ScaleSettingsController>(),
+                  gateway: getIt<ScaleGateway>(),
+                  service: getIt<ScaleSessionService>(),
                 ),
               ),
             ),

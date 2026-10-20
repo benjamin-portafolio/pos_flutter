@@ -1,3 +1,7 @@
+import '../../application/weighing/scale_gateway.dart';
+import '../../application/weighing/scale_settings_store.dart';
+import '../../data/local/weighing/scale_settings_file_store.dart';
+import '../../data/weighing/windows_scale_gateway.dart';
 import '../../application/import/articulo_import_catalog_reader.dart';
 import '../../application/import/articulo_import_preparation_service.dart';
 import '../../data/local/import/drift_articulo_import_catalog_reader.dart';
@@ -104,6 +108,13 @@ class DataDependencyBootstrap {
 }
 
 Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
+  getIt.registerLazySingleton<ScaleGateway>(
+    () => WindowsScaleGateway(),
+    dispose: (gateway) => gateway.close(),
+  );
+  getIt.registerLazySingleton<ScaleSettingsStore>(
+    () => ScaleSettingsFileStore(),
+  );
   getIt.registerLazySingleton<TicketEncoder>(() => const EscPosTicketEncoder());
   getIt.registerLazySingleton<PrinterSettingsStore>(
     () => PrinterSettingsFileStore(),

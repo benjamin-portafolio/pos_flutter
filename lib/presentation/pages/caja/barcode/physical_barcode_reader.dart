@@ -9,7 +9,7 @@ import '../../../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../../../domain/repositories/producto_repository.dart';
 import '../../../../domain/repositories/sale_draft_repository.dart';
 import '../../articulos/sale_quantity_form_result.dart';
-import '../../articulos/sale_quantity_dialog.dart';
+import '../weighing/sale_barcode_quantity_dialog.dart';
 import 'barcode_product_selection_dialog.dart';
 import 'physical_barcode_finish_dialog.dart';
 import 'physical_barcode_read_admission.dart';
@@ -163,10 +163,11 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         (_) => BarcodeProductSelectionDialog(candidates: candidates),
       ),
       requestQuantity: (candidate) => _showReaderDialog<SaleQuantityFormResult>(
-        (_) => SaleQuantityDialog(
+        (_) => SaleBarcodeQuantityDialog(
+          physicalReader: true,
           loadConditions: () =>
               widget.coordinator.conditionsFor(candidate.varianteId),
-          draft: widget.saleDraftRepository.watchCurrentDraft(),
+          watchDraft: widget.saleDraftRepository.watchCurrentDraft,
         ),
       ),
       assignUnknownCode: (code, canContinue) => _showReaderInteraction(

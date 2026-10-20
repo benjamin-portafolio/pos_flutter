@@ -27,6 +27,12 @@ import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.d
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_screen.dart';
 import 'dart:async';
+import 'package:pos_flutter/application/weighing/scale_gateway.dart';
+import 'package:pos_flutter/application/weighing/scale_settings_controller.dart';
+import 'package:pos_flutter/application/weighing/scale_session_service.dart';
+import 'package:pos_flutter/presentation/pages/basculas/scale_settings_screen.dart';
+import '../../../support/fake_scale_gateway.dart';
+import '../../../support/fake_scale_settings_store.dart';
 import 'package:pos_flutter/application/printing/printer_gateway.dart';
 import 'package:pos_flutter/application/printing/printer_settings_controller.dart';
 import 'package:pos_flutter/application/printing/ticket_print_service.dart';
@@ -71,6 +77,43 @@ void main() {
   });
 
   for (final mode in AppMode.values) {
+    testWidgets('B09 Configuracion opens local Basculas in ${mode.name}', (
+      tester,
+    ) async {
+      getIt<AppConfigController>().update(
+        getIt<AppConfigController>().config.copyWith(mode: mode),
+      );
+      final gateway = FakeScaleGateway();
+      final service = ScaleSessionService(gateway);
+      final settings = ScaleSettingsController(
+        FakeScaleSettingsStore(),
+        sessionService: () => service,
+      );
+      await settings.load();
+      getIt.registerSingleton<ScaleGateway>(gateway);
+      getIt.registerSingleton<ScaleSessionService>(service);
+      getIt.registerSingleton<ScaleSettingsController>(settings);
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: SyncSettingsScreen())),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Básculas'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Básculas'));
+      await tester.pumpAndSettle();
+      final screen = tester.widget<ScaleSettingsScreen>(
+        find.byType(ScaleSettingsScreen),
+      );
+      expect(screen.controller, same(settings));
+      expect(screen.service, same(service));
+      expect(gateway.calls, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+      await settings.dispose();
+      await service.dispose();
+    });
+
     testWidgets('Configuracion opens local Impresoras in ${mode.name}', (
       tester,
     ) async {

@@ -1,3 +1,7 @@
+import '../../application/weighing/scale_gateway.dart';
+import '../../application/weighing/scale_settings_controller.dart';
+import '../../application/weighing/scale_settings_store.dart';
+import '../../application/weighing/scale_session_service.dart';
 import '../../application/printing/printer_gateway.dart';
 import '../../application/printing/ticket_encoder.dart';
 import '../../application/printing/printer_settings_controller.dart';
@@ -137,6 +141,17 @@ void registerApplicationDependencies(
   required String? storedSyncBaseUrl,
   required bool requireWifiForServerDetection,
 }) {
+  getIt.registerLazySingleton<ScaleSessionService>(
+    () => ScaleSessionService(getIt<ScaleGateway>()),
+    dispose: (service) => service.dispose(),
+  );
+  getIt.registerLazySingleton<ScaleSettingsController>(
+    () => ScaleSettingsController(
+      getIt<ScaleSettingsStore>(),
+      sessionService: () => getIt<ScaleSessionService>(),
+    ),
+    dispose: (controller) => controller.dispose(),
+  );
   getIt.registerLazySingleton<PrinterSettingsController>(
     () => PrinterSettingsController(getIt<PrinterSettingsStore>()),
     dispose: (controller) => controller.dispose(),

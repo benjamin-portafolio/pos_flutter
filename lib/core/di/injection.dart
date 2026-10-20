@@ -1,3 +1,5 @@
+import '../../application/weighing/scale_session_service.dart';
+import '../../application/weighing/scale_settings_controller.dart';
 import '../../application/printing/ticket_print_service.dart';
 import '../../application/printing/printer_settings_controller.dart';
 import 'package:get_it/get_it.dart';
@@ -27,6 +29,7 @@ Future<DependencyBootstrap> setupDependencyInjection() async {
     requireWifiForServerDetection: bootstrap.requireWifiForServerDetection,
   );
   await getIt<PrinterSettingsController>().load();
+  await getIt<ScaleSettingsController>().load();
   return DependencyBootstrap(appConfig: bootstrap.appConfig);
 }
 
@@ -57,6 +60,13 @@ Future<DependencyBootstrap> restartDependencyInjection({
   required AppConfig previousConfig,
 }) async {
   await stopConfiguredRuntimeServices(previousConfig);
+  if (getIt.isRegistered<ScaleSettingsController>()) {
+    await getIt<ScaleSettingsController>().dispose();
+  }
+  // Preserve the lease if serial I/O or CloseHandle has not completed.
+  if (getIt.isRegistered<ScaleSessionService>()) {
+    await getIt<ScaleSessionService>().dispose();
+  }
   // reset(dispose: false) cannot terminate native work. Drain printing first;
   // any failed close stops the reset, preserving ownership of the old gateway.
   if (getIt.isRegistered<TicketPrintService>()) {
