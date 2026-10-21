@@ -346,7 +346,7 @@ void main() {
     },
   );
   test(
-    'C26 fila inválida o mal formada excluye actualización, otras altas siguen',
+    'C26 error de negocio excluye producto; estructura inválida bloquea archivo',
     () {
       final p = _producto(
         variantes: [
@@ -367,7 +367,13 @@ void main() {
           productos: [p],
         );
         expect(r.productosConCambios, isEmpty);
-        expect(r.productos.single.nombre, 'Nuevo');
+        if (fila == 'P,W,menos campos') {
+          expect(r.productos, isEmpty);
+          expect(r.erroresEstructurales, isTrue);
+          expect(r.importable, isFalse);
+        } else {
+          expect(r.productos.single.nombre, 'Nuevo');
+        }
         expect(r.errores, isNotEmpty);
       }
     },

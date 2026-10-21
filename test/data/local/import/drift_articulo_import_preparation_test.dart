@@ -162,6 +162,20 @@ void main() {
     expect(audit.selects, isEmpty);
     expect(audit.writes, 0);
   });
+  test('CSV mixto o inconsistente no consulta ni escribe SQLite', () async {
+    for (final fila in [
+      'P;W;;Cafe;unidad;;;10;;no;;00123',
+      'P,W,menos campos',
+    ]) {
+      audit.reset();
+      final r = await service.preparar(_archivo([_fila('P', 'V'), fila]));
+      expect(r.importable, isFalse);
+      expect(r.productos, isEmpty);
+      expect(r.productosConCambios, isEmpty);
+      expect(audit.selects, isEmpty);
+      expect(audit.writes, 0);
+    }
+  });
   test(
     '500 omitidos en catálogo de 10000: seis lecturas y cero escrituras',
     () async {

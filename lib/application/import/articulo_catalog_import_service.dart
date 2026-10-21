@@ -144,7 +144,11 @@ class ArticuloImportReporte {
     this.productosSinCambios = const [],
     this.productosConErrores = const [],
     this.categorias = const [],
+    this.delimitadorAmbiguo = false,
   });
+
+  /// Requiere elegir separador y repetir toda la validación.
+  final bool delimitadorAmbiguo;
 
   /// Exclusivamente altas; nunca incluye propuestas de actualización.
   final List<ArticuloImportProducto> productos;
@@ -190,10 +194,14 @@ class ArticuloImportReporte {
 /// No escribe nada: la escritura por lotes es una fase aparte. Tampoco toca la
 /// base; recibe el catálogo ya resuelto.
 abstract interface class ArticuloCatalogImportService {
-  ArticuloImportSolicitud solicitarCatalogo(String contenido);
+  ArticuloImportSolicitud solicitarCatalogo(
+    String contenido, {
+    String? separador,
+  });
 
   ArticuloImportReporte validar(
     String contenido, {
     required ArticuloImportCatalogo catalogo,
+    String? separador,
   });
 }

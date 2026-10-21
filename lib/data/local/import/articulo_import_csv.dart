@@ -13,12 +13,13 @@ import '../../../domain/articulos/sale_mode.dart';
 import '../../../domain/inventario/dimension_unidad.dart';
 import '../../../domain/inventario/inventory_quantity_codec.dart';
 import '../../../domain/inventario/unidad_inventario.dart';
+import 'csv_records_parser.dart';
 
 /// Lee el contrato de columnas del catálogo y lo valida, sin escribir nada.
 ///
 /// Es la mitad inversa de [ArticuloCsvContract]: el mismo contrato de columnas,
-/// el mismo BOM y el mismo `,`. No hay SQL ni Drift, porque las categorías, las
-/// unidades y los nombres que ya existen llegan resueltos en el catálogo.
+/// UTF-8 con BOM opcional y delimitador `,` o `;`. No hay SQL ni Drift: las
+/// categorías, unidades y nombres existentes llegan resueltos en el catálogo.
 ///
 /// Reglas que no se negocian aquí:
 /// - el encabezado tiene que coincidir exactamente; una columna desconocida o
@@ -45,10 +46,16 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
   static const unidadesDeFraccion = <String>{'g', 'kg', 'ml', 'l'};
 
   @override
-  ArticuloImportSolicitud solicitarCatalogo(String contenido) {
-    final archivo = _leerArchivo(contenido);
+  ArticuloImportSolicitud solicitarCatalogo(
+    String contenido, {
+    String? separador,
+  }) {
+    final archivo = _leerArchivo(contenido, separador: separador);
     if (archivo.errores.isNotEmpty) {
-      return ArticuloImportSolicitud(errores: archivo.errores);
+      return ArticuloImportSolicitud(
+        errores: archivo.errores,
+        delimitadorAmbiguo: archivo.ambiguo,
+      );
     }
     return ArticuloImportSolicitud(
       productIds: Set.unmodifiable({
@@ -68,100 +75,146 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
   ArticuloImportReporte validar(
     String contenido, {
     required ArticuloImportCatalogo catalogo,
+    String? separador,
   }) {
-    final archivo = _leerArchivo(contenido);
+    final archivo = _leerArchivo(contenido, separador: separador);
     if (archivo.errores.isNotEmpty) {
-      return ArticuloImportReporte(errores: archivo.errores);
+      return ArticuloImportReporte(
+        errores: archivo.errores,
+        delimitadorAmbiguo: archivo.ambiguo,
+      );
     }
     return _revisarFilas(archivo.filas, catalogo, conIds: archivo.conIds);
   }
 
-  ({List<List<String>> filas, bool conIds, List<ArticuloImportError> errores})
-  _leerArchivo(String contenido) {
-    final lineas = _lineas(contenido);
-    if (lineas.isEmpty) {
-      return (
-        filas: [],
-        conIds: false,
-        errores: [
-          const ArticuloImportError(
-            columna: 'archivo',
-            motivo: 'El archivo está vacío.',
-          ),
-        ],
-      );
+  ({
+    List<List<String>> filas,
+    bool conIds,
+    bool ambiguo,
+    List<ArticuloImportError> errores,
+  })
+  _leerArchivo(String contenido, {String? separador}) {
+    final candidatos =
+        <
+          ({
+            String separador,
+            List<List<String>> filas,
+            int puntaje,
+            String? error,
+          })
+        >[];
+    for (final candidato in separador == null ? [',', ';'] : [separador]) {
+      var puntajeEncabezado = -1;
+      try {
+        final primera = const CsvRecordsParser().parse(
+          contenido,
+          separator: candidato,
+          maxRecords: 1,
+        );
+        final columnas = primera.isEmpty ? <String>[] : primera.first;
+        puntajeEncabezado =
+            columnas.where(ArticuloCsvContract.columnas.contains).length *
+                1000 +
+            (columnas.length > 1 ? 1 : 0);
+        final filas = const CsvRecordsParser().parse(
+          contenido,
+          separator: candidato,
+        );
+        final encabezado = filas.isEmpty ? <String>[] : filas.first;
+        // El contrato del encabezado tiene prioridad. Varias filas aportan
+        // evidencia de estructura, pero nunca cambian el separador por fila.
+        final consistentes = filas
+            .skip(1)
+            .take(20)
+            .where(
+              (fila) => fila.length == encabezado.length && fila.length > 1,
+            )
+            .length;
+        candidatos.add((
+          separador: candidato,
+          filas: filas,
+          puntaje: puntajeEncabezado + consistentes,
+          error: null,
+        ));
+      } on FormatException catch (error) {
+        candidatos.add((
+          separador: candidato,
+          filas: <List<String>>[],
+          puntaje: puntajeEncabezado,
+          error: error.message,
+        ));
+      }
     }
-    final encabezado = _campos(lineas.first);
+    candidatos.sort((a, b) => b.puntaje.compareTo(a.puntaje));
+    final elegido = candidatos.first;
+    final ambiguo =
+        separador == null &&
+        candidatos[0].puntaje == candidatos[1].puntaje &&
+        contenido.trim().isNotEmpty;
+    final filas = elegido.filas;
+    final encabezado = filas.isEmpty ? <String>[] : filas.first;
     final conIds =
         encabezado.contains('product_id') || encabezado.contains('variant_id');
-    final errores = _revisarEncabezado(encabezado, conIds: conIds);
-    final cantidadFilas = lineas.length - 1;
-    if (cantidadFilas > maximoFilas) {
-      errores.add(
-        ArticuloImportError(
+    final errores = <ArticuloImportError>[
+      if (elegido.error != null)
+        ArticuloImportError(columna: 'archivo', motivo: elegido.error!)
+      else if (filas.isEmpty)
+        const ArticuloImportError(
           columna: 'archivo',
-          motivo:
-              'El archivo tiene $cantidadFilas filas y el máximo es $maximoFilas. Divídelo en varios archivos.',
-        ),
+          motivo: 'El archivo está vacío.',
+        )
+      else
+        ..._revisarEncabezado(encabezado, conIds: conIds),
+    ];
+    if (ambiguo) {
+      // El reporte conserva también los errores del encabezado. La elección
+      // explícita nunca omite la revalidación del contrato completo.
+      return (
+        filas: [],
+        conIds: conIds,
+        ambiguo: true,
+        errores: errores.isNotEmpty
+            ? errores
+            : [
+                const ArticuloImportError(
+                  columna: 'archivo',
+                  motivo:
+                      'No se pudo determinar el delimitador. Elige coma o punto y coma.',
+                ),
+              ],
       );
     }
+    if (errores.isEmpty) {
+      final cantidad = filas.length - 1;
+      if (cantidad > maximoFilas) {
+        errores.add(
+          ArticuloImportError(
+            columna: 'archivo',
+            motivo:
+                'El archivo tiene $cantidad filas y el máximo es $maximoFilas. Divídelo en varios archivos.',
+          ),
+        );
+      }
+      for (var i = 1; i < filas.length; i++) {
+        if (filas[i].length != encabezado.length) {
+          errores.add(
+            ArticuloImportError(
+              columna: 'archivo',
+              motivo:
+                  'El registro ${i + 1} tiene ${filas[i].length} campos y el encabezado declara ${encabezado.length}. '
+                  'Usa el mismo delimitador "${elegido.separador}" en todo el archivo; '
+                  'el encabezado y los datos no pueden usar delimitadores distintos. Revisa también las comillas.',
+            ),
+          );
+        }
+      }
+    }
     return (
-      filas: errores.isEmpty
-          ? lineas.skip(1).map(_campos).toList(growable: false)
-          : [],
+      filas: errores.isEmpty ? filas.skip(1).toList(growable: false) : [],
       conIds: conIds,
+      ambiguo: false,
       errores: errores,
     );
-  }
-
-  /// Líneas con datos, sin el BOM y sin las líneas en blanco. Las líneas en
-  /// blanco se ignoran y no se interpretan como separadores (H17).
-  static List<String> _lineas(String contenido) {
-    final sinBom = contenido.startsWith(ArticuloCsvContract.bom)
-        ? contenido.substring(ArticuloCsvContract.bom.length)
-        : contenido;
-    return sinBom
-        .replaceAll('\r\n', '\n')
-        .replaceAll('\r', '\n')
-        .split('\n')
-        .where((linea) => linea.trim().isNotEmpty)
-        .toList(growable: false);
-  }
-
-  /// Parte una línea CSV respetando el entrecomillado que usa el compositor: un
-  /// nombre de producto o de categoría puede contener `,` o `"` (H17, R12).
-  static List<String> _campos(String linea) {
-    final campos = <String>[];
-    final buffer = StringBuffer();
-    var entrecomillado = false;
-    for (var index = 0; index < linea.length; index++) {
-      final caracter = linea[index];
-      if (entrecomillado) {
-        if (caracter != '"') {
-          buffer.write(caracter);
-          continue;
-        }
-        if (index + 1 < linea.length && linea[index + 1] == '"') {
-          buffer.write('"');
-          index++;
-          continue;
-        }
-        entrecomillado = false;
-        continue;
-      }
-      if (caracter == '"') {
-        entrecomillado = true;
-        continue;
-      }
-      if (caracter == ArticuloCsvContract.separador) {
-        campos.add(buffer.toString());
-        buffer.clear();
-        continue;
-      }
-      buffer.write(caracter);
-    }
-    campos.add(buffer.toString());
-    return campos;
   }
 
   /// El encabezado tiene que coincidir exactamente con el contrato (R2). Sin
@@ -237,7 +290,6 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     final rechazados = <String>{};
     final variantesVistas = <String, String>{};
     final nombresActualizados = <String>{};
-    final numeroColumnas = conIds ? 12 : 10;
 
     for (var indice = 0; indice < filas.length; indice++) {
       final linea = indice + 2;
@@ -249,12 +301,6 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       void error(String columna, String motivo) => errores.add(
         ArticuloImportError(linea: linea, columna: columna, motivo: motivo),
       );
-      if (campos.length != numeroColumnas) {
-        error(
-          'archivo',
-          'La fila tiene ${campos.length} campos y el encabezado declara $numeroColumnas. Revisa que no falte un "," o que un texto no se haya partido.',
-        );
-      }
       if (existente) {
         if (productId.isEmpty || variantId.isEmpty) {
           error(
@@ -286,16 +332,14 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         }
         if (campos.length > 3) nombresActualizados.add(_clave(campos[3]));
       }
-      final fila = campos.length == numeroColumnas
-          ? _revisarFila(
-              conIds ? campos.sublist(2) : campos,
-              linea,
-              contexto,
-              errores,
-              existente: existente,
-              variantId: existente ? variantId : null,
-            )
-          : null;
+      final fila = _revisarFila(
+        conIds ? campos.sublist(2) : campos,
+        linea,
+        contexto,
+        errores,
+        existente: existente,
+        variantId: existente ? variantId : null,
+      );
       if (existente) {
         if (errores.length != antes) {
           rechazados.add(productId);

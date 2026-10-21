@@ -71,6 +71,52 @@ void main() {
     compartido = null;
   });
 
+  testWidgets('delimitador ambiguo permite elegir y vuelve a validar', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      archivoElegido: archivo('ambiguo.csv', 'desconocido\nvalor'),
+    );
+    await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('csv_separator_,')), findsOneWidget);
+    expect(find.byKey(const Key('csv_separator_;')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('csv_separator_;')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('csv_separator_;')), findsNothing);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('confirm_bulk_import_button')),
+      300,
+    );
+    final boton = tester.widget<FilledButton>(
+      find.byKey(const Key('confirm_bulk_import_button')),
+    );
+    expect(boton.onPressed, isNull);
+    expect(find.textContaining('Falta la columna'), findsWidgets);
+  });
+
+  testWidgets('archivo mixto no habilita importación parcial', (tester) async {
+    await pump(
+      tester,
+      archivoElegido: archivo(
+        'mixto.csv',
+        csv([',Cafe,unidad,,,10,,no,0,', ';Agua;unidad;;;20;;no;0;']),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('confirm_bulk_import_button')),
+      300,
+    );
+    final boton = tester.widget<FilledButton>(
+      find.byKey(const Key('confirm_bulk_import_button')),
+    );
+    expect(boton.onPressed, isNull);
+    expect(find.textContaining('delimitadores distintos'), findsWidgets);
+  });
+
   testWidgets('ofrece exactamente dos acciones: plantilla y archivo', (
     tester,
   ) async {

@@ -10,11 +10,21 @@ class ArticuloImportPreparationService {
   final ArticuloCatalogImportService parser;
   final ArticuloImportCatalogReader reader;
 
-  Future<ArticuloImportReporte> preparar(String contenido) async {
-    final solicitud = parser.solicitarCatalogo(contenido);
+  Future<ArticuloImportReporte> preparar(
+    String contenido, {
+    String? separador,
+  }) async {
+    final solicitud = parser.solicitarCatalogo(contenido, separador: separador);
     if (solicitud.errores.isNotEmpty) {
-      return ArticuloImportReporte(errores: solicitud.errores);
+      return ArticuloImportReporte(
+        errores: solicitud.errores,
+        delimitadorAmbiguo: solicitud.delimitadorAmbiguo,
+      );
     }
-    return parser.validar(contenido, catalogo: await reader.leer(solicitud));
+    return parser.validar(
+      contenido,
+      catalogo: await reader.leer(solicitud),
+      separador: separador,
+    );
   }
 }

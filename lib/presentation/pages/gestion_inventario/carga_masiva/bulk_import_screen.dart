@@ -57,6 +57,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
   String? _archivoNombre;
   ArticuloImportReporte? _reporte;
   String? _contenido;
+  String? _separador;
   ArticuloImportProgreso? _progreso;
 
   /// Interruptor de importar solo las válidas. El archivo con problemas no se
@@ -111,6 +112,28 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                   _archivoNombre!,
                   key: const Key('bulk_import_file_name'),
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+              if (_reporte?.delimitadorAmbiguo ?? false) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  '1. No se pudo determinar el delimitador. Elige uno para volver a validar el archivo.',
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final opcion in const {
+                      ',': 'Coma (,)',
+                      ';': 'Punto y coma (;)',
+                    }.entries)
+                      OutlinedButton(
+                        key: Key('csv_separator_${opcion.key}'),
+                        onPressed: _paso == null
+                            ? () => _elegirSeparador(opcion.key)
+                            : null,
+                        child: Text(opcion.value),
+                      ),
+                  ],
                 ),
               ],
               // El reporte va antes que las reglas: es la respuesta a la acción
@@ -178,6 +201,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
     try {
       final elegido = await (widget.pickFile ?? _seleccionarArchivo)();
       if (elegido == null) return;
+      _separador = null;
       final reporte = await _validar(elegido.contenido);
       if (!mounted) return;
       setState(() {
@@ -187,6 +211,9 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
         _progreso = null;
         _ejecucionIniciada = false;
       });
+    } on FormatException {
+      if (!mounted) return;
+      _avisar('El archivo debe tener codificación UTF-8 válida.');
     } catch (_) {
       if (!mounted) return;
       _avisar('No se pudo leer el archivo. Inténtalo de nuevo.');
@@ -300,7 +327,22 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
 
   Future<ArticuloImportReporte> _validar(String contenido) =>
       (widget.preparationService ?? getIt<ArticuloImportPreparationService>())
-          .preparar(contenido);
+          .preparar(contenido, separador: _separador);
+
+  Future<void> _elegirSeparador(String separador) async {
+    setState(() => _paso = _Paso.archivo);
+    try {
+      _separador = separador;
+      final reporte = await _validar(_contenido!);
+      if (mounted) setState(() => _reporte = reporte);
+    } catch (_) {
+      if (mounted) {
+        _avisar('No se pudo validar el archivo. Inténtalo de nuevo.');
+      }
+    } finally {
+      if (mounted) setState(() => _paso = null);
+    }
+  }
 
   /// Adaptador de plataforma: abre el selector, lee lo elegido y devuelve su
   /// nombre y su texto. Cancelar devuelve null y nada más; un archivo que no se
@@ -362,7 +404,8 @@ class _ReglasDelArchivo extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               '• Es la plantilla que descargas, con las 12 columnas en el mismo '
-              'orden y separadas por comas (",").\n'
+              'orden, o el formato anterior de 10 columnas. UTF-8 con o sin BOM, '
+              'separado por coma (",") o punto y coma (";").\n'
               '• Reemplaza o elimina las filas de ejemplo antes de cargar el '
               'archivo.\n'
               '• Los IDs identifican actualizaciones; el nombre agrupa las altas '

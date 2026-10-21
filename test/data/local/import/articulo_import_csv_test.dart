@@ -107,6 +107,151 @@ void main() {
         ),
   );
 
+  group('delimitadores y registros CSV', () {
+    for (final separador in [',', ';']) {
+      for (final eol in ['\n', '\r\n']) {
+        for (final bom in ['', '\uFEFF']) {
+          test('lee $separador con EOL ${eol.length} y BOM ${bom.isNotEmpty}', () {
+            final contenido =
+                '$bom${ArticuloCatalogCsv.columnasAnteriores.join(separador)}$eol'
+                '${['Bebidas', '"Café, té; y ""pan""${eol}nuevo"', 'unidad', '', '', '45.50', '', 'no', '0', '001234'].join(separador)}$eol';
+            final reporte = servicio.validar(contenido, catalogo: catalogo());
+            expect(reporte.errores, isEmpty);
+            expect(
+              reporte.productos.single.nombre,
+              'Café, té; y "pan"${eol}nuevo',
+            );
+            final variante = reporte.productos.single.variantes.single;
+            expect(variante.codigoBarras, '001234');
+            expect(variante.precioVentaMinor, 4550);
+            expect(variante.precioCosteMinor, isNull);
+            expect(variante.nombre, isNull);
+          });
+        }
+      }
+      test('rechaza mezcla de delimitadores tras varias filas $separador', () {
+        final otro = separador == ',' ? ';' : ',';
+        final campos = [
+          'Bebidas',
+          'Cafe',
+          'unidad',
+          '',
+          '',
+          '10',
+          '',
+          'no',
+          '0',
+          '',
+        ];
+        final contenido =
+            '${ArticuloCatalogCsv.columnasAnteriores.join(separador)}\n'
+            '${campos.join(separador)}\n${campos.join(otro)}';
+        final reporte = servicio.validar(contenido, catalogo: catalogo());
+        expect(reporte.importable, isFalse);
+        expect(reporte.productos, isEmpty);
+        expect(
+          reporte.errores.single.motivo,
+          contains('delimitadores distintos'),
+        );
+        expect(servicio.solicitarCatalogo(contenido).errores, isNotEmpty);
+      });
+      test('conserva reglas numéricas sin partir coma decimal $separador', () {
+        final contenido =
+            '${ArticuloCatalogCsv.columnasAnteriores.join(separador)}\n'
+            '${['Bebidas', 'Cafe', 'unidad', '', '', separador == ';' ? '12,50' : '"12,50"', '', 'no', '0', ''].join(separador)}';
+        final reporte = servicio.validar(contenido, catalogo: catalogo());
+        expect(reporte.errores, isEmpty);
+        expect(
+          reporte.productos.single.variantes.single.precioVentaMinor,
+          1250,
+        );
+        final invalido = servicio.validar(
+          contenido.replaceFirst('12,50', '1.234,50'),
+          catalogo: catalogo(),
+        );
+        expect(invalido.productos, isEmpty);
+        expect(
+          invalido.errores.any((e) => e.columna == 'precio_venta'),
+          isTrue,
+        );
+        expect(reporte.erroresEstructurales, isFalse);
+      });
+      test('cantidad decimal conserva reglas existentes $separador', () {
+        final contenido =
+            '${ArticuloCatalogCsv.columnasAnteriores.join(separador)}\n'
+            '${['Bebidas', 'Cafe', 'fraccion', 'kg', '', '10', '', 'si', separador == ';' ? '1,25' : '"1,25"', ''].join(separador)}';
+        final reporte = servicio.validar(contenido, catalogo: catalogo());
+        expect(reporte.errores, isEmpty);
+        expect(
+          reporte.productos.single.variantes.single.existenciasAtomic,
+          1250,
+        );
+        final invalido = servicio.validar(
+          contenido.replaceFirst('1,25', '1.000,25'),
+          catalogo: catalogo(),
+        );
+        expect(invalido.productos, isEmpty);
+        expect(invalido.errores.any((e) => e.columna == 'existencias'), isTrue);
+      });
+      test('elección explícita revalida el contrato $separador', () {
+        final contenido =
+            '${ArticuloCatalogCsv.columnasAnteriores.join(separador)}\n'
+            '${['Bebidas', 'Cafe', 'unidad', '', '', '10', '', 'no', '0', ''].join(separador)}';
+        expect(
+          servicio
+              .validar(contenido, catalogo: catalogo(), separador: separador)
+              .importable,
+          isTrue,
+        );
+        expect(
+          servicio
+              .validar(
+                contenido,
+                catalogo: catalogo(),
+                separador: separador == ',' ? ';' : ',',
+              )
+              .importable,
+          isFalse,
+        );
+      });
+      test('admite encabezado de doce columnas $separador', () {
+        final contenido =
+            '${ArticuloCatalogCsv.columnas.join(separador)}\n'
+            '${['', '', 'Bebidas', 'Cafe', 'unidad', '', '', '10', '', 'no', '0', '00001'].join(separador)}';
+        final reporte = servicio.validar(contenido, catalogo: catalogo());
+        expect(reporte.errores, isEmpty);
+        expect(reporte.productos.single.variantes.single.codigoBarras, '00001');
+      });
+    }
+    test('detección ambigua requiere elección, que no omite validación', () {
+      const contenido = 'desconocido\nvalor';
+      expect(
+        servicio.validar(contenido, catalogo: catalogo()).delimitadorAmbiguo,
+        isTrue,
+      );
+      expect(servicio.solicitarCatalogo(contenido).delimitadorAmbiguo, isTrue);
+      final reporte = servicio.validar(
+        contenido,
+        catalogo: catalogo(),
+        separador: ';',
+      );
+      expect(reporte.delimitadorAmbiguo, isFalse);
+      expect(reporte.importable, isFalse);
+      expect(reporte.errores, isNotEmpty);
+    });
+    test('comillas incompletas no producen productos parciales', () {
+      final reporte = servicio.validar(
+        archivo([
+          'Bebidas,Cafe,unidad,,,10,,no,0,',
+          'Bebidas,"sin cerrar,unidad,,,10,,no,0,',
+        ]),
+        catalogo: catalogo(),
+      );
+      expect(reporte.importable, isFalse);
+      expect(reporte.productos, isEmpty);
+    });
+  });
+
   group('estructura', () {
     test('un archivo vacío es un error, no un archivo sin filas', () {
       final reporte = servicio.validar('', catalogo: catalogo());
@@ -194,12 +339,14 @@ void main() {
         fila(['Bebidas', 'Agua', 'unidad', '', '', '25', '', 'no', '0']),
       ]);
 
-      expect(reporte.productos, hasLength(1));
+      expect(reporte.productos, isEmpty);
+      expect(reporte.importable, isFalse);
       final error = reporte.errores.single;
-      expect(error.linea, 3);
+      expect(error.linea, isNull);
       expect(error.columna, 'archivo');
       expect(error.motivo, contains('9 campos'));
-      expect(error.descripcion, 'Línea 3 · archivo');
+      expect(error.motivo, contains('registro 3'));
+      expect(error.descripcion, 'archivo');
     });
 
     test('más de 500 filas se rechaza antes de mirar las filas', () {
