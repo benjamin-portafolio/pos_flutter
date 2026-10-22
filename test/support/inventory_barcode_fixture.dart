@@ -177,6 +177,10 @@ class _Commands implements ProductoCommandService {
   final InventoryBarcodeFixture fixture;
 
   @override
+  Future<void> crearArticulo(CrearArticuloCommand command) =>
+      fixture.h.commands.crearArticulo(command);
+
+  @override
   Future<void> asignarCodigoBarrasVariante(
     AsignarCodigoBarrasVarianteCommand command,
   ) async {

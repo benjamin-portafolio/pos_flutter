@@ -17,10 +17,11 @@ import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/domain/ventas/measured_sale_conditions.dart';
+import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
 import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/barcode_product_selection_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/physical_barcode_reader.dart';
-import 'package:pos_flutter/presentation/pages/caja/weighing/sale_barcode_quantity_dialog.dart';
+import 'package:pos_flutter/presentation/pages/caja/weighing/sale_measured_quantity_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/weighing/sale_weighing_dialog.dart';
 
 import '../../../../support/barcode_sale_fixture.dart';
@@ -85,6 +86,27 @@ void main() {
     await settle(tester);
   }
 
+  Future<void> openSearch(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1280, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ArticleSearchScreen(
+          productoRepository: f.products,
+          saleDraftRepository: f.drafts,
+          ventaBorradorCommandService: f.commands,
+        ),
+      ),
+    );
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), 'M');
+    await settle(tester);
+    await tester.tap(find.byType(Card));
+    await settle(tester);
+  }
+
   Future<void> drain(WidgetTester tester) async {
     for (final read in gateway.reads) {
       if (!read.isCompleted) read.complete([]);
@@ -126,6 +148,84 @@ void main() {
         await settle(tester);
         debugDefaultTargetPlatformOverride = null;
       }
+    });
+  }
+
+  for (final gramsUnit in [false, true]) {
+    integrationTest(
+      'search weighs and accumulates in persisted draft, grams=$gramsUnit',
+      (tester) async {
+        if (gramsUnit) {
+          await tester.runAsync(
+            () =>
+                (f.db.update(
+                  f.db.products,
+                )..where((p) => p.id.equals('product-M'))).write(
+                  const ProductsCompanion(
+                    saleUnitId: Value(InventoryUnitIds.gram),
+                  ),
+                ),
+          );
+        }
+        await openSearch(tester);
+        String? saleId;
+        for (var i = 1; i <= 2; i++) {
+          expect(find.byType(SaleWeighingDialog), findsOneWidget);
+          expect(f.attempts, hasLength(i - 1));
+          await read(tester, 430);
+          await tester.tap(find.text('Aceptar'));
+          await drain(tester);
+          final draft = (await tester.runAsync(() => f.draft))!;
+          saleId ??= draft.id;
+          expect(draft.id, saleId);
+          expect(draft.items.single.measuredQuantityAtomic, 430 * i);
+          expect(draft.totalMinor, 8600 * i);
+          expect(service.active, isNull);
+          expect(find.byType(ArticleSearchScreen), findsOneWidget);
+          if (i == 1) {
+            await tester.tap(find.byType(Card));
+            await settle(tester);
+          }
+        }
+        expect(f.attempts.first.measuredQuantity, gramsUnit ? '430' : '0.43');
+      },
+    );
+  }
+
+  integrationTest('search cancels weighing without writing', (tester) async {
+    await openSearch(tester);
+    expect(find.byType(SaleWeighingDialog), findsOneWidget);
+    await read(tester);
+    await cancel(tester);
+    expect(service.active, isNull);
+    expect(f.attempts, isEmpty);
+    await tester.runAsync(f.expectNoWrites);
+  });
+
+  for (final route in ['no default', 'volume', 'non Windows']) {
+    integrationTest('search uses manual quantity: $route', (tester) async {
+      if (route == 'no default') {
+        await tester.runAsync(() => settings.setDefault(null));
+      } else if (route == 'non Windows') {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      } else {
+        await tester.runAsync(
+          () =>
+              (f.db.update(
+                f.db.products,
+              )..where((p) => p.id.equals('product-M'))).write(
+                const ProductsCompanion(
+                  saleUnitId: Value(InventoryUnitIds.liter),
+                ),
+              ),
+        );
+      }
+      await openSearch(tester);
+      expect(find.byType(SaleQuantityDialog), findsOneWidget);
+      expect(find.byType(SaleWeighingDialog), findsNothing);
+      expect(gateway.calls, isEmpty);
+      await cancel(tester);
+      await tester.runAsync(f.expectNoWrites);
     });
   }
 
@@ -365,8 +465,8 @@ void main() {
       if (route == 'camara') {
         await tester.pumpWidget(
           MaterialApp(
-            home: SaleBarcodeQuantityDialog(
-              physicalReader: false,
+            home: SaleMeasuredQuantityDialog(
+              allowWeighing: false,
               loadConditions: () => f.coordinator.conditionsFor('M'),
               watchDraft: f.drafts.watchCurrentDraft,
             ),
@@ -453,8 +553,8 @@ void main() {
     final pending = Completer<MeasuredSaleConditions?>();
     await tester.pumpWidget(
       MaterialApp(
-        home: SaleBarcodeQuantityDialog(
-          physicalReader: true,
+        home: SaleMeasuredQuantityDialog(
+          allowWeighing: true,
           loadConditions: () => pending.future,
           watchDraft: f.drafts.watchCurrentDraft,
         ),

@@ -197,8 +197,8 @@ Gestión del inventario incorpora «Escanear código de barras» sobre `+`, solo
 Artículos. `InventoryBarcodeFlowScreen` reutiliza el lector de una lectura y la
 consulta exacta del repositorio: una coincidencia abre la edición y destaca la
 variante; varias muestran una elección explícita; cero ofrecen asignar a una
-variante existente. El selector busca por artículo/variante, con y sin barcode
-o seguimiento de existencias, sin operaciones de venta.
+variante existente o dar de alta un producto con el código precargado. El
+selector busca por artículo/variante, con y sin barcode o seguimiento de existencias, sin operaciones de venta.
 
 `InventoryBarcodeAssignmentScreen` relee el destino y muestra el código nuevo
 y, en reemplazos, el actual. Confirmar ejecuta
@@ -228,7 +228,16 @@ lectura automáticamente. Durante todo el recorrido se suspende la admisión del
 lector, se conserva su cola y se recupera el foco al volver. Una interrupción
 externa exige reanudar antes de continuar la venta. La salida normal espera
 que se resuelva el recorrido y cualquier comando iniciado. La cámara de Caja
-conserva su comportamiento anterior para códigos desconocidos.
+también ofrece asignar o dar de alta códigos desconocidos; suspende la cámara durante esos formularios y retoma la lectura al volver.
+
+La opción «Dar de alta un producto» abre `ArticleFormScreen` en alta avanzada,
+con el código en la primera variante, sin tratar el borrador como una edición.
+Permite completar nombre, precio y demás datos con el guardado habitual de
+`producto_creado`. Cancelar descarta el borrador sin crear el artículo. En
+Inventario vuelve al catálogo sin modificar la venta; en Caja continúa el
+agregado habitual sobre el mismo borrador después de guardar. Alta y agregado
+son operaciones separadas: si falla el agregado o se cancela la cantidad, el
+producto ya creado se conserva. Ver [verificación del alta desde escaneo](../testing/unknown_barcode_product_creation.md).
 
 La fase 3 cerró la verificación automatizada I01–I19 con SQLite temporal,
 incluido CSV sin códigos y reapertura en ambos modos. La cámara nativa I20

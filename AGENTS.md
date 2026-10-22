@@ -178,7 +178,8 @@ existente y agregarla a la misma venta. Reutiliza el selector y la confirmacion
 de Inventario, pausa la admision durante el recorrido y conserva la cola.
 Guardar el codigo y agregar a la venta son operaciones separadas: cancelar
 cantidad o fallar al agregar conserva el codigo y lo informa, sin reintento
-automatico. La camara mantiene su comportamiento anterior. Verificacion:
+automatico. La camara de Caja tambien ofrece asignacion y alta para codigos
+desconocidos, suspendiendo la camara durante el recorrido. Verificacion:
 `test/presentation/pages/caja/physical_barcode_assignment_test.dart`.
 La compuerta temporal conserva pruebas fisicas pendientes de retirada/enfoque;
 no bloquean la integracion (plan de Escaneo en caja, revision 2).
@@ -192,6 +193,13 @@ guarda solo ese barcode mediante `producto_actualizado`, con la base confirmada.
 No agrega lineas de venta ni movimientos. La verificacion automatizada I01-I19
 esta cerrada; la prueba fisica I20 sigue pendiente por decision del usuario.
 Evidencia y limites: `docs/testing/inventory_barcode_verification.md`.
+Los codigos desconocidos de Inventario y Caja (HID/camara) ofrecen ademas
+«Dar de alta un producto». Abre el formulario habitual de alta avanzada con el
+codigo precargado en la primera variante; guarda por `producto_creado`.
+Inventario vuelve al catalogo; Caja continua el agregado a la misma venta,
+separado del alta. Cancelar el alta no crea el producto; cancelar cantidad o
+fallar al agregar conserva el producto ya guardado. Evidencia:
+`docs/testing/unknown_barcode_product_creation.md`.
 
 Basculas en Windows ofrece perfiles locales, predeterminada opcional y prueba
 exclusiva para Rhino BAR-8RS. El acceso HID de Caja abre pesaje solo para masa

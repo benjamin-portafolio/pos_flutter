@@ -346,7 +346,7 @@ edición. Se conservaron los cambios preexistentes S1–S3 y ajenos sobre
 
 ### Archivos y comportamiento
 
-- `lib/presentation/pages/caja/weighing/sale_barcode_quantity_dialog.dart`:
+- `lib/presentation/pages/caja/weighing/sale_measured_quantity_dialog.dart`:
   decisión compartida en presentation. Condiciones consultadas del catálogo,
   unidad activa de masa kg/g, Windows con servicio y predeterminada confirmada
   llevan a la ventana existente; sin soporte/default, volumen y cámara siguen
@@ -559,3 +559,27 @@ Reutilizar parser/cálculos/contratos/regresiones vigentes; repetir solo ante
 cambio, fallo o duda concreta. El bundle previo obsoleto se conservó marcado
 OBSOLETO-NO-USAR; el entregable vigente es weighing-s5-final. Ensayo y datos
 se conservan para reproducir pendientes. No hay commit ni despliegue.
+
+
+## Extensión a búsqueda «Quiero vender», 2026-10-21
+
+La selección de un producto por kg o g en `ArticleSearchScreen` reutiliza
+`SaleMeasuredQuantityDialog`, el mismo enrutador del lector físico. En Windows,
+con perfil predeterminado cargado y servicio de báscula disponible, abre pesaje.
+Sin esa configuración, en otras plataformas y para volumen conserva cantidad
+manual; piezas conserva su agregado directo. La cámara continúa con captura manual.
+El peso confirmado usa el comando/evento de borrador existente, sin cambios de
+esquema ni sincronización.
+
+La suite `sale_barcode_weighing_test.dart` incluye selección desde búsqueda,
+conversión kg/g, acumulación persistida en el mismo borrador, cancelación sin
+escrituras y alternativas manuales. Usa una báscula simulada y SQLite aislado;
+no acredita pruebas físicas del nuevo acceso.
+
+Verificación de la extensión: `dart analyze` sin problemas; 35 pruebas enfocadas
+aprobadas al ejecutar `sale_barcode_weighing_test.dart` junto con
+`article_search_screen_test.dart`.
+La ejecución completa de `flutter test` terminó con 2663 aprobadas, 24 omitidas
+y 73 fallos en otras áreas (fixtures con rutas de macOS, archivos bloqueados,
+subprocesos, respaldos, impresión y proveedores). La suite global de Windows
+permanece sin cerrar; estos resultados no acreditan compatibilidad física.

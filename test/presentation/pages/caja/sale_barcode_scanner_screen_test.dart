@@ -375,11 +375,11 @@ void main() {
       await open(tester);
       await emit(tester, ['999']);
       await emit(tester, ['999']);
-      expect(
-        find.text('No se encontró un artículo con este código.'),
-        findsOneWidget,
-      );
+      expect(find.text('Código no encontrado'), findsOneWidget);
       expect(fixture.products.lookups, ['999']);
+      expect(find.text('Dar de alta un producto'), findsOneWidget);
+      await tester.tap(find.text('Cancelar'));
+      await settle(tester);
       await emit(tester, ['ABC']);
       await emit(tester, ['ABC']);
       expect(
@@ -398,10 +398,9 @@ void main() {
         ),
       );
       await emit(tester, ['001']);
-      expect(
-        find.text('No se encontró un artículo con este código.'),
-        findsOneWidget,
-      );
+      expect(find.text('Código no encontrado'), findsOneWidget);
+      await tester.tap(find.text('Cancelar'));
+      await settle(tester);
       expect(fixture.commands.attempts, isEmpty);
       await expectNoWrites(tester);
     },
@@ -1264,6 +1263,8 @@ void main() {
       );
       await open(tester, size: const Size(320, 640), textScale: 2);
       await emit(tester, ['999']);
+      await tester.tap(find.text('Cancelar'));
+      await settle(tester);
       tester.view.physicalSize = const Size(640, 320);
       await settle(tester);
       expect(tester.takeException(), isNull);

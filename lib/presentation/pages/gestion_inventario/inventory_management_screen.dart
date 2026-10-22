@@ -565,6 +565,8 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
                 (widget.productoCommandService ??
                         getIt<ProductoCommandService>())
                     .asignarCodigoBarrasVariante(command),
+            createArticle: (flowContext, code) =>
+                _openArticleForm(flowContext, initialBarcode: code),
             openArticle: (flowContext, productId, variantId) =>
                 _openArticlePreview(
                   flowContext,
@@ -687,7 +689,10 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     }
   }
 
-  Future<void> _openArticleForm(BuildContext context) async {
+  Future<void> _openArticleForm(
+    BuildContext context, {
+    String? initialBarcode,
+  }) async {
     try {
       final unitRepository =
           widget.unidadInventarioRepository ??
@@ -714,6 +719,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             inventoryResourceRepository: widget.recursoInventarioRepository,
             onCreateInventoryResource: _createInventoryResource,
             onRegisterInventoryMovement: _registerInventoryMovement,
+            initialBarcode: initialBarcode,
             onSave: _createArticle,
           ),
         ),

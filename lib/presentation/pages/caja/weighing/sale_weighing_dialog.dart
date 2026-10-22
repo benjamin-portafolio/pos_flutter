@@ -13,7 +13,7 @@ import '../../articulos/sale_quantity_form_result.dart';
 import '../models/sale_draft_display.dart';
 import 'sale_weighing_controller.dart';
 
-/// Weight capture for eligible physical barcode reads; returns an intention.
+/// Weight capture for eligible measured sales; returns an intention.
 class SaleWeighingDialog extends StatefulWidget {
   const SaleWeighingDialog({
     super.key,

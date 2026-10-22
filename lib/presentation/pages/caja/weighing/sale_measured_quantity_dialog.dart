@@ -11,26 +11,25 @@ import '../../../../domain/ventas/sale_draft.dart';
 import '../../articulos/sale_quantity_dialog.dart';
 import 'sale_weighing_dialog.dart';
 
-/// Capture routing belongs to the readers' presentation, never to the command.
-/// Camera currently has no platform in common with the Windows transport.
-class SaleBarcodeQuantityDialog extends StatefulWidget {
-  const SaleBarcodeQuantityDialog({
+/// Routes measured sales to the configured scale or manual quantity capture.
+class SaleMeasuredQuantityDialog extends StatefulWidget {
+  const SaleMeasuredQuantityDialog({
     required this.loadConditions,
     required this.watchDraft,
-    required this.physicalReader,
+    required this.allowWeighing,
     super.key,
   });
 
   final Future<MeasuredSaleConditions?> Function() loadConditions;
   final Stream<SaleDraft?> Function() watchDraft;
-  final bool physicalReader;
+  final bool allowWeighing;
 
   @override
-  State<SaleBarcodeQuantityDialog> createState() =>
-      _SaleBarcodeQuantityDialogState();
+  State<SaleMeasuredQuantityDialog> createState() =>
+      _SaleMeasuredQuantityDialogState();
 }
 
-class _SaleBarcodeQuantityDialogState extends State<SaleBarcodeQuantityDialog>
+class _SaleMeasuredQuantityDialogState extends State<SaleMeasuredQuantityDialog>
     with WidgetsBindingObserver {
   bool _interrupted = false;
   ModalRoute<dynamic>? _route;
@@ -101,7 +100,7 @@ class _SaleBarcodeQuantityDialogState extends State<SaleBarcodeQuantityDialog>
       }
       final conditions = snapshot.data;
       final unit = conditions?.unit;
-      if (widget.physicalReader &&
+      if (widget.allowWeighing &&
           !kIsWeb &&
           defaultTargetPlatform == TargetPlatform.windows &&
           conditions != null &&

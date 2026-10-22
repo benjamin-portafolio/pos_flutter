@@ -11,9 +11,9 @@ import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
 import '../caja/models/sale_draft_display.dart';
+import '../caja/weighing/sale_measured_quantity_dialog.dart';
 import '../gestion_inventario/categorias/category_color_palette.dart';
 import 'models/article_search_item.dart';
-import 'sale_quantity_dialog.dart';
 import 'sale_quantity_form_result.dart';
 
 class ArticleSearchScreen extends StatefulWidget {
@@ -58,11 +58,13 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
       if (unit != null) {
         amount = await showDialog<SaleQuantityFormResult>(
           context: context,
-          builder: (_) => SaleQuantityDialog(
+          builder: (_) => SaleMeasuredQuantityDialog(
+            allowWeighing: true,
             loadConditions: () => widget.productoRepository
                 .obtenerCondicionesVentaMedida(item.variant.varianteId),
-            draft: (widget.saleDraftRepository ?? getIt<SaleDraftRepository>())
-                .watchCurrentDraft(),
+            watchDraft:
+                (widget.saleDraftRepository ?? getIt<SaleDraftRepository>())
+                    .watchCurrentDraft,
           ),
         );
         if (amount == null || !mounted) return;

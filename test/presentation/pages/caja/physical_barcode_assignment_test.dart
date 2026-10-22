@@ -28,6 +28,17 @@ import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_barcode_assignment_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_barcode_variant_selector.dart';
 
+import 'package:pos_flutter/application/config/app_config_controller.dart';
+import 'package:pos_flutter/domain/repositories/categoria_repository.dart';
+import 'package:pos_flutter/domain/repositories/unidad_inventario_repository.dart';
+import 'package:pos_flutter/domain/repositories/proveedor_repository.dart';
+import 'package:pos_flutter/domain/repositories/recurso_inventario_repository.dart';
+import 'package:pos_flutter/data/repositories/categoria_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/proveedor_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/recurso_inventario_repository_impl.dart';
+import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/article_form_screen.dart';
+
 import '../../../support/inventory_barcode_fixture.dart';
 import '../../../support/fake_scale_gateway.dart';
 import '../../../support/fake_scale_settings_store.dart';
@@ -161,6 +172,65 @@ void main() {
     await tester.tap(find.byKey(const Key('inventory_barcode_confirm')));
     await settle(tester);
   }
+
+  assignmentTest('alta desde HID guarda código y agrega a la misma venta', (
+    tester,
+  ) async {
+    getIt.registerSingleton<CategoriaRepository>(
+      CategoriaRepositoryImpl(categoriaDao: f.h.db.categoriaDao),
+    );
+    getIt.registerSingleton<UnidadInventarioRepository>(
+      UnidadInventarioRepositoryImpl(unitDao: f.h.db.unitDao),
+    );
+    getIt.registerSingleton<ProveedorRepository>(
+      ProveedorRepositoryImpl(f.h.db.proveedorDao),
+    );
+    getIt.registerSingleton<RecursoInventarioRepository>(
+      RecursoInventarioRepositoryImpl(inventoryDao: f.h.db.inventoryDao),
+    );
+    getIt.registerSingleton<AppConfigController>(f.h.tracking.config);
+    await open(tester);
+    await send(tester, '000987');
+    await settle(tester);
+    await tester.tap(find.text('Dar de alta un producto'));
+    await settle(tester);
+    expect(find.byType(ArticleFormScreen), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('article_name_field')),
+      'Nuevo HID',
+    );
+    await tester.ensureVisible(find.byKey(const Key('article_variant_card_0')));
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await settle(tester);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('variant_barcode_field')))
+          .controller!
+          .text,
+      '000987',
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '13',
+    );
+    await tester.tap(find.byKey(const Key('save_variant_button')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await settle(tester);
+    expect(find.byType(ArticleFormScreen), findsNothing);
+    final matches = await tester.runAsync(
+      () => f.products.buscarVariantesPorCodigoBarras('000987'),
+    );
+    final draft = await tester.runAsync(() => drafts.watchCurrentDraft().first);
+    expect(matches!.single.nombreProducto, 'Nuevo HID');
+    expect(
+      draft!.items.map((item) => item.variantId),
+      contains(matches.single.varianteId),
+    );
+    expect(draft.items, hasLength(2));
+    expect(draft.totalMinor, 2300);
+    expect(input(tester).focusNode!.hasFocus, isTrue);
+  });
 
   for (final mode in AppMode.values) {
     for (final platform in [

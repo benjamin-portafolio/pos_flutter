@@ -6,6 +6,7 @@ import '../../../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../../../domain/repositories/producto_repository.dart';
 import '../../articulos/models/article_search_item.dart';
 import 'inventory_barcode_assignment_screen.dart';
+import 'unknown_barcode_dialog.dart';
 import 'inventory_barcode_matches_dialog.dart';
 import 'inventory_barcode_variant_selector.dart';
 import 'widgets/barcode_scanner_screen.dart';
@@ -16,9 +17,11 @@ class InventoryBarcodeFlowScreen extends StatefulWidget {
     required this.repository,
     required this.assign,
     required this.openArticle,
+    required this.createArticle,
     super.key,
   });
 
+  final Future<void> Function(BuildContext, String code) createArticle;
   final ProductoRepository repository;
   final Future<void> Function(AsignarCodigoBarrasVarianteCommand) assign;
   final Future<bool> Function(BuildContext, String productId, String variantId)
@@ -119,33 +122,17 @@ class _InventoryBarcodeFlowScreenState
   }
 
   Future<void> _offerAssignment() async {
-    final assign = await showDialog<bool>(
+    final action = await showDialog<UnknownBarcodeAction>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Código no encontrado'),
-        content: Text('No se encontró un artículo con este código: $_code'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.of(context).pop(false);
-              }
-            },
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.of(context).pop(true);
-              }
-            },
-            child: const Text('Asignar a una variante existente'),
-          ),
-        ],
-      ),
+      builder: (_) => UnknownBarcodeDialog(code: _code!),
     );
     if (!mounted || !_active) return;
-    if (assign != true) {
+    if (action == UnknownBarcodeAction.create) {
+      await widget.createArticle(context, _code!);
+      if (mounted && _active) Navigator.of(context).pop();
+      return;
+    }
+    if (action != UnknownBarcodeAction.assign) {
       Navigator.of(context).pop();
       return;
     }

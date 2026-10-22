@@ -4,6 +4,10 @@ Fecha: 2026-10-15. HEAD: `d4e66bb`, rama `main`, con fases 1 y 2 aún sin
 confirmar en Git. Fase 3 completada para verificación automatizada. I01–I19
 aprobados en ese ámbito; I20 físico pendiente por decisión expresa del usuario.
 
+Actualización 2026-10-21: se agregó el alta opcional desde código desconocido.
+El alcance original descrito abajo se amplía según
+[la verificación del nuevo recorrido](unknown_barcode_product_creation.md).
+
 ## Acceso implementado
 
 Gestión del inventario → Artículos muestra «Escanear código de barras» sobre

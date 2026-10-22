@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../application/commands/ventas/venta_borrador_command_service.dart';
+import '../../../application/commands/articulos/producto_command_service.dart';
+import '../gestion_inventario/articulos/barcode_article_creation_flow.dart';
+import 'barcode/sale_barcode_assignment_flow.dart';
+import 'barcode/sale_barcode_assigned_exception.dart';
 import '../../../core/di/injection.dart';
 import '../../../domain/articulos/codigo_barras.dart';
 import '../../../domain/articulos/variante_por_codigo_barras.dart';
@@ -11,7 +15,7 @@ import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
 import '../../../domain/ventas/sale_draft_item.dart';
-import 'weighing/sale_barcode_quantity_dialog.dart';
+import 'weighing/sale_measured_quantity_dialog.dart';
 import '../articulos/sale_quantity_form_result.dart';
 import 'barcode/barcode_product_selection_dialog.dart';
 import 'barcode/barcode_read_gate.dart';
@@ -26,6 +30,7 @@ class SaleBarcodeScannerScreen extends StatefulWidget {
     this.saleDraftRepository,
     this.ventaBorradorCommandService,
     this.readGate,
+    this.productoCommandService,
     super.key,
   });
 
@@ -33,6 +38,7 @@ class SaleBarcodeScannerScreen extends StatefulWidget {
   final SaleDraftRepository? saleDraftRepository;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final BarcodeReadGate? readGate;
+  final ProductoCommandService? productoCommandService;
 
   @override
   State<SaleBarcodeScannerScreen> createState() =>
@@ -226,8 +232,8 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
             ),
         requestQuantity: (candidate) =>
             _showReaderDialog<SaleQuantityFormResult>(
-              (_) => SaleBarcodeQuantityDialog(
-                physicalReader: false,
+              (_) => SaleMeasuredQuantityDialog(
+                allowWeighing: false,
                 loadConditions: () =>
                     _coordinator.conditionsFor(candidate.varianteId),
                 watchDraft:
@@ -235,6 +241,39 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
                         .watchCurrentDraft,
               ),
             ),
+        assignUnknownCode: (code) async {
+          _dialogOpen = true;
+          _gate.setCameraActive(false);
+          _updateCamera();
+          try {
+            return await SaleBarcodeAssignmentFlow(
+              repository:
+                  widget.productoRepository ?? getIt<ProductoRepository>(),
+              assign: (command) =>
+                  (widget.productoCommandService ??
+                          getIt<ProductoCommandService>())
+                      .asignarCodigoBarrasVariante(command),
+              createArticle: (context, code, canContinue) =>
+                  BarcodeArticleCreationFlow(
+                    create: (command) =>
+                        (widget.productoCommandService ??
+                                getIt<ProductoCommandService>())
+                            .crearArticulo(command),
+                  ).run(context, code, canContinue: canContinue),
+            ).run(
+              context,
+              code,
+              canContinue: () =>
+                  mounted &&
+                  !_closing &&
+                  !_disposed &&
+                  generation == _readGeneration,
+            );
+          } finally {
+            _dialogOpen = false;
+            _updateCamera();
+          }
+        },
         onSaving: () => _setMessage('Guardando artículo…'),
       );
       switch (result.outcome) {
@@ -248,7 +287,7 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
           );
         case SaleBarcodeReadOutcome.quantityCancelled:
           _setMessage(
-            'Cantidad cancelada. Retira la etiqueta para volver a leerla.',
+            '${result.barcodeAssigned ? 'Código guardado. ' : ''}Cantidad cancelada. Retira la etiqueta para volver a leerla.',
           );
         case SaleBarcodeReadOutcome.unitUnavailable:
           _setMessage(
@@ -258,6 +297,10 @@ class _SaleBarcodeScannerScreenState extends State<SaleBarcodeScannerScreen>
           // _canFinishRead conserva el mensaje y las reglas de esta cámara.
           break;
       }
+    } on SaleBarcodeAssignedException catch (_) {
+      _setMessage(
+        'Código guardado, pero no se pudo agregar a la venta. Revisa la venta antes de reintentar.',
+      );
     } on FormatException catch (error) {
       _setMessage(error.message);
     } on StateError catch (error) {

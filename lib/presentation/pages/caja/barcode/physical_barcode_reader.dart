@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../application/commands/articulos/asignar_codigo_barras_variante_command.dart';
+import '../../../../application/commands/articulos/crear_articulo_command.dart';
+import '../../../../application/commands/articulos/producto_command_service.dart';
+import '../../../../core/di/injection.dart';
+import '../../gestion_inventario/articulos/barcode_article_creation_flow.dart';
 import '../../../../domain/articulos/variante_por_codigo_barras.dart';
 import '../../../../domain/repositories/producto_repository.dart';
 import '../../../../domain/repositories/sale_draft_repository.dart';
 import '../../articulos/sale_quantity_form_result.dart';
-import '../weighing/sale_barcode_quantity_dialog.dart';
+import '../weighing/sale_measured_quantity_dialog.dart';
 import 'barcode_product_selection_dialog.dart';
 import 'physical_barcode_finish_dialog.dart';
 import 'physical_barcode_read_admission.dart';
@@ -28,6 +32,7 @@ class PhysicalBarcodeReader extends StatefulWidget {
     required this.saleDraftRepository,
     required this.productoRepository,
     required this.assignBarcode,
+    this.createArticle,
     this.automaticallyEnabled = false,
     this.interactionEnabled = true,
     super.key,
@@ -37,6 +42,7 @@ class PhysicalBarcodeReader extends StatefulWidget {
   final SaleDraftRepository saleDraftRepository;
   final ProductoRepository productoRepository;
   final Future<void> Function(AsignarCodigoBarrasVarianteCommand) assignBarcode;
+  final Future<void> Function(CrearArticuloCommand)? createArticle;
   final bool automaticallyEnabled;
   final bool interactionEnabled;
 
@@ -163,8 +169,8 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         (_) => BarcodeProductSelectionDialog(candidates: candidates),
       ),
       requestQuantity: (candidate) => _showReaderDialog<SaleQuantityFormResult>(
-        (_) => SaleBarcodeQuantityDialog(
-          physicalReader: true,
+        (_) => SaleMeasuredQuantityDialog(
+          allowWeighing: true,
           loadConditions: () =>
               widget.coordinator.conditionsFor(candidate.varianteId),
           watchDraft: widget.saleDraftRepository.watchCurrentDraft,
@@ -174,6 +180,12 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         () => SaleBarcodeAssignmentFlow(
           repository: widget.productoRepository,
           assign: widget.assignBarcode,
+          createArticle: (context, code, canContinue) =>
+              BarcodeArticleCreationFlow(
+                create:
+                    widget.createArticle ??
+                    getIt<ProductoCommandService>().crearArticulo,
+              ).run(context, code, canContinue: canContinue),
         ).run(context, code, canContinue: canContinue),
       ),
     );

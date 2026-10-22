@@ -224,6 +224,7 @@ class CajaScreenState extends State<CajaScreen> {
           productoRepository: widget.productoRepository,
           saleDraftRepository: _repository,
           ventaBorradorCommandService: widget.ventaBorradorCommandService,
+          productoCommandService: widget.productoCommandService,
           readGate: _barcodeGate,
         ),
       ),
@@ -313,6 +314,10 @@ class CajaScreenState extends State<CajaScreen> {
             key: _physicalReader,
             productoRepository:
                 widget.productoRepository ?? getIt<ProductoRepository>(),
+            createArticle: (command) =>
+                (widget.productoCommandService ??
+                        getIt<ProductoCommandService>())
+                    .crearArticulo(command),
             assignBarcode: (command) =>
                 (widget.productoCommandService ??
                         getIt<ProductoCommandService>())

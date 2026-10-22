@@ -29,6 +29,7 @@ class ArticleFormScreen extends StatefulWidget {
     this.onSave,
     this.initialValue,
     this.initialVariantId,
+    this.initialBarcode,
     this.inventoryResourceRepository,
     this.onCreateInventoryResource,
     this.onRegisterInventoryMovement,
@@ -44,6 +45,9 @@ class ArticleFormScreen extends StatefulWidget {
 
   /// Variante encontrada por el lector; se ubica y destaca sin cambiar datos.
   final String? initialVariantId;
+
+  /// Código leído al iniciar un alta; no convierte el formulario en edición.
+  final String? initialBarcode;
   final ProveedorRepository? proveedorRepository;
   final AppConfigController? appConfigController;
   bool get editing => initialValue != null;
@@ -84,7 +88,21 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
   void initState() {
     super.initState();
     final initial = widget.initialValue;
-    if (initial == null) return;
+    if (initial == null) {
+      final code = CodigoBarras.fromInput(widget.initialBarcode).value;
+      if (code != null) {
+        _creationMode = _ArticleCreationMode.advanced;
+        _advancedVariants = [
+          ArticuloFormVarianteResult(
+            nombre: null,
+            precioVenta: '',
+            costoEstandar: null,
+            codigoBarras: code,
+          ),
+        ];
+      }
+      return;
+    }
     _nameController.text = initial.nombre;
     _selectedCategoryId = initial.categoriaId;
     _saleMode = initial.saleConfiguration.mode;

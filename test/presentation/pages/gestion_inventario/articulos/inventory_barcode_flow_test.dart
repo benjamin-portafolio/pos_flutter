@@ -124,6 +124,101 @@ void main() {
     await settle(tester);
   }
 
+  flowTest('alta desde código desconocido conserva código y no agrega ventas', (
+    tester,
+  ) async {
+    await open(tester);
+    await scan(tester, '000987');
+    await tester.tap(find.text('Dar de alta un producto'));
+    await settle(tester);
+    expect(find.text('AÑADIR ARTÍCULO'), findsOneWidget);
+    expect(find.text('EDITAR ARTÍCULO'), findsNothing);
+    await tester.enterText(
+      find.byKey(const Key('article_name_field')),
+      'Nuevo escaneado',
+    );
+    await tester.ensureVisible(find.byKey(const Key('article_variant_card_0')));
+    await tester.tap(find.byKey(const Key('article_variant_card_0')));
+    await settle(tester);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('variant_barcode_field')))
+          .controller!
+          .text,
+      '000987',
+    );
+    await tester.enterText(
+      find.byKey(const Key('variant_sale_price_field')),
+      '12',
+    );
+    await tester.tap(find.byKey(const Key('save_variant_button')));
+    await settle(tester);
+    f.h.failAfterProductApply = true;
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await settle(tester);
+    expect(find.byType(ArticleFormScreen), findsOneWidget);
+    expect(
+      find.text('fallo inyectado después de proyectar producto e hijos'),
+      findsOneWidget,
+    );
+    expect(
+      await tester.runAsync(
+        () => f.products.buscarVariantesPorCodigoBarras('000987'),
+      ),
+      isEmpty,
+    );
+    f.h.failAfterProductApply = false;
+    await tester.tap(find.byKey(const Key('save_article_button')));
+    await settle(tester);
+    expect(find.byType(ArticleFormScreen), findsNothing);
+    final matches = await tester.runAsync(
+      () => f.products.buscarVariantesPorCodigoBarras('000987'),
+    );
+    expect(matches!.single.nombreProducto, 'Nuevo escaneado');
+    expect(matches.single.precioVentaMenor, 1200);
+    final events = await tester.runAsync(
+      () => f.h.db.select(f.h.db.events).get(),
+    );
+    expect(events!.length, f.initialEvents + 1);
+    expect(
+      await tester.runAsync(() => f.h.db.select(f.h.db.sales).get()),
+      hasLength(1),
+    );
+    final lines = await tester.runAsync(
+      () => f.h.db.select(f.h.db.saleItems).get(),
+    );
+    expect(lines, hasLength(1));
+  });
+
+  flowTest('cancelar alta desde escaneo no persiste producto ni código', (
+    tester,
+  ) async {
+    await open(tester);
+    await scan(tester, '000987');
+    await tester.tap(find.text('Dar de alta un producto'));
+    await settle(tester);
+    expect(find.text('AÑADIR ARTÍCULO'), findsOneWidget);
+    await tester.tap(find.byTooltip('Cancelar'));
+    await settle(tester);
+    // El código precargado es un cambio del borrador y exige descartarlo.
+    final discard = find.text('DESCARTAR');
+    if (discard.evaluate().isNotEmpty) {
+      await tester.tap(discard);
+      await settle(tester);
+    }
+    expect(find.byType(ArticleFormScreen), findsNothing);
+    expect(
+      await tester.runAsync(
+        () => f.products.buscarVariantesPorCodigoBarras('000987'),
+      ),
+      isEmpty,
+    );
+    final events = await tester.runAsync(
+      () => f.h.db.select(f.h.db.events).get(),
+    );
+    expect(events!.length, f.initialEvents);
+  });
+
   flowTest('lector sobre + solo en Artículos; + conserva su menú', (
     tester,
   ) async {
