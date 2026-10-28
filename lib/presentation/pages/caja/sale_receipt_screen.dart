@@ -22,6 +22,7 @@ class SaleReceiptScreen extends StatefulWidget {
     this.printerSettings,
     this.printerGateway,
     this.printService,
+    this.returnButtonLabel = 'Nueva venta',
     super.key,
   });
 
@@ -29,6 +30,7 @@ class SaleReceiptScreen extends StatefulWidget {
   final PrinterGateway? printerGateway;
   final TicketPrintService? printService;
   final String saleId;
+  final String returnButtonLabel;
   final ConfirmedSaleRepository? repository;
   final Future<ShareResult> Function(ShareParams)? shareReceipt;
 
@@ -187,7 +189,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
         padding: const EdgeInsets.all(16),
         child: FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Nueva venta'),
+          child: Text(widget.returnButtonLabel),
         ),
       ),
     ),

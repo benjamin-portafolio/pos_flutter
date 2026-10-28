@@ -7,6 +7,7 @@ import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
+import '../hoy/today_sales_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/menu_lateral.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final List<Widget> _screens = [
     const ReportsScreen(),
-    const Center(child: Text('Hoy')),
+    const TodaySalesScreen(),
     CajaScreen(key: _caja, onOpenCaja: () => _onTabTapped(2)),
     ArticlesScreen(onOpenCaja: () => _onTabTapped(2)),
   ];

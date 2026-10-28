@@ -22,9 +22,12 @@ import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
+import 'package:pos_flutter/data/local/drift/drift_confirmed_sale_store.dart';
+import 'package:pos_flutter/data/repositories/confirmed_sale_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/sale_draft_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/cliente_resumen_repository_impl.dart';
 import 'package:pos_flutter/domain/repositories/cliente_resumen_repository.dart';
+import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
@@ -79,6 +82,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     if (home) {
+      getIt.registerSingleton<ConfirmedSaleRepository>(
+        ConfirmedSaleRepositoryImpl(DriftConfirmedSaleStore(f.db)),
+      );
       getIt.registerSingleton<SaleDraftRepository>(f.drafts);
       getIt.registerSingleton<ProductoRepository>(f.products);
       getIt.registerSingleton<VentaBorradorCommandService>(f.commands);
