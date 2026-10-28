@@ -16,7 +16,7 @@ class ArticleSearchItem {
     List<ArticuloListado> articles,
     String query,
   ) {
-    final words = _normalize(
+    final words = _normalizeForSearch(
       query,
     ).split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
     final sorted = articles.where((article) => article.activo).toList()
@@ -38,7 +38,7 @@ class ArticleSearchItem {
       });
     final results = <ArticleSearchItem>[];
     for (final article in sorted) {
-      final productName = _normalize(article.nombre);
+      final productName = _normalizeForSearch(article.nombre);
       final variants = [...article.variantesActivas]
         ..sort((left, right) {
           final byOrder = left.orden.compareTo(right.orden);
@@ -47,7 +47,7 @@ class ArticleSearchItem {
               : left.varianteId.compareTo(right.varianteId);
         });
       for (final variant in variants) {
-        final variantName = _normalize(variant.nombre ?? '');
+        final variantName = _normalizeForSearch(variant.nombre ?? '');
         if (words.every(
           (word) => productName.contains(word) || variantName.contains(word),
         )) {
@@ -59,4 +59,10 @@ class ArticleSearchItem {
   }
 
   static String _normalize(String value) => unorm.nfkc(value).toLowerCase();
+
+  /// Ignora diacríticos solo al buscar; conserva nombres y orden de catálogo.
+  static String _normalizeForSearch(String value) => unorm
+      .nfkd(value)
+      .toLowerCase()
+      .replaceAll(RegExp(r'[\u0300-\u036f]'), '');
 }

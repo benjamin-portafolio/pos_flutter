@@ -28,7 +28,47 @@ void main() {
 
   test('el nombre del producto encuentra todas sus variantes', () {
     expect(search('CAFÉ'), ['small', 'large']);
+    expect(search('cafe'), ['small', 'large']);
+    expect(search('te'), ['tea-large']);
     expect(search('caf'), ['small', 'large']);
+  });
+
+  test('ignora diacríticos en producto, variante y consulta', () {
+    final articles = [
+      _article('lemon', 'Limón', null, [
+        _variant('cold', 'Frío', 0),
+        _variant('natural', 'Natural', 1),
+      ]),
+      _article('tea', 'Te\u0301', null, [_variant('hot', 'Caliente', 0)]),
+    ];
+
+    for (final query in [
+      'limon frio',
+      'LIMÓN FRÍO',
+      'limo\u0301n fri\u0301o',
+    ]) {
+      expect(
+        ArticleSearchItem.search(
+          articles,
+          query,
+        ).map((item) => item.variant.varianteId),
+        ['cold'],
+        reason: query,
+      );
+    }
+    expect(
+      ArticleSearchItem.search(articles, 'te').single.variant.varianteId,
+      'hot',
+    );
+    expect(
+      ArticleSearchItem.search(
+        articles,
+        'limón naturál',
+      ).single.variant.varianteId,
+      'natural',
+    );
+    expect(articles.first.nombre, 'Limón');
+    expect(articles.first.variantesActivas.first.nombre, 'Frío');
   });
 
   test('el nombre de variante no incluye las otras variantes del producto', () {

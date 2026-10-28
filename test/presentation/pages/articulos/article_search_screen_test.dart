@@ -178,6 +178,10 @@ void main() {
       expect(find.text('Grande'), findsOneWidget);
       expect(capture.commands.single.variantId, 'large');
       expect(capture.commands.single.measuredQuantity, isNull);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '  CAFÉ   gran ',
+      );
       expect(find.byType(SnackBar), findsNothing);
 
       await tester.enterText(find.byType(TextField), 'inexistente');
@@ -340,6 +344,8 @@ void main() {
         _Products(() => Stream.value([article])),
         capture: capture,
       );
+      await tester.enterText(find.byType(TextField), 'Gran');
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(Card));
       await tester.pumpAndSettle();
       expect(capture.commands, isEmpty);
@@ -355,6 +361,10 @@ void main() {
       await tester.tap(find.text('Cancelar'));
       await tester.pumpAndSettle();
       expect(capture.commands, isEmpty);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Gran',
+      );
       await tester.tap(find.byType(Card));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -362,11 +372,29 @@ void main() {
         '0.25',
       );
       await tester.pump();
+      final gate = Completer<void>();
+      capture.gate = gate.future;
       await tester.tap(find.text('Agregar'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Gran',
+      );
+      gate.complete();
       await tester.pumpAndSettle();
       expect(capture.commands.single.measuredQuantity, '0.25');
       expect(capture.commands.single.expectedUnitId, 'kg');
       expect(capture.commands.single.variantId, 'measured-variant');
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+      expect(find.text('Recientemente añadidos'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus,
+        isTrue,
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
       expect(tester.takeException(), isNull);
     },
   );

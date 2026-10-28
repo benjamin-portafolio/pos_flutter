@@ -7,6 +7,7 @@ import '../../../application/commands/ventas/venta_borrador_command_service.dart
 import '../../../core/di/injection.dart';
 import '../../../domain/articulos/articulo_listado.dart';
 import '../../../domain/categorias/color_categoria.dart';
+import '../../../domain/inventario/dimension_unidad.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/sale_draft_repository.dart';
 import '../../../domain/ventas/sale_draft.dart';
@@ -77,7 +78,13 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
                   variantId: item.variant.varianteId,
                 ),
           );
-      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (mounted) {
+        if (unit?.dimension == DimensionUnidad.mass) {
+          setState(_controller.clear);
+          _focusNode.requestFocus();
+        }
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
     } on FormatException catch (error) {
       if (mounted) _message(error.message);
     } on StateError catch (error) {

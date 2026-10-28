@@ -418,11 +418,6 @@ class CajaScreenState extends State<CajaScreen> {
                                               CrossAxisAlignment.stretch,
                                           children: [
                                             _AmountRow(
-                                              label: 'Subtotal',
-                                              amount: total,
-                                            ),
-                                            const Divider(),
-                                            _AmountRow(
                                               label: 'Total general',
                                               amount: total,
                                               bold: true,
@@ -430,29 +425,6 @@ class CajaScreenState extends State<CajaScreen> {
                                             const SizedBox(height: 12),
                                             Text(
                                               SaleDraftDisplay.summary(sale),
-                                            ),
-                                            const Wrap(
-                                              spacing: 8,
-                                              children: [
-                                                TextButton(
-                                                  onPressed: null,
-                                                  child: Text(
-                                                    'Agregar impuesto',
-                                                  ),
-                                                ),
-                                                TextButton(
-                                                  onPressed: null,
-                                                  child: Text(
-                                                    'Agregar descuento',
-                                                  ),
-                                                ),
-                                                TextButton(
-                                                  onPressed: null,
-                                                  child: Text(
-                                                    'Agregar otros cargos',
-                                                  ),
-                                                ),
-                                              ],
                                             ),
                                           ],
                                         ),
