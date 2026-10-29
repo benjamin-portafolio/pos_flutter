@@ -142,6 +142,67 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Filas de variantes activas de productos activos vinculados directamente a
+  /// una categoría. Cada variante aparece una vez para que el cálculo pueda
+  /// promediar por producto sin duplicados de joins.
+  Stream<List<MargenPromedioVarianteRow>> watchMargenPromedioPorCategoria() {
+    final query =
+        select(products).join([
+          innerJoin(
+            productVariants,
+            productVariants.productId.equalsExp(products.id),
+          ),
+        ])..where(
+          products.active.equals(true) &
+              productVariants.active.equals(true) &
+              products.categoryId.isNotNull(),
+        );
+    return query.watch().map(
+      (rows) => rows
+          .map((row) {
+            final producto = row.readTable(products);
+            final variante = row.readTable(productVariants);
+            return MargenPromedioVarianteRow(
+              grupoId: producto.categoryId!,
+              productoId: producto.id,
+              precioVentaMenor: variante.salePriceMinor,
+              costoEstandarMenor: variante.standardCostMinor,
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+
+  /// Filas de variantes activas de productos activos vinculadas a cada
+  /// proveedor. La clave compuesta variante/proveedor evita duplicados.
+  Stream<List<MargenPromedioVarianteRow>> watchMargenPromedioPorProveedor() {
+    final query =
+        select(variantSuppliers).join([
+          innerJoin(
+            productVariants,
+            productVariants.id.equalsExp(variantSuppliers.variantId),
+          ),
+          innerJoin(products, products.id.equalsExp(productVariants.productId)),
+        ])..where(
+          productVariants.active.equals(true) & products.active.equals(true),
+        );
+    return query.watch().map(
+      (rows) => rows
+          .map((row) {
+            final proveedor = row.readTable(variantSuppliers);
+            final producto = row.readTable(products);
+            final variante = row.readTable(productVariants);
+            return MargenPromedioVarianteRow(
+              grupoId: proveedor.supplierId,
+              productoId: producto.id,
+              precioVentaMenor: variante.salePriceMinor,
+              costoEstandarMenor: variante.standardCostMinor,
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+
   /// Variantes activas que pertenecen a productos activos. Alimenta el contador
   /// del menú lateral, que solo debe reflejar el catálogo vendible.
   Stream<int> watchVariantesActivasCount() {

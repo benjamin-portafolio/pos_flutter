@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../domain/proveedores/proveedor.dart';
+import '../../../../domain/repositories/margen_promedio_repository.dart';
 import '../../../../domain/repositories/proveedor_repository.dart';
 import 'widgets/inventory_supplier_card.dart';
 
@@ -8,9 +9,11 @@ class InventorySuppliersTab extends StatefulWidget {
     required this.repository,
     required this.onOpen,
     required this.onAdd,
+    this.margenPromedioRepository,
     super.key,
   });
   final ProveedorRepository repository;
+  final MargenPromedioRepository? margenPromedioRepository;
   final ValueChanged<Proveedor> onOpen;
   final VoidCallback onAdd;
 
@@ -20,19 +23,28 @@ class InventorySuppliersTab extends StatefulWidget {
 
 class _InventorySuppliersTabState extends State<InventorySuppliersTab> {
   late Stream<List<Proveedor>> _suppliers;
+  late Stream<Map<String, double>> _margenes;
 
   @override
   void initState() {
     super.initState();
-    _suppliers = widget.repository.watchProveedores();
+    _bindStreams();
   }
 
   @override
   void didUpdateWidget(InventorySuppliersTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) {
-      _suppliers = widget.repository.watchProveedores();
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.margenPromedioRepository != widget.margenPromedioRepository) {
+      _bindStreams();
     }
+  }
+
+  void _bindStreams() {
+    _suppliers = widget.repository.watchProveedores();
+    _margenes =
+        widget.margenPromedioRepository?.watchMargenPromedioPorProveedor() ??
+        Stream.value(const <String, double>{});
   }
 
   @override
@@ -69,13 +81,30 @@ class _InventorySuppliersTabState extends State<InventorySuppliersTab> {
           ),
         );
       }
-      return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-        itemCount: suppliers.length,
-        itemBuilder: (_, index) => InventorySupplierCard(
-          proveedor: suppliers[index],
-          onOpen: () => widget.onOpen(suppliers[index]),
-        ),
+      return StreamBuilder<Map<String, double>>(
+        stream: _margenes,
+        builder: (context, margenSnapshot) {
+          final margenes = margenSnapshot.data ?? const <String, double>{};
+          final cargando =
+              widget.margenPromedioRepository != null &&
+              !margenSnapshot.hasData &&
+              !margenSnapshot.hasError;
+          final error = margenSnapshot.hasError;
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+            itemCount: suppliers.length,
+            itemBuilder: (_, index) {
+              final supplier = suppliers[index];
+              return InventorySupplierCard(
+                proveedor: supplier,
+                margenPromedioPorcentaje: margenes[supplier.id],
+                margenCargando: cargando,
+                margenError: error,
+                onOpen: () => widget.onOpen(supplier),
+              );
+            },
+          );
+        },
       );
     },
   );

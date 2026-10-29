@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/inventory_margin_label.dart';
+
 class InventoryCategoryCard extends StatelessWidget {
   const InventoryCategoryCard({
     required this.name,
@@ -8,6 +10,9 @@ class InventoryCategoryCard extends StatelessWidget {
     required this.onMoveUp,
     required this.onMoveDown,
     required this.onDeleteCategory,
+    this.margenPromedioPorcentaje,
+    this.margenCargando = false,
+    this.margenError = false,
     super.key,
   });
 
@@ -17,6 +22,9 @@ class InventoryCategoryCard extends StatelessWidget {
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
   final VoidCallback onDeleteCategory;
+  final double? margenPromedioPorcentaje;
+  final bool margenCargando;
+  final bool margenError;
 
   @override
   Widget build(BuildContext context) {
@@ -29,61 +37,67 @@ class InventoryCategoryCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: SizedBox(
-          height: 92,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: primaryColor,
-                      fontWeight: FontWeight.w500,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    InventoryMarginLabel(
+                      porcentaje: margenPromedioPorcentaje,
+                      loading: margenCargando,
+                      hasError: margenError,
+                    ),
+                  ],
                 ),
-                Semantics(
-                  label: 'Eliminar categoría $name',
-                  button: true,
-                  child: IconButton(
-                    key: const Key('delete_category_button'),
-                    onPressed: onDeleteCategory,
-                    color: const Color(0xFFFF493D),
-                    tooltip: 'Eliminar categoría',
-                    icon: const Icon(Icons.delete_forever),
-                  ),
+              ),
+              Semantics(
+                label: 'Eliminar categoría $name',
+                button: true,
+                child: IconButton(
+                  key: const Key('delete_category_button'),
+                  onPressed: onDeleteCategory,
+                  color: const Color(0xFFFF493D),
+                  tooltip: 'Eliminar categoría',
+                  icon: const Icon(Icons.delete_forever),
                 ),
-                const SizedBox(width: 10),
-                IconButton(
-                  key: const Key('move_category_down_button'),
-                  onPressed: onMoveDown,
-                  color: primaryColor,
-                  disabledColor: primaryColor.withValues(alpha: 0.35),
-                  tooltip: 'Bajar categoría',
-                  icon: const Icon(Icons.arrow_drop_down, size: 32),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  key: const Key('move_category_up_button'),
-                  onPressed: onMoveUp,
-                  color: primaryColor,
-                  disabledColor: primaryColor.withValues(alpha: 0.35),
-                  tooltip: 'Subir categoría',
-                  icon: const Icon(Icons.arrow_drop_up, size: 32),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              IconButton(
+                key: const Key('move_category_down_button'),
+                onPressed: onMoveDown,
+                color: primaryColor,
+                disabledColor: primaryColor.withValues(alpha: 0.35),
+                tooltip: 'Bajar categoría',
+                icon: const Icon(Icons.arrow_drop_down, size: 32),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                key: const Key('move_category_up_button'),
+                onPressed: onMoveUp,
+                color: primaryColor,
+                disabledColor: primaryColor.withValues(alpha: 0.35),
+                tooltip: 'Subir categoría',
+                icon: const Icon(Icons.arrow_drop_up, size: 32),
+              ),
+            ],
           ),
         ),
       ),

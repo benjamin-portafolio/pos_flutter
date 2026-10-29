@@ -30,6 +30,7 @@ import '../../../domain/categorias/direccion_movimiento_categoria.dart';
 import '../../../domain/inventario/unidad_inventario.dart';
 import '../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../domain/repositories/categoria_repository.dart';
+import '../../../domain/repositories/margen_promedio_repository.dart';
 import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/repositories/recurso_inventario_repository.dart';
 import '../../../domain/repositories/unidad_inventario_repository.dart';
@@ -67,6 +68,7 @@ class InventoryManagementScreen extends StatelessWidget {
     this.inventoryCommandService,
     this.proveedorRepository,
     this.proveedorCommandService,
+    this.margenPromedioRepository,
     this.appConfigController,
     super.key,
   });
@@ -80,6 +82,7 @@ class InventoryManagementScreen extends StatelessWidget {
   final InventoryCommandService? inventoryCommandService;
   final ProveedorRepository? proveedorRepository;
   final ProveedorCommandService? proveedorCommandService;
+  final MargenPromedioRepository? margenPromedioRepository;
   final AppConfigController? appConfigController;
 
   @override
@@ -94,6 +97,11 @@ class InventoryManagementScreen extends StatelessWidget {
       initialData: config?.config,
       builder: (context, snapshot) {
         final suppliersEnabled = snapshot.hasData;
+        final margenRepository =
+            margenPromedioRepository ??
+            (getIt.isRegistered<MargenPromedioRepository>()
+                ? getIt<MargenPromedioRepository>()
+                : null);
         return DefaultTabController(
           key: ValueKey(suppliersEnabled),
           length: suppliersEnabled ? 4 : 3,
@@ -114,6 +122,7 @@ class InventoryManagementScreen extends StatelessWidget {
             proveedoresEnabled: suppliersEnabled,
             config: config,
             proveedorCommandService: proveedorCommandService,
+            margenPromedioRepository: margenRepository,
             proveedorRepository: suppliersEnabled
                 ? proveedorRepository ??
                       (getIt.isRegistered<ProveedorRepository>()
@@ -139,6 +148,7 @@ class _InventoryManagementBody extends StatefulWidget {
     required this.proveedoresEnabled,
     required this.proveedorRepository,
     required this.proveedorCommandService,
+    required this.margenPromedioRepository,
     required this.config,
   });
 
@@ -152,6 +162,7 @@ class _InventoryManagementBody extends StatefulWidget {
   final bool proveedoresEnabled;
   final ProveedorRepository? proveedorRepository;
   final ProveedorCommandService? proveedorCommandService;
+  final MargenPromedioRepository? margenPromedioRepository;
   final AppConfigController? config;
 
   @override
@@ -225,6 +236,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
           ),
           InventoryCategoriesTab(
             categoriaRepository: widget.categoriaRepository,
+            margenPromedioRepository: widget.margenPromedioRepository,
             onEditCategory: (categoria) =>
                 _openCategoryForm(context, categoria: categoria),
             onMoveCategory: (categoria, direccion) =>
@@ -247,6 +259,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
             if (widget.proveedorRepository case final repository?)
               InventorySuppliersTab(
                 repository: repository,
+                margenPromedioRepository: widget.margenPromedioRepository,
                 onOpen: (supplier) =>
                     _openSupplierForm(context, proveedor: supplier),
                 onAdd: () => _openSupplierForm(context),

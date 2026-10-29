@@ -84,10 +84,12 @@ import '../../domain/repositories/transfer_summary_repository.dart';
 import '../../data/repositories/recurso_inventario_repository_impl.dart';
 import '../../data/repositories/unidad_inventario_repository_impl.dart';
 import '../../data/repositories/producto_repository_impl.dart';
+import '../../data/repositories/margen_promedio_repository_impl.dart';
 import '../../domain/repositories/categoria_repository.dart';
 import '../../domain/repositories/espacio_repository.dart';
 import '../../domain/repositories/financial_category_repository.dart';
 import '../../domain/repositories/financial_entry_repository.dart';
+import '../../domain/repositories/margen_promedio_repository.dart';
 import '../../domain/repositories/recurso_inventario_repository.dart';
 import '../../domain/repositories/unidad_inventario_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
@@ -291,6 +293,9 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<ProductoRepository>(
     () => ProductoRepositoryImpl(productoDao: getIt<ProductoDao>()),
+  );
+  getIt.registerLazySingleton<MargenPromedioRepository>(
+    () => MargenPromedioRepositoryImpl(productoDao: getIt<ProductoDao>()),
   );
   getIt.registerLazySingleton<UnidadInventarioRepository>(
     () => UnidadInventarioRepositoryImpl(unitDao: getIt<UnitDao>()),

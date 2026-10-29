@@ -78,6 +78,7 @@ part 'daos/financial_category_dao.dart';
 part 'daos/financial_entry_dao.dart';
 part 'daos/inventory_dao.dart';
 part 'daos/producto_dao.dart';
+part 'daos/margen_promedio_variante_row.dart';
 part 'daos/producto_codigo_barras_row.dart';
 part 'daos/producto_listado_row.dart';
 part 'daos/sync_checkpoint_dao.dart';
