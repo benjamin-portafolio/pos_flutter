@@ -448,54 +448,84 @@ class CajaScreenState extends State<CajaScreen> {
                         child: SingleChildScrollView(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                            child: Row(
                               children: [
-                                FilledButton.icon(
-                                  onPressed: sale == null || _busy
-                                      ? null
-                                      : _clear,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.error,
-                                  ),
-                                  icon: const Icon(Icons.delete_sweep_outlined),
-                                  label: Text(
-                                    _clearing ? 'Limpiando…' : 'Limpiar venta',
+                                Expanded(
+                                  flex: 4,
+                                  child: FilledButton.icon(
+                                    onPressed: sale == null || _busy
+                                        ? null
+                                        : _clear,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.delete_sweep_outlined,
+                                      size: 18,
+                                    ),
+                                    label: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        _clearing
+                                            ? 'Limpiando…'
+                                            : 'Limpiar venta',
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  alignment: WrapAlignment.end,
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    OutlinedButton.icon(
-                                      onPressed:
-                                          sale == null ||
-                                              sale.items.isEmpty ||
-                                              sale.lastEventId == null ||
-                                              _busy
-                                          ? null
-                                          : _quote,
-                                      icon: const Icon(
-                                        Icons.request_quote_outlined,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 3,
+                                  child: OutlinedButton.icon(
+                                    onPressed:
+                                        sale == null ||
+                                            sale.items.isEmpty ||
+                                            sale.lastEventId == null ||
+                                            _busy
+                                        ? null
+                                        : _quote,
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
                                       ),
-                                      label: Text(
+                                    ),
+                                    icon: const Icon(
+                                      Icons.request_quote_outlined,
+                                      size: 18,
+                                    ),
+                                    label: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
                                         _quoting ? 'Guardando…' : 'Cotizar',
                                       ),
                                     ),
-                                    FilledButton(
-                                      onPressed:
-                                          sale == null ||
-                                              sale.items.isEmpty ||
-                                              _busy
-                                          ? null
-                                          : _openPayment,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 4,
+                                  child: FilledButton(
+                                    onPressed:
+                                        sale == null ||
+                                            sale.items.isEmpty ||
+                                            _busy
+                                        ? null
+                                        : _openPayment,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                    ),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
                                       child: Text('Cobrar: $total'),
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),

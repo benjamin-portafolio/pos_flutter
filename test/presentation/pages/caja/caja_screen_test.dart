@@ -222,6 +222,9 @@ void main() {
       isNotNull,
     );
     commands.fail = false;
+    // El aviso del fallo ocupa el pie y tapa la fila de acciones.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Limpiar venta'));
     await tester.pumpAndSettle();
     expect(commands.cleared, hasLength(2));
