@@ -22,15 +22,14 @@ class MethodBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final max = categories.fold<BigInt>(
       BigInt.zero,
-      (current, category) =>
-          category.amountMinor > current ? category.amountMinor : current,
+      (current, category) => category.amountMinor.abs() > current
+          ? category.amountMinor.abs()
+          : current,
     );
     return Semantics(
       label:
-          'Gráfica de ventas por método. ${categories.map(
-            (c) => '${c.label}: ${ReportMoney.money(c.amountMinor)}, '
-                '${ReportMoney.percentOf(c.amountMinor, total).toStringAsFixed(1)}% del total.',
-          ).join(' ')}',
+          'Gráfica de ventas por método. ${categories.map((c) => '${c.label}: ${ReportMoney.money(c.amountMinor)}, '
+              '${ReportMoney.percentOf(c.amountMinor, total).toStringAsFixed(1)}% del total.').join(' ')}',
       child: SizedBox(
         height: 200,
         child: Row(
@@ -39,7 +38,11 @@ class MethodBarChart extends StatelessWidget {
             for (var i = 0; i < categories.length; i++) ...[
               if (i > 0) const SizedBox(width: 8),
               Expanded(
-                child: _MethodBar(category: categories[i], max: max, total: total),
+                child: _MethodBar(
+                  category: categories[i],
+                  max: max,
+                  total: total,
+                ),
               ),
             ],
           ],
@@ -63,7 +66,9 @@ class _MethodBar extends StatelessWidget {
     final theme = Theme.of(context);
     final ratio = max == BigInt.zero
         ? 0.0
-        : (BigInt.from(1000) * category.amountMinor) ~/ max / BigInt.from(1000);
+        : (BigInt.from(1000) * category.amountMinor.abs()) ~/
+              max /
+              BigInt.from(1000);
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [

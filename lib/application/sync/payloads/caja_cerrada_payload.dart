@@ -34,7 +34,18 @@ class CajaCerradaPayload {
       }
     }
     if (movements.map((m) => m.movementId).toSet().length != movements.length ||
-        movements.map((m) => m.eventId).toSet().length != movements.length) {
+        movements.any(
+          (m) =>
+              movements.where((x) => x.eventId == m.eventId).length > 1 &&
+              (m.sourceType != 'sale_reconciliation' ||
+                  movements
+                      .where((x) => x.eventId == m.eventId)
+                      .any(
+                        (x) =>
+                            x.sourceType != 'sale_reconciliation' ||
+                            x.sourceId != m.sourceId,
+                      )),
+        )) {
       throw const FormatException('Movimientos duplicados en corte.');
     }
   }
@@ -47,10 +58,8 @@ class CajaCerradaPayload {
   final String? notes;
   final int closedAtMs, countedMinor;
   final List<CashMovementEvidence> movements;
-  List<String> get dependencyEventIds => [
-    openingEventId,
-    ...movements.map((m) => m.eventId),
-  ];
+  List<String> get dependencyEventIds =>
+      {openingEventId, ...movements.map((m) => m.eventId)}.toList();
   factory CajaCerradaPayload.fromJson(Map<String, Object?> p) =>
       CajaCerradaPayload(
         openingEventId: p['opening_event_id'] as String,

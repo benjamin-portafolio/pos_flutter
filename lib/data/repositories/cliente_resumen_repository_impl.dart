@@ -1,3 +1,4 @@
+import 'customer_account_repository_impl.dart';
 import 'package:drift/drift.dart';
 
 import '../../domain/clientes/cliente_resumen.dart';
@@ -14,21 +15,16 @@ class ClienteResumenRepositoryImpl implements ClienteResumenRepository {
   ClienteResumenRepositoryImpl(this.db);
   final AppDatabase db;
 
-  static const _summaryQuery = '''
+  static const _summaryQuery =
+      '''
     SELECT
       c.id AS id,
       c.nombre AS nombre,
       c.telefono AS telefono,
       c.active AS active,
       COALESCE(s.compras, 0) AS compras,
-      CASE
-        WHEN s.ultimo_movimiento_ms IS NULL THEN p.ultimo_movimiento_ms
-        WHEN p.ultimo_movimiento_ms IS NULL THEN s.ultimo_movimiento_ms
-        WHEN s.ultimo_movimiento_ms > p.ultimo_movimiento_ms
-          THEN s.ultimo_movimiento_ms
-        ELSE p.ultimo_movimiento_ms
-      END AS ultimo_movimiento_ms,
-      COALESCE(p.abonos_minor, 0) - COALESCE(r.deuda_minor, 0) AS saldo_minor
+      NULLIF(MAX(COALESCE(s.ultimo_movimiento_ms,0),COALESCE(p.ultimo_movimiento_ms,0),COALESCE(r.ultimo_movimiento_ms,0),COALESCE(j.ultimo_movimiento_ms,0)),0) AS ultimo_movimiento_ms,
+      COALESCE(r.saldo_minor,0) AS saldo_minor
     FROM clientes c
     LEFT JOIN (
       SELECT cliente_id, COUNT(*) AS compras,
@@ -44,10 +40,13 @@ class ClienteResumenRepositoryImpl implements ClienteResumenRepository {
       GROUP BY cliente_id
     ) p ON p.cliente_id = c.id
     LEFT JOIN (
-      SELECT cliente_id, SUM(amount_minor) AS deuda_minor
-      FROM credit_sales
+      SELECT cliente_id,SUM(CASE WHEN is_payment=1 THEN amount_minor ELSE -amount_minor END) AS saldo_minor,MAX(occurred_at_ms) AS ultimo_movimiento_ms
+      FROM (${CustomerAccountRepositoryImpl.entriesSql})
       GROUP BY cliente_id
     ) r ON r.cliente_id = c.id
+    LEFT JOIN (
+      SELECT cliente_id,MAX(occurred_at_ms) AS ultimo_movimiento_ms FROM sale_adjustments GROUP BY cliente_id
+    ) j ON j.cliente_id=c.id
     ORDER BY c.nombre, c.id
   ''';
 
@@ -60,6 +59,10 @@ class ClienteResumenRepositoryImpl implements ClienteResumenRepository {
           db.sales,
           db.customerPayments,
           db.creditSales,
+          db.saleAdjustments,
+          db.saleCreditReductions,
+          db.saleReconciliationEffects,
+          db.events,
         },
       )
       .watch()

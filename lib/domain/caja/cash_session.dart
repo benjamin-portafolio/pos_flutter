@@ -1,3 +1,4 @@
+import 'cash_regularization.dart';
 import 'cash_movement.dart';
 
 class CashSession {
@@ -12,6 +13,8 @@ class CashSession {
     required this.lastEventId,
     required this.deliveryStatus,
     required this.movements,
+    this.regularizations = const [],
+    this.closedMovements,
     this.closedByUserId,
     this.closedAtMs,
     this.countedMinor,
@@ -33,6 +36,10 @@ class CashSession {
   final int openedAtMs, openingMinor;
   final int? closedAtMs, countedMinor;
   final List<CashMovement> movements;
+
+  /// Evidencia congelada del corte, que puede referenciar una conciliación.
+  final List<CashMovement>? closedMovements;
+  final List<CashRegularization> regularizations;
   final BigInt? closedIncomeMinor,
       closedExpenseMinor,
       closedExpectedMinor,
@@ -41,13 +48,19 @@ class CashSession {
   BigInt get incomeMinor =>
       closedIncomeMinor ??
       movements
-          .where((m) => m.direction == 'in')
-          .fold(BigInt.zero, (s, m) => s + BigInt.from(m.amountMinor));
+              .where((m) => m.direction == 'in')
+              .fold(BigInt.zero, (s, m) => s + BigInt.from(m.amountMinor)) +
+          regularizations
+              .where((r) => r.affectsExpected && r.deltaMinor > 0)
+              .fold(BigInt.zero, (n, r) => n + BigInt.from(r.deltaMinor));
   BigInt get expenseMinor =>
       closedExpenseMinor ??
       movements
-          .where((m) => m.direction == 'out')
-          .fold(BigInt.zero, (s, m) => s + BigInt.from(m.amountMinor));
+              .where((m) => m.direction == 'out')
+              .fold(BigInt.zero, (s, m) => s + BigInt.from(m.amountMinor)) -
+          regularizations
+              .where((r) => r.affectsExpected && r.deltaMinor < 0)
+              .fold(BigInt.zero, (n, r) => n + BigInt.from(r.deltaMinor));
   BigInt get expectedMinor =>
       closedExpectedMinor ??
       BigInt.from(openingMinor) + incomeMinor - expenseMinor;

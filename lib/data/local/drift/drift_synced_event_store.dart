@@ -1,3 +1,5 @@
+import '../../../application/sync/sale_adjustment_sync_contract.dart';
+import '../../../application/commands/ventas/sale_adjustment_command_contract.dart';
 import 'package:drift/drift.dart';
 
 import '../../../application/sync/models/sync_event.dart';
@@ -28,6 +30,16 @@ class DriftSyncedEventStore implements SyncedEventStore {
       for (final event in events) {
         // Un evento ya aplicado puede volver como eco después de que otras
         // acciones locales hayan avanzado la proyección.
+        final prior = await _db.eventDao.obtenerEventoPorId(event.eventId);
+        if (prior != null &&
+            (SaleAdjustmentSyncContract.supports(prior.eventType) ||
+                SaleAdjustmentSyncContract.supports(event.eventType)) &&
+            !SaleAdjustmentCommandContract.sameIntention(
+              SaleAdjustmentDao.event(prior),
+              event,
+            )) {
+          throw StateError('Eco de ajuste con contenido incompatible.');
+        }
         final alreadyAppliedLocally = await _isAlreadyApplied(event.eventId);
         if (!alreadyAppliedLocally && prepareEvent != null) {
           await prepareEvent(event);
@@ -54,6 +66,7 @@ class DriftSyncedEventStore implements SyncedEventStore {
       )..where((t) => t.eventId.equals(event.eventId))).write(
         EventsCompanion(
           serverSequence: Value(event.serverSequence),
+          baseServerSequence: Value(event.baseServerSequence),
           createdAtServer: Value(event.createdAtServer),
           deliveryStatus: const Value('delivered'),
           rejectionReason: Value(event.rejectionReason),

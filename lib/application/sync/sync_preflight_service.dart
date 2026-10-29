@@ -1,3 +1,5 @@
+import 'sale_adjustment_sync_contract.dart';
+import 'synced_event_history.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -78,6 +80,30 @@ class SyncPreflightService {
       maxEvents: maxEvents,
     );
 
+    final available = <String>{};
+    for (final e in response.events) {
+      if (SaleAdjustmentSyncContract.supports(e.eventType)) {
+        final h = _syncPersistence;
+        for (final id in SaleAdjustmentSyncContract.dependencies(e)) {
+          if (!available.contains(id) &&
+              (h is! SyncedEventHistory ||
+                  await (h as SyncedEventHistory).eventById(id) == null)) {
+            return SyncPreflightReport(
+              skipped: false,
+              pendingCount: pendingEvents.length,
+              impactingEvents: 0,
+              preflightSequence: await _syncPersistence
+                  .lastPreflightServerSequence(),
+              hasMore: response.hasMore,
+              requiresFullPullBeforePush: true,
+              reason: 'missing_adjustment_causal_context',
+              localConflicts: 0,
+            );
+          }
+        }
+      }
+      available.add(e.eventId);
+    }
     late PendingRevalidationReport revalidation;
     await _remoteEventApplier.applySyncedEvents(
       response.events,

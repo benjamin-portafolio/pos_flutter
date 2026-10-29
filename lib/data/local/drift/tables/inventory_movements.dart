@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import 'inventory_items.dart';
 import 'sale_items.dart';
+import 'sale_adjustments.dart';
 
 /// Libro mayor inmutable de movimientos de inventario. No usa CommonFields:
 /// no tiene active/version; se compensa con otro movimiento y nunca se edita.
@@ -37,6 +38,10 @@ class InventoryMovements extends Table {
     onDelete: KeyAction.restrict,
   )();
 
+  /// Documento que compensa un consumo histórico.
+  TextColumn get saleAdjustmentId =>
+      text().nullable().references(SaleAdjustments, #id)();
+
   /// Clasificación estable del movimiento.
   TextColumn get movementType => text().withLength(min: 1, max: 40)();
 
@@ -66,7 +71,9 @@ class InventoryMovements extends Table {
     "CHECK (reason IS NULL OR (reason = trim(reason) AND length(reason) BETWEEN 1 AND 500))",
     "CHECK (movement_type <> 'manual_adjustment' OR reason IS NOT NULL)",
     "CHECK (movement_type NOT IN ('initial_balance', 'stock_receipt') OR quantity_delta_atomic > 0)",
-    "CHECK ((movement_type = 'reversal') = (reversal_of_movement_id IS NOT NULL))",
+    "CHECK ((movement_type IN ('reversal','sale_void_restock','sale_return_restock')) = (reversal_of_movement_id IS NOT NULL))",
+    "CHECK ((movement_type IN ('sale_void_restock','sale_return_restock')) = (sale_adjustment_id IS NOT NULL))",
+    "CHECK (sale_adjustment_id IS NULL OR (sale_item_id IS NOT NULL AND quantity_delta_atomic > 0))",
     'CHECK (reversal_of_movement_id IS NULL OR reversal_of_movement_id <> movement_id)',
   ];
 }

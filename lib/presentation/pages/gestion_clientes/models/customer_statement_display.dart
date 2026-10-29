@@ -32,6 +32,7 @@ class StatementPayment {
 /// estados de sincronización: solo información comercial.
 class CustomerStatement {
   CustomerStatement({
+    this.hasRegularizations = false,
     required this.businessName,
     required this.clienteNombre,
     required this.issuedAt,
@@ -44,6 +45,7 @@ class CustomerStatement {
     required this.saldoFavorMinor,
   });
   final String? businessName;
+  final bool hasRegularizations;
   final String clienteNombre;
   final DateTime issuedAt;
 
@@ -105,7 +107,8 @@ class CustomerStatement {
     StatementReceipt receipt(AccountEntry credit) {
       final sale = salesById[credit.id];
       return StatementReceipt(
-        folio: credit.id,
+        folio:
+            '${credit.isReconciliation ? 'Regularización · ' : ''}${credit.id}',
         date: sale == null ? date(credit.date) : date(sale.createdAt),
         itemRows: sale == null
             ? const []
@@ -138,21 +141,28 @@ class CustomerStatement {
           .fold(0, (sum, a) => sum + a.amountMinor);
       if (applied > 0) {
         payments.add(
-          StatementPayment(date: date(payment.date), appliedMinor: applied),
+          StatementPayment(
+            date:
+                '${payment.isReconciliation ? 'Conciliación · ' : ''}${date(payment.date)}',
+            appliedMinor: applied,
+          ),
         );
       }
     }
 
-    final totalCompras = documentCredits.fold(0, (sum, e) => sum + e.amountMinor);
+    final totalCompras = documentCredits.fold(
+      0,
+      (sum, e) => sum + e.amountMinor,
+    );
     final totalAbonado = account.allocations
         .where((a) => documentIds.contains(a.creditId))
         .fold(0, (sum, a) => sum + a.amountMinor);
 
     return CustomerStatement(
-      businessName:
-          businessName == null || businessName.trim().isEmpty
-              ? null
-              : businessName,
+      businessName: businessName == null || businessName.trim().isEmpty
+          ? null
+          : businessName,
+      hasRegularizations: account.entries.any((e) => e.isReconciliation),
       clienteNombre: clienteNombre,
       issuedAt: issuedAt ?? DateTime.now(),
       pendingReceipts: pending.map(receipt).toList(),
@@ -161,8 +171,9 @@ class CustomerStatement {
       totalComprasMinor: totalCompras,
       totalAbonadoMinor: totalAbonado,
       saldoPendienteMinor: totalCompras - totalAbonado,
-      saldoFavorMinor:
-          account.balanceMinor > BigInt.zero ? account.balanceMinor : BigInt.zero,
+      saldoFavorMinor: account.balanceMinor > BigInt.zero
+          ? account.balanceMinor
+          : BigInt.zero,
     );
   }
 

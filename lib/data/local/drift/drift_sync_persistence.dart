@@ -1,3 +1,7 @@
+import 'drift_sale_reconciliation_store.dart';
+import '../../../application/sync/payloads/operacion_venta_conciliada_payload.dart';
+import 'drift_sale_adjustment_store.dart';
+import '../../../application/sync/sale_adjustment_sync_contract.dart';
 import 'drift_confirmed_sale_store.dart';
 import 'dart:convert';
 
@@ -86,7 +90,7 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
     int? serverSequence,
     DateTime? serverTime,
     String? rejectionReason,
-  }) async {
+  }) => _db.transaction(() async {
     await _eventDao.actualizarEstadoSincronizacion(
       eventId,
       status,
@@ -94,6 +98,27 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
       serverTime: serverTime,
       rejectionReason: rejectionReason,
     );
+    final record = await _eventDao.obtenerEventoPorId(eventId);
+    if (record != null &&
+        SaleAdjustmentSyncContract.supports(record.eventType)) {
+      final store = DriftSaleAdjustmentStore(_db);
+      if (status == 'conflict' || status == 'rejected') {
+        await store.preserveIncident(
+          eventId,
+          rejectionReason ?? 'Operación registrada con incidencia de entrega.',
+        );
+      }
+      if (status == 'delivered' &&
+          serverSequence != null &&
+          record.eventType == OperacionVentaConciliadaPayload.eventType) {
+        await DriftSaleReconciliationStore(
+          _db,
+        ).acknowledge(_eventFromRecord(record));
+      }
+      if (status == 'delivered' && serverSequence != null) {
+        await store.acknowledge(eventId, serverSequence);
+      }
+    }
     if (status == 'delivered') {
       if (serverSequence != null) {
         await DriftConfirmedSaleStore(_db).acknowledge(eventId, serverSequence);
@@ -105,7 +130,7 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
         _db.productUpdateUndo,
       )..where((b) => b.eventId.equals(eventId))).go();
     }
-  }
+  });
 
   @override
   Future<List<StoredEventRef>> refsForEvents(List<String> eventIds) async {
@@ -165,7 +190,15 @@ class DriftSyncPersistence implements SyncPersistence, SyncedEventHistory {
       serverSequence: record.serverSequence,
       baseServerSequence: record.baseServerSequence,
       baseVersion: record.baseVersion,
-      createdAtLocal: record.createdAtLocal,
+      createdAtLocal: SaleAdjustmentSyncContract.supports(record.eventType)
+          ? DateTime.fromMillisecondsSinceEpoch(
+              SaleAdjustmentSyncContract.occurredAt(
+                record.eventType,
+                _decodePayload(record.payload),
+              ),
+              isUtc: true,
+            )
+          : record.createdAtLocal,
       createdAtServer: record.createdAtServer,
       payload: _decodePayload(record.payload),
       applicationStatus: record.applicationStatus,

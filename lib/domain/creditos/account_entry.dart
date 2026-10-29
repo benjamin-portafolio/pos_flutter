@@ -7,6 +7,7 @@ class AccountEntry {
     required this.occurredAtMs,
     required this.isPayment,
     required this.deliveryStatus,
+    this.isReconciliation = false,
     this.saleId,
     this.method,
     this.reference,
@@ -15,6 +16,7 @@ class AccountEntry {
     this.deviceId,
   });
   final String id, eventId, deliveryStatus;
+  final bool isReconciliation;
   final int amountMinor, occurredAtMs;
   final bool isPayment;
   final String? saleId, method, reference, reason, userId, deviceId;

@@ -6,7 +6,9 @@ import 'financial_direction.dart';
 enum TransferOrigin {
   sale('sale', 'Venta'),
   customerPayment('customer_payment', 'Abono de cliente'),
-  financialEntry('financial_entry', 'Movimiento financiero');
+  financialEntry('financial_entry', 'Movimiento financiero'),
+  saleAdjustment('sale_adjustment', 'Ajuste de venta'),
+  saleReconciliation('sale_reconciliation', 'Conciliación independiente');
 
   const TransferOrigin(this.code, this.label);
 
@@ -19,9 +21,8 @@ enum TransferOrigin {
   static TransferOrigin fromCode(String code) {
     return TransferOrigin.values.firstWhere(
       (value) => value.code == code,
-      orElse: () => throw const FormatException(
-        'origin debe ser sale, customer_payment o financial_entry.',
-      ),
+      orElse: () =>
+          throw const FormatException('Origen de transferencia desconocido.'),
     );
   }
 }
@@ -141,6 +142,5 @@ class TransferSummary {
   bool get isEmpty => movements.isEmpty;
 
   /// Neto de un origen; `BigInt.zero` si ese origen no se movió en el periodo.
-  BigInt netForOrigin(TransferOrigin origin) =>
-      byOrigin[origin] ?? BigInt.zero;
+  BigInt netForOrigin(TransferOrigin origin) => byOrigin[origin] ?? BigInt.zero;
 }

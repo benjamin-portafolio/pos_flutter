@@ -1,3 +1,6 @@
+import 'models/sales_reports_calculator.dart';
+import '../ajustes/sale_adjustment_receipt_screen.dart';
+import '../../../domain/repositories/sale_adjustment_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -54,8 +57,7 @@ class _SalesByMethodDetailScreenState extends State<SalesByMethodDetailScreen> {
                   onPressed: () => setState(
                     () => _sales =
                         widget.sales ??
-                        (widget.repository ??
-                                getIt<ConfirmedSaleRepository>())
+                        (widget.repository ?? getIt<ConfirmedSaleRepository>())
                             .watchSales(),
                   ),
                   child: const Text('Reintentar'),
@@ -74,7 +76,11 @@ class _SalesByMethodDetailScreenState extends State<SalesByMethodDetailScreen> {
                   widget.metodo.matches(sale.paymentMethod),
             )
             .toList();
-        if (ventas.isEmpty) {
+        final adjustments = SalesReportsCalculator.adjustmentsInPeriod(
+          widget.period,
+          snapshot.data!,
+        ).where((a) => widget.metodo.matches(a.method)).toList();
+        if (ventas.isEmpty && adjustments.isEmpty) {
           return const Center(child: Text('Sin ventas en este período'));
         }
         return ListView(
@@ -87,7 +93,28 @@ class _SalesByMethodDetailScreenState extends State<SalesByMethodDetailScreen> {
                 '${ventas.length == 1 ? 'venta' : 'ventas'}',
               ),
             ),
-            for (final sale in ventas) _SaleCard(sale: sale, label: widget.label),
+            for (final sale in ventas)
+              _SaleCard(sale: sale, label: widget.label),
+            for (final a in adjustments)
+              Card(
+                child: ListTile(
+                  title: Text('Ajuste · ${a.businessDate}'),
+                  subtitle: Text('${a.reason} · Venta ${a.saleId}'),
+                  trailing: Text(
+                    '-${ReportMoney.money(BigInt.from(a.amountMinor))}',
+                  ),
+                  onTap: !getIt.isRegistered<SaleAdjustmentRepository>()
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => SaleAdjustmentReceiptScreen(
+                              operationId: a.operationId,
+                              repository: getIt<SaleAdjustmentRepository>(),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
           ],
         );
       },
@@ -112,9 +139,7 @@ class _SaleCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () => Navigator.of(context).push<void>(
-          MaterialPageRoute(
-            builder: (_) => SaleReceiptScreen(saleId: sale.id),
-          ),
+          MaterialPageRoute(builder: (_) => SaleReceiptScreen(saleId: sale.id)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),

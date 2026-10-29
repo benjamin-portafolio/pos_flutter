@@ -1,3 +1,6 @@
+import 'sync_capability_store.dart';
+import 'sale_adjustment_sync_contract.dart';
+import 'synced_event_history.dart';
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
 import 'sync_health_service.dart';
@@ -31,7 +34,9 @@ class SyncPushService {
     required SyncEndpointConfig endpointConfig,
     required SyncConflictProjectionCleaner conflictProjectionCleaner,
     http.Client? client,
-  }) : _syncPersistence = syncPersistence,
+    SyncCapabilityStore? capabilityStore,
+  }) : _capabilityStore = capabilityStore,
+       _syncPersistence = syncPersistence,
        _endpointConfig = endpointConfig,
        _conflictProjectionCleaner = conflictProjectionCleaner,
        _client = client ?? http.Client();
@@ -39,6 +44,7 @@ class SyncPushService {
   /// Los eventos restantes siguen pendientes para la siguiente vuelta del monitor.
   static const maxEventsPerPush = 150;
 
+  final SyncCapabilityStore? _capabilityStore;
   final SyncPersistence _syncPersistence;
   final SyncEndpointConfig _endpointConfig;
   final SyncConflictProjectionCleaner _conflictProjectionCleaner;
@@ -47,9 +53,39 @@ class SyncPushService {
   Future<SyncPushReport> pushPendingEvents() async {
     final events = await _syncPersistence.pendingEvents();
     final pendingEventIds = events.map((event) => event.eventId).toSet();
+    final causalConflicts = <SyncEvent>[];
     final eligibleEvents = <SyncEvent>[];
     final waitingEvents = <SyncEvent>[];
-    for (final event in events) {
+    for (var event in events) {
+      if (SaleAdjustmentSyncContract.supports(event.eventType)) {
+        final history = _syncPersistence;
+        if (history is! SyncedEventHistory) {
+          throw const SyncPushException(
+            'Falta historia durable para resolver ajustes.',
+          );
+        }
+        final base = await SaleAdjustmentSyncContract.resolve(
+          event,
+          history as SyncedEventHistory,
+        );
+        if (base['status'] == 'incident') {
+          await _syncPersistence.updateEventSyncStatus(
+            event.eventId,
+            'conflict',
+            rejectionReason:
+                'Dependencia terminal: operación física conservada.',
+          );
+          causalConflicts.add(event);
+          continue;
+        }
+        if (base['status'] == 'pending') {
+          waitingEvents.add(event);
+          continue;
+        }
+        event = event.copyWith(
+          baseServerSequence: base['base_server_sequence'] as int,
+        );
+      }
       final target =
           (eligibleEvents.length >= maxEventsPerPush ||
               _dependsOnEventIds(event, pendingEventIds))
@@ -57,7 +93,22 @@ class SyncPushService {
           : eligibleEvents;
       target.add(event);
     }
-    return _pushEvents(eligibleEvents, waitingEvents: waitingEvents);
+    if (causalConflicts.isNotEmpty) {
+      await _propagateWaitingConflicts(waitingEvents, causalConflicts, {});
+      final ids = causalConflicts.map((e) => e.eventId).toSet();
+      waitingEvents.removeWhere((e) => ids.contains(e.eventId));
+    }
+    final report = await _pushEvents(
+      eligibleEvents,
+      waitingEvents: waitingEvents,
+    );
+    return SyncPushReport(
+      total: report.total + causalConflicts.length,
+      synced: report.synced,
+      rejected: report.rejected,
+      conflicts: report.conflicts + causalConflicts.length,
+      pending: report.pending,
+    );
   }
 
   Future<SyncPushReport> _pushEvents(
@@ -94,12 +145,27 @@ class SyncPushService {
     if (needsSuppliers) {
       final health = await SyncHealthService(
         endpointConfig: _endpointConfig,
+        capabilityStore: _capabilityStore,
         client: _client,
       ).check();
       if (!health.isAvailable ||
           !health.capabilities.contains('product_suppliers_v1')) {
         throw const SyncPushException(
           'Actualiza el servidor y todos los clientes para sincronizar proveedores. Los cambios siguen pendientes.',
+        );
+      }
+    }
+    if (events.any((e) => SaleAdjustmentSyncContract.supports(e.eventType))) {
+      final health = await SyncHealthService(
+        endpointConfig: _endpointConfig,
+        capabilityStore: _capabilityStore,
+        client: _client,
+      ).check();
+      if (!health.isAvailable ||
+          !health.capabilities.contains('sale_adjustments_v1') ||
+          !health.capabilities.contains('sale_reconciliations_v1')) {
+        throw const SyncPushException(
+          'Servidor incompatible con anulaciones y devoluciones v1. Las operaciones siguen pendientes.',
         );
       }
     }
@@ -238,6 +304,11 @@ class SyncPushService {
   }
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
+    if (SaleAdjustmentSyncContract.supports(event.eventType)) {
+      return SaleAdjustmentSyncContract.dependencies(
+        event,
+      ).any(eventIds.contains);
+    }
     switch (event.eventType) {
       case CajaAbiertaPayload.eventType:
         return CajaAbiertaPayload.fromJson(

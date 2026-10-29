@@ -1,3 +1,19 @@
+import 'package:pos_flutter/application/sync/sale_adjustment_availability.dart';
+import 'package:http/http.dart' as http;
+import 'package:pos_flutter/application/commands/ventas/sale_reconciliation_command_service.dart';
+import 'package:pos_flutter/application/sync/handlers/sale_reconciliation_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/operacion_venta_conciliada_payload.dart';
+import 'package:pos_flutter/data/local/drift/drift_sale_reconciliation_store.dart';
+import 'package:pos_flutter/application/commands/caja/caja_command_service.dart';
+import 'package:pos_flutter/application/commands/ventas/sale_adjustment_command_service.dart';
+import 'package:pos_flutter/application/sync/handlers/cash_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/sale_adjustment_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/caja_abierta_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/caja_cerrada_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/venta_anulada_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/devolucion_venta_registrada_payload.dart';
+import 'package:pos_flutter/data/local/drift/drift_cash_projection_store.dart';
+import 'package:pos_flutter/data/local/drift/drift_sale_adjustment_store.dart';
 import 'package:pos_flutter/application/sync/handlers/proveedor_creado_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/proveedor_actualizado_event_handler.dart';
 import 'package:pos_flutter/application/sync/payloads/proveedor_creado_payload.dart';
@@ -61,6 +77,9 @@ class VariantTrackingHarness {
   VariantTrackingHarness({
     AppMode mode = AppMode.standalone,
     AppDatabase? database,
+    this.isolatedSyncHarness = false,
+    SaleAdjustmentAvailability Function(AppConfigController)?
+    availabilityFactory,
     this.context = const LocalCommandContext(
       deviceId: 'phase3-device',
       userId: 'phase3-user',
@@ -69,6 +88,7 @@ class VariantTrackingHarness {
     config = AppConfigController(
       AppConfig.initial.copyWith(mode: mode, setupCompleted: true),
     );
+    availability = availabilityFactory?.call(config);
     inventory = DriftInventoryProjectionStore(
       inventoryDao: InventoryDao(db),
       unitDao: UnitDao(db),
@@ -90,6 +110,11 @@ class VariantTrackingHarness {
     );
     processor = EventProcessor(
       handlers: {
+        CajaAbiertaPayload.eventType: cashHandler.apply,
+        CajaCerradaPayload.eventType: cashHandler.apply,
+        OperacionVentaConciliadaPayload.eventType: reconciliationHandler.apply,
+        VentaAnuladaPayload.eventType: adjustmentHandler.apply,
+        DevolucionVentaRegistradaPayload.eventType: adjustmentHandler.apply,
         ProveedorCreadoPayload.eventType: ProveedorCreadoEventHandler(
           suppliers,
         ).apply,
@@ -123,6 +148,7 @@ class VariantTrackingHarness {
         ),
         VentaConfirmadaPayload.eventType: VentaConfirmadaEventHandler(
           DriftConfirmedSaleStore(db),
+          cash: cashHandler,
         ).apply,
         ProductoAgregadoBorradorPayload.eventType: VentaBorradorEventHandler(
           SaleDao(db),
@@ -162,6 +188,7 @@ class VariantTrackingHarness {
       context: context,
     );
     sales = VentaCommandService(
+      cash: cash,
       drafts: SaleDao(db),
       products: products,
       inventory: inventory,
@@ -197,6 +224,9 @@ class VariantTrackingHarness {
       eventStore: DriftSyncedEventStore(db: db),
       eventProcessor: processor,
       serverEchoAcknowledger: ServerEchoAcknowledger(
+        saleAdjustmentStore: adjustmentStore,
+        saleReconciliationStore: reconciliationStore,
+        cashProjectionStore: cashStore,
         proveedorProjectionStore: suppliers,
         confirmedSaleStore: DriftConfirmedSaleStore(db),
         categoriaProjectionStore: categories,
@@ -206,6 +236,47 @@ class VariantTrackingHarness {
       ),
     );
   }
+  final bool isolatedSyncHarness;
+  late final SaleAdjustmentAvailability? availability;
+  late final cashStore = DriftCashProjectionStore(db);
+  late final cashHandler = CashEventHandler(cashStore);
+  late final cash = CajaCommandService(
+    store: cashStore,
+    events: events,
+    context: context,
+    config: config,
+  );
+  late final reconciliationStore = DriftSaleReconciliationStore(db);
+  late final reconciliationHandler = SaleReconciliationEventHandler(
+    store: reconciliationStore,
+    config: config,
+    isolatedSyncHarness: isolatedSyncHarness,
+    availability: availability,
+  );
+  late final reconciliations = SaleReconciliationCommandService(
+    store: reconciliationStore,
+    events: events,
+    config: config,
+    context: context,
+    isolatedSyncHarness: isolatedSyncHarness,
+    availability: availability,
+  );
+  late final adjustmentStore = DriftSaleAdjustmentStore(db);
+  late final adjustmentHandler = SaleAdjustmentEventHandler(
+    store: adjustmentStore,
+    cash: cashStore,
+    config: config,
+    isolatedSyncHarness: isolatedSyncHarness,
+    availability: availability,
+  );
+  late final adjustments = SaleAdjustmentCommandService(
+    store: adjustmentStore,
+    events: events,
+    config: config,
+    context: context,
+    isolatedSyncHarness: isolatedSyncHarness,
+    availability: availability,
+  );
   final LocalCommandContext context;
   final AppDatabase db;
   late final suppliers = DriftProveedorProjectionStore(db.proveedorDao);
@@ -290,10 +361,11 @@ class VariantTrackingHarness {
     );
   }
 
-  SyncPushService push(String url) => SyncPushService(
+  SyncPushService push(String url, {http.Client? client}) => SyncPushService(
     syncPersistence: history,
     endpointConfig: SyncEndpointConfig(initialBaseUrl: url),
     conflictProjectionCleaner: cleaner,
+    client: client,
   );
   SyncPreflightService preflight(String url) => SyncPreflightService(
     syncPersistence: history,

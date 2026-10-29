@@ -122,12 +122,16 @@ class CustomerStatementImageGenerator {
     void saldoBlock(CustomerStatement statement) {
       final lines = <(String, String, bool)>[
         (
-          'Total de compras a crédito',
+          statement.hasRegularizations
+              ? 'Cargos y regularizaciones'
+              : 'Total de compras a crédito',
           CustomerStatement.money(statement.totalComprasMinor),
           false,
         ),
         (
-          '− Total abonado a estos recibos',
+          statement.hasRegularizations
+              ? '− Abonos y regularizaciones aplicados'
+              : '− Total abonado a estos recibos',
           CustomerStatement.money(statement.totalAbonadoMinor),
           false,
         ),
@@ -166,12 +170,7 @@ class CustomerStatementImageGenerator {
       final blockHeight = contentHeight + 18;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(
-            _margin - 8,
-            blockTop,
-            _contentWidth + 16,
-            blockHeight,
-          ),
+          Rect.fromLTWH(_margin - 8, blockTop, _contentWidth + 16, blockHeight),
           const Radius.circular(10),
         ),
         Paint()..color = _blockBg,
@@ -179,7 +178,10 @@ class CustomerStatementImageGenerator {
       var cursor = blockTop + 10;
       for (final (labelPainter, valuePainter, lineHeight) in painters) {
         labelPainter.paint(canvas, Offset(_margin, cursor));
-        valuePainter.paint(canvas, Offset(_margin + _contentWidth * 0.58, cursor));
+        valuePainter.paint(
+          canvas,
+          Offset(_margin + _contentWidth * 0.58, cursor),
+        );
         cursor += lineHeight;
         labelPainter.dispose();
         valuePainter.dispose();
@@ -223,7 +225,9 @@ class CustomerStatementImageGenerator {
     // Total de compras a crédito.
     row(
       [
-        'Total de compras a crédito',
+        statement.hasRegularizations
+            ? 'Cargos y regularizaciones'
+            : 'Total de compras a crédito',
         CustomerStatement.money(statement.totalComprasMinor),
       ],
       [0.62, 0.38],
@@ -240,7 +244,13 @@ class CustomerStatementImageGenerator {
     rule(strong: true);
 
     // Historial de abonos.
-    text('Abonos aplicados a estos recibos', bold: true, size: 16);
+    text(
+      statement.hasRegularizations
+          ? 'Abonos y regularizaciones aplicados'
+          : 'Abonos aplicados a estos recibos',
+      bold: true,
+      size: 16,
+    );
     if (statement.payments.isEmpty) {
       text('Sin abonos aplicados a estos recibos', size: 13, color: _muted);
     }
@@ -252,7 +262,9 @@ class CustomerStatementImageGenerator {
     }
     row(
       [
-        'Total abonado a estos recibos',
+        statement.hasRegularizations
+            ? 'Total aplicado a estos cargos'
+            : 'Total abonado a estos recibos',
         CustomerStatement.money(statement.totalAbonadoMinor),
       ],
       [0.62, 0.38],

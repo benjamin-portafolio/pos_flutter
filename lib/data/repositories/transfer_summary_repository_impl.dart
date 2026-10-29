@@ -43,10 +43,11 @@ class TransferSummaryRepositoryImpl implements TransferSummaryRepository {
     required int fromMs,
     required int toMs,
   }) {
-    final query = '''
+    final query =
+        '''
       SELECT ${MoneyMovementsSql.columns}
       FROM (
-        ${MoneyMovementsSql.appliedSalesAndCustomerPayments}$_financialEntries
+        ${MoneyMovementsSql.appliedSalesAndCustomerPayments}${MoneyMovementsSql.appliedSaleAdjustments}$_financialEntries
       )
       WHERE method = 'transfer'
         AND occurred_at_ms >= ?
@@ -63,6 +64,8 @@ class TransferSummaryRepositoryImpl implements TransferSummaryRepository {
             db.customerPayments,
             db.clientes,
             db.financialEntries,
+            db.saleAdjustments,
+            db.saleReconciliationEffects,
             db.events,
           },
         )

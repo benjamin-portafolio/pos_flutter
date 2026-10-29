@@ -9,6 +9,7 @@ class CashSessionContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = session;
+    final movements = s.closedMovements ?? s.movements;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -58,23 +59,25 @@ class CashSessionContent extends StatelessWidget {
           ),
         const SizedBox(height: 20),
         Text(
-          '${s.movements.length} movimientos${s.isClosed ? ' incluidos en el corte' : ''}',
+          '${movements.length} movimientos${s.isClosed ? ' incluidos en el corte' : ''}',
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        if (s.movements.isEmpty)
+        if (movements.isEmpty)
           const Padding(
             padding: EdgeInsets.all(20),
             child: Text(
               'Sin movimientos. El fondo inicial se cuenta una sola vez.',
             ),
           ),
-        for (final m in s.movements)
+        for (final m in movements)
           Card(
             child: ExpansionTile(
               title: Text(
                 '${m.direction == 'in' ? 'Entrada' : 'Salida'} · ${switch (m.sourceType) {
                   'sale_payment' => 'Cobro de venta',
                   'customer_payment' => 'Abono de cliente',
+                  'sale_adjustment' => 'Ajuste de venta',
+                  'sale_reconciliation' => 'Conciliación de venta',
                   _ => 'Registro adicional',
                 }}',
               ),
@@ -109,6 +112,20 @@ class CashSessionContent extends StatelessWidget {
               ],
             ),
           ),
+        if (s.regularizations.isNotEmpty) ...[
+          const Text(
+            'Conciliaciones independientes · conservan el corte original',
+          ),
+          for (final r in s.regularizations)
+            ListTile(
+              title: Text(
+                '${r.isRecovery ? 'Recuperación posterior' : 'Reconocimiento de evidencia'} · ${cashMoney(BigInt.from(r.deltaMinor))}',
+              ),
+              subtitle: SelectableText(
+                '${r.deliveryStatus} · Evento: ${r.eventId} · Efecto: ${r.effectId}',
+              ),
+            ),
+        ],
         const Divider(),
         SelectableText('Sesión: ${s.id}'),
         SelectableText('Apertura: ${s.openingEventId}'),

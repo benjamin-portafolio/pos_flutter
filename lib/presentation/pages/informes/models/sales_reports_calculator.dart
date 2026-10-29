@@ -1,6 +1,7 @@
 import '../../../../domain/ventas/confirmed_sale.dart';
 import '../../../../domain/ventas/sale_draft_item.dart';
 import 'beneficio_bruto_report.dart';
+import '../../../../domain/ventas/sale_adjustment_document.dart';
 import 'report_period.dart';
 import 'ventas_por_metodo_report.dart';
 
@@ -21,14 +22,39 @@ class SalesReportsCalculator {
     Iterable<ConfirmedSale> sales,
   ) => sales.where((sale) => period.contains(sale.createdAt)).toList();
 
+  static List<SaleAdjustmentDocument> documentsInPeriod(
+    ReportPeriod period,
+    Iterable<ConfirmedSale> sales,
+  ) => sales
+      .expand((s) => s.adjustments)
+      .where((a) => period.contains(DateTime.parse(a.businessDate)))
+      .toList();
+  static List<SaleAdjustmentDocument> adjustmentsInPeriod(
+    ReportPeriod period,
+    Iterable<ConfirmedSale> sales,
+  ) => documentsInPeriod(
+    period,
+    sales,
+  ).where((a) => !['conflict', 'rejected'].contains(a.deliveryStatus)).toList();
+
+  static BigInt adjustmentsTotal(
+    ReportPeriod period,
+    Iterable<ConfirmedSale> sales,
+  ) => adjustmentsInPeriod(
+    period,
+    sales,
+  ).fold(BigInt.zero, (n, a) => n + BigInt.from(a.amountMinor));
+
   /// Importe de "Ventas totales": suma de `totalMinor` del período.
   static BigInt ventasTotales(
     ReportPeriod period,
     Iterable<ConfirmedSale> sales,
-  ) => salesInPeriod(
-    period,
-    sales,
-  ).fold(BigInt.zero, (sum, sale) => sum + BigInt.from(sale.totalMinor));
+  ) =>
+      salesInPeriod(
+        period,
+        sales,
+      ).fold(BigInt.zero, (sum, sale) => sum + BigInt.from(sale.totalMinor)) -
+      adjustmentsTotal(period, sales);
 
   /// Beneficio bruto del período sobre el costo histórico de cada línea.
   ///
@@ -57,6 +83,19 @@ class SalesReportsCalculator {
         }
         lineasConCosto++;
         profit += BigInt.from(line.totalMinor) - lineCost(line, cost);
+      }
+    }
+    for (final a in adjustmentsInPeriod(period, sales)) {
+      for (final line in a.lines) {
+        if (line.recoveredCostMinor == null) {
+          lineasSinCosto++;
+          vendidoSinCosto -= BigInt.from(line.amountMinor);
+        } else {
+          lineasConCosto++;
+          profit -=
+              BigInt.from(line.amountMinor) -
+              BigInt.from(line.recoveredCostMinor!);
+        }
       }
     }
     final estado = lineasSinCosto == 0
@@ -105,6 +144,14 @@ class SalesReportsCalculator {
         ifAbsent: () => BigInt.from(sale.totalMinor),
       );
       counts.update(metodo, (value) => value + 1, ifAbsent: () => 1);
+    }
+    for (final a in adjustmentsInPeriod(period, sales)) {
+      final method = _metodo(a.method);
+      amounts.update(
+        method,
+        (n) => n - BigInt.from(a.amountMinor),
+        ifAbsent: () => -BigInt.from(a.amountMinor),
+      );
     }
     final orden = [
       MetodoVenta.efectivo,

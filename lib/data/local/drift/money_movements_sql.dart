@@ -40,4 +40,25 @@ abstract final class MoneyMovementsSql {
     JOIN clientes c ON c.id = p.cliente_id
     WHERE e.application_status = 'applied'
   ''';
+
+  /// Salidas y correcciones de documentos conservados, por fecha de operación.
+  /// El libro físico local conserva también incidencias. Una regularización
+  /// aceptada no se suma otra vez si el efecto perdedor ya existe aquí.
+  static const String appliedSaleAdjustments = r'''
+    UNION ALL
+    SELECT a.id,a.event_id,a.amount_minor,a.method,a.settlement_reference,
+      a.occurred_at_ms,'sale_adjustment',a.sale_id,a.cliente_id,c.nombre,
+      e.user_id,e.device_id,e.delivery_status,e.rejection_reason,'out'
+    FROM sale_adjustments a JOIN events e ON e.event_id=a.event_id
+    LEFT JOIN clientes c ON c.id=a.cliente_id
+    WHERE e.application_status='applied' AND a.method IN ('cash','transfer') AND a.amount_minor>0
+    UNION ALL
+    SELECT r.effect_id,r.event_id,abs(r.delta),'transfer',NULL,
+      CAST(json_extract(r.payload_json,'$.occurred_at_ms') AS INTEGER),'sale_reconciliation',
+      e.aggregate_id,NULL,NULL,e.user_id,e.device_id,e.delivery_status,e.rejection_reason,
+      CASE WHEN r.delta>0 THEN 'in' ELSE 'out' END
+    FROM sale_reconciliation_effects r JOIN events e ON e.event_id=r.event_id
+    WHERE r.ledger='transfer' AND r.applied_locally=1
+      AND NOT EXISTS (SELECT 1 FROM sale_adjustments a WHERE a.id=r.target_id AND r.is_recovery=0)
+  ''';
 }

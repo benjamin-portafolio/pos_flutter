@@ -1,4 +1,8 @@
+import '../ajustes/sale_incident_action.dart';
 import 'dart:typed_data';
+import '../ajustes/sale_adjustment_actions.dart';
+import '../ajustes/sale_adjustment_receipt_screen.dart';
+import '../../../domain/repositories/sale_adjustment_repository.dart';
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -79,8 +83,50 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
     Widget child, {
     Uint8List? bytes,
     TicketDocument? document,
+    ConfirmedSale? sale,
   }) => Column(
     children: [
+      if (sale != null) ...[
+        for (final a in sale.adjustments.where((a) => a.incidentId != null))
+          SaleIncidentAction(incidentId: a.incidentId!),
+        Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(SaleAdjustmentActions.status(sale.adjusted)),
+              ),
+            ),
+            if (getIt.isRegistered<SaleAdjustmentRepository>())
+              SaleAdjustmentActions(
+                sale: sale.adjusted,
+                repository: getIt<SaleAdjustmentRepository>(),
+              ),
+          ],
+        ),
+        if (sale.adjustments.isNotEmpty)
+          ExpansionTile(
+            title: const Text('Historial de ajustes'),
+            children: [
+              for (final a in sale.adjustments)
+                ListTile(
+                  title: Text('${a.businessDate} · ${a.reason}'),
+                  subtitle: Text(
+                    '${SaleAdjustmentReceiptScreen.deliveryLabel(a)} · ${a.settlementAction}',
+                  ),
+                  trailing: Text('${a.amountMinor / 100}'),
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => SaleAdjustmentReceiptScreen(
+                        operationId: a.operationId,
+                        repository: getIt<SaleAdjustmentRepository>(),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+      ],
       _ReceiptOptions(
         printAction: TicketPrintAction(
           document: document,
@@ -152,12 +198,14 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                     ),
                   ),
                   document: receipt.ticket,
+                  sale: sale,
                 );
               }
               if (!image.hasData) {
                 return _content(
                   const Center(child: CircularProgressIndicator()),
                   document: receipt.ticket,
+                  sale: sale,
                 );
               }
               return _content(
@@ -178,6 +226,7 @@ class _SaleReceiptScreenState extends State<SaleReceiptScreen> {
                 ),
                 bytes: image.data!,
                 document: receipt.ticket,
+                sale: sale,
               );
             },
           );

@@ -108,9 +108,7 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
   void _statement(Cliente cliente) {
     Navigator.push(
       context,
-      MaterialPageRoute<void>(
-        builder: (_) => _statementScreen(cliente),
-      ),
+      MaterialPageRoute<void>(builder: (_) => _statementScreen(cliente)),
     );
   }
 
@@ -231,7 +229,11 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
       child: ExpansionTile(
         leading: Icon(e.isPayment ? Icons.south_west : Icons.north_east),
         title: Text(
-          '${e.isPayment ? 'Abono' : 'Compra a crédito'} · ${CustomerAccountDisplay.money(BigInt.from(e.amountMinor))}',
+          '${e.isReconciliation
+              ? 'Conciliación de crédito'
+              : e.isPayment
+              ? 'Abono'
+              : 'Compra a crédito'} · ${CustomerAccountDisplay.money(BigInt.from(e.amountMinor))}',
         ),
         subtitle: Text(
           '${e.date}\nSaldo: ${CustomerAccountDisplay.money(balance)} · ${CustomerAccountDisplay.status(e)}',
@@ -246,7 +248,11 @@ class _ClienteAccountScreenState extends State<ClienteAccountScreen> {
             ),
           if (e.isPayment) ...[
             Text(
-              'Método: ${e.method == 'cash' ? 'Efectivo' : 'Transferencia'}',
+              'Método: ${e.isReconciliation
+                  ? 'Regularización independiente'
+                  : e.method == 'cash'
+                  ? 'Efectivo'
+                  : 'Transferencia'}',
             ),
             Text(
               'Disponible a favor: ${CustomerAccountDisplay.money(BigInt.from(account.availableMinor(e)))}',

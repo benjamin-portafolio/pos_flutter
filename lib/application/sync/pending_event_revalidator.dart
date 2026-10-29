@@ -1,3 +1,7 @@
+import 'payloads/operacion_venta_conciliada_payload.dart';
+import 'payloads/venta_anulada_payload.dart';
+import 'payloads/devolucion_venta_registrada_payload.dart';
+import 'revalidation/sale_adjustment_pending_event_validator.dart';
 import 'revalidation/proveedor_pending_event_validator.dart';
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
@@ -108,6 +112,13 @@ class PendingEventRevalidator {
       cashProjectionStore,
     );
     _validators = {
+      OperacionVentaConciliadaPayload.eventType:
+          SaleAdjustmentPendingEventValidator(syncedEventHistory),
+      VentaAnuladaPayload.eventType: SaleAdjustmentPendingEventValidator(
+        syncedEventHistory,
+      ),
+      DevolucionVentaRegistradaPayload.eventType:
+          SaleAdjustmentPendingEventValidator(syncedEventHistory),
       if (proveedorProjectionStore != null)
         ProveedorCreadoPayload.eventType: ProveedorPendingEventValidator(
           proveedorProjectionStore,

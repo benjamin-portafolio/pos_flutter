@@ -1,3 +1,8 @@
+import 'payloads/operacion_venta_conciliada_payload.dart';
+import 'projections/sale_reconciliation_store.dart';
+import 'projections/sale_adjustment_store.dart';
+import 'payloads/venta_anulada_payload.dart';
+import 'payloads/devolucion_venta_registrada_payload.dart';
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
 import 'projections/proveedor_projection_store.dart';
@@ -32,6 +37,8 @@ import 'projections/producto_projection_store.dart';
 
 class ServerEchoAcknowledger {
   ServerEchoAcknowledger({
+    this.saleAdjustmentStore,
+    this.saleReconciliationStore,
     this.variantInventoryMemoryStore,
     this.cashProjectionStore,
     this.accountBalanceBaselineProjectionStore,
@@ -50,6 +57,8 @@ class ServerEchoAcknowledger {
        _financialCategoryProjectionStore = financialCategoryProjectionStore,
        _financialEntryProjectionStore = financialEntryProjectionStore;
 
+  final SaleAdjustmentStore? saleAdjustmentStore;
+  final SaleReconciliationStore? saleReconciliationStore;
   final VariantInventoryMemoryStore? variantInventoryMemoryStore;
   final CashProjectionStore? cashProjectionStore;
   final AccountBalanceBaselineProjectionStore?
@@ -70,6 +79,13 @@ class ServerEchoAcknowledger {
     await cashProjectionStore?.acknowledge(event.eventId, serverSequence);
 
     switch (event.eventType) {
+      case OperacionVentaConciliadaPayload.eventType:
+        await saleReconciliationStore?.acknowledge(event);
+        return;
+      case VentaAnuladaPayload.eventType:
+      case DevolucionVentaRegistradaPayload.eventType:
+        await saleAdjustmentStore?.acknowledge(event.eventId, serverSequence);
+        return;
       case SaldoCuentaInicialDeclaradoPayload.eventType:
         await accountBalanceBaselineProjectionStore?.acknowledge(
           event.eventId,

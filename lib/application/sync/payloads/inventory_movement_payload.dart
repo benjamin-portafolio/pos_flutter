@@ -88,6 +88,11 @@ class InventoryMovementPayload {
           );
 
     switch (movementType) {
+      case TipoMovimientoInventario.saleVoidRestock:
+      case TipoMovimientoInventario.saleReturnRestock:
+        throw const FormatException(
+          'La compensación requiere un documento de ajuste de venta.',
+        );
       case TipoMovimientoInventario.saleConsumption:
         if (quantityDeltaAtomic >= 0) {
           throw const FormatException('Consumo requiere delta negativo.');

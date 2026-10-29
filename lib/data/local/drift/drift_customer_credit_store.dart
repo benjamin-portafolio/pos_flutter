@@ -73,12 +73,48 @@ class DriftCustomerCreditStore implements CustomerCreditStore {
     final payments = await (db.select(
       db.customerPayments,
     )..where((t) => t.clienteId.equals(clienteId))).get();
+    final activeIds = (await db.select(db.saleAdjustments).get())
+        .where((a) => a.commercialActive)
+        .map((a) => a.id)
+        .toSet();
+    final reductions = (await db.select(db.saleCreditReductions).get()).where(
+      (r) => activeIds.contains(r.operationId),
+    );
+    int net(CreditSaleRow c) {
+      final amount =
+          BigInt.from(c.amountMinor) -
+          reductions
+              .where((r) => r.creditId == c.id)
+              .fold(BigInt.zero, (sum, r) => sum + BigInt.from(r.amountMinor));
+      if (amount.isNegative) throw StateError('Reducción excesiva.');
+      return amount.toInt();
+    }
+
+    final notes = await db
+        .customSelect(
+          "SELECT r.*,e.delivery_status FROM sale_reconciliation_effects r JOIN events e ON e.event_id=r.event_id WHERE r.ledger='credit' AND r.target_id=? AND e.delivery_status='delivered'",
+          variables: [Variable(clienteId)],
+        )
+        .get();
     final account = CustomerAccount([
+      for (final r in notes)
+        AccountEntry(
+          id: r.read<String>('effect_id'),
+          eventId: r.read<String>('event_id'),
+          amountMinor: r.read<int>('delta').abs(),
+          occurredAtMs:
+              (jsonDecode(r.read<String>('payload_json'))
+                      as Map)['occurred_at_ms']
+                  as int,
+          isPayment: r.read<int>('delta') > 0,
+          deliveryStatus: 'delivered',
+          isReconciliation: true,
+        ),
       for (final c in credits)
         AccountEntry(
           id: c.id,
           eventId: c.createdEventId!,
-          amountMinor: c.amountMinor,
+          amountMinor: net(c),
           occurredAtMs: c.occurredAtMs,
           isPayment: false,
           deliveryStatus: '',
@@ -102,11 +138,13 @@ class DriftCustomerCreditStore implements CustomerCreditStore {
     await db.batch(
       (b) => b.insertAll(db.creditAllocations, [
         for (final a in account.allocations)
-          CreditAllocationsCompanion.insert(
-            paymentId: a.paymentId,
-            creditId: a.creditId,
-            amountMinor: a.amountMinor,
-          ),
+          if (payments.any((p) => p.id == a.paymentId) &&
+              credits.any((c) => c.id == a.creditId))
+            CreditAllocationsCompanion.insert(
+              paymentId: a.paymentId,
+              creditId: a.creditId,
+              amountMinor: a.amountMinor,
+            ),
       ]),
     );
   }

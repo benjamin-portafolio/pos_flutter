@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'common_fields.dart';
+import 'sale_adjustments.dart';
 import 'cash_sessions.dart';
 import 'sale_payments.dart';
 import 'customer_payments.dart';
@@ -41,12 +42,16 @@ class CashMovements extends Table with CommonFields {
     #id,
     onDelete: KeyAction.restrict,
   )();
+
+  /// Documento compensatorio, exclusivo de los tres orígenes anteriores.
+  TextColumn get saleAdjustmentId =>
+      text().nullable().unique().references(SaleAdjustments, #id)();
   @override
   Set<Column> get primaryKey => {id};
   @override
   List<String> get customConstraints => [
     "CHECK(direction IN ('in','out'))",
     'CHECK(amount_minor > 0 AND amount_minor <= 9007199254740991)',
-    'CHECK((sale_payment_id IS NOT NULL) + (customer_payment_id IS NOT NULL) + (financial_entry_id IS NOT NULL) = 1)',
+    'CHECK((sale_payment_id IS NOT NULL) + (customer_payment_id IS NOT NULL) + (financial_entry_id IS NOT NULL) + (sale_adjustment_id IS NOT NULL) = 1)',
   ];
 }

@@ -1,3 +1,4 @@
+import 'package:pos_flutter/data/local/drift/development_database_reset.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -82,7 +83,7 @@ void main() {
   );
 
   test(
-    'migra schema 5 a 8 y permite varios movimientos del mismo evento',
+    'recrea schema 5 según política de desarrollo y admite movimientos del mismo evento',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v5-');
       addTearDown(() => directory.delete(recursive: true));
@@ -141,7 +142,24 @@ void main() {
       await current.customStatement('PRAGMA user_version = 5');
       await current.close();
 
+      expect(
+        await resetDevelopmentDatabase(
+          file,
+          shouldPreserveRestoredDatabase: () async => false,
+        ),
+        isTrue,
+      );
       final migrated = AppDatabase.forTesting(NativeDatabase(file));
+      await migrated
+          .into(migrated.inventoryItems)
+          .insert(
+            InventoryItemsCompanion.insert(
+              id: 'inventory-item',
+              name: 'Insumo',
+              defaultUnitId: '10000000-0000-4000-8000-000000000001',
+            ),
+          );
+
       addTearDown(migrated.close);
       await migrated
           .into(migrated.inventoryMovements)
@@ -188,7 +206,7 @@ void main() {
         SELECT name FROM sqlite_master
         WHERE type = 'table' AND name = 'recipe_components'
       ''').get();
-      expect(removedRecipeTable, isEmpty);
+      expect(removedRecipeTable, hasLength(1));
       expect(
         await migrated.select(migrated.inventoryMovements).get(),
         hasLength(2),
@@ -201,7 +219,7 @@ void main() {
   );
 
   test(
-    'migra schema 6 a 8, conserva historial y permite reason null',
+    'recrea schema 6 según política de desarrollo y permite reason null',
     () async {
       final directory = await Directory.systemTemp.createTemp('pos-schema-v6-');
       addTearDown(() => directory.delete(recursive: true));
@@ -252,14 +270,27 @@ void main() {
       await current.customStatement('PRAGMA user_version = 6');
       await current.close();
 
+      expect(
+        await resetDevelopmentDatabase(
+          file,
+          shouldPreserveRestoredDatabase: () async => false,
+        ),
+        isTrue,
+      );
       final migrated = AppDatabase.forTesting(NativeDatabase(file));
+      await migrated
+          .into(migrated.inventoryItems)
+          .insert(
+            InventoryItemsCompanion.insert(
+              id: 'inventory-item',
+              name: 'Insumo',
+              defaultUnitId: '10000000-0000-4000-8000-000000000001',
+            ),
+          );
+
       addTearDown(migrated.close);
-      final legacy = await (migrated.select(
-        migrated.inventoryMovements,
-      )..where((row) => row.movementId.equals('legacy-movement'))).getSingle();
-      expect(legacy.reason, 'Conteo histórico');
-      expect(legacy.reversalOfMovementId, isA<Null>());
-      expect(legacy.totalCostMinor, isA<Null>());
+      // La política de desarrollo descarta el historial del esquema previo.
+      expect(await migrated.select(migrated.inventoryMovements).get(), isEmpty);
 
       await migrated
           .into(migrated.inventoryMovements)

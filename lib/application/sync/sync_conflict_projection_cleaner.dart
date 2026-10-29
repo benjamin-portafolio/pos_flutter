@@ -1,3 +1,4 @@
+import 'sale_adjustment_sync_contract.dart';
 import 'proveedor_conflict_projection_restorer.dart';
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
@@ -68,6 +69,9 @@ class SyncConflictProjectionCleaner {
   _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
+    if (SaleAdjustmentSyncContract.supports(event.eventType)) {
+      return; // Evidencia física inmutable.
+    }
     if (event.eventType == ProveedorActualizadoPayload.eventType) {
       final store = proveedorProjectionStore;
       if (store != null) {

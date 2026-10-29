@@ -19,8 +19,16 @@ class CashMovementEvidence {
           'sale_payment',
           'customer_payment',
           'financial_entry',
+          'sale_adjustment',
+          'sale_reconciliation',
         ].contains(sourceType) ||
-        (sourceType != 'financial_entry' && direction != 'in')) {
+        (![
+              'financial_entry',
+              'sale_adjustment',
+              'sale_reconciliation',
+            ].contains(sourceType) &&
+            direction != 'in') ||
+        (sourceType == 'sale_adjustment' && direction != 'out')) {
       throw const FormatException('Origen o dirección de caja inválidos.');
     }
   }

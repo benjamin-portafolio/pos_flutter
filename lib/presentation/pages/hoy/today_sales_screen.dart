@@ -1,4 +1,7 @@
 import 'dart:async';
+import '../ajustes/sale_adjustment_actions.dart';
+import '../ajustes/sale_adjustment_receipt_screen.dart';
+import '../../../domain/repositories/sale_adjustment_repository.dart';
 
 import 'package:flutter/material.dart';
 
@@ -109,7 +112,7 @@ class _TodaySalesScreenState extends State<TodaySalesScreen>
                     });
               final report = SalesReportsCalculator.ventasPorMetodo(
                 period,
-                today,
+                snapshot.data!,
               );
               final visible = today
                   .where((sale) => _filter?.matches(sale.paymentMethod) ?? true)
@@ -121,6 +124,43 @@ class _TodaySalesScreenState extends State<TodaySalesScreen>
                     sliver: SliverList.list(
                       children: [
                         _DaySummary(report: report),
+                        Text(
+                          '${SalesReportsCalculator.documentsInPeriod(period, snapshot.data!).where((a) => a.deliveryStatus == "pending").length} ajustes pendientes · ${SalesReportsCalculator.documentsInPeriod(period, snapshot.data!).where((a) => a.incidentId != null).length} en incidencia (fuera del neto comercial)',
+                        ),
+                        Text(
+                          '${report.salesCount} ventas brutas · ${SalesReportsCalculator.adjustmentsInPeriod(period, snapshot.data!).where((a) => a.lines.every((l) => l.destination == "void")).length} anulaciones · ${SalesReportsCalculator.adjustmentsInPeriod(period, snapshot.data!).where((a) => a.lines.any((l) => l.destination != "void")).length} devoluciones',
+                        ),
+                        Text(
+                          'Bruto: ${ReportMoney.money(SalesReportsCalculator.ventasTotales(period, snapshot.data!) + SalesReportsCalculator.adjustmentsTotal(period, snapshot.data!))} · Ajustes: ${ReportMoney.money(SalesReportsCalculator.adjustmentsTotal(period, snapshot.data!))}',
+                        ),
+                        for (final a
+                            in SalesReportsCalculator.documentsInPeriod(
+                              period,
+                              snapshot.data!,
+                            ).where((a) => _filter?.matches(a.method) ?? true))
+                          ListTile(
+                            title: Text(
+                              'Ajuste · ${ReportMoney.money(BigInt.from(a.amountMinor))}',
+                            ),
+                            subtitle: Text(
+                              'Venta ${a.saleId} · ${a.reason} · ${SaleAdjustmentReceiptScreen.deliveryLabel(a)}',
+                            ),
+                            onTap:
+                                !getIt.isRegistered<SaleAdjustmentRepository>()
+                                ? null
+                                : () => Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          SaleAdjustmentReceiptScreen(
+                                            operationId: a.operationId,
+                                            repository:
+                                                getIt<
+                                                  SaleAdjustmentRepository
+                                                >(),
+                                          ),
+                                    ),
+                                  ),
+                          ),
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
@@ -273,10 +313,15 @@ class _SaleTile extends StatelessWidget {
         ),
         subtitle: Text(
           '${receipt.paymentLabel} · $count ${count == 1 ? 'producto' : 'productos'}'
-          '\n${sale.clienteNombre ?? 'Público general'}',
+          '\n${sale.clienteNombre ?? 'Público general'} · ${SaleAdjustmentActions.status(sale.adjusted)}',
         ),
         isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right),
+        trailing: getIt.isRegistered<SaleAdjustmentRepository>()
+            ? SaleAdjustmentActions(
+                sale: sale.adjusted,
+                repository: getIt<SaleAdjustmentRepository>(),
+              )
+            : const Icon(Icons.chevron_right),
       ),
     );
   }

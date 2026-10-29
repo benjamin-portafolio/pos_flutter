@@ -1,3 +1,19 @@
+import '../../application/sync/sync_capability_store.dart';
+import '../../application/sync/sale_adjustment_availability.dart';
+import '../../data/local/sync/sync_capability_file_store.dart';
+import '../../application/sync/payloads/operacion_venta_conciliada_payload.dart';
+import '../../application/sync/projections/sale_reconciliation_store.dart';
+import '../../data/local/drift/drift_sale_reconciliation_store.dart';
+import '../../application/sync/handlers/sale_reconciliation_event_handler.dart';
+import '../../application/commands/ventas/sale_reconciliation_command_service.dart';
+import '../../application/commands/ventas/sale_adjustment_command_service.dart';
+import '../../application/sync/handlers/sale_adjustment_event_handler.dart';
+import '../../application/sync/payloads/venta_anulada_payload.dart';
+import '../../application/sync/payloads/devolucion_venta_registrada_payload.dart';
+import '../../application/sync/projections/sale_adjustment_store.dart';
+import '../../data/local/drift/drift_sale_adjustment_store.dart';
+import '../../domain/repositories/sale_adjustment_repository.dart';
+import '../../data/repositories/sale_adjustment_repository_impl.dart';
 import '../../application/weighing/scale_gateway.dart';
 import '../../application/weighing/scale_settings_controller.dart';
 import '../../application/weighing/scale_settings_store.dart';
@@ -176,8 +192,22 @@ void registerApplicationDependencies(
     ),
   );
 
+  getIt.registerLazySingleton<SyncCapabilityStore>(
+    () => SyncCapabilityFileStore(),
+  );
+  getIt.registerLazySingleton<SaleAdjustmentAvailability>(
+    () => SaleAdjustmentAvailability(
+      config: getIt<AppConfigController>(),
+      endpoint: getIt<SyncEndpointConfig>(),
+      store: getIt<SyncCapabilityStore>(),
+      health: () => getIt<SyncHealthService>(),
+    ),
+  );
   getIt.registerLazySingleton<SyncHealthService>(
-    () => SyncHealthService(endpointConfig: getIt<SyncEndpointConfig>()),
+    () => SyncHealthService(
+      endpointConfig: getIt<SyncEndpointConfig>(),
+      capabilityStore: getIt<SyncCapabilityStore>(),
+    ),
   );
   getIt.registerLazySingleton<ProveedorCreadoEventHandler>(
     () => ProveedorCreadoEventHandler(getIt<ProveedorProjectionStore>()),
@@ -355,11 +385,56 @@ void registerApplicationDependencies(
       cash: getIt<CashEventHandler>(),
     ),
   );
+  getIt.registerLazySingleton<SaleReconciliationStore>(
+    () => DriftSaleReconciliationStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<SaleReconciliationEventHandler>(
+    () => SaleReconciliationEventHandler(
+      store: getIt<SaleReconciliationStore>(),
+      config: getIt<AppConfigController>(),
+      availability: getIt<SaleAdjustmentAvailability>(),
+    ),
+  );
+  getIt.registerLazySingleton<SaleReconciliationCommandService>(
+    () => SaleReconciliationCommandService(
+      store: getIt<SaleReconciliationStore>(),
+      events: getIt<LocalEventStore>(),
+      config: getIt<AppConfigController>(),
+      context: getIt<LocalCommandContext>(),
+      availability: getIt<SaleAdjustmentAvailability>(),
+    ),
+  );
+  getIt.registerLazySingleton<SaleAdjustmentCommandService>(
+    () => SaleAdjustmentCommandService(
+      store: getIt<SaleAdjustmentStore>(),
+      events: getIt<LocalEventStore>(),
+      config: getIt<AppConfigController>(),
+      context: getIt<LocalCommandContext>(),
+      availability: getIt<SaleAdjustmentAvailability>(),
+    ),
+  );
+  getIt.registerLazySingleton<SaleAdjustmentEventHandler>(
+    () => SaleAdjustmentEventHandler(
+      store: getIt<SaleAdjustmentStore>(),
+      cash: getIt<CashProjectionStore>(),
+      config: getIt<AppConfigController>(),
+      availability: getIt<SaleAdjustmentAvailability>(),
+    ),
+  );
+  getIt.registerLazySingleton<SaleAdjustmentStore>(
+    () => DriftSaleAdjustmentStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<SaleAdjustmentRepository>(
+    () => SaleAdjustmentRepositoryImpl(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<ConfirmedSaleStore>(
     () => DriftConfirmedSaleStore(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<ConfirmedSaleRepository>(
-    () => ConfirmedSaleRepositoryImpl(getIt<ConfirmedSaleStore>()),
+    () => ConfirmedSaleRepositoryImpl(
+      getIt<ConfirmedSaleStore>(),
+      adjustments: getIt<SaleAdjustmentRepository>(),
+    ),
   );
   getIt.registerLazySingleton<VentaConfirmadaEventHandler>(
     () => VentaConfirmadaEventHandler(
@@ -426,6 +501,12 @@ void registerApplicationDependencies(
         ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
         ClienteActualizadoPayload.eventType:
             getIt<ClienteEventHandler>().applyUpdate,
+        OperacionVentaConciliadaPayload.eventType:
+            getIt<SaleReconciliationEventHandler>().apply,
+        VentaAnuladaPayload.eventType:
+            getIt<SaleAdjustmentEventHandler>().apply,
+        DevolucionVentaRegistradaPayload.eventType:
+            getIt<SaleAdjustmentEventHandler>().apply,
         VentaConfirmadaPayload.eventType:
             getIt<VentaConfirmadaEventHandler>().apply,
         VentaBorradorLimpiadaPayload.eventType:
@@ -449,6 +530,8 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ServerEchoAcknowledger>(
     () => ServerEchoAcknowledger(
+      saleAdjustmentStore: getIt<SaleAdjustmentStore>(),
+      saleReconciliationStore: getIt<SaleReconciliationStore>(),
       proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       variantInventoryMemoryStore: getIt<VariantInventoryMemoryStore>(),
       cashProjectionStore: getIt<CashProjectionStore>(),
@@ -549,6 +632,7 @@ void registerApplicationDependencies(
       syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       conflictProjectionCleaner: getIt<SyncConflictProjectionCleaner>(),
+      capabilityStore: getIt<SyncCapabilityStore>(),
     ),
   );
   getIt.registerLazySingleton<SyncConflictReportService>(

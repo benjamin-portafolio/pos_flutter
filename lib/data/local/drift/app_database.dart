@@ -1,7 +1,15 @@
+import '../../../application/sync/sale_adjustment_sync_contract.dart';
+import 'tables/sale_reconciliation_effects.dart';
+import 'tables/sale_delivery_incidents.dart';
+import '../../../application/sync/payloads/sale_adjustment_payload.dart';
+import 'tables/sale_adjustments.dart';
+import 'tables/sale_adjustment_lines.dart';
+import 'tables/sale_credit_reductions.dart';
+import 'tables/sale_adjustment_intents.dart';
 import 'tables/bulk_edit_operations.dart';
 import 'tables/suppliers.dart';
 import 'tables/variant_suppliers.dart';
-import 'current_database_schema.dart';
+import 'development_database_reset.dart';
 import '../../../domain/inventario/inventory_consumption_configuration.dart';
 import 'tables/credit_sales.dart';
 import 'tables/customer_payments.dart';
@@ -35,7 +43,6 @@ import 'package:pos_flutter/data/local/drift/tables/units.dart';
 import 'package:pos_flutter/data/local/drift/tables/variant_inventory_memory.dart';
 import 'package:pos_flutter/domain/espacios/visibilidad_espacio.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
-import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../../../application/sync/payloads/sale_item_snapshot.dart';
 import '../../../application/sync/payloads/venta_confirmada_payload.dart';
@@ -57,6 +64,7 @@ import '../../../application/sync/projections/quotation_item_projection.dart';
 import '../../../application/sync/payloads/quotation_selection_snapshot.dart';
 
 part 'app_database.g.dart';
+part 'daos/sale_adjustment_dao.dart';
 part 'daos/bulk_edit_operation_dao.dart';
 part 'daos/cliente_dao.dart';
 part 'daos/proveedor_dao.dart';
@@ -114,8 +122,15 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     CashSessions,
     CashMovements,
     AccountBalanceBaselines,
+    SaleAdjustments,
+    SaleAdjustmentLines,
+    SaleCreditReductions,
+    SaleAdjustmentIntents,
+    SaleDeliveryIncidents,
+    SaleReconciliationEffects,
   ],
   daos: [
+    SaleAdjustmentDao,
     BulkEditOperationDao,
     ClienteDao,
     ProveedorDao,
@@ -257,25 +272,13 @@ LazyDatabase _openConnection() {
 /// Edición masiva exige bulk_edit_operations y su índice de captura/producto.
 /// Proveedores exige suppliers con CommonFields y variant_suppliers con precio/fecha.
 /// Las pestañas de Caja requieren ix_sales_local_drafts, sin unicidad por dispositivo.
+/// Anulaciones/devoluciones requieren documentos, líneas, diario, reducciones y
+/// vínculos compensatorios; la detección compartida rechaza el esquema previo.
 Future<void> _resetDatabaseOnStartup(File file) async {
-  if (!await file.exists()) return;
-  final connection = sqlite.sqlite3.open(file.path);
-  final bool current;
-  try {
-    current = hasCurrentAppDatabaseSchema(connection);
-  } finally {
-    connection.close();
-  }
-  if (current) return;
-  if (await appDatabaseShouldPreserveRestoredDatabase()) {
-    throw StateError(
-      'El respaldo restaurado usa un esquema anterior. Se requiere una base del esquema actual.',
-    );
-  }
-  for (final suffix in ['', '-wal', '-shm']) {
-    final old = File('${file.path}$suffix');
-    if (await old.exists()) await old.delete();
-  }
+  await resetDevelopmentDatabase(
+    file,
+    shouldPreserveRestoredDatabase: appDatabaseShouldPreserveRestoredDatabase,
+  );
 }
 
 Future<File> appDatabaseFile() async {

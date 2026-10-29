@@ -1,3 +1,4 @@
+import '../../../application/sync/payloads/operacion_venta_conciliada_payload.dart';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import '../../../application/sync/models/sync_event.dart';
@@ -65,29 +66,64 @@ class DriftCashProjectionStore implements CashProjectionStore {
   }
 
   @override
-  Future<List<CashMovementEvidence>> movements(String sessionId) async =>
-      (await (db.select(db.cashMovements)
-                ..where((t) => t.sessionId.equals(sessionId))
-                ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-              .get())
-          .map(
-            (r) => CashMovementEvidence(
-              movementId: r.id,
-              eventId: r.createdEventId!,
-              direction: r.direction,
-              amountMinor: r.amountMinor,
-              sourceType: r.salePaymentId != null
-                  ? 'sale_payment'
-                  : r.customerPaymentId != null
-                  ? 'customer_payment'
-                  : 'financial_entry',
-              sourceId:
-                  (r.salePaymentId ??
-                  r.customerPaymentId ??
-                  r.financialEntryId)!,
-            ),
-          )
-          .toList();
+  Future<List<CashMovementEvidence>> movements(String sessionId) async {
+    final result =
+        (await (db.select(db.cashMovements)
+                  ..where((t) => t.sessionId.equals(sessionId))
+                  ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+                .get())
+            .map(
+              (r) => CashMovementEvidence(
+                movementId: r.id,
+                eventId: r.createdEventId!,
+                direction: r.direction,
+                amountMinor: r.amountMinor,
+                sourceType: r.salePaymentId != null
+                    ? 'sale_payment'
+                    : r.customerPaymentId != null
+                    ? 'customer_payment'
+                    : r.saleAdjustmentId != null
+                    ? 'sale_adjustment'
+                    : 'financial_entry',
+                sourceId:
+                    (r.salePaymentId ??
+                    r.customerPaymentId ??
+                    r.financialEntryId ??
+                    r.saleAdjustmentId)!,
+              ),
+            )
+            .toList();
+    for (final r
+        in await (db.select(db.saleReconciliationEffects)..where(
+              (t) =>
+                  t.ledger.equals('cash') &
+                  t.cashSessionId.equals(sessionId) &
+                  t.appliedLocally.equals(true),
+            ))
+            .get()) {
+      final e = await db.eventDao.obtenerEventoPorId(r.eventId);
+      final p = OperacionVentaConciliadaPayload.fromJson(
+        Map<String, Object?>.from(jsonDecode(e!.payload) as Map),
+      );
+      if (e.deliveryStatus == 'delivered' ||
+          p.recoveryEffects.any((x) => x.effectId == r.effectId)) {
+        result.removeWhere((m) => m.movementId == r.effectId);
+        result.add(
+          CashMovementEvidence(
+            movementId: r.effectId,
+            eventId: r.eventId,
+            direction: r.delta > 0 ? 'in' : 'out',
+            amountMinor: r.delta.abs(),
+            sourceType: 'sale_reconciliation',
+            sourceId: p.operationId,
+          ),
+        );
+      }
+    }
+    result.sort((a, b) => a.movementId.compareTo(b.movementId));
+    return result;
+  }
+
   @override
   Future<void> insertSession(SyncEvent e, CajaAbiertaPayload p) async {
     await db
@@ -140,6 +176,7 @@ class DriftCashProjectionStore implements CashProjectionStore {
     final table = switch (p.sourceType) {
       'sale_payment' => 'sale_payments',
       'customer_payment' => 'customer_payments',
+      'sale_adjustment' => 'sale_adjustments',
       _ => 'financial_entries',
     };
     final source = await db
@@ -151,6 +188,7 @@ class DriftCashProjectionStore implements CashProjectionStore {
     if (source.read<String>('method') != 'cash' ||
         source.read<int>('amount_minor') != p.amountMinor ||
         source.read<String>('created_event_id') != e.eventId ||
+        (p.sourceType == 'sale_adjustment' && p.direction != 'out') ||
         (p.sourceType == 'financial_entry' &&
             source.read<String>('direction') != p.direction)) {
       throw StateError('El origen real no coincide con el movimiento.');
@@ -171,6 +209,9 @@ class DriftCashProjectionStore implements CashProjectionStore {
             ),
             financialEntryId: Value(
               p.sourceType == 'financial_entry' ? p.sourceId : null,
+            ),
+            saleAdjustmentId: Value(
+              p.sourceType == 'sale_adjustment' ? p.sourceId : null,
             ),
             createdEventId: Value(e.eventId),
             lastEventId: Value(e.eventId),
