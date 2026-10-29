@@ -11,6 +11,7 @@ import 'models/report_period.dart';
 import 'models/sales_reports_calculator.dart';
 import 'report_date_filter_screen.dart';
 import 'sales_by_method_screen.dart';
+import 'sales_time_report_screen.dart';
 import 'widgets/collections_report_card.dart';
 import 'widgets/remaining_stock_report_card.dart';
 
@@ -64,6 +65,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
         repository: widget.repository,
         now: widget.now,
         sales: _sales,
+      ),
+    ),
+  );
+
+  Future<void> _openSalesReport() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => SalesTimeReportScreen(
+        initialPeriod: _period,
+        repository: _repository,
+        now: widget.now,
       ),
     ),
   );
@@ -137,7 +148,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               );
             }
             return _SalesIndicatorRow(
-              gross: SalesReportsCalculator.grossProfit(_period, snapshot.data!),
+              onOpenSales: _openSalesReport,
+              gross: SalesReportsCalculator.grossProfit(
+                _period,
+                snapshot.data!,
+              ),
               total: SalesReportsCalculator.ventasTotales(
                 _period,
                 snapshot.data!,
@@ -166,7 +181,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
 /// Beneficio bruto y ventas totales del mismo período, juntos: lado a lado en
 /// tablet y apilados en teléfono.
 class _SalesIndicatorRow extends StatelessWidget {
-  const _SalesIndicatorRow({required this.gross, required this.total});
+  const _SalesIndicatorRow({
+    required this.gross,
+    required this.total,
+    required this.onOpenSales,
+  });
+  final VoidCallback onOpenSales;
   final BeneficioBrutoReport gross;
   final BigInt total;
   @override
@@ -174,20 +194,30 @@ class _SalesIndicatorRow extends StatelessWidget {
     builder: (context, constraints) {
       final cards = <Widget>[
         _BeneficioBrutoCard(report: gross),
-        _ReportCard(
-          title: 'VENTAS TOTALES',
-          child: Text(
-            ReportMoney.money(total),
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
+        InkWell(
+          onTap: onOpenSales,
+          child: _ReportCard(
+            title: 'VENTAS TOTALES',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ReportMoney.money(total),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                TextButton(
+                  onPressed: onOpenSales,
+                  child: const Text('Ver reporte de ventas'),
+                ),
+              ],
             ),
           ),
         ),
       ];
       if (constraints.maxWidth < 560) {
-        return Column(
-          children: [for (final card in cards) card],
-        );
+        return Column(children: [for (final card in cards) card]);
       }
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,

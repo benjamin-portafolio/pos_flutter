@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
 import 'package:pos_flutter/domain/ventas/confirmed_sale.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
+import 'package:pos_flutter/presentation/pages/informes/sales_time_report_screen.dart';
 
 import '../../../support/fake_reports_producto_repository.dart';
 
@@ -102,6 +103,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(r'$11.75 MXN'), findsOneWidget);
       await tester.tap(find.text(r'$11.75 MXN'));
+      await tester.pump();
+      repository.controller.add(sales);
+      await tester.pumpAndSettle();
+      expect(find.byType(SalesTimeReportScreen), findsOneWidget);
+      await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.byType(ReportsScreen), findsOneWidget);
       expect(find.text('BAJO INVENTARIO DE EXISTENCIAS'), findsOneWidget);
