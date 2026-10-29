@@ -13,6 +13,8 @@ import 'report_date_filter_screen.dart';
 import 'sales_by_method_screen.dart';
 import 'sales_time_report_screen.dart';
 import 'widgets/collections_report_card.dart';
+import 'widgets/beneficio_bruto_report_card.dart';
+import 'category_sales_report_screen.dart';
 import 'widgets/remaining_stock_report_card.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -171,6 +173,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
+        Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: FilledButton.icon(
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => CategorySalesReportScreen(
+                    initialPeriod: _period,
+                    repository: _repository,
+                    productoRepository:
+                        widget.productoRepository ??
+                        getIt<ProductoRepository>(),
+                    now: widget.now,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.donut_large),
+              label: const Text('Ver informe por categoría'),
+            ),
+          ),
+        ),
         if (_collections != null)
           CollectionsReportCard(collections: _collections, period: _period),
       ],
@@ -193,7 +217,7 @@ class _SalesIndicatorRow extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final cards = <Widget>[
-        _BeneficioBrutoCard(report: gross),
+        BeneficioBrutoReportCard(report: gross),
         InkWell(
           onTap: onOpenSales,
           child: _ReportCard(
@@ -230,49 +254,6 @@ class _SalesIndicatorRow extends StatelessWidget {
       );
     },
   );
-}
-
-class _BeneficioBrutoCard extends StatelessWidget {
-  const _BeneficioBrutoCard({required this.report});
-  final BeneficioBrutoReport report;
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (report.estado == BeneficioBrutoEstado.noDisponible) {
-      return _ReportCard(
-        title: report.titulo,
-        child: const Text(
-          'Las líneas de este período no registran el costo estándar.',
-        ),
-      );
-    }
-    final negative = report.profitMinor.isNegative;
-    return _ReportCard(
-      title: report.titulo,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            report.monto!,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: negative
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.primary,
-            ),
-          ),
-          if (report.detalleSinCosto != null) ...[
-            const SizedBox(height: 4),
-            Text(report.detalleSinCosto!),
-          ],
-          const SizedBox(height: 8),
-          Text(
-            'Calculado con el costo estándar registrado en la venta.',
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ReportCard extends StatelessWidget {

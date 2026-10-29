@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
 import 'package:pos_flutter/domain/ventas/confirmed_sale.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
+import 'package:pos_flutter/presentation/pages/informes/category_sales_report_screen.dart';
 import 'package:pos_flutter/presentation/pages/informes/sales_time_report_screen.dart';
 
 import '../../../support/fake_reports_producto_repository.dart';
@@ -72,6 +73,25 @@ void main() {
     await tester.tap(find.byIcon(Icons.calendar_month));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('abre informe por categoría con el período seleccionado', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tester.scrollUntilVisible(
+      find.text('Ver informe por categoría'),
+      250,
+    );
+    await tester.ensureVisible(find.text('Ver informe por categoría'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ver informe por categoría'));
+    await tester.pump();
+    repository.controller.add([]);
+    await tester.pumpAndSettle();
+    expect(find.byType(CategorySalesReportScreen), findsOneWidget);
+    expect(find.text('17 septiembre 2026'), findsOneWidget);
+    expect(find.text('Sin operaciones en este período'), findsOneWidget);
+  });
 
   testWidgets(
     'total reactivo por cobro; incluye incidencias, excluye cambio y otros días',
