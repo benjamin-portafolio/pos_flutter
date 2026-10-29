@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
 
 void main() {
@@ -8,7 +7,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(find.text(r'$855.00'), findsOneWidget);
+    expect(find.textContaining(r'$855.00'), findsOneWidget);
     expect(find.text('Cambio'), findsOneWidget);
     expect(find.text(r'$0.00'), findsOneWidget);
     expect(
@@ -27,7 +26,7 @@ void main() {
       ('0', 'Efectivo pendiente', r'-$855.00'),
       ('', 'Cambio', r'$0.00'),
     ]) {
-      await tester.enterText(find.byType(TextField), scenario.$1);
+      await tester.enterText(_received, scenario.$1);
       await tester.pump();
       expect(find.text(scenario.$2), findsOneWidget);
       expect(find.text(scenario.$3), findsOneWidget);
@@ -37,23 +36,20 @@ void main() {
   testWidgets('acepta centavos con punto o coma sin redondeos', (tester) async {
     await _pump(tester, totalMinor: 1010);
     for (final amount in ['10.30', '10,30']) {
-      await tester.enterText(find.byType(TextField), amount);
+      await tester.enterText(_received, amount);
       await tester.pump();
       expect(find.text(r'$0.20'), findsOneWidget);
     }
-    await tester.enterText(find.byType(TextField), '.5');
+    await tester.enterText(_received, '.5');
     await tester.pump();
     expect(find.text(r'-$9.60'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '10.');
+    await tester.enterText(_received, '10.');
     await tester.pump();
     expect(find.text(r'-$0.10'), findsOneWidget);
     for (final invalid in ['-20', 'abc', '12.345', '12,3.4']) {
-      await tester.enterText(find.byType(TextField), invalid);
+      await tester.enterText(_received, invalid);
       await tester.pump();
-      expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        '10.',
-      );
+      expect(tester.widget<TextField>(_received).controller!.text, '10.');
       expect(find.text(r'-$0.10'), findsOneWidget);
     }
     expect(tester.takeException(), isNull);
@@ -73,13 +69,10 @@ void main() {
     ]) {
       await tester.tap(find.text('+ \$${scenario.$1}'));
       await tester.pump();
-      expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        scenario.$2,
-      );
+      expect(tester.widget<TextField>(_received).controller!.text, scenario.$2);
     }
     expect(find.text(r'$1015.00'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '900.25');
+    await tester.enterText(_received, '900.25');
     await tester.tap(find.text(r'+ $20'));
     await tester.pump();
     expect(find.text(r'$65.25'), findsOneWidget);
@@ -107,21 +100,13 @@ void main() {
     await tester.pumpAndSettle();
     final pageScroll = find
         .descendant(
-          of: find.byType(ListView),
+          of: find.byKey(const Key('cash_payment_content')),
           matching: find.byType(Scrollable),
         )
         .first;
-    await tester.scrollUntilVisible(
-      find.text('Efectivo'),
-      150,
-      scrollable: pageScroll,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Efectivo'));
-    await tester.pumpAndSettle();
     tester.view.viewInsets = const FakeViewPadding(bottom: 280);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '920');
+    await tester.enterText(_received, '920');
     await tester.pump();
     await tester.scrollUntilVisible(
       find.text(r'$65.00'),
@@ -139,13 +124,16 @@ void main() {
     await tester.tap(find.text(r'+ $1000'));
     await tester.pump();
     expect(find.text('Recibido por efectivo'), findsOneWidget);
+    expect(find.text('Tarjeta'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
 
+Finder get _received => find.byKey(const Key('cash_received_input'));
+
 Future<void> _pump(WidgetTester tester, {int totalMinor = 85500}) async {
   await tester.pumpWidget(
-    MaterialApp(home: CashPaymentScreen(totalMinor: totalMinor)),
+    MaterialApp(home: PaymentMethodScreen(totalMinor: totalMinor)),
   );
   await tester.pumpAndSettle();
 }

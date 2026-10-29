@@ -31,7 +31,7 @@ class _Sales implements VentaCommandService {
 
 void main() {
   testWidgets(
-    'crédito exige seleccionar cliente, filtra y confirma una sola vez',
+    'crédito no abre selector al entrar, exige cliente y confirma una sola vez',
     (tester) async {
       final sales = _Sales();
       await tester.pumpWidget(
@@ -45,18 +45,36 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('Crédito del cliente'));
+      await tester.tap(find.byKey(const Key('payment_tab_credit')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ClientePickerScreen), findsNothing);
+      expect(sales.commands, isEmpty);
+      expect(find.text('Sin cliente seleccionado'), findsOneWidget);
+      final confirm = find.widgetWithText(FilledButton, 'Confirmar crédito');
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+
+      await tester.tap(find.byTooltip('Buscar cliente'));
       await tester.pumpAndSettle();
       expect(find.byType(ClientePickerScreen), findsOneWidget);
-      expect(sales.commands, isEmpty);
       await tester.enterText(find.byType(TextField), '555');
       await tester.pumpAndSettle();
       expect(find.text('Luis'), findsNothing);
       await tester.tap(find.text('Ana'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Crédito del cliente'));
+
+      expect(find.byType(ClientePickerScreen), findsNothing);
+      expect(find.text('Ana'), findsWidgets);
+      expect(find.text('555'), findsWidgets);
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
+      await tester.tap(confirm);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Confirmar crédito'));
+      expect(find.text('Confirmar venta a crédito'), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Confirmar crédito'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(sales.commands, hasLength(1));
       expect(sales.commands.single.clienteId, 'ana');
@@ -64,8 +82,8 @@ void main() {
       expect(sales.commands.single.receivedMinor, isNull);
       expect(
         tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Registrando…'),
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Registrando…'),
             )
             .onPressed,
         isNull,
@@ -73,8 +91,8 @@ void main() {
       sales.result.completeError(StateError('El borrador cambió'));
       await tester.pumpAndSettle();
       expect(find.textContaining('El borrador cambió'), findsOneWidget);
-      expect(find.text('Ana'), findsOneWidget);
-      expect(find.text('Crédito del cliente'), findsOneWidget);
+      expect(find.text('Ana'), findsWidgets);
+      expect(find.text('Confirmar crédito'), findsOneWidget);
     },
   );
 }

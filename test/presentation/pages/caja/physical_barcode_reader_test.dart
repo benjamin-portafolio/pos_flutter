@@ -36,7 +36,6 @@ import 'package:pos_flutter/presentation/pages/caja/barcode/barcode_product_sele
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/physical_barcode_reader.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
-import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
@@ -163,8 +162,11 @@ void main() {
           await send(tester, '001');
           expect(field(tester).controller!.text, isEmpty);
           expect(field(tester).focusNode!.hasFocus, isTrue);
-          await send(tester, '');
-          await enter(tester);
+          // Un nuevo Enter vacío ahora solicita cobrar. Las repeticiones
+          // físicas del terminador siguen sin agregar lecturas ni cobrar.
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+          await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
           await tester.pump();
           expect(find.textContaining('3 lecturas pendientes'), findsOneWidget);
           gate.complete();
@@ -320,9 +322,6 @@ void main() {
       await enter(tester);
       await settle(tester);
       expect(f.attempts, hasLength(1));
-      await enter(tester);
-      await settle(tester);
-      expect(f.attempts, hasLength(1));
       await tester.tap(find.byTooltip('Escribir código'));
       await settle(tester);
       expect(field(tester).keyboardType, TextInputType.text);
@@ -348,6 +347,35 @@ void main() {
     },
     platforms: [TargetPlatform.android],
   );
+
+  readerTest('Enter con lector vacío abre cobro en efectivo sin lectura', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => f.commands.agregar(
+        const AgregarProductoBorradorCommand(variantId: 'A'),
+      ),
+    );
+    await pumpCaja(tester);
+    expect(field(tester).controller!.text, isEmpty);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect(find.byType(PaymentMethodScreen), findsOneWidget);
+    expect(find.byKey(const Key('cash_received_input')), findsOneWidget);
+    expect(find.textContaining('Total a cobrar'), findsOneWidget);
+    expect(f.lookups, isEmpty);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))!.items, hasLength(1));
+    expect(find.byType(PaymentMethodScreen), findsOneWidget);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+    await tester.pageBack();
+    await settle(tester);
+    expect(find.byType(PaymentMethodScreen), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+  });
 
   readerTest(
     'Android conserva teclados de búsqueda, cantidad y efectivo',
@@ -388,10 +416,12 @@ void main() {
       expect(field(tester).keyboardType, TextInputType.none);
       await tester.tap(find.textContaining('Cobrar:'));
       await settle(tester);
-      await tester.tap(find.text('Efectivo'));
-      await settle(tester);
-      expect(find.byType(CashPaymentScreen), findsOneWidget);
-      await tester.enterText(find.byType(TextField), '200');
+      expect(find.byType(PaymentMethodScreen), findsOneWidget);
+      expect(find.byKey(const Key('cash_received_input')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('cash_received_input')),
+        '200',
+      );
       await tester.pump();
       expect(
         tester.testTextInput.setClientArgs!['inputType']['name'],
@@ -399,8 +429,6 @@ void main() {
       );
       expect(tester.testTextInput.isVisible, isTrue);
       expect(f.attempts, hasLength(1));
-      await tester.pageBack();
-      await settle(tester);
       await tester.pageBack();
       await settle(tester);
       expect(field(tester).keyboardType, TextInputType.none);
@@ -443,12 +471,11 @@ void main() {
     await pumpCaja(tester);
     for (final code in ['', '001A', 'A001', '00 1', '1' * 33]) {
       await send(tester, code);
+      await settle(tester);
     }
     expect(find.text('El código debe tener hasta 32 dígitos.'), findsOneWidget);
     expect(f.lookups, isEmpty);
     await send(tester, ' ００１ ');
-    await settle(tester);
-    await enter(tester);
     await settle(tester);
     expect(f.lookups, ['001']);
     expect(f.attempts, hasLength(1));

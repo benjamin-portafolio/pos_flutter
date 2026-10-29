@@ -3,6 +3,7 @@ import 'dart:ui' show ViewFocusEvent, ViewFocusState;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../application/commands/articulos/asignar_codigo_barras_variante_command.dart';
 import '../../../../application/commands/articulos/crear_articulo_command.dart';
@@ -38,6 +39,7 @@ class PhysicalBarcodeReader extends StatefulWidget {
     this.onQueryChanged,
     this.shouldSubmit,
     this.onAdded,
+    this.onCharge,
     this.onBack,
     this.initialText = '',
     this.searchMode = false,
@@ -55,6 +57,10 @@ class PhysicalBarcodeReader extends StatefulWidget {
   final ValueChanged<String>? onQueryChanged;
   final bool Function(String)? shouldSubmit;
   final VoidCallback? onAdded;
+
+  /// Enter con el campo vacío solicita cobrar; con texto sigue siendo una
+  /// lectura del lector de códigos.
+  final VoidCallback? onCharge;
   final VoidCallback? onBack;
   final String initialText;
   final bool searchMode;
@@ -67,7 +73,17 @@ class PhysicalBarcodeReader extends StatefulWidget {
 class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     with WidgetsBindingObserver {
   final _text = TextEditingController();
-  final _focus = FocusNode(debugLabel: 'Lector físico');
+  final _focus = FocusNode(
+    debugLabel: 'Lector físico',
+    // Una repetición del terminador del lector no es una nueva intención
+    // de cobrar cuando el código ya se ha retirado del campo.
+    onKeyEvent: (_, event) =>
+        event is KeyRepeatEvent &&
+            (event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored,
+  );
   PhysicalBarcodeReaderController? _session;
   SaleBarcodeReadResult? _shownResult;
   Future<void>? _finishOperation;
@@ -287,6 +303,19 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
   void _queryChanged() => widget.onQueryChanged?.call(_text.text);
 
   void _submit(String _) {
+    if (_text.text.isEmpty) {
+      if (!widget.interactionEnabled ||
+          !_available ||
+          !_focus.hasFocus ||
+          _closing) {
+        return;
+      }
+      if (widget.onCharge != null) {
+        _text.clear();
+        widget.onCharge!();
+      }
+      return;
+    }
     if (widget.shouldSubmit?.call(_text.text) == false) return;
     // onSubmitted es la única frontera. Copiar antes de limpiar evita que un
     // Enter repetido vuelva a enviar el texto entregado por un callback antiguo.

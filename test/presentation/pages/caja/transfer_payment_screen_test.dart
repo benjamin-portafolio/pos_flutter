@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/ventas/confirmar_venta_command.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_command_service.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
-import 'package:pos_flutter/presentation/pages/caja/transfer_payment_screen.dart';
 
 class _Sales implements VentaCommandService {
   final commands = <ConfirmarVentaCommand>[];
@@ -34,16 +33,16 @@ void main() {
           ),
         ),
       );
-      await tester.ensureVisible(find.text('Transferencia bancaria'));
+      await tester.tap(find.byKey(const Key('payment_tab_transfer')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Transferencia bancaria'));
-      await tester.pumpAndSettle();
-      expect(find.byType(TransferPaymentScreen), findsOneWidget);
-      await tester.enterText(find.byType(TextFormField), 'x' * 501);
+      expect(find.byType(PaymentMethodScreen), findsOneWidget);
+      expect(find.text('Confirmar transferencia'), findsOneWidget);
+      final reference = find.byKey(const Key('transfer_reference_input'));
+      await tester.enterText(reference, 'x' * 501);
       await tester.tap(find.text('Confirmar transferencia'));
       await tester.pumpAndSettle();
       expect(service.commands, isEmpty);
-      await tester.enterText(find.byType(TextFormField), '  BANCO  ');
+      await tester.enterText(reference, '  BANCO  ');
       await tester.tap(find.text('Confirmar transferencia'));
       await tester.tap(find.text('Confirmar transferencia'));
       await tester.pumpAndSettle();

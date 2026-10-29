@@ -8,7 +8,6 @@ import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_c
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
-import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/draft_item_edit_sheet.dart';
 import 'package:pos_flutter/presentation/pages/caja/models/sale_draft_display.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
@@ -71,58 +70,56 @@ void main() {
     },
   );
 
-  testWidgets('cobrar abre efectivo y regresar conserva la venta', (
-    tester,
-  ) async {
-    _phone(tester);
-    final commands = _Commands();
-    await _pump(tester, sampleSale(), commands: commands);
-    await tester.tap(find.text(r'Cobrar: $109.00'));
-    await tester.pumpAndSettle();
-    expect(find.byType(PaymentMethodScreen), findsOneWidget);
-    expect(find.text('CLIENTE · OBLIGATORIO PARA CRÉDITO'), findsOneWidget);
-    expect(find.text('Seleccionar cliente'), findsOneWidget);
-    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
-      expect(field.enabled, isFalse);
-    }
-    for (final label in [
-      'Tarjeta de débito',
-      'Tarjeta de crédito',
-      'Transferencia bancaria',
-    ]) {
+  testWidgets(
+    'cobrar abre efectivo, cambia pestañas y regresar conserva la venta',
+    (tester) async {
+      _phone(tester);
+      final commands = _Commands();
+      await _pump(tester, sampleSale(), commands: commands);
+      await tester.tap(find.text(r'Cobrar: $109.00'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaymentMethodScreen), findsOneWidget);
+      for (final label in ['Efectivo', 'Transferencia', 'Crédito', 'Tarjeta']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(find.text('Seleccionar cliente'), findsOneWidget);
+      expect(find.textContaining('Total a cobrar'), findsOneWidget);
+      expect(find.textContaining(r'$109.00'), findsOneWidget);
+      final cash = tester.widget<TextField>(
+        find.byKey(const Key('cash_received_input')),
+      );
+      expect(cash.enabled, isTrue);
+      expect(cash.focusNode!.hasFocus, isTrue);
       expect(
         tester
-            .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, label))
+            .widget<IconButton>(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is IconButton && widget.tooltip == 'Buscar cliente',
+              ),
+            )
             .onPressed,
-        isNull,
+        isNotNull,
       );
-    }
-    expect(
-      tester
-          .widget<IconButton>(
-            find.byWidgetPredicate(
-              (widget) =>
-                  widget is IconButton && widget.tooltip == 'Buscar cliente',
-            ),
-          )
-          .onPressed,
-      isNotNull,
-    );
-    await tester.tap(find.text('Efectivo'));
-    await tester.pumpAndSettle();
-    expect(find.byType(CashPaymentScreen), findsOneWidget);
-    expect(find.text(r'$109.00'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '200');
-    await tester.pump();
-    expect(find.text(r'$91.00'), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.text(r'Cobrar: $109.00'), findsOneWidget);
-    expect(find.text('3 artículos · 5 unidades'), findsOneWidget);
-    expect(commands.cleared, isEmpty);
-  });
+      await tester.tap(find.byKey(const Key('payment_tab_transfer')));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaymentMethodScreen), findsOneWidget);
+      expect(find.text('Confirmar transferencia'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('payment_tab_cash')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('cash_received_input')),
+        '200',
+      );
+      await tester.pump();
+      expect(find.text(r'$91.00'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text(r'Cobrar: $109.00'), findsOneWidget);
+      expect(find.text('3 artículos · 5 unidades'), findsOneWidget);
+      expect(commands.cleared, isEmpty);
+    },
+  );
 
   testWidgets('no permite cobrar un borrador sin artículos', (tester) async {
     _phone(tester);

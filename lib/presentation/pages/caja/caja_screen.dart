@@ -202,19 +202,21 @@ class CajaScreenState extends State<CajaScreen> {
     }
   });
 
-  Future<void> _openPayment() => _runAction(() async {
-    final sale = await _repository.watchCurrentDraft().first;
-    if (!mounted || sale == null || sale.items.isEmpty) return;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => PaymentMethodScreen(
-          totalMinor: sale.totalMinor,
-          saleId: sale.id,
-          expectedDraftEventId: sale.lastEventId,
-        ),
-      ),
-    );
-  });
+  Future<void> _openPayment({bool enteredWithEnter = false}) =>
+      _runAction(() async {
+        final sale = await _repository.watchCurrentDraft().first;
+        if (!mounted || sale == null || sale.items.isEmpty) return;
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => PaymentMethodScreen(
+              totalMinor: sale.totalMinor,
+              saleId: sale.id,
+              expectedDraftEventId: sale.lastEventId,
+              consumeOpeningEnter: enteredWithEnter,
+            ),
+          ),
+        );
+      });
 
   final _barcodeClock = Stopwatch()..start();
   late final _barcodeGate = BarcodeReadGate(clock: () => _barcodeClock.elapsed);
@@ -329,6 +331,7 @@ class CajaScreenState extends State<CajaScreen> {
                 widget.saleDraftRepository ?? getIt<SaleDraftRepository>(),
             onOpenSearch: _openSearch,
             onScanBarcode: _openBarcodeScanner,
+            onCharge: _busy ? null : () => _openPayment(enteredWithEnter: true),
             interactionEnabled: !_busy,
             coordinator: SaleBarcodeReadCoordinator(
               products:
@@ -515,7 +518,7 @@ class CajaScreenState extends State<CajaScreen> {
                                             sale.items.isEmpty ||
                                             _busy
                                         ? null
-                                        : _openPayment,
+                                        : () => _openPayment(),
                                     style: FilledButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,

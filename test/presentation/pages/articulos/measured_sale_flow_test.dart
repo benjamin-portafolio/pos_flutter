@@ -20,7 +20,6 @@ import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
-import 'package:pos_flutter/presentation/pages/caja/cash_payment_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/models/sale_receipt_display.dart';
 
 import '../../../support/quotation_harness.dart';
@@ -177,14 +176,9 @@ void main() {
           expect(payment.totalMinor, 4008);
           expect(payment.saleId, draft.id);
           expect(payment.expectedDraftEventId, draft.lastEventId);
-          await tester.tap(find.text('Efectivo'));
-          await settle();
-          final cash = tester.widget<CashPaymentScreen>(
-            find.byType(CashPaymentScreen),
-          );
-          expect(cash.totalMinor, 4008);
-          expect(cash.saleId, draft.id);
-          expect(cash.expectedDraftEventId, draft.lastEventId);
+          expect(find.byType(PaymentMethodScreen), findsOneWidget);
+          expect(find.byKey(const Key('cash_received_input')), findsOneWidget);
+          expect(find.textContaining('Total a cobrar'), findsOneWidget);
           final eventId = (await tester.runAsync(() => harness.confirm()))!;
           final confirmedEvents = (await tester.runAsync(
             () =>
