@@ -146,15 +146,9 @@ void main() {
           debugDefaultTargetPlatformOverride = platform;
           f.config.update(AppConfig.initial.copyWith(mode: mode));
           await pumpCaja(tester);
-          if (platform == TargetPlatform.macOS) {
-            expect(find.byKey(inputKey), findsNothing);
-            expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
-            await enable(tester);
-          } else {
-            expect(find.byKey(toggleKey), findsNothing);
-            expect(find.byKey(inputKey), findsOneWidget);
-            expect(f.attempts, isEmpty);
-          }
+          expect(find.byType(Switch), findsNothing);
+          expect(find.byKey(inputKey), findsOneWidget);
+          expect(f.attempts, isEmpty);
           expect(field(tester).focusNode!.hasFocus, isTrue);
           expect(find.textContaining('Listo para escanear'), findsOneWidget);
           final gate = Completer<void>();
@@ -222,7 +216,7 @@ void main() {
     'espera sin lector; fragmentos sin Enter no consultan ni escriben',
     (tester) async {
       await pumpCaja(tester);
-      expect(find.byKey(toggleKey), findsNothing);
+      expect(find.byType(Switch), findsNothing);
       expect(field(tester).focusNode!.hasFocus, isTrue);
       expect(f.lookups, isEmpty);
       tester.testTextInput.updateEditingValue(
@@ -339,8 +333,6 @@ void main() {
       expect(tester.testTextInput.isVisible, isTrue);
       await tester.enterText(find.byKey(inputKey), '002');
       await tester.pump();
-      await tester.tap(find.byKey(inputKey));
-      await tester.pump();
       expect(field(tester).controller!.text, '002');
       await enter(tester);
       await settle(tester);
@@ -449,7 +441,6 @@ void main() {
     tester,
   ) async {
     await pumpCaja(tester);
-    await enable(tester);
     for (final code in ['', '001A', 'A001', '00 1', '1' * 33]) {
       await send(tester, code);
     }
@@ -478,7 +469,6 @@ void main() {
       tester,
     ) async {
       await pumpCaja(tester);
-      await enable(tester);
       final query = Completer<void>();
       f.beforeLookup = (code) => code == '003' ? query.future : Future.value();
       await send(tester, '003');
@@ -503,7 +493,6 @@ void main() {
       tester,
     ) async {
       await pumpCaja(tester);
-      await enable(tester);
       final query = Completer<void>();
       f.beforeLookup = (code) => code == '004' ? query.future : Future.value();
       await send(tester, '004');
@@ -538,7 +527,6 @@ void main() {
       ),
     );
     await pumpCaja(tester);
-    await enable(tester);
     final query = Completer<void>();
     f.beforeLookup = (code) => code == '001' ? query.future : Future.value();
     await send(tester, '001');
@@ -564,7 +552,6 @@ void main() {
     tester,
   ) async {
     await pumpCaja(tester);
-    await enable(tester);
     await tester.enterText(find.byKey(inputKey), '00');
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
@@ -587,7 +574,6 @@ void main() {
       'perder ${window ? "ventana" : "aplicación"} limpia y exige reanudación',
       (tester) async {
         await pumpCaja(tester);
-        await enable(tester);
         await tester.enterText(find.byKey(inputKey), '00');
         await tester.pump();
         if (window) {
@@ -620,11 +606,10 @@ void main() {
     );
   }
 
-  readerTest('búsqueda textual vuelve con modo/foco sin capturar en buscador', (
+  readerTest('búsqueda textual conserva resultados y regresa con modo/foco', (
     tester,
   ) async {
     await pumpCaja(tester);
-    await enable(tester);
     await tester.tap(
       find.byWidgetPredicate(
         (w) => w is TextField && w.decoration?.hintText == 'Quiero vender…',
@@ -632,7 +617,7 @@ void main() {
     );
     await settle(tester);
     expect(find.byType(ArticleSearchScreen), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '001');
+    await tester.enterText(find.byType(TextField), 'A');
     await tester.pump();
     await enter(tester);
     await settle(tester);
@@ -660,7 +645,6 @@ void main() {
       ),
     );
     await pumpCaja(tester);
-    await enable(tester);
     final save = Completer<void>();
     f.beforeSave = (_) => f.attempts.length == 2 ? save.future : Future.value();
     await send(tester, '002');
@@ -691,12 +675,14 @@ void main() {
     'desactivar drena; reactivar crea otra sesión',
     (tester) async {
       await pumpCaja(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeLookup = (code) => code == '001' ? gate.future : Future.value();
       await send(tester, '001');
       await send(tester, '002');
-      await tester.tap(find.byKey(toggleKey));
+      final reader = tester.state<PhysicalBarcodeReaderState>(
+        find.byType(PhysicalBarcodeReader),
+      );
+      final finished = reader.finish();
       await tester.pump();
       expect(find.text('Finalizando lecturas'), findsOneWidget);
       if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
@@ -706,7 +692,9 @@ void main() {
       await settle(tester);
       expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
       expect(find.byKey(inputKey), findsNothing);
-      await enable(tester);
+      await finished;
+      reader.enableReader();
+      await settle(tester);
       await send(tester, '001');
       await settle(tester);
       expect(f.attempts, hasLength(3));
@@ -718,7 +706,6 @@ void main() {
     'Home espera guardado; descarte conserva commit y regreso prepara sesión',
     (tester) async {
       await pumpCaja(tester, home: true);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeSave = (_) => gate.future;
       await send(tester, '001');
@@ -754,23 +741,11 @@ void main() {
       );
       await tester.tap(find.text('Caja'));
       await settle(tester);
-      if (defaultTargetPlatform == TargetPlatform.macOS) {
-        expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
-        expect(find.byKey(inputKey), findsNothing);
-      } else {
-        expect(field(tester).focusNode!.hasFocus, isTrue);
-        await send(tester, '002');
-        await settle(tester);
-        expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
-      }
-      expect(
-        find.text(
-          defaultTargetPlatform == TargetPlatform.macOS
-              ? r'Cobrar: $1.00'
-              : r'Cobrar: $2.00',
-        ),
-        findsOneWidget,
-      );
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      await send(tester, '002');
+      await settle(tester);
+      expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+      expect(find.text(r'Cobrar: $2.00'), findsOneWidget);
     },
   );
 
@@ -778,7 +753,6 @@ void main() {
     'menú espera consulta y descarte confirmado invalida respuestas tardías',
     (tester) async {
       await pumpCaja(tester, home: true);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeLookup = (_) => gate.future;
       await send(tester, '003');
@@ -829,7 +803,6 @@ void main() {
       );
       final oldId = (await tester.runAsync(() => f.draft))!.id;
       await pumpCaja(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeSave = (_) =>
           f.attempts.length == 2 ? gate.future : Future.value();
@@ -878,7 +851,6 @@ void main() {
         quotes: quotation.service(owner: f.commands.context),
         quotations: repository,
       );
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeSave = (_) =>
           f.attempts.length == 2 ? gate.future : Future.value();
@@ -923,7 +895,6 @@ void main() {
         ),
       );
       await pumpCaja(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeSave = (_) => gate.future;
       await send(tester, '001');
@@ -962,7 +933,6 @@ void main() {
         await camera.captures.close();
       });
       await pumpCaja(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeLookup = (_) => gate.future;
       await send(tester, '001');
@@ -990,7 +960,6 @@ void main() {
     'finalizar con selector visible deja resolverlo y termina las otras lecturas',
     (tester) async {
       await pumpCaja(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeLookup = (_) => gate.future;
       await send(tester, '003');
@@ -1020,7 +989,6 @@ void main() {
       ),
     );
     await pumpCaja(tester);
-    await enable(tester);
     for (var i = 0; i < 2; i++) {
       await send(tester, '004');
       await settle(tester);
@@ -1062,7 +1030,6 @@ void main() {
     'importe obsoleto pausa sin escrituras y permite revisar antes de reintentar',
     (tester) async {
       await pumpCaja(tester);
-      await enable(tester);
       await send(tester, '004');
       await settle(tester);
       await tester.enterText(
@@ -1104,7 +1071,6 @@ void main() {
     tester,
   ) async {
     await pumpCaja(tester);
-    await enable(tester);
     await send(tester, '004');
     await settle(tester);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -1133,7 +1099,6 @@ void main() {
     tester,
   ) async {
     await pumpCaja(tester);
-    await enable(tester);
     final gate = Completer<void>();
     f.beforeLookup = (_) => gate.future;
     await send(tester, '001');
@@ -1166,7 +1131,6 @@ void main() {
         ),
       );
       await pumpCaja(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeLookup = (code) => code == '002' ? gate.future : Future.value();
       f.beforeSave = (command) async {
@@ -1212,7 +1176,6 @@ void main() {
         ),
       );
       await settle(tester);
-      await enable(tester);
       final gate = Completer<void>();
       f.beforeSave = (_) => gate.future;
       await send(tester, '001');
@@ -1223,14 +1186,10 @@ void main() {
       gate.complete();
       await settle(tester);
       expect(f.attempts, hasLength(1));
-      if (defaultTargetPlatform == TargetPlatform.macOS) {
-        expect(tester.widget<Switch>(find.byKey(toggleKey)).value, isFalse);
-      } else {
-        expect(find.textContaining('Lector en pausa'), findsOneWidget);
-        await tester.tap(find.text('Reanudar lector'));
-        await settle(tester);
-        expect(field(tester).focusNode!.hasFocus, isTrue);
-      }
+      expect(find.textContaining('Lector en pausa'), findsOneWidget);
+      await tester.tap(find.text('Reanudar lector'));
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
       expect(find.text(r'Cobrar: $1.00'), findsOneWidget);
     },
   );
@@ -1283,7 +1242,6 @@ void main() {
     'pérdida de ventana durante búsqueda conserva modo pausado al volver',
     (tester) async {
       await pumpCaja(tester);
-      await enable(tester);
       await tester.tap(
         find.byWidgetPredicate(
           (w) => w is TextField && w.decoration?.hintText == 'Quiero vender…',
@@ -1314,7 +1272,6 @@ void main() {
     'cerrar menú sin navegar recupera modo y foco para otras lecturas',
     (tester) async {
       await pumpCaja(tester, home: true);
-      await enable(tester);
       await tester.tap(find.byIcon(Icons.menu));
       await settle(tester);
       expect(
@@ -1347,7 +1304,6 @@ void main() {
           ),
         );
         await pumpCaja(tester);
-        await enable(tester);
         final gate = Completer<void>();
         f.beforeLookup = (_) => gate.future;
         Future<void> fail(AgregarProductoBorradorCommand command) async {
@@ -1385,7 +1341,6 @@ void main() {
 }
 
 const inputKey = Key('physical_barcode_input');
-const toggleKey = Key('physical_barcode_toggle');
 TextField field(WidgetTester tester) =>
     tester.widget<TextField>(find.byKey(inputKey));
 Future<void> settle(WidgetTester tester) async {
@@ -1397,13 +1352,6 @@ Future<void> settle(WidgetTester tester) async {
   }
   await tester.pumpAndSettle();
   expect(tester.takeException(), isNull);
-}
-
-Future<void> enable(WidgetTester tester) async {
-  if (find.byKey(toggleKey).evaluate().isNotEmpty) {
-    await tester.tap(find.byKey(toggleKey));
-    await settle(tester);
-  }
 }
 
 Future<void> send(WidgetTester tester, String code) async {

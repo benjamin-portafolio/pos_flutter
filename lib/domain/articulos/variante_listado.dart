@@ -10,8 +10,12 @@ class VarianteListado {
     this.knowsMinimumStock = false,
     required this.orden,
     this.inventario,
+    this.codigoBarras,
   });
   final String varianteId;
+
+  /// Código textual para búsqueda; conserva ceros iniciales.
+  final String? codigoBarras;
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;

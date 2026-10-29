@@ -121,7 +121,7 @@ class CajaScreenState extends State<CajaScreen> {
     }
   }
 
-  Future<void> _openSearch() => _runAction(
+  Future<void> _openSearch([String initialQuery = '']) => _runAction(
     () => Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ArticleSearchScreen(
@@ -129,7 +129,9 @@ class CajaScreenState extends State<CajaScreen> {
               widget.productoRepository ?? getIt<ProductoRepository>(),
           saleDraftRepository: _repository,
           ventaBorradorCommandService: widget.ventaBorradorCommandService,
-          onOpenCaja: widget.onOpenCaja,
+          initialQuery: initialQuery,
+          cajaBarcodeSearch: true,
+          productoCommandService: widget.productoCommandService,
         ),
       ),
     ),
@@ -297,18 +299,19 @@ class CajaScreenState extends State<CajaScreen> {
           },
           onAdd: () => _runAction(() async => _tabs.add()),
         ),
-        AbsorbPointer(
-          absorbing: _busy,
-          child: ArticleSearchBar(
-            showQuickAdd: false,
-            productoRepository: widget.productoRepository,
-            saleDraftRepository: _repository,
-            ventaBorradorCommandService: widget.ventaBorradorCommandService,
-            onOpenCaja: widget.onOpenCaja,
-            onOpenSearch: _openSearch,
-            onScanBarcode: _busy ? null : _openBarcodeScanner,
+        if (!_physicalReaderAvailable)
+          AbsorbPointer(
+            absorbing: _busy,
+            child: ArticleSearchBar(
+              showQuickAdd: false,
+              productoRepository: widget.productoRepository,
+              saleDraftRepository: _repository,
+              ventaBorradorCommandService: widget.ventaBorradorCommandService,
+              onOpenCaja: widget.onOpenCaja,
+              onOpenSearch: _openSearch,
+              onScanBarcode: _busy ? null : _openBarcodeScanner,
+            ),
           ),
-        ),
         if (_physicalReaderAvailable)
           PhysicalBarcodeReader(
             key: _physicalReader,
@@ -324,7 +327,8 @@ class CajaScreenState extends State<CajaScreen> {
                     .asignarCodigoBarrasVariante(command),
             saleDraftRepository:
                 widget.saleDraftRepository ?? getIt<SaleDraftRepository>(),
-            automaticallyEnabled: defaultTargetPlatform != TargetPlatform.macOS,
+            onOpenSearch: _openSearch,
+            onScanBarcode: _openBarcodeScanner,
             interactionEnabled: !_busy,
             coordinator: SaleBarcodeReadCoordinator(
               products:

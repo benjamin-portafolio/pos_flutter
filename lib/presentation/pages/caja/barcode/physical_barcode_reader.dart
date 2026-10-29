@@ -33,7 +33,14 @@ class PhysicalBarcodeReader extends StatefulWidget {
     required this.productoRepository,
     required this.assignBarcode,
     this.createArticle,
-    this.automaticallyEnabled = false,
+    this.onOpenSearch,
+    this.onScanBarcode,
+    this.onQueryChanged,
+    this.shouldSubmit,
+    this.onAdded,
+    this.onBack,
+    this.initialText = '',
+    this.searchMode = false,
     this.interactionEnabled = true,
     super.key,
   });
@@ -43,7 +50,14 @@ class PhysicalBarcodeReader extends StatefulWidget {
   final ProductoRepository productoRepository;
   final Future<void> Function(AsignarCodigoBarrasVarianteCommand) assignBarcode;
   final Future<void> Function(CrearArticuloCommand)? createArticle;
-  final bool automaticallyEnabled;
+  final void Function(String)? onOpenSearch;
+  final VoidCallback? onScanBarcode;
+  final ValueChanged<String>? onQueryChanged;
+  final bool Function(String)? shouldSubmit;
+  final VoidCallback? onAdded;
+  final VoidCallback? onBack;
+  final String initialText;
+  final bool searchMode;
   final bool interactionEnabled;
 
   @override
@@ -82,8 +96,11 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _requiresExplicitResume = !_appActive;
+    _manualKeyboard = widget.searchMode;
+    _text.text = widget.initialText;
+    _text.addListener(_queryChanged);
     _focus.addListener(_focusChanged);
-    _preparationRequested = widget.automaticallyEnabled;
+    _preparationRequested = true;
   }
 
   @override
@@ -129,8 +146,10 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     pause();
   }
 
+  void clearInput() => _text.clear();
+
   void pause() {
-    _text.clear();
+    if (!widget.searchMode) _text.clear();
     _session?.pause();
   }
 
@@ -138,7 +157,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     if (!mounted || _closing || _session != null) return;
     _preparationRequested = true;
     _restoringGeneration = restoringGeneration;
-    // El selector de macOS es una acción explícita. Las restauraciones deben
+    // La activación manual es explícita. Las restauraciones deben
     // conservar cualquier interrupción ocurrida durante la ruta anterior.
     if (restoringGeneration == null) _requiresExplicitResume = false;
     _schedulePreparation();
@@ -222,7 +241,10 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
 
   void _resume() {
     if (!_available || _closing || !widget.interactionEnabled) return;
-    if (_requiresExplicitResume || _session?.isPaused == true) _text.clear();
+    if (!widget.searchMode &&
+        (_requiresExplicitResume || _session?.isPaused == true)) {
+      _text.clear();
+    }
     _requiresExplicitResume = false;
     _session?.resume();
     _focus.requestFocus();
@@ -262,7 +284,10 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     if (mounted) setState(() {});
   }
 
+  void _queryChanged() => widget.onQueryChanged?.call(_text.text);
+
   void _submit(String _) {
+    if (widget.shouldSubmit?.call(_text.text) == false) return;
     // onSubmitted es la única frontera. Copiar antes de limpiar evita que un
     // Enter repetido vuelva a enviar el texto entregado por un callback antiguo.
     final input = _text.text;
@@ -302,8 +327,28 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
       };
       if (result.barcodeAssigned) _notice = 'Código guardado. $_notice';
     }
-    if (session.isPaused) _text.clear();
+    if (session.isPaused && !widget.searchMode) _text.clear();
     setState(() {});
+    if (widget.onAdded != null &&
+        !session.isProcessing &&
+        session.pendingReadCount == 0 &&
+        session.error == null &&
+        result?.outcome == SaleBarcodeReadOutcome.added) {
+      // Navegar fuera del notify y solo después de liberar toda la cola.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            identical(_session, session) &&
+            !session.isProcessing &&
+            session.pendingReadCount == 0 &&
+            !session.isPaused &&
+            !_requiresExplicitResume &&
+            _available &&
+            !_closing &&
+            identical(session.lastResult, result)) {
+          widget.onAdded?.call();
+        }
+      });
+    }
   }
 
   Future<T?> _showReaderDialog<T>(WidgetBuilder builder) =>
@@ -354,7 +399,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     final session = _session;
     if (session == null) return;
     setState(() => _closing = true);
-    _text.clear();
+    if (!widget.searchMode) _text.clear();
     _manualKeyboard = false;
     _focus.unfocus();
     final done = session.finish();
@@ -429,6 +474,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     // Un desmontaje forzado invalida consultas; las salidas normales esperan
     // finish desde Caja/Home antes de desmontar este widget.
     _session?.dispose();
+    _text.removeListener(_queryChanged);
     _text.dispose();
     _focus.dispose();
     super.dispose();
@@ -455,29 +501,8 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.automaticallyEnabled)
-            const Text('Lector físico')
-          else
-            MergeSemantics(
-              child: Row(
-                children: [
-                  const Expanded(child: Text('Lector físico')),
-                  Switch(
-                    key: const Key('physical_barcode_toggle'),
-                    value: session != null,
-                    onChanged: _closing || !widget.interactionEnabled
-                        ? null
-                        : (enabled) {
-                            if (enabled) {
-                              enableReader();
-                            } else {
-                              unawaited(finish());
-                            }
-                          },
-                  ),
-                ],
-              ),
-            ),
+          if (!widget.searchMode && widget.onOpenSearch == null)
+            const Text('Lector físico'),
           if (session != null) ...[
             TextField(
               key: const Key('physical_barcode_input'),
@@ -494,12 +519,36 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
               textInputAction: TextInputAction.done,
               onEditingComplete: () {},
               onSubmitted: _submit,
-              onTap: _resume,
+              onTap: widget.onOpenSearch == null
+                  ? _resume
+                  : () {
+                      final query = _text.text;
+                      widget.onOpenSearch!(query);
+                    },
               decoration: InputDecoration(
-                labelText: 'Escanea un código y envía Enter',
+                labelText: widget.searchMode || widget.onOpenSearch != null
+                    ? null
+                    : 'Escanea un código y envía Enter',
+                hintText: widget.searchMode || widget.onOpenSearch != null
+                    ? 'Quiero vender…'
+                    : null,
+                prefixIcon: widget.onBack == null
+                    ? const Icon(Icons.search)
+                    : BackButton(onPressed: widget.onBack),
                 border: const OutlineInputBorder(),
-                suffixIcon: defaultTargetPlatform == TargetPlatform.android
-                    ? IconButton(
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.onScanBarcode != null)
+                      IconButton(
+                        onPressed: widget.interactionEnabled
+                            ? widget.onScanBarcode
+                            : null,
+                        tooltip: 'Escanear código de barras',
+                        icon: const Icon(Icons.barcode_reader),
+                      ),
+                    if (defaultTargetPlatform == TargetPlatform.android)
+                      IconButton(
                         key: const Key('physical_barcode_keyboard'),
                         tooltip: _manualKeyboard
                             ? 'Usar lector físico'
@@ -515,8 +564,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
                               ? Icons.barcode_reader
                               : Icons.keyboard,
                         ),
-                      )
-                    : null,
+                      ),
+                  ],
+                ),
               ),
             ),
             Semantics(

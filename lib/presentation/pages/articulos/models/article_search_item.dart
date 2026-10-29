@@ -14,8 +14,9 @@ class ArticleSearchItem {
   /// Conserva primero los productos más recientes y el orden de sus variantes.
   static List<ArticleSearchItem> search(
     List<ArticuloListado> articles,
-    String query,
-  ) {
+    String query, {
+    bool includeBarcode = false,
+  }) {
     final words = _normalizeForSearch(
       query,
     ).split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
@@ -49,7 +50,11 @@ class ArticleSearchItem {
       for (final variant in variants) {
         final variantName = _normalizeForSearch(variant.nombre ?? '');
         if (words.every(
-          (word) => productName.contains(word) || variantName.contains(word),
+          (word) =>
+              productName.contains(word) ||
+              variantName.contains(word) ||
+              (includeBarcode &&
+                  (variant.codigoBarras?.contains(word) ?? false)),
         )) {
           results.add(ArticleSearchItem(article: article, variant: variant));
         }

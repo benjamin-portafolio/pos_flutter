@@ -25,6 +25,7 @@ import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/physical_barcode_reader.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
+import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_barcode_assignment_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_barcode_variant_selector.dart';
 
@@ -135,10 +136,6 @@ void main() {
       ),
     );
     await settle(tester);
-    if (platform == TargetPlatform.macOS) {
-      await tester.tap(find.byKey(const Key('physical_barcode_toggle')));
-      await settle(tester);
-    }
   }
 
   Future<void> send(
@@ -173,64 +170,78 @@ void main() {
     await settle(tester);
   }
 
-  assignmentTest('alta desde HID guarda código y agrega a la misma venta', (
-    tester,
-  ) async {
-    getIt.registerSingleton<CategoriaRepository>(
-      CategoriaRepositoryImpl(categoriaDao: f.h.db.categoriaDao),
+  for (final fromSearch in [false, true]) {
+    assignmentTest(
+      'alta guarda código y agrega a la misma venta, buscador=$fromSearch',
+      (tester) async {
+        getIt.registerSingleton<CategoriaRepository>(
+          CategoriaRepositoryImpl(categoriaDao: f.h.db.categoriaDao),
+        );
+        getIt.registerSingleton<UnidadInventarioRepository>(
+          UnidadInventarioRepositoryImpl(unitDao: f.h.db.unitDao),
+        );
+        getIt.registerSingleton<ProveedorRepository>(
+          ProveedorRepositoryImpl(f.h.db.proveedorDao),
+        );
+        getIt.registerSingleton<RecursoInventarioRepository>(
+          RecursoInventarioRepositoryImpl(inventoryDao: f.h.db.inventoryDao),
+        );
+        getIt.registerSingleton<AppConfigController>(f.h.tracking.config);
+        await open(tester);
+        if (fromSearch) {
+          await tester.tap(find.byType(TextField));
+          await settle(tester);
+        }
+        await send(tester, '000987');
+        await settle(tester);
+        await tester.tap(find.text('Dar de alta un producto'));
+        await settle(tester);
+        expect(find.byType(ArticleFormScreen), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const Key('article_name_field')),
+          'Nuevo HID',
+        );
+        await tester.ensureVisible(
+          find.byKey(const Key('article_variant_card_0')),
+        );
+        await tester.tap(find.byKey(const Key('article_variant_card_0')));
+        await settle(tester);
+        expect(
+          tester
+              .widget<TextFormField>(
+                find.byKey(const Key('variant_barcode_field')),
+              )
+              .controller!
+              .text,
+          '000987',
+        );
+        await tester.enterText(
+          find.byKey(const Key('variant_sale_price_field')),
+          '13',
+        );
+        await tester.tap(find.byKey(const Key('save_variant_button')));
+        await settle(tester);
+        await tester.tap(find.byKey(const Key('save_article_button')));
+        await settle(tester);
+        expect(find.byType(ArticleFormScreen), findsNothing);
+        final matches = await tester.runAsync(
+          () => f.products.buscarVariantesPorCodigoBarras('000987'),
+        );
+        final draft = await tester.runAsync(
+          () => drafts.watchCurrentDraft().first,
+        );
+        expect(matches!.single.nombreProducto, 'Nuevo HID');
+        expect(
+          draft!.items.map((item) => item.variantId),
+          contains(matches.single.varianteId),
+        );
+        expect(draft.items, hasLength(2));
+        expect(draft.totalMinor, 2300);
+        expect(find.byType(ArticleSearchScreen), findsNothing);
+        expect(input(tester).focusNode!.hasFocus, isTrue);
+      },
     );
-    getIt.registerSingleton<UnidadInventarioRepository>(
-      UnidadInventarioRepositoryImpl(unitDao: f.h.db.unitDao),
-    );
-    getIt.registerSingleton<ProveedorRepository>(
-      ProveedorRepositoryImpl(f.h.db.proveedorDao),
-    );
-    getIt.registerSingleton<RecursoInventarioRepository>(
-      RecursoInventarioRepositoryImpl(inventoryDao: f.h.db.inventoryDao),
-    );
-    getIt.registerSingleton<AppConfigController>(f.h.tracking.config);
-    await open(tester);
-    await send(tester, '000987');
-    await settle(tester);
-    await tester.tap(find.text('Dar de alta un producto'));
-    await settle(tester);
-    expect(find.byType(ArticleFormScreen), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const Key('article_name_field')),
-      'Nuevo HID',
-    );
-    await tester.ensureVisible(find.byKey(const Key('article_variant_card_0')));
-    await tester.tap(find.byKey(const Key('article_variant_card_0')));
-    await settle(tester);
-    expect(
-      tester
-          .widget<TextFormField>(find.byKey(const Key('variant_barcode_field')))
-          .controller!
-          .text,
-      '000987',
-    );
-    await tester.enterText(
-      find.byKey(const Key('variant_sale_price_field')),
-      '13',
-    );
-    await tester.tap(find.byKey(const Key('save_variant_button')));
-    await settle(tester);
-    await tester.tap(find.byKey(const Key('save_article_button')));
-    await settle(tester);
-    expect(find.byType(ArticleFormScreen), findsNothing);
-    final matches = await tester.runAsync(
-      () => f.products.buscarVariantesPorCodigoBarras('000987'),
-    );
-    final draft = await tester.runAsync(() => drafts.watchCurrentDraft().first);
-    expect(matches!.single.nombreProducto, 'Nuevo HID');
-    expect(
-      draft!.items.map((item) => item.variantId),
-      contains(matches.single.varianteId),
-    );
-    expect(draft.items, hasLength(2));
-    expect(draft.totalMinor, 2300);
-    expect(input(tester).focusNode!.hasFocus, isTrue);
-  });
+  }
 
   for (final mode in AppMode.values) {
     for (final platform in [
@@ -347,6 +358,34 @@ void main() {
         await tester.tap(find.text('Cancelar'));
       }
       await settle(tester);
+      expect(input(tester).focusNode!.hasFocus, isTrue);
+      expect(await tester.runAsync(f.state), before);
+    });
+  }
+
+  for (final step in ['aviso', 'selector', 'confirmación']) {
+    assignmentTest('buscador: cancelar $step conserva catálogo y venta', (
+      tester,
+    ) async {
+      final before = await tester.runAsync(f.state);
+      await open(tester);
+      await tester.tap(find.byType(TextField));
+      await settle(tester);
+      await send(tester, '00042');
+      await settle(tester);
+      if (step == 'selector') {
+        await tester.tap(find.text('Asignar a una variante existente'));
+        await settle(tester);
+        await tester.pageBack();
+      } else if (step == 'confirmación') {
+        await select(tester, f.variant('Agua', null));
+        await tester.tap(find.byTooltip('Cancelar'));
+      } else {
+        await tester.tap(find.text('Cancelar'));
+      }
+      await settle(tester);
+      expect(find.byType(ArticleSearchScreen), findsOneWidget);
+      expect(find.text('Selección cancelada.'), findsOneWidget);
       expect(input(tester).focusNode!.hasFocus, isTrue);
       expect(await tester.runAsync(f.state), before);
     });
@@ -476,6 +515,60 @@ void main() {
       );
     },
   );
+
+  for (final fail in [false, true]) {
+    assignmentTest(
+      'buscador: asignación conserva guardado y regreso solo con éxito, fallo=$fail',
+      (tester) async {
+        if (fail) {
+          await tester.runAsync(
+            () => f.h.db.customStatement(
+              "CREATE TRIGGER reject_water BEFORE INSERT ON sale_items WHEN NEW.variant_id = '${f.variant('Agua', null)}' BEGIN SELECT RAISE(ABORT, 'fallo de venta'); END",
+            ),
+          );
+        }
+        final original = (await tester.runAsync(
+          () => drafts.watchCurrentDraft().first,
+        ))!;
+        await open(tester);
+        await tester.tap(find.byType(TextField));
+        await settle(tester);
+        await send(tester, '00042');
+        await settle(tester);
+        await select(tester, f.variant('Agua', null));
+        await confirm(tester);
+        expect(
+          (await tester.runAsync(
+            () => f.products.buscarVariantesPorCodigoBarras('00042'),
+          ))!.single.varianteId,
+          f.variant('Agua', null),
+        );
+        final sale = (await tester.runAsync(
+          () => drafts.watchCurrentDraft().first,
+        ))!;
+        expect(sale.id, original.id);
+        expect(sale.items, hasLength(fail ? 1 : 2));
+        expect(
+          find.byType(ArticleSearchScreen),
+          fail ? findsOneWidget : findsNothing,
+        );
+        if (fail) {
+          expect(
+            find.textContaining('El código quedó guardado.'),
+            findsOneWidget,
+          );
+          await tester.tap(find.text('Reanudar lector'));
+          await settle(tester);
+          expect(
+            (await tester.runAsync(
+              () => drafts.watchCurrentDraft().first,
+            ))!.items,
+            hasLength(1),
+          );
+        }
+      },
+    );
+  }
 
   assignmentTest(
     'fallo al agregar conserva código y reanuda resto sin reintentar',

@@ -21,6 +21,37 @@ void main() {
     query,
   ).map((item) => item.variant.varianteId).toList();
 
+  test('código parcial conserva ceros y se habilita explícitamente', () {
+    final items = [
+      _article('a', 'Pan', null, [
+        const VarianteListado(
+          varianteId: 'a',
+          nombre: 'Integral',
+          precioVentaMenor: 100,
+          orden: 0,
+          codigoBarras: '001234',
+        ),
+      ]),
+    ];
+    expect(ArticleSearchItem.search(items, '0012'), isEmpty);
+    expect(
+      ArticleSearchItem.search(
+        items,
+        '0012',
+        includeBarcode: true,
+      ).single.variant.varianteId,
+      'a',
+    );
+    expect(
+      ArticleSearchItem.search(items, 'PAN integral 123', includeBarcode: true),
+      hasLength(1),
+    );
+    expect(
+      ArticleSearchItem.search(items, '00012', includeBarcode: true),
+      isEmpty,
+    );
+  });
+
   test('ordena por creación descendente y después por orden de variante', () {
     expect(search('  '), ['tea-large', 'small', 'large', 'bread-plain']);
     expect(coffee.variantesActivas.first.varianteId, 'large');

@@ -78,7 +78,6 @@ void main() {
             saleDraftRepository: f.drafts,
             productoRepository: f.products,
             assignBarcode: (_) async => throw UnimplementedError(),
-            automaticallyEnabled: true,
           ),
         ),
       ),

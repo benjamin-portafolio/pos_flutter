@@ -188,6 +188,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
           VarianteListado(
             varianteId: variante.id,
             nombre: variante.name,
+            codigoBarras: variante.barcode,
             precioVentaMenor: variante.salePriceMinor,
             costoEstandarMenor: variante.standardCostMinor,
             orden: variante.sortOrder,
