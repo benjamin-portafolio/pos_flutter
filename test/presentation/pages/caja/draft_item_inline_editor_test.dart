@@ -66,21 +66,51 @@ void main() {
     expect(closed, isFalse);
   });
 
-  testWidgets('cantidad manual se aplica con confirmar o Enter', (
+  testWidgets('cantidad manual se guarda sin confirmación y Enter no duplica', (
     tester,
   ) async {
     final commands = await pumpEditor(tester);
     final field = find.byKey(const Key('draft_item_quantity_field'));
     await tester.enterText(field, '7');
-    await tester.pump();
-    expect(commands.updated, isEmpty);
-    await tester.tap(find.text('Aplicar cantidad'));
     await tester.pumpAndSettle();
     expect(commands.updated.single.quantity, 7);
+    expect(find.text('Aplicar cantidad'), findsNothing);
     await tester.enterText(field, '9');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(commands.updated.last.quantity, 9);
+    expect(commands.updated, hasLength(2));
+  });
+
+  testWidgets(
+    'permite seguir escribiendo durante el guardado sin perder foco',
+    (tester) async {
+      final gate = Completer<void>();
+      final commands = EditingCommands()..gate = gate.future;
+      await pumpEditor(tester, commands: commands);
+      final field = find.byType(TextField);
+      await tester.enterText(field, '7');
+      await tester.pump();
+      await tester.enterText(field, '75');
+      await tester.pump();
+      expect(commands.updated.single.quantity, 7);
+      expect(tester.widget<TextField>(field).enabled, isTrue);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(commands.updated.map((command) => command.quantity), [7, 75]);
+      expect(find.text('75'), findsOneWidget);
+    },
+  );
+
+  testWidgets('cantidad por medida escrita se guarda sin confirmación', (
+    tester,
+  ) async {
+    final commands = await pumpEditor(tester, item: measuredSaleItem);
+    await tester.enterText(find.byType(TextField), '1.250');
+    await tester.pumpAndSettle();
+    expect(commands.updated.single.measuredQuantity, '1.250');
+    expect(commands.updated.single.quantity, isNull);
+    expect(find.text('Aplicar cantidad'), findsNothing);
   });
 
   testWidgets('cero e inválidos no se guardan', (tester) async {
@@ -163,7 +193,7 @@ void main() {
     expect(find.text('fallo'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
     commands.failWith = null;
-    await tester.tap(find.text('Aplicar cantidad'));
+    await tester.tap(find.text('Reintentar'));
     await tester.pumpAndSettle();
     expect(commands.updated, hasLength(2));
     expect(commands.updated.last.quantity, 3);

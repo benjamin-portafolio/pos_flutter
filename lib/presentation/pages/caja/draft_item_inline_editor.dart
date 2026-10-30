@@ -41,7 +41,10 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
   int? _parsed;
   String? _parseError;
   bool _saving = false;
+  bool _deleting = false;
   bool _confirmDelete = false;
+  bool _updateFailed = false;
+  bool _pendingEdit = false;
   late int _committed;
 
   bool get _measured => widget.item.quantity == null;
@@ -72,9 +75,14 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     final previous =
         oldWidget.item.quantity ?? oldWidget.item.measuredQuantityAtomic;
     if (previous != _original) {
+      final hasLocalEdit = _parsed != _committed;
       _committed = _original;
-      _controller.text = SaleDraftDisplay.quantityNumber(widget.item);
-      _validateInput();
+      // Una proyección del guardado anterior no debe borrar lo que se
+      // siguió escribiendo mientras terminaba el comando.
+      if (!hasLocalEdit) {
+        _controller.text = SaleDraftDisplay.quantityNumber(widget.item);
+        _validateInput();
+      }
     }
   }
 
@@ -193,10 +201,23 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     setState(_validateInput);
   }
 
+  void _saveManualInput() {
+    if (_saving) {
+      _pendingEdit = true;
+      return;
+    }
+    _update();
+  }
+
   Future<void> _update() async {
     if (!_canUpdate) return;
     final value = _parsed!;
-    setState(() => _saving = true);
+    final measuredQuantity = _controller.text.trim();
+    _pendingEdit = false;
+    setState(() {
+      _saving = true;
+      _updateFailed = false;
+    });
     widget.onSavingChanged(true);
     try {
       await (widget.ventaBorradorCommandService ??
@@ -204,29 +225,44 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
           .actualizarProducto(
             ActualizarProductoBorradorCommand(
               saleItemId: widget.item.id,
-              quantity: _measured ? null : _parsed,
-              measuredQuantity: _measured ? _controller.text.trim() : null,
+              quantity: _measured ? null : value,
+              measuredQuantity: _measured ? measuredQuantity : null,
             ),
           );
       if (mounted) _committed = value;
     } on FormatException catch (error) {
-      if (mounted) _message(error.message as String? ?? 'Cantidad inválida.');
+      if (mounted) {
+        _updateFailed = true;
+        _message(error.message as String? ?? 'Cantidad inválida.');
+      }
     } on StateError catch (error) {
-      if (mounted) _message(error.message);
+      if (mounted) {
+        _updateFailed = true;
+        _message(error.message);
+      }
     } catch (_) {
       if (mounted) {
+        _updateFailed = true;
         _message('No se pudo actualizar el artículo. Intenta nuevamente.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
       widget.onSavingChanged(false);
+      if (mounted && _pendingEdit && !_updateFailed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _update();
+        });
+      }
     }
   }
 
   Future<void> _delete() async {
     if (_saving || !widget.enabled) return;
     var deleted = false;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _deleting = true;
+    });
     widget.onSavingChanged(true);
     try {
       await (widget.ventaBorradorCommandService ??
@@ -250,6 +286,7 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     } finally {
       if (mounted) setState(() => _saving = false);
       widget.onSavingChanged(false);
+      _deleting = false;
       if (deleted) widget.onClose();
     }
   }
@@ -280,9 +317,12 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
               child: TextField(
                 key: const Key('draft_item_quantity_field'),
                 controller: _controller,
-                enabled: enabled,
+                // Conservar el foco y admitir el resto de la captura mientras
+                // se persiste una cantidad anterior.
+                enabled: !_deleting && (widget.enabled || _saving),
                 textAlign: TextAlign.center,
                 textInputAction: TextInputAction.done,
+                onChanged: (_) => _saveManualInput(),
                 onSubmitted: (_) => _update(),
                 keyboardType: TextInputType.numberWithOptions(
                   decimal: _measured,
@@ -316,13 +356,13 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
             ),
           ],
         ),
-        if (_dirty)
+        if (_updateFailed && _dirty)
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: _canUpdate ? _update : null,
-              icon: const Icon(Icons.check),
-              label: const Text('Aplicar cantidad'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
             ),
           ),
         if (_parseError != null)

@@ -228,7 +228,7 @@ void main() {
   });
 
   testWidgets(
-    'el lápiz selecciona una fila, cambiar selección descarta captura pendiente',
+    'el lápiz cambia de fila después de guardar la cantidad escrita',
     (tester) async {
       _phone(tester);
       final commands = _Commands();
@@ -255,7 +255,7 @@ void main() {
       await tester.tap(find.byTooltip('Cerrar edición'));
       await tester.pumpAndSettle();
       expect(find.byType(DraftItemInlineEditor), findsNothing);
-      expect(commands.updated, isEmpty);
+      expect(commands.updated.single.quantity, 8);
       expect(commands.removed, isEmpty);
     },
   );
