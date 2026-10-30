@@ -469,7 +469,7 @@ void main() {
     tester,
   ) async {
     await pumpCaja(tester);
-    for (final code in ['', '001A', 'A001', '00 1', '1' * 33]) {
+    for (final code in ['', '001!', '!001', '00 1', '1' * 33]) {
       await send(tester, code);
       await settle(tester);
     }
@@ -631,6 +631,50 @@ void main() {
         expect(f.lookups, ['002']);
       },
     );
+  }
+
+  for (final query in ['3m', '001A', 'A001', 'café', 'ñ']) {
+    readerTest('escribir $query abre búsqueda sin clic y conserva el texto', (
+      tester,
+    ) async {
+      await pumpCaja(tester);
+      await tester.enterText(find.byKey(inputKey), '3');
+      await tester.pump();
+      expect(find.byType(ArticleSearchScreen), findsNothing);
+      expect(f.lookups, isEmpty);
+      await tester.enterText(find.byKey(inputKey), query);
+      // Incluir cambios rápidos y Enter antes del frame de navegación.
+      tester.testTextInput.updateEditingValue(
+        TextEditingValue(
+          text: '${query}a',
+          selection: TextSelection.collapsed(offset: query.length + 1),
+        ),
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle(tester);
+      expect(find.byType(ArticleSearchScreen), findsOneWidget);
+      expect(field(tester).controller!.text, '${query}a');
+      expect(field(tester).controller!.selection.baseOffset, query.length + 1);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      expect(f.lookups, isEmpty);
+      expect(f.attempts, isEmpty);
+      tester.testTextInput.updateEditingValue(
+        TextEditingValue(
+          text: '${query}ab',
+          selection: TextSelection.collapsed(offset: query.length + 2),
+        ),
+      );
+      await tester.pump();
+      expect(field(tester).controller!.text, '${query}ab');
+      await tester.pageBack();
+      await settle(tester);
+      expect(find.byType(ArticleSearchScreen), findsNothing);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      await send(tester, '001');
+      await settle(tester);
+      expect(f.lookups, ['001']);
+      expect(f.attempts, hasLength(1));
+    });
   }
 
   readerTest('búsqueda textual conserva resultados y regresa con modo/foco', (

@@ -98,6 +98,8 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
   bool _preparationRequested = false;
   int? _restoringGeneration;
   bool _manualKeyboard = false;
+  bool _searchScheduled = false;
+  static final _letter = RegExp(r'\p{L}', unicode: true);
   String? _notice;
 
   bool get isEnabled => _session != null;
@@ -113,7 +115,10 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _requiresExplicitResume = !_appActive;
     _manualKeyboard = widget.searchMode;
-    _text.text = widget.initialText;
+    _text.value = TextEditingValue(
+      text: widget.initialText,
+      selection: TextSelection.collapsed(offset: widget.initialText.length),
+    );
     _text.addListener(_queryChanged);
     _focus.addListener(_focusChanged);
     _preparationRequested = true;
@@ -300,9 +305,34 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     if (mounted) setState(() {});
   }
 
-  void _queryChanged() => widget.onQueryChanged?.call(_text.text);
+  bool get _canOpenTextSearch =>
+      !widget.searchMode &&
+      widget.onOpenSearch != null &&
+      widget.interactionEnabled &&
+      _available &&
+      _focus.hasFocus &&
+      _session?.isAccepting == true &&
+      !_closing &&
+      _ownDialogDepth == 0 &&
+      _letter.hasMatch(_text.text);
+
+  void _queryChanged() {
+    widget.onQueryChanged?.call(_text.text);
+    if (_searchScheduled || !_canOpenTextSearch) return;
+    _searchScheduled = true;
+    // Transferir el texto más reciente fuera de la notificación del controller.
+    // La navegación usa la misma barrera de cola que el clic en el buscador.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchScheduled = false;
+      if (mounted && _canOpenTextSearch) widget.onOpenSearch!(_text.text);
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
 
   void _submit(String _) {
+    // Un Enter antes del siguiente frame no debe enviar una consulta textual
+    // como código ni borrarla antes de abrir la búsqueda.
+    if (_canOpenTextSearch) return;
     if (_text.text.isEmpty) {
       if (!widget.interactionEnabled ||
           !_available ||
@@ -536,6 +566,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
             TextField(
               key: const Key('physical_barcode_input'),
               controller: _text,
+              selectAllOnFocus: widget.searchMode ? false : null,
               focusNode: _focus,
               readOnly: _closing || !widget.interactionEnabled,
               // Flutter mantiene la conexión editable para HID. En Android,
