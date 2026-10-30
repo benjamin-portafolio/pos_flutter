@@ -36,6 +36,14 @@ class FinancialEntryCard extends StatelessWidget {
               '${FinancialEntryDisplay.methodLabel(entry.method)} · '
               '${FinancialEntryDisplay.localDateTime(entry.occurredAtMs)}',
             ),
+            if (entry.notes?.trim().isNotEmpty ?? false) ...[
+              const SizedBox(height: 4),
+              Text(
+                entry.notes!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerLeft,

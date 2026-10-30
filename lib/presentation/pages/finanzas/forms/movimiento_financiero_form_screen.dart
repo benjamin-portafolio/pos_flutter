@@ -43,7 +43,7 @@ class _MovimientoFinancieroFormScreenState
   late String _method = 'cash';
   late DateTime _fecha = _now();
   bool _saving = false;
-  bool _affectsDrawer = false;
+  late bool _affectsDrawer = widget.cashEnabled;
 
   DateTime _now() => widget.now?.call() ?? DateTime.now();
 
@@ -263,9 +263,8 @@ class _MovimientoFinancieroFormScreenState
                                     if (value != null) {
                                       setState(() {
                                         _method = value;
-                                        if (value != 'cash') {
-                                          _affectsDrawer = false;
-                                        }
+                                        _affectsDrawer =
+                                            widget.cashEnabled && value == 'cash';
                                       });
                                     }
                                   },

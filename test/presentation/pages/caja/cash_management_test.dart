@@ -159,7 +159,7 @@ void main() {
     await t.pumpAndSettle();
   });
   testWidgets(
-    'finanzas selecciona cajón explícitamente y transferencia limpia selección',
+    'finanzas selecciona cajón por defecto y transferencia limpia selección',
     (t) async {
       t.view.physicalSize = const Size(1280, 1200);
       t.view.devicePixelRatio = 1;
@@ -181,10 +181,10 @@ void main() {
       );
       await t.pumpAndSettle();
       final toggle = find.byKey(const Key('financial_affects_drawer'));
-      expect(t.widget<SwitchListTile>(toggle).value, false);
+      expect(t.widget<SwitchListTile>(toggle).value, true);
       await t.tap(toggle);
       await t.pumpAndSettle();
-      expect(t.widget<SwitchListTile>(toggle).value, true);
+      expect(t.widget<SwitchListTile>(toggle).value, false);
       await t.tap(find.byKey(const Key('movimiento_method')));
       await t.pumpAndSettle();
       await t.tap(find.text('Transferencia').last);
@@ -194,7 +194,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Efectivo').last);
       await t.pumpAndSettle();
-      expect(t.widget<SwitchListTile>(toggle).value, false);
+      expect(t.widget<SwitchListTile>(toggle).value, true);
     },
   );
 }
