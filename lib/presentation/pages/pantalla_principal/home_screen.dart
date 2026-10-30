@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pos_flutter/presentation/pages/articulos/articles_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
+import 'package:pos_flutter/presentation/pages/finanzas/ingresos_y_gastos_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
 import 'package:pos_flutter/presentation/pages/informes/reports_screen.dart';
 import '../hoy/today_sales_screen.dart';
@@ -66,6 +67,19 @@ class _HomeScreenState extends State<HomeScreen> {
       _restoreAfterMenu = restore;
       _menuReaderGeneration = generation;
       _scaffold.currentState?.openDrawer();
+    }
+  }
+
+  Future<void> _openFinancialEntries() async {
+    final restore = _caja.currentState?.isReaderEnabled == true;
+    final generation = _caja.currentState?.readerInterruptionGeneration;
+    if (!await _prepareNavigation() || !mounted) return;
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const IngresosYGastosScreen()),
+      );
+    } finally {
+      if (restore && mounted) _caja.currentState?.restoreReader(generation);
     }
   }
 
@@ -131,7 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.person_add), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.phone), onPressed: () {}),
+          IconButton(
+            tooltip: 'Ingresos y gastos',
+            icon: const Icon(Icons.swap_horiz),
+            onPressed: _openFinancialEntries,
+          ),
         ],
       ),
       // El botón espera el drenaje antes de exponer operaciones del menú.

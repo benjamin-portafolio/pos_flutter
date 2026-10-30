@@ -25,10 +25,12 @@ import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_confirmed_sale_store.dart';
 import 'package:pos_flutter/data/repositories/confirmed_sale_repository_impl.dart';
+import 'package:pos_flutter/data/repositories/financial_entry_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/sale_draft_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/cliente_resumen_repository_impl.dart';
 import 'package:pos_flutter/domain/repositories/cliente_resumen_repository.dart';
 import 'package:pos_flutter/domain/repositories/confirmed_sale_repository.dart';
+import 'package:pos_flutter/domain/repositories/financial_entry_repository.dart';
 import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/domain/repositories/sale_draft_repository.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
@@ -38,6 +40,7 @@ import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 import 'package:pos_flutter/presentation/pages/caja/barcode/physical_barcode_reader.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_clientes/clientes_screen.dart';
+import 'package:pos_flutter/presentation/pages/finanzas/ingresos_y_gastos_screen.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.dart';
 
 import '../../../support/barcode_sale_fixture.dart';
@@ -462,6 +465,47 @@ void main() {
       await send(tester, '002');
       await settle(tester);
       expect(f.attempts.map((c) => c.variantId), ['A', 'A', 'B']);
+    },
+    platforms: [TargetPlatform.windows, TargetPlatform.android],
+  );
+
+  readerTest(
+    'acceso de ingresos y gastos conserva la venta y restaura el lector',
+    (tester) async {
+      getIt.registerSingleton<FinancialEntryRepository>(
+        FinancialEntryRepositoryImpl(f.db),
+      );
+      await pumpCaja(tester, home: true);
+      await send(tester, '001');
+      await settle(tester);
+      final home = tester.state(find.byType(HomeScreen));
+      final draftBefore = (await tester.runAsync(
+        () => f.drafts.watchCurrentDraft().first,
+      ))!;
+
+      expect(find.byIcon(Icons.phone), findsNothing);
+      await tester.tap(find.byTooltip('Ingresos y gastos'));
+      await settle(tester);
+      expect(find.byType(IngresosYGastosScreen), findsOneWidget);
+      expect(find.byKey(const Key('boton_ingreso')), findsOneWidget);
+      expect(find.byKey(const Key('boton_gasto')), findsOneWidget);
+      expect(find.byKey(inputKey), findsNothing);
+
+      await tester.pageBack();
+      await settle(tester);
+      expect(tester.state(find.byType(HomeScreen)), same(home));
+      expect(
+        (await tester.runAsync(() => f.drafts.watchCurrentDraft().first))!.id,
+        draftBefore.id,
+      );
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      await send(tester, '002');
+      await settle(tester);
+      expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+      expect(
+        (await tester.runAsync(() => f.drafts.watchCurrentDraft().first))!.id,
+        draftBefore.id,
+      );
     },
     platforms: [TargetPlatform.windows, TargetPlatform.android],
   );
