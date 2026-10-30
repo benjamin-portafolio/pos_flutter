@@ -56,16 +56,32 @@ void main() {
       tester,
     ) async {
       final service = _Service();
+      bool? result;
       await tester.pumpWidget(
         MaterialApp(
-          home: PaymentMethodScreen(
-            totalMinor: 10000,
-            saleId: 'sale',
-            expectedDraftEventId: 'draft-revision',
-            commandService: service,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => PaymentMethodScreen(
+                        totalMinor: 10000,
+                        saleId: 'sale',
+                        expectedDraftEventId: 'draft-revision',
+                        commandService: service,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Caja de prueba'),
+              ),
+            ),
           ),
         ),
       );
+      await tester.tap(find.text('Caja de prueba'));
+      await tester.pumpAndSettle();
       if (input.isNotEmpty) {
         await tester.enterText(
           find.byKey(const Key('cash_received_input')),
@@ -88,14 +104,15 @@ void main() {
         input.isEmpty ? null : int.parse(input) * 100,
       );
       service.commit.complete('confirmed-event');
-      await pumpReceiptImage(tester);
-      expect(find.byType(SaleReceiptScreen), findsOneWidget);
-      expect(find.byType(Image), findsOneWidget);
-      expect(find.text('Nueva venta'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(SaleReceiptScreen), findsNothing);
+      expect(find.byType(PaymentMethodScreen), findsNothing);
+      expect(find.text('Caja de prueba'), findsOneWidget);
+      expect(result, isTrue);
     });
   }
   for (final method in ['cash', 'transfer', 'credit']) {
-    testWidgets('$method guarda, abre comprobante y regresa a Caja', (
+    testWidgets('$method guarda y regresa a Caja con el recorrido esperado', (
       tester,
     ) async {
       final service = _Service();
@@ -170,9 +187,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(PaymentMethodScreen), findsOneWidget);
       service.commit.complete('confirmed');
-      await pumpReceiptImage(tester);
-      expect(find.byType(SaleReceiptScreen), findsOneWidget);
-      await tester.tap(find.text('Nueva venta'));
+      if (method == 'cash') {
+        await tester.pumpAndSettle();
+        expect(find.byType(SaleReceiptScreen), findsNothing);
+      } else {
+        await pumpReceiptImage(tester);
+        expect(find.byType(SaleReceiptScreen), findsOneWidget);
+        await tester.tap(find.text('Nueva venta'));
+      }
       await tester.pumpAndSettle();
       expect(find.byType(PaymentMethodScreen), findsNothing);
       expect(find.text('Caja de prueba'), findsOneWidget);

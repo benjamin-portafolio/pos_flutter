@@ -117,6 +117,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         command(),
       );
       if (!mounted) return;
+      if (_tab == _PaymentTab.cash) {
+        Navigator.pop(context, true);
+        return;
+      }
       await Navigator.push<void>(
         context,
         MaterialPageRoute(builder: (_) => SaleReceiptScreen(saleId: saleId)),
