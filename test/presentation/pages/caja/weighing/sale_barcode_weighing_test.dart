@@ -102,7 +102,7 @@ void main() {
     await settle(tester);
     await tester.enterText(find.byType(TextField), 'M');
     await settle(tester);
-    await tester.tap(find.byType(Card));
+    await tester.tap(find.widgetWithText(Card, 'M'));
     await settle(tester);
   }
 
@@ -182,7 +182,7 @@ void main() {
           expect(service.active, isNull);
           expect(find.byType(ArticleSearchScreen), findsOneWidget);
           if (i == 1) {
-            await tester.tap(find.byType(Card));
+            await tester.tap(find.widgetWithText(Card, 'M'));
             await settle(tester);
           }
         }

@@ -105,7 +105,7 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
     final generation = reader?.interruptionGeneration;
     try {
       // La selección manual también espera todas las lecturas ya aceptadas.
-      await reader?.finish();
+      await reader?.finish(keepInputFocus: true);
       if (!mounted) return;
       final unit = item.article.unidadVenta;
       SaleQuantityFormResult? amount;

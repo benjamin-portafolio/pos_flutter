@@ -12,42 +12,43 @@ import '../../../domain/ventas/sale_draft_item.dart';
 import '../gestion_inventario/recursos/widgets/inventory_quantity_input_formatter.dart';
 import 'models/sale_draft_display.dart';
 
-/// Panel inferior para editar la cantidad de una línea del borrador o
-/// eliminarla. Los cambios son temporales hasta pulsar «Actualizar artículo».
-class DraftItemEditSheet extends StatefulWidget {
-  const DraftItemEditSheet({
+/// Controles de cantidad y eliminación dentro de la línea seleccionada.
+class DraftItemInlineEditor extends StatefulWidget {
+  const DraftItemInlineEditor({
     required this.item,
+    required this.onClose,
+    required this.onSavingChanged,
+    this.enabled = true,
     this.ventaBorradorCommandService,
     this.unidadInventarioRepository,
     super.key,
   });
 
   final SaleDraftItem item;
+  final VoidCallback onClose;
+  final ValueChanged<bool> onSavingChanged;
+  final bool enabled;
   final VentaBorradorCommandService? ventaBorradorCommandService;
   final UnidadInventarioRepository? unidadInventarioRepository;
 
   @override
-  State<DraftItemEditSheet> createState() => _DraftItemEditSheetState();
+  State<DraftItemInlineEditor> createState() => _DraftItemInlineEditorState();
 }
 
-class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
+class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
   late final TextEditingController _controller;
   UnidadInventario? _unit;
   int? _parsed;
   String? _parseError;
   bool _saving = false;
+  bool _confirmDelete = false;
+  late int _committed;
 
   bool get _measured => widget.item.quantity == null;
 
-  String get _name => [
-    widget.item.productName,
-    if (widget.item.variantName != null) widget.item.variantName!,
-  ].join(' · ');
-
-  /// Cantidad atómica o piezas capturadas al abrir el panel.
-  int get _original => _measured
-      ? widget.item.measuredQuantityAtomic!
-      : widget.item.quantity!;
+  /// Cantidad atómica o piezas persistidas de la línea.
+  int get _original =>
+      _measured ? widget.item.measuredQuantityAtomic! : widget.item.quantity!;
 
   /// Paso de los botones − / +. En ventas medidas es la cantidad de referencia
   /// que cubre el precio; por piezas, una unidad.
@@ -56,12 +57,25 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
   @override
   void initState() {
     super.initState();
+    _committed = _original;
     _controller = TextEditingController(
       text: SaleDraftDisplay.quantityNumber(widget.item),
     );
     _controller.addListener(_onTextChanged);
     _validateInput();
     if (_measured) _resolveUnit();
+  }
+
+  @override
+  void didUpdateWidget(covariant DraftItemInlineEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previous =
+        oldWidget.item.quantity ?? oldWidget.item.measuredQuantityAtomic;
+    if (previous != _original) {
+      _committed = _original;
+      _controller.text = SaleDraftDisplay.quantityNumber(widget.item);
+      _validateInput();
+    }
   }
 
   @override
@@ -109,7 +123,13 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
     final repository =
         widget.unidadInventarioRepository ??
         getIt<UnidadInventarioRepository>();
-    final units = await repository.obtenerUnidadesActivas();
+    final List<UnidadInventario> units;
+    try {
+      units = await repository.obtenerUnidadesActivas();
+    } catch (_) {
+      if (mounted) setState(_validateInput);
+      return;
+    }
     if (!mounted) return;
     setState(() {
       for (final unit in units) {
@@ -122,9 +142,9 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
     });
   }
 
-  bool get _dirty => _parsed != null && _parsed != _original;
+  bool get _dirty => _parsed != null && _parsed != _committed;
 
-  bool get _canUpdate => _dirty && !_saving;
+  bool get _canUpdate => _dirty && !_saving && widget.enabled;
 
   bool get _canDecrement {
     final parsed = _parsed;
@@ -139,24 +159,28 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
   }
 
   void _increment() {
+    if (_saving || !widget.enabled) return;
     final parsed = _parsed;
     if (parsed == null) return;
     final result = parsed + _step;
     if (result > SaleItemSnapshot.maxInteger) return;
     _applyValue(result);
+    _update();
   }
 
   void _decrement() {
+    if (_saving || !widget.enabled) return;
     final parsed = _parsed;
     if (parsed == null) return;
     final result = parsed - _step;
     if (result < 0) return;
     if (result == 0) {
       // Llegar a cero equivale a eliminar la línea.
-      _askDelete();
+      setState(() => _confirmDelete = true);
       return;
     }
     _applyValue(result);
+    _update();
   }
 
   void _applyValue(int value) {
@@ -170,7 +194,10 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
   }
 
   Future<void> _update() async {
+    if (!_canUpdate) return;
+    final value = _parsed!;
     setState(() => _saving = true);
+    widget.onSavingChanged(true);
     try {
       await (widget.ventaBorradorCommandService ??
               getIt<VentaBorradorCommandService>())
@@ -181,7 +208,7 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
               measuredQuantity: _measured ? _controller.text.trim() : null,
             ),
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) _committed = value;
     } on FormatException catch (error) {
       if (mounted) _message(error.message as String? ?? 'Cantidad inválida.');
     } on StateError catch (error) {
@@ -192,44 +219,27 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+      widget.onSavingChanged(false);
     }
   }
 
-  Future<void> _askDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Eliminar artículo?'),
-        content: Text('$_name será eliminado de esta venta.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    // Cancelar conserva el artículo con la cantidad positiva que tenía.
-    if (confirmed == true) await _delete();
-  }
-
   Future<void> _delete() async {
+    if (_saving || !widget.enabled) return;
+    var deleted = false;
     setState(() => _saving = true);
+    widget.onSavingChanged(true);
     try {
       await (widget.ventaBorradorCommandService ??
               getIt<VentaBorradorCommandService>())
           .eliminarProducto(
             EliminarProductoBorradorCommand(saleItemId: widget.item.id),
           );
-      if (mounted) Navigator.of(context).pop();
+      deleted = true;
     } on FormatException catch (error) {
       if (mounted) {
-        _message(error.message as String? ?? 'No se pudo eliminar el artículo.');
+        _message(
+          error.message as String? ?? 'No se pudo eliminar el artículo.',
+        );
       }
     } on StateError catch (error) {
       if (mounted) _message(error.message);
@@ -239,6 +249,8 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+      widget.onSavingChanged(false);
+      if (deleted) widget.onClose();
     }
   }
 
@@ -250,106 +262,94 @@ class _DraftItemEditSheetState extends State<DraftItemEditSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final enabled = widget.enabled && !_saving;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Editar $_name',
-                    style: Theme.of(context).textTheme.titleMedium,
+            IconButton(
+              onPressed: enabled && _canDecrement ? _decrement : null,
+              tooltip: 'Disminuir cantidad',
+              icon: const Icon(Icons.remove),
+            ),
+            Expanded(
+              child: TextField(
+                key: const Key('draft_item_quantity_field'),
+                controller: _controller,
+                enabled: enabled,
+                textAlign: TextAlign.center,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _update(),
+                keyboardType: TextInputType.numberWithOptions(
+                  decimal: _measured,
+                  signed: false,
+                ),
+                inputFormatters: [
+                  InventoryQuantityInputFormatter(
+                    _measured ? _unit?.maximosDecimales ?? 9 : 0,
                   ),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Cantidad',
+                  suffixText: _measured ? widget.item.unitSymbol : null,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
                 ),
-                IconButton(
-                  onPressed: _saving ? null : _askDelete,
-                  tooltip: 'Eliminar artículo',
-                  icon: const Icon(Icons.delete_outline),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: 'Cerrar',
-                  icon: const Icon(Icons.close),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Expanded(child: Text('Precio de venta')),
-                Text(
-                  SaleDraftDisplay.price(widget.item),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
+            IconButton(
+              onPressed: enabled && _canIncrement ? _increment : null,
+              tooltip: 'Aumentar cantidad',
+              icon: const Icon(Icons.add),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Cantidad',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: _saving || !_canDecrement ? null : _decrement,
-                  tooltip: 'Disminuir cantidad',
-                  icon: const Icon(Icons.remove),
-                ),
-                Expanded(
-                  child: TextField(
-                    key: const Key('draft_item_quantity_field'),
-                    controller: _controller,
-                    enabled: !_saving,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.numberWithOptions(
-                      decimal: _measured,
-                      signed: false,
-                    ),
-                    inputFormatters: [
-                      InventoryQuantityInputFormatter(
-                        _measured ? _unit?.maximosDecimales ?? 9 : 0,
-                      ),
-                    ],
-                    decoration: InputDecoration(
-                      suffixText: _measured ? widget.item.unitSymbol : null,
-                      errorText: _parseError,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _saving || !_canIncrement ? null : _increment,
-                  tooltip: 'Aumentar cantidad',
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Aplicar oferta'),
-              value: false,
-              onChanged: null,
-            ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _canUpdate ? _update : null,
-              child: Text(_saving ? 'Actualizando…' : 'Actualizar artículo'),
+            IconButton(
+              onPressed: enabled
+                  ? () => setState(() => _confirmDelete = !_confirmDelete)
+                  : null,
+              tooltip: 'Eliminar artículo',
+              color: Theme.of(context).colorScheme.error,
+              icon: const Icon(Icons.delete_outline),
             ),
           ],
         ),
-      ),
+        if (_dirty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _canUpdate ? _update : null,
+              icon: const Icon(Icons.check),
+              label: const Text('Aplicar cantidad'),
+            ),
+          ),
+        if (_parseError != null)
+          Text(
+            _parseError!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (_confirmDelete)
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            children: [
+              const Text('¿Eliminar artículo?'),
+              TextButton(
+                onPressed: enabled
+                    ? () => setState(() => _confirmDelete = false)
+                    : null,
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: enabled ? _delete : null,
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

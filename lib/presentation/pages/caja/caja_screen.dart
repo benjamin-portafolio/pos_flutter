@@ -20,7 +20,7 @@ import '../cotizaciones/quotation_ticket_screen.dart';
 import 'barcode/barcode_read_gate.dart';
 import 'barcode/physical_barcode_reader.dart';
 import 'barcode/sale_barcode_read_coordinator.dart';
-import 'draft_item_edit_sheet.dart';
+import 'draft_item_inline_editor.dart';
 import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
 import 'sale_barcode_scanner_screen.dart';
@@ -71,12 +71,14 @@ class CajaScreenState extends State<CajaScreen> {
 
   final _physicalReader = GlobalKey<PhysicalBarcodeReaderState>();
   bool _resolvingReads = false;
-  bool get isReaderEnabled => _physicalReader.currentState?.isEnabled == true;
+  bool get isReaderEnabled =>
+      _physicalReader.currentState?.isEnabled == true ||
+      _restoreReaderAfterEdit;
   int? get readerInterruptionGeneration =>
       _physicalReader.currentState?.interruptionGeneration;
 
   void restoreReader(int? generation) {
-    if (mounted && !_busy) {
+    if (mounted && !_busy && _editingItemId == null) {
       _physicalReader.currentState?.enableReader(
         restoringGeneration: generation,
       );
@@ -91,7 +93,11 @@ class CajaScreenState extends State<CajaScreen> {
   /// Home/menu deben esperar esta barrera antes de salir o abrir otra ruta.
   Future<bool> prepareToLeave() async {
     if (_busy) return false;
-    setState(() => _resolvingReads = true);
+    setState(() {
+      _resolvingReads = true;
+      _editingItemId = null;
+      _restoreReaderAfterEdit = false;
+    });
     try {
       await _physicalReader.currentState?.finish();
       return mounted;
@@ -103,18 +109,28 @@ class CajaScreenState extends State<CajaScreen> {
   Future<void> _runAction(Future<void> Function() action) async {
     if (_busy) return;
     final reader = _physicalReader.currentState;
-    final restoreMode = reader?.isEnabled == true;
-    final generation = reader?.interruptionGeneration;
-    setState(() => _resolvingReads = true);
+    final restoreMode = reader?.isEnabled == true || _restoreReaderAfterEdit;
+    final generation = _restoreReaderAfterEdit
+        ? _editorReaderGeneration
+        : reader?.interruptionGeneration;
+    setState(() {
+      _resolvingReads = true;
+      _editingItemId = null;
+      _restoreReaderAfterEdit = false;
+    });
     try {
       await reader?.finish();
       if (mounted) await action();
     } finally {
       if (mounted) {
+        if (_editingItemId != null && restoreMode) {
+          _restoreReaderAfterEdit = true;
+          _editorReaderGeneration = generation;
+        }
         setState(() => _resolvingReads = false);
         // La selección puede haber cambiado; reconstruir antes de reabrir el HID.
         await WidgetsBinding.instance.endOfFrame;
-        if (mounted && restoreMode) {
+        if (mounted && restoreMode && _editingItemId == null) {
           reader?.enableReader(restoringGeneration: generation);
         }
       }
@@ -140,7 +156,19 @@ class CajaScreenState extends State<CajaScreen> {
   bool _clearing = false;
   bool _quoting = false;
   GuardarCotizacionCommand? _quotationIntent;
-  bool get _busy => _resolvingReads;
+  String? _editingItemId;
+  bool _editorSaving = false;
+  bool _restoreReaderAfterEdit = false;
+  int? _editorReaderGeneration;
+  bool get _busy => _resolvingReads || _editorSaving;
+
+  Future<void> _closeEditor() async {
+    if (mounted) await _runAction(() async {});
+  }
+
+  void _setEditorSaving(bool saving) {
+    if (mounted) setState(() => _editorSaving = saving);
+  }
 
   Future<void> _quote() => _runAction(() async {
     final sale = await _repository.watchCurrentDraft().first;
@@ -274,18 +302,7 @@ class CajaScreenState extends State<CajaScreen> {
     if (!mounted || sale == null) return;
     final items = sale.items.where((item) => item.id == itemId);
     if (items.isEmpty) return;
-    final item = items.single;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => DraftItemEditSheet(
-        item: item,
-        ventaBorradorCommandService: widget.ventaBorradorCommandService,
-        unidadInventarioRepository:
-            widget.unidadInventarioRepository ??
-            getIt<UnidadInventarioRepository>(),
-      ),
-    );
+    setState(() => _editingItemId = items.single.id);
   });
 
   @override
@@ -332,7 +349,7 @@ class CajaScreenState extends State<CajaScreen> {
             onOpenSearch: _openSearch,
             onScanBarcode: _openBarcodeScanner,
             onCharge: _busy ? null : () => _openPayment(enteredWithEnter: true),
-            interactionEnabled: !_busy,
+            interactionEnabled: !_busy && _editingItemId == null,
             coordinator: SaleBarcodeReadCoordinator(
               products:
                   widget.productoRepository ?? getIt<ProductoRepository>(),
@@ -402,12 +419,39 @@ class CajaScreenState extends State<CajaScreen> {
                                                   if (i < sale.items.length - 1)
                                                     const Divider(height: 1),
                                                   _SaleLine(
+                                                    key: ValueKey(
+                                                      sale.items[i].id,
+                                                    ),
                                                     item: sale.items[i],
+                                                    selected:
+                                                        _editingItemId ==
+                                                        sale.items[i].id,
+                                                    editor:
+                                                        _editingItemId ==
+                                                            sale.items[i].id
+                                                        ? DraftItemInlineEditor(
+                                                            item: sale.items[i],
+                                                            enabled: !_busy,
+                                                            ventaBorradorCommandService:
+                                                                widget
+                                                                    .ventaBorradorCommandService,
+                                                            unidadInventarioRepository:
+                                                                widget
+                                                                    .unidadInventarioRepository,
+                                                            onClose:
+                                                                _closeEditor,
+                                                            onSavingChanged:
+                                                                _setEditorSaving,
+                                                          )
+                                                        : null,
                                                     onEdit: _busy
                                                         ? null
                                                         : () => _openEditor(
                                                             sale.items[i].id,
                                                           ),
+                                                    onClose: _busy
+                                                        ? null
+                                                        : _closeEditor,
                                                   ),
                                                 ],
                                               ],
@@ -548,52 +592,73 @@ class CajaScreenState extends State<CajaScreen> {
 }
 
 class _SaleLine extends StatelessWidget {
-  const _SaleLine({required this.item, required this.onEdit});
+  const _SaleLine({
+    required this.item,
+    required this.onEdit,
+    required this.onClose,
+    required this.selected,
+    required this.editor,
+    super.key,
+  });
   final SaleDraftItem item;
   final VoidCallback? onEdit;
+  final VoidCallback? onClose;
+  final bool selected;
+  final Widget? editor;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    key: ValueKey(item.id),
-    padding: const EdgeInsets.all(8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 2,
-          child: Column(
+  Widget build(BuildContext context) => ColoredBox(
+    color: selected
+        ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35)
+        : Colors.transparent,
+    child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                [
-                  item.productName,
-                  if (item.variantName != null) item.variantName!,
-                ].join(' · '),
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      [
+                        item.productName,
+                        if (item.variantName != null) item.variantName!,
+                      ].join(' · '),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${SaleDraftDisplay.quantity(item)} × ${SaleDraftDisplay.price(item)}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${SaleDraftDisplay.quantity(item)} × ${SaleDraftDisplay.price(item)}',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  SaleDraftDisplay.money(item.totalMinor),
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              IconButton(
+                onPressed: selected ? onClose : onEdit,
+                tooltip: selected ? 'Cerrar edición' : 'Editar artículo',
+                icon: Icon(selected ? Icons.close : Icons.edit, size: 18),
               ),
             ],
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            SaleDraftDisplay.money(item.totalMinor),
-            textAlign: TextAlign.end,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-        IconButton(
-          onPressed: onEdit,
-          tooltip: 'Editar artículo',
-          visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.edit, size: 18),
-        ),
-      ],
+          ?editor,
+        ],
+      ),
     ),
   );
 }

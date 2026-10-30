@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
+import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_dialog.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
 
 import '../../../support/barcode_sale_fixture.dart';
@@ -201,6 +203,144 @@ void main() {
       expect(field(tester).controller!.text, '00');
     },
   );
+
+  for (final platform in [TargetPlatform.windows, TargetPlatform.android]) {
+    searchTest(
+      'agregado manual conserva campo y posición de resultados en $platform',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = platform;
+        await pump(tester);
+        // Mantener visible el pie de venta desde antes del clic.
+        await send(tester, '001');
+        await settle(tester);
+        await open(tester);
+        await tester.enterText(find.byType(TextField), '00');
+        await settle(tester);
+        await tester.tap(
+          find.text('Buscar artículos'),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+        expect(find.textContaining('Lector en pausa'), findsNothing);
+        final input = find.byKey(const Key('physical_barcode_input'));
+        final inputState = tester.state(input);
+        final inputPosition = tester.getTopLeft(input);
+        final product = find.byKey(const ValueKey('A'));
+        final productPosition = tester.getTopLeft(product);
+        final gate = Completer<void>();
+        f.beforeSave = (_) => gate.future;
+
+        await tester.tap(product, kind: PointerDeviceKind.mouse);
+        await settle(tester);
+        expect(input, findsOneWidget);
+        expect(identical(inputState, tester.state(input)), isTrue);
+        expect(tester.getTopLeft(input), inputPosition);
+        expect(tester.getTopLeft(product), productPosition);
+        expect(field(tester).controller!.text, '00');
+        expect(field(tester).readOnly, isTrue);
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+        expect(find.textContaining('Lector en pausa'), findsNothing);
+
+        gate.complete();
+        for (var frame = 0; frame < 12; frame++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(input, findsOneWidget);
+          expect(identical(inputState, tester.state(input)), isTrue);
+          expect(tester.getTopLeft(product), productPosition);
+          expect(field(tester).focusNode!.hasFocus, isTrue);
+          expect(find.textContaining('Lector en pausa'), findsNothing);
+        }
+        await settle(tester);
+        expect(f.attempts.map((c) => c.variantId), ['A', 'A']);
+        expect(field(tester).readOnly, isFalse);
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+        expect(field(tester).controller!.text, '00');
+        expect(field(tester).keyboardType, TextInputType.text);
+
+        await tester.tap(input, kind: PointerDeviceKind.mouse);
+        await tester.pump();
+        expect(
+          field(tester).controller!.selection,
+          const TextSelection(baseOffset: 0, extentOffset: 2),
+        );
+        await tester.enterText(input, 'leche');
+        await settle(tester);
+        expect(find.text('Leche'), findsOneWidget);
+        expect(find.text('Pan'), findsNothing);
+        // Otro clic con el campo ya enfocado también selecciona todo.
+        field(tester).controller!.selection = const TextSelection.collapsed(
+          offset: 2,
+        );
+        await tester.tap(input, kind: PointerDeviceKind.mouse);
+        await tester.pump();
+        expect(
+          field(tester).controller!.selection,
+          const TextSelection(baseOffset: 0, extentOffset: 5),
+        );
+      },
+    );
+  }
+
+  searchTest(
+    'cantidad manual toma el foco y cancelar lo devuelve al buscador',
+    (tester) async {
+      await pump(tester);
+      await open(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('M')),
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+      expect(find.byType(SaleQuantityDialog), findsOneWidget);
+      expect(field(tester).focusNode!.hasFocus, isFalse);
+      final dialogInputs = tester.widgetList<EditableText>(
+        find.descendant(
+          of: find.byType(SaleQuantityDialog),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(dialogInputs.any((input) => input.focusNode.hasFocus), isTrue);
+      await tester.tap(find.text('Cancelar'));
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      expect(find.textContaining('Lector en pausa'), findsNothing);
+      expect(f.attempts, isEmpty);
+    },
+  );
+
+  searchTest('agregado manual respeta pausa al cambiar de aplicación', (
+    tester,
+  ) async {
+    await pump(tester);
+    await open(tester);
+    final gate = Completer<void>();
+    f.beforeSave = (_) => gate.future;
+    await tester.tap(
+      find.byKey(const ValueKey('A')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await settle(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    gate.complete();
+    await settle(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    expect(find.textContaining('Lector en pausa'), findsOneWidget);
+    expect(find.text('Reanudar lector'), findsOneWidget);
+    await send(tester, '002');
+    await settle(tester);
+    expect(f.attempts.map((c) => c.variantId), ['A']);
+    await tester.tap(find.text('Reanudar lector'));
+    await settle(tester);
+    await send(tester, '002');
+    await settle(tester);
+    expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
+  });
 
   searchTest(
     'guardado en segundo plano espera reanudación explícita antes de regresar',

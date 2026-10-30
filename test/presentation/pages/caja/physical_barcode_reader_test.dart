@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' show ViewFocusEvent, ViewFocusState, ViewFocusDirection;
+import 'dart:ui'
+    show PointerDeviceKind, ViewFocusEvent, ViewFocusState, ViewFocusDirection;
 
 import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
@@ -13,7 +14,7 @@ import 'package:pos_flutter/application/commands/cotizaciones/cotizacion_command
 import 'package:pos_flutter/domain/repositories/quotation_repository.dart';
 import 'package:pos_flutter/data/repositories/quotation_repository_impl.dart';
 import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
-import 'package:pos_flutter/presentation/pages/caja/draft_item_edit_sheet.dart';
+import 'package:pos_flutter/presentation/pages/caja/draft_item_inline_editor.dart';
 import 'package:pos_flutter/presentation/pages/caja/sale_barcode_scanner_screen.dart';
 import 'package:pos_flutter/presentation/pages/cotizaciones/quotation_ticket_screen.dart';
 import 'package:pos_flutter/application/commands/ventas/agregar_producto_borrador_command.dart';
@@ -575,6 +576,27 @@ void main() {
     expect(find.text(r'Cobrar: $1.00'), findsOneWidget);
   });
 
+  readerTest(
+    'clic fuera del buscador conserva foco y admite la próxima lectura',
+    (tester) async {
+      await pumpCaja(tester);
+      await tester.enterText(find.byKey(inputKey), '00');
+      await tester.tap(
+        find.text('La venta está vacía.'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      expect(field(tester).controller!.text, '00');
+      expect(find.textContaining('Lector en pausa'), findsNothing);
+      expect(find.text('Reanudar lector'), findsNothing);
+      await send(tester, '001');
+      await settle(tester);
+      expect(f.attempts.single.variantId, 'A');
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+    },
+  );
+
   readerTest('Tab respeta foco de botones y permite reanudación', (
     tester,
   ) async {
@@ -972,7 +994,7 @@ void main() {
       await settle(tester);
       await tester.tap(find.byTooltip('Editar artículo').first);
       await tester.pump();
-      expect(find.byType(DraftItemEditSheet), findsNothing);
+      expect(find.byType(DraftItemInlineEditor), findsNothing);
       if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
         await tester.tap(find.text('Reanudar pendientes'));
       }
@@ -980,16 +1002,46 @@ void main() {
       await settle(tester);
       expect(
         tester
-            .widget<DraftItemEditSheet>(find.byType(DraftItemEditSheet))
+            .widget<DraftItemInlineEditor>(find.byType(DraftItemInlineEditor))
             .item
             .quantity,
         2,
       );
-      await tester.tap(find.byTooltip('Cerrar'));
+      expect(find.byKey(inputKey), findsNothing);
+      await tester.tap(find.byTooltip('Aumentar cantidad'));
+      await settle(tester);
+      expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 3);
+      expect(find.byType(DraftItemInlineEditor), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+      await tester.tap(find.byTooltip('Cerrar edición'));
       await settle(tester);
       expect(field(tester).focusNode!.hasFocus, isTrue);
     },
   );
+
+  readerTest('eliminar en fila observa commit, libera Caja y recupera lector', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => f.commands.agregar(
+        const AgregarProductoBorradorCommand(variantId: 'A'),
+      ),
+    );
+    await pumpCaja(tester);
+    await tester.tap(find.byTooltip('Editar artículo').first);
+    await settle(tester);
+    await tester.tap(find.byTooltip('Eliminar artículo'));
+    await tester.pump();
+    expect(find.byType(AlertDialog), findsNothing);
+    await tester.tap(find.text('Eliminar'));
+    await settle(tester);
+    expect(find.byType(DraftItemInlineEditor), findsNothing);
+    expect((await tester.runAsync(() => f.draft))?.items ?? [], isEmpty);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+    await send(tester, '002');
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 1);
+  });
 
   readerTest(
     'cámara espera lector, conserva contrato y regresar recupera modo/foco',

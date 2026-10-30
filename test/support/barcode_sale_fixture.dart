@@ -10,6 +10,10 @@ import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_s
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/sync/event_processor.dart';
+import 'package:pos_flutter/application/sync/handlers/venta_borrador_actualizado_event_handler.dart';
+import 'package:pos_flutter/application/sync/handlers/venta_borrador_eliminado_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_actualizado_borrador_payload.dart';
+import 'package:pos_flutter/application/sync/payloads/producto_eliminado_borrador_payload.dart';
 import 'package:pos_flutter/application/sync/handlers/venta_borrador_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/venta_borrador_limpiada_event_handler.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_agregado_borrador_payload.dart';
@@ -48,6 +52,10 @@ class BarcodeSaleFixture {
   );
   late final processor = EventProcessor(
     handlers: {
+      ProductoActualizadoBorradorPayload.eventType:
+          VentaBorradorActualizadoEventHandler(db.saleDao).apply,
+      ProductoEliminadoBorradorPayload.eventType:
+          VentaBorradorEliminadoEventHandler(db.saleDao).apply,
       ProductoAgregadoBorradorPayload.eventType: VentaBorradorEventHandler(
         db.saleDao,
       ).apply,

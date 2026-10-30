@@ -271,6 +271,22 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _focus.requestFocus();
   }
 
+  void _tapInput() {
+    if (!_available || _closing || !widget.interactionEnabled) return;
+    final openSearch = widget.onOpenSearch;
+    if (openSearch != null) {
+      openSearch(_text.text);
+      return;
+    }
+    _resume();
+    if (widget.searchMode) {
+      _text.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _text.text.length,
+      );
+    }
+  }
+
   void _toggleManualKeyboard() {
     final session = _session;
     if (session == null ||
@@ -446,21 +462,25 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
   }
 
   /// Se espera `done` antes de permitir cualquier cambio de borrador/contexto.
-  Future<void> finish() {
+  /// El agregado manual conserva el foco; los diálogos pueden tomarlo y las
+  /// salidas de pantalla lo liberan con el comportamiento predeterminado.
+  Future<void> finish({bool keepInputFocus = false}) {
     // Cancelar también una preparación diferida: la navegación puede empezar
     // antes del primer frame o mientras Caja está cubierta/inactiva.
     _preparationRequested = false;
     if (_session == null) return Future<void>.value();
-    return _finishOperation ??= _finishSession();
+    return _finishOperation ??= _finishSession(keepInputFocus: keepInputFocus);
   }
 
-  Future<void> _finishSession() async {
+  Future<void> _finishSession({required bool keepInputFocus}) async {
     final session = _session;
     if (session == null) return;
     setState(() => _closing = true);
-    if (!widget.searchMode) _text.clear();
-    _manualKeyboard = false;
-    _focus.unfocus();
+    if (!widget.searchMode) {
+      _text.clear();
+      _manualKeyboard = false;
+    }
+    if (!keepInputFocus) _focus.unfocus();
     final done = session.finish();
     // Un selector ya visible se resuelve primero. Cubrirlo con el diálogo de
     // drenaje impediría cancelar/confirmar la lectura que finish está esperando.
@@ -550,7 +570,13 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         !_closing;
     final status = _closing
         ? 'Finalizando lecturas…'
-        : session?.isPaused == true || !ready
+        : !_available || _requiresExplicitResume
+        ? 'Lector en pausa'
+        : !widget.interactionEnabled
+        ? 'Procesando…'
+        : session == null
+        ? 'Preparando lector…'
+        : session.isPaused || !ready
         ? 'Lector en pausa'
         : session.isSaving
         ? 'Guardando…'
@@ -562,13 +588,16 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         children: [
           if (!widget.searchMode && widget.onOpenSearch == null)
             const Text('Lector físico'),
-          if (session != null) ...[
+          // En búsqueda, cerrar la sesión para drenar la cola antes de un
+          // agregado manual no debe desmontar el campo ni mover los resultados.
+          if (session != null || widget.searchMode) ...[
             TextField(
               key: const Key('physical_barcode_input'),
               controller: _text,
               selectAllOnFocus: widget.searchMode ? false : null,
               focusNode: _focus,
-              readOnly: _closing || !widget.interactionEnabled,
+              readOnly:
+                  session == null || _closing || !widget.interactionEnabled,
               // Flutter mantiene la conexión editable para HID. En Android,
               // TextInputType.none suprime únicamente el teclado en pantalla.
               keyboardType:
@@ -579,12 +608,11 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
               textInputAction: TextInputAction.done,
               onEditingComplete: () {},
               onSubmitted: _submit,
-              onTap: widget.onOpenSearch == null
-                  ? _resume
-                  : () {
-                      final query = _text.text;
-                      widget.onOpenSearch!(query);
-                    },
+              // Un clic en el catálogo o en una zona vacía conserva el HID.
+              // Los diálogos y la navegación siguen transfiriendo el foco.
+              onTapOutside: (_) {},
+              onTapAlwaysCalled: widget.searchMode,
+              onTap: _tapInput,
               decoration: InputDecoration(
                 labelText: widget.searchMode || widget.onOpenSearch != null
                     ? null
@@ -632,11 +660,11 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
             Semantics(
               liveRegion: true,
               child: Text(
-                '$status · ${session.pendingReadCount} lecturas pendientes',
+                '$status · ${session?.pendingReadCount ?? 0} lecturas pendientes',
                 key: const Key('physical_barcode_status'),
               ),
             ),
-            if (session.error != null)
+            if (session != null && session.error != null)
               Text(
                 session.error is SaleBarcodeAssignedException
                     ? '${SaleBarcodeAssignedException.message} '
@@ -650,7 +678,11 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
               )
             else if (_notice != null)
               Semantics(liveRegion: true, child: Text(_notice!)),
-            if (!ready && !_closing && _ownDialogDepth == 0)
+            if (!ready &&
+                !_closing &&
+                _ownDialogDepth == 0 &&
+                (!widget.searchMode ||
+                    (widget.interactionEnabled && session?.isPaused == true)))
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(

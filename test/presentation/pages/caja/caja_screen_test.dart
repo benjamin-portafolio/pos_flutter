@@ -8,7 +8,7 @@ import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_c
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft.dart';
 import 'package:pos_flutter/presentation/pages/caja/caja_screen.dart';
-import 'package:pos_flutter/presentation/pages/caja/draft_item_edit_sheet.dart';
+import 'package:pos_flutter/presentation/pages/caja/draft_item_inline_editor.dart';
 import 'package:pos_flutter/presentation/pages/caja/models/sale_draft_display.dart';
 import 'package:pos_flutter/presentation/pages/caja/payment_method_screen.dart';
 
@@ -29,7 +29,7 @@ void main() {
       expect(find.text(r'$84.00'), findsOneWidget);
       expect(find.text(r'$4.00'), findsOneWidget);
       expect(find.text(r'$21.00'), findsOneWidget);
-      expect(find.text(r'$109.00'), findsNWidgets(2));
+      expect(find.text(r'$109.00'), findsOneWidget);
       expect(find.text('3 artículos · 5 unidades'), findsOneWidget);
       expect(find.textContaining('mesa'), findsNothing);
       for (final button in tester.widgetList<IconButton>(
@@ -228,7 +228,7 @@ void main() {
   });
 
   testWidgets(
-    'el lápiz abre la edición y cerrar descarta los cambios sin comandar',
+    'el lápiz selecciona una fila, cambiar selección descarta captura pendiente',
     (tester) async {
       _phone(tester);
       final commands = _Commands();
@@ -240,15 +240,21 @@ void main() {
       );
       await tester.tap(find.byTooltip('Editar artículo').first);
       await tester.pumpAndSettle();
-      expect(find.byType(DraftItemEditSheet), findsOneWidget);
-      expect(find.text('Editar Test Variantes · Variante 2'), findsOneWidget);
-      expect(find.text('Precio de venta'), findsOneWidget);
-      expect(find.text('Aplicar oferta'), findsOneWidget);
-      await tester.tap(find.byTooltip('Aumentar cantidad'));
+      expect(find.byType(DraftItemInlineEditor), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byTooltip('Editar artículo'), findsNWidgets(2));
+      await tester.enterText(
+        find.byKey(const Key('draft_item_quantity_field')),
+        '8',
+      );
       await tester.pump();
-      await tester.tap(find.byTooltip('Cerrar'));
+      await tester.tap(find.byTooltip('Editar artículo').first);
       await tester.pumpAndSettle();
-      expect(find.byType(DraftItemEditSheet), findsNothing);
+      expect(find.byType(DraftItemInlineEditor), findsOneWidget);
+      expect(find.text('8'), findsNothing);
+      await tester.tap(find.byTooltip('Cerrar edición'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DraftItemInlineEditor), findsNothing);
       expect(commands.updated, isEmpty);
       expect(commands.removed, isEmpty);
     },
