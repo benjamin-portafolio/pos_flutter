@@ -7,6 +7,8 @@ import 'sale_item_snapshot.dart';
 class VentaConfirmadaPayload {
   VentaConfirmadaPayload({
     required this.paymentId,
+    this.pricingContractVersion,
+    this.pricingMode,
     this.cash,
     this.paymentMethod = 'cash',
     String? paymentReference,
@@ -26,6 +28,28 @@ class VentaConfirmadaPayload {
          ...dependencyEventIds,
          if (cash != null) cash.openingEventId,
        }) {
+    if ((pricingContractVersion == null) != (pricingMode == null) ||
+        (pricingContractVersion != null &&
+            (pricingContractVersion != 2 ||
+                !['normal', 'offer'].contains(pricingMode)))) {
+      throw const FormatException('Contrato de precio inválido.');
+    }
+    for (final line in lines) {
+      final s = line.snapshot;
+      if (s.priceSnapshotVersion == 2) {
+        if (pricingContractVersion != 2 ||
+            !dependencyEventIds.contains(s.priceConfigurationEventId)) {
+          throw const FormatException(
+            'Falta contrato o dependencia de precio.',
+          );
+        }
+        final offer =
+            pricingMode == 'offer' && s.offerPriceMinorSnapshot != null;
+        if (s.effectivePriceSource != (offer ? 'offer' : 'normal')) {
+          throw const FormatException('Origen incoherente con tarifa global.');
+        }
+      }
+    }
     CashBindingPayload.optional(cash?.toJson(), paymentMethod, totalMinor);
     if (paymentMethod == 'cash' || paymentMethod == 'transfer') {
       InventoryMovementPayload.requiredUuidV4(paymentId ?? '', 'payment_id');
@@ -98,6 +122,8 @@ class VentaConfirmadaPayload {
     return normalized;
   }
 
+  final int? pricingContractVersion;
+  final String? pricingMode;
   final CashBindingPayload? cash;
   final String? paymentReference;
   static const aggregateType = 'sale';
@@ -111,6 +137,10 @@ class VentaConfirmadaPayload {
   final List<String> dependencyEventIds;
   Map<String, Object?> toJson() => {
     if (cash != null) 'cash': cash!.toJson(),
+    if (pricingContractVersion != null) ...{
+      'pricing_contract_version': pricingContractVersion,
+      'pricing_mode': pricingMode,
+    },
     'payment_id': paymentId,
     'payment_method': paymentMethod,
     if (paymentReference != null) 'payment_reference': paymentReference,
@@ -128,6 +158,12 @@ class VentaConfirmadaPayload {
     'dependency_event_ids': dependencyEventIds,
   };
   factory VentaConfirmadaPayload.fromJson(Map<String, Object?> j) {
+    if ((j.containsKey('pricing_contract_version') ||
+            j.containsKey('pricing_mode')) &&
+        (j['pricing_contract_version'] != 2 ||
+            !['normal', 'offer'].contains(j['pricing_mode']))) {
+      throw const FormatException('Contrato de precio incompleto.');
+    }
     return VentaConfirmadaPayload(
       cash: CashBindingPayload.optional(
         j['cash'],
@@ -135,6 +171,8 @@ class VentaConfirmadaPayload {
         j['total_minor'] as int,
       ),
       paymentId: j['payment_id'] as String?,
+      pricingContractVersion: j['pricing_contract_version'] as int?,
+      pricingMode: j['pricing_mode'] as String?,
       paymentMethod: j['payment_method'] as String,
       paymentReference: j['payment_reference'] as String?,
       occurredAtMs: j['occurred_at_ms'] as int?,

@@ -297,7 +297,7 @@ void main() {
 
   test('las variantes de un producto no se parten entre lotes', () async {
     final texto =
-        '${_csv(49)},Con variantes,unidad,,Chica,18.005,,si,0,00123\n'
+        '${_csv(49)},Con variantes,unidad,,Chica,18.01,,si,0,00123\n'
         ',Con variantes,unidad,,Grande,20,0,si,2,\n';
     final reporte = await validar(texto);
     expect(reporte.errores, isEmpty);
@@ -375,6 +375,15 @@ void main() {
       final enviados = <String>{};
       final tamanos = <int>[];
       final client = MockClient((request) async {
+        if (request.url.path.endsWith('/sync/health')) {
+          return http.Response(
+            jsonEncode({
+              'status': 'ok',
+              'capabilities': ['offer_pricing_v2'],
+            }),
+            200,
+          );
+        }
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final events = (body['events'] as List).cast<Map<String, dynamic>>();
         tamanos.add(events.length);
@@ -435,7 +444,7 @@ void main() {
 
 String _csv(int filas) =>
     '${ArticuloCatalogCsv.columnasAnteriores.join(ArticuloCatalogCsv.separador)}\n'
-    '${List.generate(filas, (i) => ',Artículo $i,fraccion,kg,,18.005,10,si,1.250,00123').join('\n')}\n';
+    '${List.generate(filas, (i) => ',Artículo $i,fraccion,kg,,18.01,10,si,1.250,00123').join('\n')}\n';
 
 class _RecordingStore
     implements

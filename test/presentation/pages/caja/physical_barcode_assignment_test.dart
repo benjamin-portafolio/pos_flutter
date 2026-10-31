@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show DatabaseConnection;
+import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../../support/fake_mobile_scanner_platform.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_command.dart';
 import 'package:pos_flutter/application/commands/articulos/crear_articulo_variante_command.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
@@ -170,9 +172,16 @@ void main() {
     await settle(tester);
   }
 
-  for (final fromSearch in [false, true]) {
+  for (final scenario in [
+    (false, false, false),
+    (true, false, false),
+    (false, true, false),
+    (true, true, false),
+    (false, true, true),
+  ]) {
+    final (fromSearch, withOffer, fromCamera) = scenario;
     assignmentTest(
-      'alta guarda código y agrega a la misma venta, buscador=$fromSearch',
+      'alta guarda código y agrega a la misma venta, buscador=$fromSearch, oferta=$withOffer, camara=$fromCamera',
       (tester) async {
         getIt.registerSingleton<CategoriaRepository>(
           CategoriaRepositoryImpl(categoriaDao: f.h.db.categoriaDao),
@@ -188,11 +197,34 @@ void main() {
         );
         getIt.registerSingleton<AppConfigController>(f.h.tracking.config);
         await open(tester);
+        if (withOffer) {
+          await tester.tap(find.byKey(const Key('sale_offer_toggle')));
+          await settle(tester);
+          await tester.tap(find.byKey(const Key('confirm_sale_pricing')));
+          await settle(tester);
+        }
         if (fromSearch) {
           await tester.tap(find.byType(TextField));
           await settle(tester);
         }
-        await send(tester, '000987');
+        if (fromCamera) {
+          final original = MobileScannerPlatform.instance;
+          final camera = FakeMobileScannerPlatform();
+          MobileScannerPlatform.instance = camera;
+          MobileScannerController.resetPlatformSessionOwner();
+          addTearDown(() async {
+            MobileScannerPlatform.instance = original;
+            MobileScannerController.resetPlatformSessionOwner();
+            await camera.captures.close();
+          });
+          await tester.tap(find.byTooltip('Escanear código de barras'));
+          await settle(tester);
+          camera.captures.add(
+            BarcodeCapture(barcodes: [Barcode(rawValue: '000987')]),
+          );
+        } else {
+          await send(tester, '000987');
+        }
         await settle(tester);
         await tester.tap(find.text('Dar de alta un producto'));
         await settle(tester);
@@ -219,6 +251,12 @@ void main() {
           find.byKey(const Key('variant_sale_price_field')),
           '13',
         );
+        if (withOffer) {
+          await tester.enterText(
+            find.byKey(const Key('variant_offer_price_field')),
+            '9',
+          );
+        }
         await tester.tap(find.byKey(const Key('save_variant_button')));
         await settle(tester);
         await tester.tap(find.byKey(const Key('save_article_button')));
@@ -236,8 +274,84 @@ void main() {
           contains(matches.single.varianteId),
         );
         expect(draft.items, hasLength(2));
-        expect(draft.totalMinor, 2300);
+        expect(draft.totalMinor, withOffer ? 1900 : 2300);
+        expect(draft.pricingMode, withOffer ? 'offer' : 'normal');
+        expect(
+          draft.items
+              .singleWhere((i) => i.variantId == matches.single.varianteId)
+              .effectivePriceOrigin,
+          withOffer ? 'offer' : 'normal',
+        );
         expect(find.byType(ArticleSearchScreen), findsNothing);
+        if (fromCamera) {
+          await tester.tap(find.byKey(const Key('sale_barcode_go_to_caja')));
+          await settle(tester);
+        }
+        expect(input(tester).focusNode!.hasFocus, isTrue);
+      },
+    );
+  }
+
+  for (final scenario in [
+    (AppMode.standalone, false),
+    (AppMode.serverSync, false),
+    (AppMode.serverSync, true),
+  ]) {
+    final (mode, fromCamera) = scenario;
+    assignmentTest(
+      'asignación desconocida conserva y aplica oferta en ${mode.name}, camara=$fromCamera',
+      (tester) async {
+        if (mode != AppMode.standalone) {
+          await tester.runAsync(() async {
+            await f.h.dispose();
+            await initialize(mode);
+          });
+        }
+        final target = f.variant('Agua', null);
+        await tester.runAsync(
+          () => f.h.db.productoDao.actualizarVariante(
+            target,
+            const ProductVariantsCompanion(offerPriceMinor: Value(400)),
+          ),
+        );
+        await open(tester);
+        await tester.tap(find.byKey(const Key('sale_offer_toggle')));
+        await settle(tester);
+        await tester.tap(find.byKey(const Key('confirm_sale_pricing')));
+        await settle(tester);
+        if (fromCamera) {
+          final original = MobileScannerPlatform.instance;
+          final camera = FakeMobileScannerPlatform();
+          MobileScannerPlatform.instance = camera;
+          MobileScannerController.resetPlatformSessionOwner();
+          addTearDown(() async {
+            MobileScannerPlatform.instance = original;
+            MobileScannerController.resetPlatformSessionOwner();
+            await camera.captures.close();
+          });
+          await tester.tap(find.byTooltip('Escanear código de barras'));
+          await settle(tester);
+          camera.captures.add(
+            BarcodeCapture(barcodes: [Barcode(rawValue: '00042')]),
+          );
+        } else {
+          await send(tester, '00042');
+        }
+        await settle(tester);
+        await select(tester, target);
+        await confirm(tester);
+        final sale = (await tester.runAsync(
+          () => drafts.watchCurrentDraft().first,
+        ))!;
+        expect(sale.pricingMode, 'offer');
+        expect(sale.totalMinor, 1400);
+        final line = sale.items.singleWhere((i) => i.variantId == target);
+        expect(line.unitPriceMinor, 400);
+        expect(line.effectivePriceOrigin, 'offer');
+        if (fromCamera) {
+          await tester.tap(find.byKey(const Key('sale_barcode_go_to_caja')));
+          await settle(tester);
+        }
         expect(input(tester).focusNode!.hasFocus, isTrue);
       },
     );
@@ -685,15 +799,18 @@ void main() {
   });
 
   for (final scenario in [
-    (false, false),
-    (true, false),
-    (false, true),
-    (true, true),
+    (false, false, false),
+    (true, false, false),
+    (false, true, false),
+    (true, true, false),
+    (false, false, true),
+    (false, true, true),
   ]) {
     final cancel = scenario.$1;
     final weighed = scenario.$2;
+    final withOffer = scenario.$3;
     assignmentTest(
-      'cantidad medida después de asignar, cancelar=$cancel, pesaje=$weighed',
+      'cantidad medida después de asignar, cancelar=$cancel, pesaje=$weighed, oferta=$withOffer',
       (tester) async {
         final resources = (await tester.runAsync(() async {
           final gateway = FakeScaleGateway();
@@ -750,10 +867,24 @@ void main() {
                 .variantesActivas
                 .single
                 .varianteId;
+        if (withOffer) {
+          await tester.runAsync(
+            () => f.h.db.productoDao.actualizarVariante(
+              measured,
+              const ProductVariantsCompanion(offerPriceMinor: Value(1600)),
+            ),
+          );
+        }
         await open(
           tester,
           platform: weighed ? TargetPlatform.windows : TargetPlatform.macOS,
         );
+        if (withOffer) {
+          await tester.tap(find.byKey(const Key('sale_offer_toggle')));
+          await settle(tester);
+          await tester.tap(find.byKey(const Key('confirm_sale_pricing')));
+          await settle(tester);
+        }
         await send(tester, '00042');
         await settle(tester);
         await select(tester, measured);
@@ -809,7 +940,13 @@ void main() {
                 .measuredQuantityAtomic,
             750,
           );
-          expect(sale.totalMinor, 2500);
+          expect(sale.totalMinor, withOffer ? 2200 : 2500);
+          expect(
+            sale.items
+                .singleWhere((v) => v.variantId == measured)
+                .effectivePriceOrigin,
+            withOffer ? 'offer' : 'normal',
+          );
         }
       },
     );

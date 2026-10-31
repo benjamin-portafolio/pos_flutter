@@ -90,6 +90,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _barcodeController;
   late final TextEditingController _priceController;
+  late final TextEditingController _offerController;
+  late final String _initialOfferText;
   late final TextEditingController _costController;
   late final TextEditingController _initialStockController;
   late final TextEditingController _minimumStockController;
@@ -115,6 +117,12 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       text: initial?.codigoBarras ?? '',
     );
     _priceController = TextEditingController(text: initial?.precioVenta ?? '');
+    _initialOfferText = initial?.offerPrice.establecer == true
+        ? initial!.offerPrice.valor ?? ''
+        : initial?.offerPriceMinor == null
+        ? ''
+        : '${initial!.offerPriceMinor! ~/ 100}.${(initial.offerPriceMinor! % 100).toString().padLeft(2, '0')}';
+    _offerController = TextEditingController(text: _initialOfferText);
     _costController = TextEditingController(text: initial?.costoEstandar ?? '');
     _initialStockController = TextEditingController(
       text: initial?.existenciaInicial ?? '',
@@ -169,6 +177,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _nameController.dispose();
     _barcodeController.dispose();
     _priceController.dispose();
+    _offerController.dispose();
     _costController.dispose();
     _initialStockController.dispose();
     _minimumStockController.dispose();
@@ -340,6 +349,22 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                       ],
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('variant_offer_price_field'),
+                  controller: _offerController,
+                  readOnly: widget.preview,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Precio de oferta (opcional)',
+                    hintText: 'Sin oferta',
+                    helperText:
+                        'Vaciar retira la oferta. No modifica el costo.',
+                  ),
+                  validator: _validateOffer,
                 ),
                 const SizedBox(height: 12),
                 _EditorCard(
@@ -709,6 +734,28 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     }
   }
 
+  String? _validateOffer(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    try {
+      final offer = PrecioVenta.fromInput(value).unidadMenor;
+      final normal = PrecioVenta.fromInput(_priceController.text).unidadMenor;
+      return offer > normal
+          ? 'La oferta no puede superar el precio normal.'
+          : null;
+    } on ArgumentError catch (error) {
+      return error.message?.toString() ?? 'Oferta inválida.';
+    }
+  }
+
+  CambioExplicito<String?> get _offerChange {
+    if (_offerController.text == _initialOfferText) {
+      return widget.initialValue?.offerPrice ??
+          const CambioExplicito.conservar();
+    }
+    final text = _offerController.text.trim().replaceAll(',', '.');
+    return CambioExplicito.establecer(text.isEmpty ? null : text);
+  }
+
   String? _validateCost(String? value) {
     try {
       CostoEstandar.fromInput(value);
@@ -753,6 +800,8 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
           : _costController.text.trim().replaceAll(',', '.'),
       codigoBarras: CodigoBarras.fromInput(_barcodeController.text).value,
       inventoryUnitId: _trackingInventory ? widget.inventoryUnit.id : null,
+      offerPriceMinor: widget.initialValue?.offerPriceMinor,
+      offerPrice: _offerChange,
       minimumStockAtomic: widget.initialValue?.minimumStockAtomic,
       minimumStock: _minimumStockChange,
       existenciaInicial:

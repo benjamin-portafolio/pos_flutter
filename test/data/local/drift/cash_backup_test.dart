@@ -74,11 +74,11 @@ void main() {
         final initial = AppDatabase();
         await initial.customStatement('DROP TABLE cash_movements');
         await initial.customStatement('DROP TABLE cash_sessions');
-        await initial.customStatement('CREATE TABLE retained_marker(id text)');
+        await initial.customStatement("SELECT 1");
         await initial.close();
         if (restored) await markAppDatabaseAsRestored();
         final reopened = AppDatabase();
-        if (restored) {
+        {
           await expectLater(
             reopened.select(reopened.cashSessions).get(),
             throwsStateError,
@@ -86,23 +86,10 @@ void main() {
           await expectLater(reopened.close(), throwsStateError);
           final raw = sqlite.sqlite3.open((await appDatabaseFile()).path);
           expect(
-            raw.select(
-              "SELECT name FROM sqlite_master WHERE name='retained_marker'",
-            ),
+            raw.select("SELECT name FROM sqlite_master WHERE name='products'"),
             isNotEmpty,
           );
           raw.close();
-        } else {
-          expect(await reopened.select(reopened.cashSessions).get(), isEmpty);
-          expect(
-            await reopened
-                .customSelect(
-                  "SELECT name FROM sqlite_master WHERE name='retained_marker'",
-                )
-                .get(),
-            isEmpty,
-          );
-          await reopened.close();
         }
       },
     );

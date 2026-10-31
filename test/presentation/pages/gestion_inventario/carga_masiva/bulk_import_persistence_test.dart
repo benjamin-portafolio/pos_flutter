@@ -74,7 +74,10 @@ void main() {
         'C29→C05→C37 exportar, editar, revisar, guardar y reimportar sin eventos',
         (tester) async {
           final exported = (await tester.runAsync(f.export))!;
-          expect(exported, startsWith(ArticuloCsvContract.columnas.join(',')));
+          expect(
+            exported,
+            startsWith(ArticuloCsvContract.columnasConIdsAnteriores.join(',')),
+          );
           final lines = exported.trim().split('\n');
           final edited = <String>[];
           for (final line in lines.skip(1)) {
@@ -601,7 +604,7 @@ class _Fixture {
   }
 
   String csv(List<String> rows) =>
-      '${ArticuloCsvContract.columnas.join(',')}\n${rows.join('\n')}\n';
+      '${ArticuloCsvContract.columnasConIdsAnteriores.join(',')}\n${rows.join('\n')}\n';
   String row(
     String p,
     String v,

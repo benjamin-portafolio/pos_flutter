@@ -11,9 +11,7 @@ class VentaBorradorActualizadoEventHandler {
   final SaleDraftProjectionStore store;
 
   Future<void> apply(SyncEvent event) => store.atomic(() async {
-    final payload = ProductoActualizadoBorradorPayload.fromJson(
-      event.payload,
-    );
+    final payload = ProductoActualizadoBorradorPayload.fromJson(event.payload);
     if (event.aggregateType !=
             ProductoActualizadoBorradorPayload.aggregateType ||
         event.serverSequence != null ||
@@ -63,6 +61,8 @@ class VentaBorradorActualizadoEventHandler {
         createdEventId: sale?.createdEventId ?? event.eventId,
         lastEventId: event.eventId,
         lastServerSequence: null,
+        pricingContractVersion: sale?.pricingContractVersion ?? 2,
+        pricingMode: sale?.pricingMode ?? 'normal',
         userId: event.userId,
         deviceId: event.deviceId,
         status: SaleStatus.borrador,

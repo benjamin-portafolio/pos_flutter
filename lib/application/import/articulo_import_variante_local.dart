@@ -5,6 +5,8 @@ class ArticuloImportVarianteLocal {
     required this.productId,
     required this.activa,
     required this.sortOrder,
+    this.offerPriceMinor,
+    this.knowsOfferPrice = false,
     required this.precioVentaMinor,
     required this.seguimientoExistencias,
     this.nombre,
@@ -17,6 +19,8 @@ class ArticuloImportVarianteLocal {
   final int sortOrder;
   final String? nombre;
   final int precioVentaMinor;
+  final int? offerPriceMinor;
+  final bool knowsOfferPrice;
   final int? precioCosteMinor;
   final String? codigoBarras;
   final bool seguimientoExistencias;

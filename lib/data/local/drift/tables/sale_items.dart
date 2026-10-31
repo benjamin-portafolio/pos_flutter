@@ -39,6 +39,24 @@ class SaleItems extends Table with CommonFields {
   /// Precio capturado en centavos por pieza o por cantidad de referencia.
   IntColumn get unitPriceMinor => integer()();
 
+  /// Versión de captura; null mantiene el legado sin alternativas acreditadas.
+  IntColumn get priceSnapshotVersion => integer().nullable()();
+
+  /// Precio normal capturado, nunca reconstruido desde catálogo durante migración.
+  IntColumn get normalPriceMinorSnapshot => integer().nullable()();
+
+  /// Oferta capturada; null en v2 significa sin oferta conocida.
+  IntColumn get offerPriceMinorSnapshot => integer().nullable()();
+
+  /// Procedencia acreditada: normal u offer; null conserva unknown legado.
+  TextColumn get effectivePriceSource => text().nullable()();
+
+  /// Herencia del modo global; no se admiten excepciones por línea todavía.
+  TextColumn get priceSelection => text().nullable()();
+
+  /// Evento histórico de producto que acredita precio y costo, separado del consumo.
+  TextColumn get priceConfigurationEventId => text().nullable()();
+
   /// Costo estándar capturado; null conserva que se desconoce el costo.
   IntColumn get standardCostMinorSnapshot => integer().nullable()();
 

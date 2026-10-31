@@ -70,6 +70,8 @@ class SaleDraftRepositoryImpl implements SaleDraftRepository {
     return SaleDraft(
       id: sale.id,
       lastEventId: sale.lastEventId,
+      version: sale.version,
+      pricingMode: sale.pricingMode ?? 'normal',
       totalMinor: sale.totalMinor,
       items: [
         for (final row in rows)
@@ -77,6 +79,12 @@ class SaleDraftRepositoryImpl implements SaleDraftRepository {
             SaleDraftItem(
               id: item.id,
               variantId: item.variantId,
+              priceSnapshotVersion: item.priceSnapshotVersion,
+              normalPriceMinorSnapshot: item.normalPriceMinorSnapshot,
+              offerPriceMinorSnapshot: item.offerPriceMinorSnapshot,
+              effectivePriceSource: item.effectivePriceSource,
+              priceSelection: item.priceSelection,
+              priceConfigurationEventId: item.priceConfigurationEventId,
               consumptionConfigurationKey: item.consumptionConfigurationKey,
               productName: item.productNameSnapshot,
               variantName: item.variantNameSnapshot,

@@ -26,33 +26,19 @@ void main() {
   });
 
   test(
-    'recrea esquema anterior una vez y conserva datos en el siguiente arranque',
+    'rechaza esquema anterior no acreditado conservando todos sus datos',
     () async {
       final file = await appDatabaseFile();
       final old = sqlite.sqlite3.open(file.path);
       old.execute('CREATE TABLE obsolete_data (id TEXT)');
+      old.execute("INSERT INTO obsolete_data VALUES ('keep')");
       old.execute('PRAGMA user_version = 7');
       old.close();
-      var db = AppDatabase();
-      expect(await db.select(db.productUpdateUndo).get(), isEmpty);
-      expect(
-        await db
-            .customSelect(
-              "SELECT name FROM sqlite_master WHERE name = 'obsolete_data'",
-            )
-            .get(),
-        isEmpty,
-      );
-      await db.customStatement("CREATE TABLE retained_marker (id TEXT)");
-      await db.customStatement("INSERT INTO retained_marker VALUES ('keep')");
-      await db.close();
-      db = AppDatabase();
-      expect(
-        (await db.customSelect('SELECT id FROM retained_marker').get()).single
-            .read<String>('id'),
-        'keep',
-      );
-      await db.close();
+      final before = await file.readAsBytes();
+      final db = AppDatabase();
+      await expectLater(db.select(db.products).get(), throwsStateError);
+      await expectLater(db.close(), throwsStateError);
+      expect(await file.readAsBytes(), before);
     },
   );
 
@@ -62,12 +48,12 @@ void main() {
       await initial.customStatement(
         'ALTER TABLE product_variants ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0',
       );
-      await initial.customStatement('CREATE TABLE retained_marker (id TEXT)');
+      await initial.customStatement("SELECT 1");
       await initial.close();
       if (restored) await markAppDatabaseAsRestored();
 
       final reopened = AppDatabase();
-      if (restored) {
+      {
         await expectLater(
           reopened.select(reopened.products).get(),
           throwsStateError,
@@ -84,24 +70,6 @@ void main() {
         } finally {
           preserved.close();
         }
-      } else {
-        final columns = await reopened
-            .customSelect('PRAGMA table_info(product_variants)')
-            .get();
-        expect(
-          columns.map((column) => column.read<String>('name')),
-          isNot(contains('is_default')),
-        );
-        expect(
-          await reopened
-              .customSelect(
-                "SELECT name FROM sqlite_master WHERE name = 'retained_marker'",
-              )
-              .get(),
-          isEmpty,
-        );
-        expect(reopened.schemaVersion, 8);
-        await reopened.close();
       }
     });
   }

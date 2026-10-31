@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'package:pos_flutter/application/commands/ventas/cambiar_tarifa_venta_borrador_command.dart';
 import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_form_result.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -40,6 +42,75 @@ void main() {
         quantity ?? (_) async => throw StateError('Cantidad inesperada'),
     onSaving: onSaving,
     assignUnknownCode: assign,
+  );
+
+  test(
+    'S4 lector comparte precio efectivo de piezas e importe medido',
+    () async {
+      await (fixture.db.update(fixture.db.productVariants)
+            ..where((t) => t.id.equals('A')))
+          .write(const ProductVariantsCompanion(offerPriceMinor: Value(80)));
+      await (fixture.db.update(fixture.db.productVariants)
+            ..where((t) => t.id.equals('M')))
+          .write(const ProductVariantsCompanion(offerPriceMinor: Value(10000)));
+      await fixture.commands.cambiarTarifa(
+        CambiarTarifaVentaBorradorCommand(
+          operationId: const Uuid().v4(),
+          saleId: const Uuid().v4(),
+          pricingMode: 'offer',
+          expectedVersion: 0,
+          expectedDraftEventId: null,
+          expectedTotalMinor: 0,
+        ),
+      );
+      await read('001');
+      final conditions = (await fixture.coordinator.conditionsFor('M'))!;
+      expect(conditions.unitPriceMinor, 10000);
+      await read(
+        '004',
+        quantity: (_) async => SaleQuantityFormResult(
+          measuredQuantity: null,
+          targetAmountMinor: 1000,
+          expectedUnitId: conditions.unit.id,
+          expectedUnitPriceMinor: conditions.unitPriceMinor,
+          expectedPriceReferenceQuantityAtomic:
+              conditions.priceReferenceQuantityAtomic,
+          displayQuantity: '0.1',
+          displayUnitSymbol: 'kg',
+        ),
+      );
+      expect((await fixture.draft)!.totalMinor, 1080);
+      expect((await fixture.draft)!.items.last.measuredQuantityAtomic, 100);
+    },
+  );
+  test(
+    'S4 cambio durante diálogo rechaza antes de guardar en la venta',
+    () async {
+      await read('001');
+      final before = (await fixture.draft)!;
+      await expectLater(
+        read(
+          '004',
+          quantity: (_) async {
+            final s = (await fixture.db.saleDao.findById(before.id))!;
+            await fixture.commands.cambiarTarifa(
+              CambiarTarifaVentaBorradorCommand(
+                operationId: const Uuid().v4(),
+                saleId: s.id,
+                pricingMode: 'offer',
+                expectedVersion: s.version,
+                expectedDraftEventId: s.lastEventId,
+                expectedTotalMinor: s.totalMinor,
+              ),
+            );
+            return measuredBarcodeResult('0.1');
+          },
+        ),
+        throwsStateError,
+      );
+      expect((await fixture.draft)!.items, hasLength(1));
+      expect((await fixture.draft)!.totalMinor, 100);
+    },
   );
 
   for (final mode in AppMode.values) {

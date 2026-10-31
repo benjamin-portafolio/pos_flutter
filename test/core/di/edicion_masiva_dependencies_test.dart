@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/sync/sync_capability_store.dart';
+import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -53,6 +55,10 @@ void main() {
             );
             await AppConfigFileStore().saveConfig(config);
             await setupDependencyInjection();
+            await getIt<SyncCapabilityStore>().write(
+              getIt<SyncEndpointConfig>().baseUrl,
+              ['offer_pricing_v2'],
+            );
             if (modo == AppMode.standalone) {
               await startConfiguredRuntimeServices(config);
             }

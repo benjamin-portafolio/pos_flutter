@@ -108,7 +108,7 @@ String _fila({
   barcode,
 ].join(',');
 String _archivo(List<String> filas) =>
-    '${ArticuloCsvContract.columnas.join(',')}\n${filas.join('\n')}\n';
+    '${ArticuloCsvContract.columnasConIdsAnteriores.join(',')}\n${filas.join('\n')}\n';
 ArticuloImportReporte _validar(
   List<String> filas, {
   List<ArticuloImportProductoLocal>? productos,

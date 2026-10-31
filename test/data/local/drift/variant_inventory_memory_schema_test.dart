@@ -25,7 +25,7 @@ void main() {
       );
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 8);
+      expect(database.schemaVersion, 9);
 
       final itemColumns = await database
           .customSelect('PRAGMA table_info(inventory_items)')

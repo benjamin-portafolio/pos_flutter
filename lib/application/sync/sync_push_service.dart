@@ -125,6 +125,29 @@ class SyncPushService {
       );
     }
 
+    final needsOffer = events.any(
+      (e) => switch (e.eventType) {
+        ProductoCreadoPayload.eventType => ProductoCreadoPayload.fromJson(
+          e.payload,
+        ).knowsOfferPrice,
+        ProductoActualizadoPayload.eventType =>
+          ProductoActualizadoPayload.fromJson(e.payload).after.knowsOfferPrice,
+        _ => false,
+      },
+    );
+    if (needsOffer) {
+      final health = await SyncHealthService(
+        endpointConfig: _endpointConfig,
+        capabilityStore: _capabilityStore,
+        client: _client,
+      ).check();
+      if (!health.isAvailable ||
+          !health.capabilities.contains('offer_pricing_v2')) {
+        throw const SyncPushException(
+          'Servidor incompatible con offer_pricing_v2. Los cambios siguen pendientes.',
+        );
+      }
+    }
     final needsSuppliers = events.any(
       (e) => switch (e.eventType) {
         ProveedorCreadoPayload.eventType ||

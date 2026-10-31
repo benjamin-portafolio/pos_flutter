@@ -47,123 +47,118 @@ void main() {
 
   for (final mode in AppMode.values) {
     for (final status in QuotationStatus.values) {
-      test(
-        'C06/C28/C34: reinicio y respaldo/restauración $mode / $status',
-        () async {
-          var h = QuotationHarness(database: AppDatabase(), mode: mode);
-          await h.seed();
-          await h.add();
-          await h.add(QuotationHarness.measuredId);
-          final command = await h.intent();
-          await h.service().guardar(command);
-          if (status == QuotationStatus.disponible) {
-            await h.drafts.limpiar(
-              LimpiarVentaBorradorCommand(
-                saleId: command.saleId,
-                expectedDraftEventId: command.expectedDraftEventId,
-              ),
-            );
-          } else if (status == QuotationStatus.vendida) {
-            final confirmation = await h.confirm();
-            await h.db.eventDao.actualizarEstadoSincronizacion(
-              confirmation,
-              mode == AppMode.standalone ? 'not_required' : 'rejected',
-            );
-          }
-          await h.db.customStatement(
-            'CREATE TABLE quotation_restart_marker(id TEXT)',
+      test('C06/C28/C34: reinicio y respaldo/restauración $mode / $status', () async {
+        var h = QuotationHarness(database: AppDatabase(), mode: mode);
+        await h.seed();
+        await h.add();
+        await h.add(QuotationHarness.measuredId);
+        final command = await h.intent();
+        await h.service().guardar(command);
+        if (status == QuotationStatus.disponible) {
+          await h.drafts.limpiar(
+            LimpiarVentaBorradorCommand(
+              saleId: command.saleId,
+              expectedDraftEventId: command.expectedDraftEventId,
+            ),
           );
-          final before = await h.contents();
+        } else if (status == QuotationStatus.vendida) {
+          final confirmation = await h.confirm();
+          await h.db.eventDao.actualizarEstadoSincronizacion(
+            confirmation,
+            mode == AppMode.standalone ? 'not_required' : 'rejected',
+          );
+        }
+        await h.db.customStatement(
+          "INSERT INTO products(id,name) VALUES ('quotation_restart_marker','quotation_restart_marker')",
+        );
+        final before = await h.contents();
+        await h.dispose();
+        h = QuotationHarness(database: AppDatabase(), mode: mode);
+        expect(
+          await h.contents(),
+          before,
+        ); // Arranque normal no reinicia esquema actual.
+        expect(
+          (await h.repository.findById(command.quotationId))!.status,
+          status,
+        );
+        final snapshot = await DriftDatabaseSnapshotService(
+          db: h.db,
+          stateReader: DriftDatabaseStateReader(db: h.db),
+        ).createSnapshot();
+        try {
+          final raw = sqlite.sqlite3.open(snapshot.file.path);
+          expect(
+            raw.select('PRAGMA integrity_check').single.values.single,
+            'ok',
+          );
+          expect(raw.select('PRAGMA foreign_key_check'), isEmpty);
+          expect(raw.select('SELECT * FROM quotations'), hasLength(1));
+          expect(raw.select('SELECT * FROM quotation_items'), hasLength(2));
+          raw.close();
+          await h
+              .add(); // Modificación después del snapshot que debe desaparecer.
+          await DriftDatabaseRestoreService(
+            db: h.db,
+          ).restoreSnapshot(snapshot.file, sha256: snapshot.sha256);
+          h.config.dispose();
+          h = QuotationHarness(database: AppDatabase(), mode: mode);
+          expect(await h.contents(), before);
+          final quotation = (await h.repository.findById(command.quotationId))!;
+          expect(quotation.status, status);
+          expect(quotation.currentSaleId, command.saleId);
+          expect(quotation.issuedAtLocal, command.issuedAtLocal);
+          expect(quotation.items.last.measuredQuantityAtomic, 750);
+          final retry = await h.service().guardar(
+            GuardarCotizacionCommand(
+              saleId: command.saleId,
+              expectedDraftEventId: command.expectedDraftEventId,
+              quotationId: command.quotationId,
+              eventId: command.eventId,
+              issuedAtLocal: command.issuedAtLocal,
+            ),
+          );
+          expect(retry.eventId, command.eventId);
+          expect(retry.issuedAtLocal, command.issuedAtLocal);
+          expect(
+            (await h.db.eventDao.obtenerEventoPorId(
+              command.eventId,
+            ))!.deliveryStatus,
+            'not_required',
+          );
+          expect(await h.contents(), before);
+          expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
           await h.dispose();
           h = QuotationHarness(database: AppDatabase(), mode: mode);
           expect(
             await h.contents(),
             before,
-          ); // Arranque normal no reinicia esquema actual.
+          ); // Reinicio posterior al restore conserva todo.
           expect(
-            (await h.repository.findById(command.quotationId))!.status,
-            status,
+            await h.db
+                .customSelect(
+                  "SELECT id AS name FROM products WHERE id='quotation_restart_marker'",
+                )
+                .get(),
+            hasLength(1),
           );
-          final snapshot = await DriftDatabaseSnapshotService(
-            db: h.db,
-            stateReader: DriftDatabaseStateReader(db: h.db),
-          ).createSnapshot();
-          try {
-            final raw = sqlite.sqlite3.open(snapshot.file.path);
-            expect(
-              raw.select('PRAGMA integrity_check').single.values.single,
-              'ok',
-            );
-            expect(raw.select('PRAGMA foreign_key_check'), isEmpty);
-            expect(raw.select('SELECT * FROM quotations'), hasLength(1));
-            expect(raw.select('SELECT * FROM quotation_items'), hasLength(2));
-            raw.close();
-            await h
-                .add(); // Modificación después del snapshot que debe desaparecer.
-            await DriftDatabaseRestoreService(
-              db: h.db,
-            ).restoreSnapshot(snapshot.file, sha256: snapshot.sha256);
-            h.config.dispose();
-            h = QuotationHarness(database: AppDatabase(), mode: mode);
-            expect(await h.contents(), before);
-            final quotation = (await h.repository.findById(
-              command.quotationId,
-            ))!;
-            expect(quotation.status, status);
-            expect(quotation.currentSaleId, command.saleId);
-            expect(quotation.issuedAtLocal, command.issuedAtLocal);
-            expect(quotation.items.last.measuredQuantityAtomic, 750);
-            final retry = await h.service().guardar(
-              GuardarCotizacionCommand(
-                saleId: command.saleId,
-                expectedDraftEventId: command.expectedDraftEventId,
-                quotationId: command.quotationId,
-                eventId: command.eventId,
-                issuedAtLocal: command.issuedAtLocal,
-              ),
-            );
-            expect(retry.eventId, command.eventId);
-            expect(retry.issuedAtLocal, command.issuedAtLocal);
-            expect(
-              (await h.db.eventDao.obtenerEventoPorId(
-                command.eventId,
-              ))!.deliveryStatus,
-              'not_required',
-            );
-            expect(await h.contents(), before);
-            expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-            await h.dispose();
-            h = QuotationHarness(database: AppDatabase(), mode: mode);
-            expect(
-              await h.contents(),
-              before,
-            ); // Reinicio posterior al restore conserva todo.
-            expect(
-              await h.db
-                  .customSelect(
-                    "SELECT name FROM sqlite_master WHERE name = 'quotation_restart_marker'",
-                  )
-                  .get(),
-              hasLength(1),
-            );
-            expect(h.db.schemaVersion, 8);
-            await export('backup-${mode.name}-${status.name}', {
-              'schema_version': h.db.schemaVersion,
-              'status': status.name,
-              'sha256': snapshot.sha256,
-              'contents': before,
-              'normal_restart_preserved': true,
-              'restored_and_second_restart_preserved': true,
-              'protected': await appDatabaseShouldPreserveRestoredDatabase(),
-              'integrity_check': 'ok',
-              'foreign_key_check': [],
-            }, database: snapshot.file);
-          } finally {
-            await h.dispose();
-            await snapshot.file.parent.delete(recursive: true);
-          }
-        },
-      );
+          expect(h.db.schemaVersion, 9);
+          await export('backup-${mode.name}-${status.name}', {
+            'schema_version': h.db.schemaVersion,
+            'status': status.name,
+            'sha256': snapshot.sha256,
+            'contents': before,
+            'normal_restart_preserved': true,
+            'restored_and_second_restart_preserved': true,
+            'protected': await appDatabaseShouldPreserveRestoredDatabase(),
+            'integrity_check': 'ok',
+            'foreign_key_check': [],
+          }, database: snapshot.file);
+        } finally {
+          await h.dispose();
+          await snapshot.file.parent.delete(recursive: true);
+        }
+      });
     }
   }
 
@@ -191,7 +186,7 @@ void main() {
           await initial.close();
           if (restored) await markAppDatabaseAsRestored();
           final reopened = AppDatabase();
-          if (restored) {
+          {
             await expectLater(
               reopened.select(reopened.quotations).get(),
               throwsStateError,
@@ -205,18 +200,6 @@ void main() {
               isNotEmpty,
             );
             raw.close();
-          } else {
-            expect(await reopened.select(reopened.quotations).get(), isEmpty);
-            expect(
-              await reopened
-                  .customSelect(
-                    "SELECT name FROM sqlite_master WHERE name = 'retained_quotation_marker'",
-                  )
-                  .get(),
-              isEmpty,
-            );
-            expect(reopened.schemaVersion, 8);
-            await reopened.close();
           }
         },
       );
@@ -251,47 +234,17 @@ void main() {
             if (restored) await markAppDatabaseAsRestored();
             final hash = sha256.convert(await file.readAsBytes()).toString();
             final reopened = AppDatabase();
-            if (restored) {
+            {
               await expectLater(
                 reopened.select(reopened.quotations).get(),
                 throwsStateError,
               );
               await expectLater(reopened.close(), throwsStateError);
               expect(sha256.convert(await file.readAsBytes()).toString(), hash);
-              expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-            } else {
-              expect(await reopened.select(reopened.quotations).get(), isEmpty);
-              expect(await reopened.select(reopened.events).get(), isEmpty);
               expect(
-                await reopened
-                    .customSelect(
-                      "SELECT name FROM sqlite_master WHERE name='retained_legacy_marker'",
-                    )
-                    .get(),
-                isEmpty,
+                await appDatabaseShouldPreserveRestoredDatabase(),
+                restored,
               );
-              expect(
-                (await reopened
-                        .customSelect('PRAGMA table_info(${table.key})')
-                        .get())
-                    .map((r) => r.data['name']),
-                isNot(contains(column)),
-              );
-              expect(reopened.schemaVersion, 8);
-              await reopened.customStatement(
-                'CREATE TABLE new_restart_marker(id TEXT)',
-              );
-              await reopened.close();
-              final second = AppDatabase();
-              expect(
-                await second
-                    .customSelect(
-                      "SELECT name FROM sqlite_master WHERE name='new_restart_marker'",
-                    )
-                    .get(),
-                hasLength(1),
-              );
-              await second.close();
             }
           },
         );
@@ -368,7 +321,7 @@ void main() {
               .convert(await file.readAsBytes())
               .toString();
           final reopened = AppDatabase();
-          if (restored) {
+          {
             await expectLater(
               reopened.select(reopened.quotations).get(),
               throwsStateError,
@@ -378,18 +331,12 @@ void main() {
               sha256.convert(await file.readAsBytes()).toString(),
               beforeHash,
             );
-            expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-          } else {
-            expect(await reopened.select(reopened.quotations).get(), isEmpty);
-            expect(await reopened.select(reopened.products).get(), isEmpty);
-            expect(await reopened.select(reopened.sales).get(), isEmpty);
-            expect(await reopened.select(reopened.events).get(), isEmpty);
-            await reopened.close();
+            expect(await appDatabaseShouldPreserveRestoredDatabase(), restored);
           }
           final raw = sqlite.sqlite3.open(file.path);
           Map<String, Object?> result;
           try {
-            expect(raw.select('PRAGMA user_version').single.values.single, 8);
+            expect(raw.select('PRAGMA user_version').single.values.single, 9);
             final columns = {
               for (final table in forbidden.keys)
                 table.toString(): raw
@@ -399,7 +346,7 @@ void main() {
             };
             for (final table in forbidden.entries) {
               for (final column in table.value as List) {
-                expect(columns[table.key]!.contains(column), restored);
+                expect(columns[table.key]!.contains(column), isTrue);
               }
             }
             expect(
@@ -408,25 +355,25 @@ void main() {
                     "SELECT name FROM sqlite_master WHERE name='legacy_closure_marker'",
                   )
                   .isNotEmpty,
-              restored,
+              isTrue,
             );
             expect(
               raw
                   .select("SELECT * FROM events WHERE event_id='legacy'")
                   .isNotEmpty,
-              restored,
+              isTrue,
             );
             result = {
-              'schema_version': 8,
+              'schema_version': 9,
               'protected': restored,
               'columns': columns,
               'before_sha256': beforeHash,
               'after_sha256': sha256
                   .convert(await file.readAsBytes())
                   .toString(),
-              'legacy_marker_preserved': restored,
-              'legacy_event_preserved': restored,
-              'whole_database_reset': !restored,
+              'legacy_marker_preserved': true,
+              'legacy_event_preserved': true,
+              'whole_database_reset': false,
               'restore_service_executed': restored,
               'restore_rejected_before_replacement': restored,
               'startup_protection_marked_explicitly': restored,

@@ -59,6 +59,8 @@ class VentaBorradorEliminadoEventHandler {
         createdEventId: sale?.createdEventId ?? event.eventId,
         lastEventId: event.eventId,
         lastServerSequence: null,
+        pricingContractVersion: sale?.pricingContractVersion ?? 2,
+        pricingMode: sale?.pricingMode ?? 'normal',
         userId: event.userId,
         deviceId: event.deviceId,
         status: SaleStatus.borrador,

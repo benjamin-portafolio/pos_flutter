@@ -1,3 +1,4 @@
+import '../drift/drift_producto_projection_store.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -64,6 +65,18 @@ abstract final class ArticuloCatalogCsv {
           [
             if (incluirIds) ...[row.producto.id, row.variante!.id],
             ..._campos(row),
+            if (incluirIds) ...[
+              row.variante!.offerPriceMinor == null
+                  ? ''
+                  : _importe(row.variante!.offerPriceMinor!),
+              row.variante!.offerPriceMinor == null
+                  ? (DriftProductoProjectionStore.offerPriceKnownFromEvent(
+                          row.eventoBase,
+                        )
+                        ? 'retirar'
+                        : 'conservar')
+                  : 'establecer',
+            ],
           ].map(_campo).join(separador),
         );
       }
@@ -80,6 +93,7 @@ abstract final class ArticuloCatalogCsv {
         [
           if (incluirIds) ...['', ''],
           ...campos,
+          if (incluirIds) ...['', 'conservar'],
         ].map(_campo).join(separador),
     ];
     return '${lineas.join('\n')}\n';
@@ -176,6 +190,20 @@ abstract final class ArticuloCatalogCsv {
                   'Debe pertenecer al producto activo. No repetir ni informar solo uno de los IDs. Las variantes omitidas se conservan.',
             ),
             for (final nota in _notas) _notaConIds(nota),
+            const _NotaColumna(
+              columna: 'precio_oferta',
+              obligatoria: 'no',
+              valoresPermitidos: 'decimal positivo con hasta dos decimales',
+              descripcion:
+                  'Oferta <= precio de venta. Vacío por sí solo conserva; no equivale a cero.',
+            ),
+            const _NotaColumna(
+              columna: 'accion_oferta',
+              obligatoria: 'no',
+              valoresPermitidos: 'conservar; establecer; retirar',
+              descripcion:
+                  'Sin acción ni importe conserva. Importe sin acción establece. Retirar exige importe vacío; establecer exige importe.',
+            ),
           ]
         : _notas;
     for (final nota in notas) {
@@ -366,8 +394,7 @@ const _notas = <_NotaColumna>[
     columna: 'precio_venta',
     obligatoria: 'si',
     valoresPermitidos: 'decimal mayor que 0',
-    descripcion:
-        'Se redondea a centavos en el límite exacto, con redondeo half-up a dos decimales.',
+    descripcion: 'Importe exacto con hasta dos decimales; no se redondea.',
   ),
   _NotaColumna(
     columna: 'precio_coste',

@@ -4,7 +4,25 @@ part of '../app_database.dart';
 @DriftAccessor(tables: [Sales, SaleItems])
 class SaleDao extends DatabaseAccessor<AppDatabase>
     with _$SaleDaoMixin
-    implements SaleDraftProjectionStore {
+    implements SaleDraftProjectionStore, AppliedLocalEventReader {
+  @override
+  Future<SyncEvent?> appliedLocalEvent(String operationId) async {
+    final row = await db.eventDao.obtenerEventoPorId(operationId);
+    if (row == null || row.applicationStatus != 'applied') return null;
+    return SyncEvent(
+      eventId: row.eventId,
+      aggregateType: row.aggregateType,
+      aggregateId: row.aggregateId,
+      eventType: row.eventType,
+      deviceId: row.deviceId,
+      userId: row.userId,
+      baseVersion: row.baseVersion,
+      createdAtLocal: row.createdAtLocal,
+      deliveryStatus: row.deliveryStatus,
+      payload: Map<String, Object?>.from(jsonDecode(row.payload) as Map),
+    );
+  }
+
   SaleDao(super.db);
 
   /// Una sola consulta observa cabecera y líneas de forma consistente.
@@ -106,6 +124,8 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
     lastEventId: row.lastEventId,
     lastServerSequence: row.lastServerSequence,
     userId: row.userId,
+    pricingContractVersion: row.pricingContractVersion,
+    pricingMode: row.pricingMode,
     deviceId: row.deviceId,
     status: SaleStatus.values.byName(row.status),
     totalMinor: row.totalMinor,
@@ -133,6 +153,13 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
             persistedTotalMinor: r.totalMinor,
             snapshot: SaleItemSnapshot(
               variantId: r.variantId,
+              priceSnapshotVersion: r.priceSnapshotVersion,
+              normalPriceMinorSnapshot: r.normalPriceMinorSnapshot,
+              offerPriceMinorSnapshot: r.offerPriceMinorSnapshot,
+              effectivePriceSource: r.effectivePriceSource,
+              priceSelection: r.priceSelection,
+              priceConfigurationEventId: r.priceConfigurationEventId,
+
               consumptionConfigurationKey: r.consumptionConfigurationKey,
               productName: r.productNameSnapshot,
               variantName: r.variantNameSnapshot,
@@ -160,6 +187,8 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
   SalesCompanion _saleCompanion(SaleProjection s) => SalesCompanion.insert(
     id: s.id,
     userId: s.userId,
+    pricingContractVersion: Value(s.pricingContractVersion),
+    pricingMode: Value(s.pricingMode),
     deviceId: s.deviceId,
     status: Value(s.status.name),
     totalMinor: s.totalMinor,
@@ -183,6 +212,13 @@ class SaleDao extends DatabaseAccessor<AppDatabase>
       id: p.id,
       saleId: p.saleId,
       variantId: s.variantId,
+      priceSnapshotVersion: Value(s.priceSnapshotVersion),
+      normalPriceMinorSnapshot: Value(s.normalPriceMinorSnapshot),
+      offerPriceMinorSnapshot: Value(s.offerPriceMinorSnapshot),
+      effectivePriceSource: Value(s.effectivePriceSource),
+      priceSelection: Value(s.priceSelection),
+      priceConfigurationEventId: Value(s.priceConfigurationEventId),
+
       consumptionConfigurationKey: Value(s.consumptionConfigurationKey),
       productNameSnapshot: s.productName,
       variantNameSnapshot: Value(s.variantName),

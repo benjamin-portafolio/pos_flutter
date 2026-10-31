@@ -9,6 +9,12 @@ class MeasuredSalePreview {
   SaleItemSnapshot capture(MeasuredSaleConditions conditions, int atomic) =>
       SaleItemSnapshot(
         variantId: conditions.variantId,
+        priceSnapshotVersion: conditions.priceSnapshotVersion,
+        normalPriceMinorSnapshot: conditions.normalPriceMinorSnapshot,
+        offerPriceMinorSnapshot: conditions.offerPriceMinorSnapshot,
+        effectivePriceSource: conditions.effectivePriceSource,
+        priceSelection: conditions.priceSnapshotVersion == 2 ? 'inherit' : null,
+        priceConfigurationEventId: conditions.priceConfigurationEventId,
         productName: conditions.productName,
         variantName: conditions.variantName,
         saleMode: 'measured',
@@ -27,6 +33,12 @@ class MeasuredSalePreview {
     for (final item in draft?.items ?? []) {
       final existing = SaleItemSnapshot(
         variantId: item.variantId,
+        priceSnapshotVersion: item.priceSnapshotVersion,
+        normalPriceMinorSnapshot: item.normalPriceMinorSnapshot,
+        offerPriceMinorSnapshot: item.offerPriceMinorSnapshot,
+        effectivePriceSource: item.effectivePriceSource,
+        priceSelection: item.priceSelection,
+        priceConfigurationEventId: item.priceConfigurationEventId,
         consumptionConfigurationKey: item.consumptionConfigurationKey,
         productName: item.productName,
         variantName: item.variantName,

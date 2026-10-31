@@ -142,7 +142,12 @@ void main() {
         case 'price':
           await h.db
               .update(h.db.saleItems)
-              .write(const SaleItemsCompanion(unitPriceMinor: Value(9999)));
+              .write(
+                const SaleItemsCompanion(
+                  unitPriceMinor: Value(9999),
+                  normalPriceMinorSnapshot: Value(9999),
+                ),
+              );
         case 'lineVersion':
           await h.db
               .update(h.db.saleItems)

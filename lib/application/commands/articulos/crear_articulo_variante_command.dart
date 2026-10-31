@@ -12,6 +12,7 @@ class CrearArticuloVarianteCommand {
     this.initialStockQuantity,
     this.existingInventoryItemId,
     this.recipeComponents = const [],
+    this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStock = const CambioExplicito.conservar(),
   }) : proveedores = null;
 
@@ -27,6 +28,7 @@ class CrearArticuloVarianteCommand {
     this.initialStockQuantity,
     this.existingInventoryItemId,
     this.recipeComponents = const [],
+    this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStock = const CambioExplicito.conservar(),
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
@@ -34,6 +36,9 @@ class CrearArticuloVarianteCommand {
   final String? nombre;
   final String precioVenta;
   final String? costoEstandar;
+
+  /// Ausente conserva; establecer(null) retira; texto exige importe exacto.
+  final CambioExplicito<String?> offerPrice;
 
   /// Código de barras capturado; vacío significa variante sin código.
   final String? codigoBarras;

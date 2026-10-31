@@ -1,3 +1,4 @@
+import '../../sync/offer_pricing_availability.dart';
 import 'dart:convert';
 import '../../../domain/ventas/sale_status.dart';
 import '../../sync/payloads/cotizacion_recuperada_payload.dart';
@@ -30,12 +31,14 @@ class CotizacionCommandService {
     required this.events,
     required this.context,
     required this.validator,
+    this.offerPricing,
   });
   final QuotationProjectionStore store;
   final SaleDraftProjectionStore drafts;
   final LocalEventStore events;
   final LocalCommandContext context;
   final QuotationRecoveryValidator validator;
+  final OfferPricingAvailability? offerPricing;
 
   Future<GuardarCotizacionResult> guardar(GuardarCotizacionCommand command) =>
       store.atomic(() async {
@@ -208,6 +211,7 @@ class CotizacionCommandService {
       );
     }
     final selection = await store.items(quotation.id);
+    await offerPricing?.requireCompatible();
     final prepared = await validator.prepare(items: selection);
     final identities = [
       for (final l in prepared)

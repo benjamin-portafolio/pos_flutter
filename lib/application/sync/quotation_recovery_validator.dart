@@ -79,6 +79,13 @@ class QuotationRecoveryValidator {
         saleMode: s.saleMode,
         quantity: s.quantity,
         measuredQuantityAtomic: s.measuredQuantityAtomic,
+        priceSnapshotVersion: 2,
+        normalPriceMinorSnapshot: variant.precioVentaMenor,
+        offerPriceMinorSnapshot: variant.offerPriceMinor,
+        effectivePriceSource: 'normal',
+        priceSelection: 'inherit',
+        priceConfigurationEventId:
+            variant.lastEventId ?? variant.createdEventId,
         unitPriceMinor: variant.precioVentaMenor,
         standardCostMinor: variant.costoEstandarMenor,
         priceReferenceQuantityAtomic: config.priceReferenceQuantityAtomic,

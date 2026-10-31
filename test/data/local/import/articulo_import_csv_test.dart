@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/import/articulo_csv_contract.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/import/articulo_catalog_import_service.dart';
 import 'package:pos_flutter/data/local/export/articulo_catalog_csv.dart';
@@ -216,7 +217,7 @@ void main() {
       });
       test('admite encabezado de doce columnas $separador', () {
         final contenido =
-            '${ArticuloCatalogCsv.columnas.join(separador)}\n'
+            '${ArticuloCsvContract.columnasConIdsAnteriores.join(separador)}\n'
             '${['', '', 'Bebidas', 'Cafe', 'unidad', '', '', '10', '', 'no', '0', '00001'].join(separador)}';
         final reporte = servicio.validar(contenido, catalogo: catalogo());
         expect(reporte.errores, isEmpty);
@@ -1043,95 +1044,38 @@ void main() {
   });
 
   group('conversión a centavos', () {
-    test('redondeo half-up a dos decimales, una sola vez en el límite', () {
-      final reporte = validar([
-        fila([
-          'Bebidas',
-          'Naranja',
-          'fraccion',
-          'kg',
-          '',
+    test(
+      'rechaza exceso de decimales sin redondeo silencioso en venta y costo',
+      () {
+        for (final value in [
           '18.005',
-          '',
-          'no',
-          '0',
-          '',
-        ]),
-      ]);
-
-      expect(reporte.errores, isEmpty);
-      expect(reporte.productos.single.variantes.single.precioVentaMinor, 1801);
-    });
-
-    test('18.004 entra como 18.00', () {
-      final reporte = validar([
-        fila([
-          'Bebidas',
-          'Naranja',
-          'fraccion',
-          'kg',
-          '',
           '18.004',
-          '',
-          'no',
-          '0',
-          '',
-        ]),
-      ]);
-
-      expect(reporte.productos.single.variantes.single.precioVentaMinor, 1800);
-    });
-
-    test('el tercer dígito decide el redondeo', () {
-      for (final (importe, esperado) in [
-        ('1.004', 100),
-        ('1.005', 101),
-        ('1.014', 101),
-        ('1.015', 102),
-      ]) {
-        final reporte = validar([
-          fila([
-            'Bebidas',
-            'Naranja',
-            'fraccion',
-            'kg',
-            '',
-            importe,
-            '',
-            'no',
-            '0',
-            '',
-          ]),
-        ]);
-
-        expect(
-          reporte.productos.single.variantes.single.precioVentaMinor,
-          esperado,
-          reason: 'El importe $importe debería entrar como $esperado centavos.',
-        );
-      }
-    });
-
-    test('el precio de coste también se redondea half-up', () {
-      final reporte = validar([
-        fila([
-          'Bebidas',
-          'Cafe',
-          'unidad',
-          '',
-          '',
-          '45.505',
-          '10.005',
-          'no',
-          '0',
-          '',
-        ]),
-      ]);
-
-      final variante = reporte.productos.single.variantes.single;
-      expect(variante.precioVentaMinor, 4551);
-      expect(variante.precioCosteMinor, 1001);
-    });
+          '1.004',
+          '1.005',
+          '1.014',
+          '1.015',
+        ]) {
+          for (final cost in [false, true]) {
+            final report = validar([
+              fila([
+                'Bebidas',
+                'Naranja',
+                'unidad',
+                '',
+                '',
+                cost ? '20' : value,
+                cost ? value : '',
+                'no',
+                '0',
+                '',
+              ]),
+            ]);
+            expect(report.errores, isNotEmpty);
+            expect(report.productos, isEmpty);
+          }
+        }
+      },
+    );
 
     test('el punto decimal es el separador del contrato, no la coma', () {
       final reporte = validar([

@@ -2,7 +2,15 @@ import '../../../../application/edicion_masiva/cambio_variante_masiva.dart';
 import '../../../../application/edicion_masiva/fila_catalogo_masivo.dart';
 import 'fila_edicion_form.dart';
 
-enum CampoEdicionMasiva { venta, costo, proveedor, fecha, cantidad, base }
+enum CampoEdicionMasiva {
+  oferta,
+  venta,
+  costo,
+  proveedor,
+  fecha,
+  cantidad,
+  base,
+}
 
 enum EstadoFilaMasiva { sinCambios, cambios, error }
 

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../application/commands/articulos/producto_command_service.dart';
 import '../../../application/commands/cotizaciones/cotizacion_command_service.dart';
 import '../../../application/commands/cotizaciones/guardar_cotizacion_command.dart';
 import '../../../application/commands/cotizaciones/quotation_already_linked_exception.dart';
+import '../../../application/commands/ventas/cambiar_tarifa_venta_borrador_command.dart';
 import '../../../application/commands/ventas/limpiar_venta_borrador_command.dart';
 import '../../../application/commands/ventas/venta_borrador_command_service.dart';
 import '../../../core/di/injection.dart';
@@ -25,6 +27,7 @@ import 'models/sale_draft_display.dart';
 import 'payment_method_screen.dart';
 import 'sale_barcode_scanner_screen.dart';
 import 'sale_draft_tabs_bar.dart';
+import 'sale_pricing_review_dialog.dart';
 import 'sale_draft_tabs_controller.dart';
 
 class CajaScreen extends StatefulWidget {
@@ -56,7 +59,7 @@ class CajaScreen extends StatefulWidget {
 class CajaScreenState extends State<CajaScreen> {
   late final _repository =
       widget.saleDraftRepository ?? getIt<SaleDraftRepository>();
-  late final _draft = _repository.watchCurrentDraft();
+  late var _draft = _repository.watchCurrentDraft();
   late final _tabStorage = PageStorage.maybeOf(context);
   late final _tabs = SaleDraftTabsController(
     _repository,
@@ -162,6 +165,73 @@ class CajaScreenState extends State<CajaScreen> {
   int? _editorReaderGeneration;
   bool get _busy => _resolvingReads || _editorSaving;
 
+  CambiarTarifaVentaBorradorCommand? _pricingIntent;
+
+  Future<void> _togglePricing() => _runAction(() async {
+    try {
+      final sale = await _repository.watchCurrentDraft().first;
+      if (!mounted) return;
+      final saleId = sale?.id ?? _repository.selectedDraftId;
+      if (saleId == null) return;
+      final mode = sale?.pricingMode == 'offer' ? 'normal' : 'offer';
+      final previous = _pricingIntent;
+      final command =
+          previous != null &&
+              previous.saleId == saleId &&
+              previous.pricingMode == mode &&
+              previous.expectedVersion == (sale?.version ?? 0) &&
+              previous.expectedDraftEventId == sale?.lastEventId &&
+              previous.expectedTotalMinor == (sale?.totalMinor ?? 0)
+          ? previous
+          : CambiarTarifaVentaBorradorCommand(
+              operationId: const Uuid().v4(),
+              saleId: saleId,
+              pricingMode: mode,
+              expectedVersion: sale?.version ?? 0,
+              expectedDraftEventId: sale?.lastEventId,
+              expectedTotalMinor: sale?.totalMinor ?? 0,
+            );
+      _pricingIntent = command;
+      final commands =
+          widget.ventaBorradorCommandService ??
+          getIt<VentaBorradorCommandService>();
+      if (sale != null && sale.items.isNotEmpty) {
+        final preview = await commands.previewTarifa(command);
+        if (!mounted) return;
+        final accepted = await showDialog<bool>(
+          context: context,
+          builder: (_) => SalePricingReviewDialog(preview: preview),
+        );
+        if (accepted != true || !mounted) {
+          _pricingIntent = null;
+          return;
+        }
+      }
+      await commands.cambiarTarifa(command);
+      _pricingIntent = null;
+    } catch (error) {
+      if (mounted) {
+        final message = error is StateError
+            ? error.message
+            : error is FormatException
+            ? error.message
+            : 'No se pudo guardar el cambio.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No se pudo confirmar el cambio de tarifa. $message '
+              'Revisa la venta actual antes de volver a intentar.',
+            ),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
+    } finally {
+      // Líneas, tarifa y total siempre vuelven a la misma lectura persistida.
+      if (mounted) setState(() => _draft = _repository.watchCurrentDraft());
+    }
+  });
+
   Future<void> _closeEditor() async {
     if (mounted) await _runAction(() async {});
   }
@@ -240,6 +310,7 @@ class CajaScreenState extends State<CajaScreen> {
               totalMinor: sale.totalMinor,
               saleId: sale.id,
               expectedDraftEventId: sale.lastEventId,
+              expectedVersion: sale.version,
               consumeOpeningEnter: enteredWithEnter,
             ),
           ),
@@ -376,6 +447,34 @@ class CajaScreenState extends State<CajaScreen> {
                   builder: (context, constraints) => Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: Semantics(
+                          key: const Key('sale_pricing_state'),
+                          toggled: sale?.pricingMode == 'offer',
+                          child: OutlinedButton.icon(
+                            key: const Key('sale_offer_toggle'),
+                            onPressed: _busy ? null : _togglePricing,
+                            style: sale?.pricingMode == 'offer'
+                                ? OutlinedButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
+                                  )
+                                : null,
+                            icon: Icon(
+                              sale?.pricingMode == 'offer'
+                                  ? Icons.local_offer
+                                  : Icons.local_offer_outlined,
+                            ),
+                            label: Text(
+                              'Precio de oferta · '
+                              '${sale?.pricingMode == 'offer' ? 'Activo' : 'Normal'}',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, listConstraints) => ListView(
@@ -423,6 +522,9 @@ class CajaScreenState extends State<CajaScreen> {
                                                       sale.items[i].id,
                                                     ),
                                                     item: sale.items[i],
+                                                    offerMode:
+                                                        sale.pricingMode ==
+                                                        'offer',
                                                     selected:
                                                         _editingItemId ==
                                                         sale.items[i].id,
@@ -594,6 +696,7 @@ class CajaScreenState extends State<CajaScreen> {
 class _SaleLine extends StatelessWidget {
   const _SaleLine({
     required this.item,
+    required this.offerMode,
     required this.onEdit,
     required this.onClose,
     required this.selected,
@@ -601,6 +704,7 @@ class _SaleLine extends StatelessWidget {
     super.key,
   });
   final SaleDraftItem item;
+  final bool offerMode;
   final VoidCallback? onEdit;
   final VoidCallback? onClose;
   final bool selected;
@@ -630,6 +734,16 @@ class _SaleLine extends StatelessWidget {
                         if (item.variantName != null) item.variantName!,
                       ].join(' · '),
                       style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      item.effectivePriceOrigin == 'offer'
+                          ? 'Oferta aplicada'
+                          : item.effectivePriceOrigin == 'unknown'
+                          ? 'Precio capturado · tarifa sin acreditar'
+                          : offerMode && item.offerPriceMinorSnapshot == null
+                          ? 'Precio normal · sin oferta capturada'
+                          : 'Precio normal',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 4),
                     Text(

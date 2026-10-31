@@ -27,6 +27,7 @@ class BulkImportReview extends StatelessWidget {
       'precio de coste vacío significa costo desconocido. Nombre y precio de '
       'venta son obligatorios; nombre de variante puede quedar vacío solo si '
       'hay una variante.\n'
+      'Oferta: acción/celda vacías conservan; establecer exige importe; retirar exige celda vacía. '
       'Las existencias de productos existentes son informativas: no ajustan '
       'inventario. Se conservan las variantes omitidas, recetas y proveedores.';
 
@@ -171,6 +172,17 @@ class _Diferencias extends StatelessWidget {
         _importe(anterior.precioCosteMinor),
         _importe(propuesta.precioCosteMinor),
       );
+      if (propuesta.offerPrice.establecer) {
+        campo(
+          '$etiqueta · Precio de oferta',
+          anterior.offerPriceMinor == null
+              ? 'Sin oferta'
+              : _importe(anterior.offerPriceMinor),
+          propuesta.offerPrice.valor == null
+              ? 'Sin oferta'
+              : _importe(propuesta.offerPrice.valor),
+        );
+      }
       campo(
         '$etiqueta · Código de barras',
         _texto(anterior.codigoBarras),

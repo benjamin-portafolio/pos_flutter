@@ -78,6 +78,9 @@ void main() {
           .insert(
             ProductVariantsCompanion.insert(
               id: id,
+              createdEventId: const Value(
+                '00000000-0000-4000-8000-000000000006',
+              ),
               productId: 'product',
               name: Value(id),
               nameKey: Value(id),
@@ -959,9 +962,9 @@ void main() {
     },
   );
 
-  Future<SaleItemProjection> onlyLine() async =>
-      (await db.saleDao.items((await db.select(db.sales).get()).single.id))
-          .single;
+  Future<SaleItemProjection> onlyLine() async => (await db.saleDao.items(
+    (await db.select(db.sales).get()).single.id,
+  )).single;
 
   test(
     'actualizar cantidad por piezas recalcula línea, totales y conserva precio',
@@ -969,13 +972,11 @@ void main() {
       await add(); // 1 × $35
       await add('bread'); // 1 × $25
       final sale = (await db.select(db.sales).get()).single;
-      final coffee = (await db.saleDao.items(sale.id))
-          .firstWhere((line) => line.sortOrder == 0);
+      final coffee = (await db.saleDao.items(
+        sale.id,
+      )).firstWhere((line) => line.sortOrder == 0);
       await service().actualizarProducto(
-        ActualizarProductoBorradorCommand(
-          saleItemId: coffee.id,
-          quantity: 3,
-        ),
+        ActualizarProductoBorradorCommand(saleItemId: coffee.id, quantity: 3),
       );
       final after = (await db.select(db.sales).get()).single;
       final lines = await db.saleDao.items(sale.id);
@@ -987,7 +988,10 @@ void main() {
       expect(updated.snapshot.standardCostMinor, 1000);
       expect(updated.sortOrder, 0);
       expect(updated.version, 2);
-      expect(lines.firstWhere((line) => line.id != coffee.id).snapshot.quantity, 1);
+      expect(
+        lines.firstWhere((line) => line.id != coffee.id).snapshot.quantity,
+        1,
+      );
       final events = await db.select(db.events).get();
       expect(events, hasLength(3));
       final update = events.last;
@@ -997,23 +1001,26 @@ void main() {
     },
   );
 
-  test('actualizar medida usa la unidad capturada y ajusta el importe', () async {
-    await measured();
-    await weigh('0.5'); // 500 g → $10000
-    final item = await onlyLine();
-    await service().actualizarProducto(
-      ActualizarProductoBorradorCommand(
-        saleItemId: item.id,
-        measuredQuantity: '1,750',
-      ),
-    );
-    final line = await onlyLine();
-    expect(line.snapshot.measuredQuantityAtomic, 1750);
-    expect(line.snapshot.unitPriceMinor, 20000);
-    expect(line.snapshot.priceReferenceQuantityAtomic, 1000);
-    expect(line.snapshot.unitCode, 'kg');
-    expect((await db.select(db.sales).get()).single.totalMinor, 35000);
-  });
+  test(
+    'actualizar medida usa la unidad capturada y ajusta el importe',
+    () async {
+      await measured();
+      await weigh('0.5'); // 500 g → $10000
+      final item = await onlyLine();
+      await service().actualizarProducto(
+        ActualizarProductoBorradorCommand(
+          saleItemId: item.id,
+          measuredQuantity: '1,750',
+        ),
+      );
+      final line = await onlyLine();
+      expect(line.snapshot.measuredQuantityAtomic, 1750);
+      expect(line.snapshot.unitPriceMinor, 20000);
+      expect(line.snapshot.priceReferenceQuantityAtomic, 1000);
+      expect(line.snapshot.unitCode, 'kg');
+      expect((await db.select(db.sales).get()).single.totalMinor, 35000);
+    },
+  );
 
   test('rechaza cantidades inválidas sin cambiar el borrador', () async {
     await add();
@@ -1034,10 +1041,7 @@ void main() {
     }
     await expectLater(
       service().actualizarProducto(
-        const ActualizarProductoBorradorCommand(
-          saleItemId: '',
-          quantity: 2,
-        ),
+        const ActualizarProductoBorradorCommand(saleItemId: '', quantity: 2),
       ),
       throwsFormatException,
     );
@@ -1060,13 +1064,8 @@ void main() {
       throwsStateError,
     );
     await expectLater(
-      service(
-        user: 'second',
-      ).actualizarProducto(
-        ActualizarProductoBorradorCommand(
-          saleItemId: coffee.id,
-          quantity: 2,
-        ),
+      service(user: 'second').actualizarProducto(
+        ActualizarProductoBorradorCommand(saleItemId: coffee.id, quantity: 2),
       ),
       throwsStateError,
     );
@@ -1091,10 +1090,7 @@ void main() {
     }
     await expectLater(
       service().actualizarProducto(
-        ActualizarProductoBorradorCommand(
-          saleItemId: item.id,
-          quantity: 2,
-        ),
+        ActualizarProductoBorradorCommand(saleItemId: item.id, quantity: 2),
       ),
       throwsStateError,
     );
@@ -1106,10 +1102,7 @@ void main() {
     await add();
     final item = await onlyLine();
     await service().actualizarProducto(
-      ActualizarProductoBorradorCommand(
-        saleItemId: item.id,
-        quantity: 1,
-      ),
+      ActualizarProductoBorradorCommand(saleItemId: item.id, quantity: 1),
     );
     expect((await db.select(db.sales).get()).single.version, 1);
     expect(await db.select(db.events).get(), hasLength(1));
@@ -1190,10 +1183,7 @@ void main() {
     final lines = await db.saleDao.items(sale.id);
     final coffee = lines.firstWhere((line) => line.sortOrder == 0);
     await service().actualizarProducto(
-      ActualizarProductoBorradorCommand(
-        saleItemId: coffee.id,
-        quantity: 3,
-      ),
+      ActualizarProductoBorradorCommand(saleItemId: coffee.id, quantity: 3),
     );
     await service().eliminarProducto(
       EliminarProductoBorradorCommand(
@@ -1203,7 +1193,8 @@ void main() {
     expect((await db.select(db.sales).get()).single.totalMinor, 10500);
     final records = await db.select(db.events).get();
     final update = records.firstWhere(
-      (event) => event.eventType == ProductoActualizadoBorradorPayload.eventType,
+      (event) =>
+          event.eventType == ProductoActualizadoBorradorPayload.eventType,
     );
     final remove = records.firstWhere(
       (event) => event.eventType == ProductoEliminadoBorradorPayload.eventType,

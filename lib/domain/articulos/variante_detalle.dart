@@ -9,6 +9,7 @@ class VarianteDetalle {
     required this.inventoryItemId,
     required this.componentesReceta,
     this.codigoBarras,
+    this.offerPriceMinor,
     this.minimumStockAtomic,
     this.knowsMinimumStock = false,
     List<ProveedorVariante>? proveedores,
@@ -18,6 +19,9 @@ class VarianteDetalle {
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+
+  /// Oferta opcional, independiente del costo y del precio normal.
+  final int? offerPriceMinor;
 
   /// Umbral atómico y conocimiento del contrato, independiente de SQL null.
   final int? minimumStockAtomic;

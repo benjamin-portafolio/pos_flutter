@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/sync/sync_capability_store.dart';
+import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/commands/cotizaciones/recuperar_cotizacion_command.dart';
 import 'package:pos_flutter/application/commands/ventas/limpiar_venta_borrador_command.dart';
 import 'dart:io';
@@ -71,6 +73,10 @@ void main() {
           AppConfig.initial.copyWith(mode: mode),
         );
         await setupDependencyInjection();
+        await getIt<SyncCapabilityStore>().write(
+          getIt<SyncEndpointConfig>().baseUrl,
+          ['offer_pricing_v2'],
+        );
         final db = getIt<AppDatabase>();
         final harness = QuotationHarness(database: db, mode: mode);
         try {

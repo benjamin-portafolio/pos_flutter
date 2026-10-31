@@ -80,7 +80,7 @@ void main() {
       expect(variant.salePriceMinor, 2500);
       expect(variant.standardCostMinor, 1500);
       expect(await db.select(db.inventoryMovements).get(), isEmpty);
-      expect(db.schemaVersion, 8);
+      expect(db.schemaVersion, 9);
     },
   );
   test('nombre requerido sin unicidad global', () async {

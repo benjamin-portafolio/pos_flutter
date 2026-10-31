@@ -21,6 +21,8 @@ class ConfirmedSaleRepositoryImpl implements ConfirmedSaleRepository {
     final p = VentaConfirmadaPayload.fromJson(e.payload);
     return ConfirmedSale(
       id: e.aggregateId,
+      pricingContractVersion: p.pricingContractVersion,
+      pricingMode: p.pricingMode,
       paymentMethod: p.paymentMethod,
       paymentReference: p.paymentReference,
       clienteId: p.clienteId,
@@ -37,6 +39,12 @@ class ConfirmedSaleRepositoryImpl implements ConfirmedSaleRepository {
           SaleDraftItem(
             id: l.id,
             variantId: l.snapshot.variantId,
+            priceSnapshotVersion: l.snapshot.priceSnapshotVersion,
+            normalPriceMinorSnapshot: l.snapshot.normalPriceMinorSnapshot,
+            offerPriceMinorSnapshot: l.snapshot.offerPriceMinorSnapshot,
+            effectivePriceSource: l.snapshot.effectivePriceSource,
+            priceSelection: l.snapshot.priceSelection,
+            priceConfigurationEventId: l.snapshot.priceConfigurationEventId,
             consumptionConfigurationKey: l.snapshot.consumptionConfigurationKey,
             productName: l.snapshot.productName,
             variantName: l.snapshot.variantName,

@@ -1,3 +1,4 @@
+import '../drift/drift_producto_projection_store.dart';
 import '../../../application/import/articulo_catalog_import_service.dart';
 import '../../../application/import/articulo_import_catalog_reader.dart';
 import '../../../application/import/articulo_import_producto_local.dart';
@@ -45,6 +46,21 @@ class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
             : await (db.select(
                 db.productVariants,
               )..where((t) => t.id.isIn(solicitud.variantIds))).get();
+        final baseIds = productos
+            .map((p) => p.lastEventId)
+            .whereType<String>()
+            .toSet();
+        final known = <String>{};
+        if (baseIds.isNotEmpty) {
+          final events = await (db.select(
+            db.events,
+          )..where((e) => e.eventId.isIn(baseIds))).get();
+          for (final e in events) {
+            if (DriftProductoProjectionStore.offerPriceKnownFromEvent(e)) {
+              known.add(e.aggregateId);
+            }
+          }
+        }
         final variantes = {
           for (final v in [...delProducto, ...porIdentidad])
             v.id: ArticuloImportVarianteLocal(
@@ -54,6 +70,9 @@ class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
               sortOrder: v.sortOrder,
               nombre: v.name,
               precioVentaMinor: v.salePriceMinor,
+              offerPriceMinor: v.offerPriceMinor,
+              knowsOfferPrice:
+                  known.contains(v.productId) || v.offerPriceMinor != null,
               precioCosteMinor: v.standardCostMinor,
               codigoBarras: v.barcode,
               seguimientoExistencias: v.inventoryItemId != null,

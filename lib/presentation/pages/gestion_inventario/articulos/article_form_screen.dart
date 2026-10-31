@@ -698,6 +698,10 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
             ArticuloFormVarianteResult.conProveedores(
               id: _advancedVariants?.firstOrNull?.id,
               proveedores: _advancedVariants?.firstOrNull?.proveedores,
+              offerPriceMinor: _advancedVariants?.firstOrNull?.offerPriceMinor,
+              offerPrice:
+                  _advancedVariants?.firstOrNull?.offerPrice ??
+                  const CambioExplicito.conservar(),
               minimumStockAtomic:
                   _advancedVariants?.firstOrNull?.minimumStockAtomic,
               minimumStock:

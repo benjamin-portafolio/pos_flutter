@@ -1,3 +1,4 @@
+import '../edicion_masiva/cambio_explicito.dart';
 import 'articulo_import_actualizacion.dart';
 import 'articulo_import_producto_error.dart';
 import 'articulo_import_producto_local.dart';
@@ -78,6 +79,7 @@ class ArticuloImportVariante {
   const ArticuloImportVariante({
     required this.linea,
     required this.sortOrder,
+    this.offerPrice = const CambioExplicito.conservar(),
     required this.precioVentaMinor,
     this.nombre,
     this.precioCosteMinor,
@@ -94,6 +96,7 @@ class ArticuloImportVariante {
 
   final String? nombre;
   final int precioVentaMinor;
+  final CambioExplicito<int?> offerPrice;
   final int? precioCosteMinor;
   final String? codigoBarras;
   final bool seguimientoExistencias;

@@ -81,9 +81,10 @@ UI
 - Cada tabla debe documentar su finalidad y el uso de todas las columnas que
   declare. Los campos heredados se documentan en su definicion comun; cualquier
   significado adicional propio del agregado se aclara en la tabla concreta.
-- Durante desarrollo, los cambios de esquema local reinician la base con
-  `_resetDatabaseOnStartup`; no agregar migraciones `onUpgrade` ni subir
-  `schemaVersion` salvo que el usuario lo pida.
+- Desde Precio de oferta sesión 2, `prepareAppDatabase` migra la huella física
+  v8 acreditada a v9 antes de Drift; rechaza desconocidas sin eliminar archivos.
+  Restore migra staging validado y sustituye mediante diario recuperable.
+  No usar reset de desarrollo en bases persistentes de ninguno de los dos modos.
 - Implementa `LocalEventStore` ocultando `EventsCompanion`, `EventRefsCompanion`
   y transacciones.
 - Implementa los puertos de `application/sync` usando Drift.
@@ -562,13 +563,12 @@ ocurre en orden inverso y conserva identificadores de creación. El respaldo
 local se descarta al restaurar o confirmar su evento. Standalone no genera estos
 respaldos de sincronización ni `event_refs`, y conserva `not_required`.
 
-El esquema local mantiene la versión 8 según las reglas de desarrollo. Al abrir
-una base anterior a este conjunto de columnas y tablas, `_resetDatabaseOnStartup`
-la recrea una vez; una base actual se conserva. La detección exige
-`product_variants.barcode`, `product_variants.minimum_stock_atomic` y la
-ausencia de la columna legada `is_default`, de
-modo que agregar el código de barras no necesitó una migración en sitio. Un
-respaldo restaurado de esquema anterior se rechaza sin eliminarlo. PostgreSQL
+El esquema local es v9 desde Precio de oferta sesión 2. La huella física completa
+v8 capturada del código anterior tiene migración aditiva, sin reset ni reescritura
+de eventos. Otras huellas/versiones se rechazan conservando base y sidecars.
+Un respaldo antiguo reconocido migra sobre staging; los incompatibles no sustituyen
+el destino. Falta ensayar el esquema instalado en producción con respaldo real.
+PostgreSQL
 incluye la migración `1788912000000-AddActiveVariantUniqueness` para los
 índices parciales.
 
@@ -623,12 +623,9 @@ ocupada genera conflicto; una creación oficial sustituye la proyección pendien
 antes de revalidar y retirar el evento perdedor. La limpieza solo elimina la
 proyección cuyo `createdEventId` coincide, conservando el ganador oficial.
 
-El esquema local mantiene `schemaVersion = 7`: durante desarrollo, una base sin
-`clientes` se recrea en `_resetDatabaseOnStartup`. Una base actual se conserva
-en los siguientes arranques; un respaldo antiguo protegido falla explícitamente.
-
-Verificación específica: `test/application/sync/cliente_flow_test.dart` y
-`test/presentation/pages/gestion_clientes/clientes_screen_test.dart`.
+La evolución actual del esquema usa v9 y reconocimiento físico completo, con
+migración v8 acreditada y rechazo no destructivo de esquemas desconocidos.
+Las reglas de conservación anteriores sustituyen la política histórica de reset.
 
 ## Créditos y cuenta del cliente
 

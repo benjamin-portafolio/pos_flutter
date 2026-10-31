@@ -942,6 +942,9 @@ void main() {
               .into(fixture.db.productVariants)
               .insert(
                 ProductVariantsCompanion.insert(
+                  createdEventId: const Value(
+                    '00000000-0000-4000-8000-000000000006',
+                  ),
                   id: 'bad-ref',
                   productId: ' ',
                   barcode: const Value('005'),
@@ -1385,6 +1388,9 @@ class _Fixture {
           .into(db.productVariants)
           .insert(
             ProductVariantsCompanion.insert(
+              createdEventId: const Value(
+                '00000000-0000-4000-8000-000000000006',
+              ),
               id: data.$1,
               productId: 'product-${data.$1}',
               name: Value(data.$3),

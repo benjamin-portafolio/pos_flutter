@@ -22,6 +22,9 @@ class ProductoActualizadoPayload {
         'La edición debe conocer suppliers en before y after, o conservar ambos estados legados.',
       );
     }
+    if (before.knowsOfferPrice != after.knowsOfferPrice) {
+      throw const FormatException('Oferta debe conocerse en before y after.');
+    }
     if (before.knowsMinimumStock != after.knowsMinimumStock) {
       throw const FormatException(
         'La edición debe conocer minimum_stock_atomic en before y after, o conservar ambos estados legados.',
@@ -93,6 +96,7 @@ class ProductoActualizadoPayload {
           v.costoEstandarMenor != other.costoEstandarMenor ||
           v.inventoryItemId != other.inventoryItemId ||
           v.minimumStockAtomic != other.minimumStockAtomic ||
+          v.offerPriceMinor != other.offerPriceMinor ||
           v.orden != other.orden ||
           !ProductoProveedorPrecio.sameList(v.proveedores, other.proveedores) ||
           v.componentesReceta.length != other.componentesReceta.length) {
@@ -135,6 +139,10 @@ class ProductoActualizadoPayload {
     ProductoCreadoPayload current,
     ProductoCreadoPayload before,
   ) {
+    if (current.knowsOfferPrice && !before.knowsOfferPrice) return false;
+    if (!current.knowsOfferPrice && before.knowsOfferPrice) {
+      current = current.withKnownOfferPrice();
+    }
     if (current.knowsMinimumStock && !before.knowsMinimumStock) return false;
     final normalized = !current.knowsMinimumStock && before.knowsMinimumStock
         ? current.withKnownMinimumStock()

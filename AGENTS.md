@@ -125,16 +125,17 @@ solo cuando correspondan al agregado solicitado.
   idempotencia cuando esos casos apliquen.
 - No agregar validaciones especulativas ni reglas de negocio no solicitadas.
 
-## Esquema Drift durante desarrollo
+## Evolución segura del esquema Drift
 
-- Hasta que el usuario indique lo contrario, cada cambio de esquema local debe
-  asumir reinicio de base de datos y perdida de datos locales.
-- No agregar migraciones `onUpgrade` ni subir `schemaVersion` para cada cambio
-  de esquema local.
-- Mantener `schemaVersion` fijo aunque Drift lo requiera.
-- Usar `_resetDatabaseOnStartup` para recrear la base con el esquema actual.
-- Despues de cambios en tablas Drift, ejecutar `dart run build_runner build`
-  para regenerar el esquema.
+- Desde la sesión 2 de Precio de oferta, conservar bases persistentes en ambos modos.
+- No usar reset de desarrollo ni eliminar archivos SQLite incompatibles.
+- `prepareAppDatabase` reconoce la huella física completa, migra v8 acreditada a v9
+  antes de Drift y rechaza desconocidas conservando el archivo y sus sidecars.
+- Una versión numérica no basta para reconocer un esquema; ampliar el registro
+  solo con DDL/fixtures verificables y ensayos de conservación.
+- Restore migra staging validado y sustituye mediante diario recuperable.
+- Después de cambios en tablas Drift ejecutar `dart run build_runner build`.
+- El esquema instalado en producción aún requiere ensayo con respaldo real.
 
 ## Limpieza posterior a cambios
 

@@ -1,3 +1,6 @@
+import '../../application/sync/handlers/tarifa_venta_borrador_cambiada_event_handler.dart';
+import '../../application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
+import '../../application/sync/offer_pricing_availability.dart';
 import '../../application/sync/sync_capability_store.dart';
 import '../../application/sync/sale_adjustment_availability.dart';
 import '../../data/local/sync/sync_capability_file_store.dart';
@@ -313,6 +316,7 @@ void registerApplicationDependencies(
       store: getIt<QuotationProjectionStore>(),
       drafts: getIt<SaleDraftProjectionStore>(),
       validator: getIt<QuotationRecoveryValidator>(),
+      offerPricing: getIt<OfferPricingAvailability>(),
       events: getIt<LocalEventStore>(),
       context: getIt<LocalCommandContext>(),
     ),
@@ -327,6 +331,11 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<VentaBorradorEliminadoEventHandler>(
     () => VentaBorradorEliminadoEventHandler(getIt<SaleDraftProjectionStore>()),
   );
+  getIt.registerLazySingleton<TarifaVentaBorradorCambiadaEventHandler>(
+    () => TarifaVentaBorradorCambiadaEventHandler(
+      getIt<SaleDraftProjectionStore>(),
+    ),
+  );
   getIt.registerLazySingleton<VentaBorradorCommandService>(
     () => VentaBorradorCommandService(
       store: getIt<SaleDraftProjectionStore>(),
@@ -335,6 +344,7 @@ void registerApplicationDependencies(
       events: getIt<LocalEventStore>(),
       context: getIt<LocalCommandContext>(),
       drafts: getIt<SaleDraftRepository>(),
+      offerPricing: getIt<OfferPricingAvailability>(),
     ),
   );
   getIt.registerLazySingleton<CustomerCreditStore>(
@@ -511,6 +521,8 @@ void registerApplicationDependencies(
             getIt<VentaConfirmadaEventHandler>().apply,
         VentaBorradorLimpiadaPayload.eventType:
             getIt<VentaBorradorLimpiadaEventHandler>().apply,
+        TarifaVentaBorradorCambiadaPayload.eventType:
+            getIt<TarifaVentaBorradorCambiadaEventHandler>().apply,
         ProductoAgregadoBorradorPayload.eventType:
             getIt<VentaBorradorEventHandler>().apply,
         ProductoActualizadoBorradorPayload.eventType:
@@ -716,8 +728,17 @@ void registerApplicationDependencies(
       productoProjectionStore: getIt<ProductoProjectionStore>(),
     ),
   );
+  getIt.registerLazySingleton<OfferPricingAvailability>(
+    () => OfferPricingAvailability(
+      config: getIt<AppConfigController>(),
+      endpoint: getIt<SyncEndpointConfig>(),
+      store: getIt<SyncCapabilityStore>(),
+    ),
+  );
   getIt.registerLazySingleton<ProductoCommandService>(
     () => ProductoCommandService(
+      requireOfferPricing: () =>
+          getIt<OfferPricingAvailability>().requireCompatible(),
       proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
       productoProjectionStore: getIt<ProductoProjectionStore>(),
       eventStore: getIt<LocalEventStore>(),
@@ -736,6 +757,8 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EdicionMasivaCommandService>(
     () => EdicionMasivaCommandService(
       DriftDiarioEdicionMasiva(
+        requireOfferPricing: () =>
+            getIt<OfferPricingAvailability>().requireCompatible(),
         db: getIt<AppDatabase>(),
         config: getIt<AppConfigController>(),
         context: getIt<LocalCommandContext>(),

@@ -400,11 +400,9 @@ void main() {
                 );
               }
             }
+            await h.db.customStatement("SELECT 1");
             await h.db.customStatement(
-              'CREATE TABLE closure_marker(value TEXT)',
-            );
-            await h.db.customStatement(
-              "INSERT INTO closure_marker VALUES ('keep after restore and second startup')",
+              "INSERT INTO products(id,name) VALUES ('closure_marker','keep after restore and second startup')",
             );
             final before = await h.contents();
             final snapshot = await DriftDatabaseSnapshotService(
@@ -417,7 +415,9 @@ void main() {
                   LimpiarVentaBorradorCommand(saleId: current.saleId),
                 );
               }
-              await h.db.customStatement('DELETE FROM closure_marker');
+              await h.db.customStatement(
+                "DELETE FROM products WHERE id='closure_marker'",
+              );
               await DriftDatabaseRestoreService(
                 db: h.db,
               ).restoreSnapshot(snapshot.file, sha256: snapshot.sha256);
@@ -458,7 +458,9 @@ void main() {
               expect(await h.contents(), before);
               expect(
                 (await h.db
-                        .customSelect('SELECT value FROM closure_marker')
+                        .customSelect(
+                          "SELECT name AS value FROM products WHERE id='closure_marker'",
+                        )
                         .get())
                     .single
                     .data['value'],

@@ -1,3 +1,11 @@
+import '../../../domain/ventas/effective_sale_price.dart';
+import 'sale_capture_conditions.dart';
+import '../../../domain/ventas/measured_sale_conditions.dart';
+import '../../sync/applied_local_event_reader.dart';
+import '../../sync/offer_pricing_availability.dart';
+import '../../sync/payloads/inventory_movement_payload.dart';
+import '../../sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
+import 'cambiar_tarifa_venta_borrador_command.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../domain/articulos/sale_configuration.dart';
@@ -32,6 +40,7 @@ class VentaBorradorCommandService {
     required this.events,
     required this.context,
     this.drafts,
+    this.offerPricing,
   });
   final SaleDraftProjectionStore store;
   final ProductoProjectionStore products;
@@ -39,7 +48,195 @@ class VentaBorradorCommandService {
   final LocalEventStore events;
   final LocalCommandContext context;
   final SaleDraftRepository? drafts;
+  final OfferPricingAvailability? offerPricing;
   final _uuid = const Uuid();
+
+  /// Sin escrituras: la UI confirma esta base y sus totales en la sesión 5.
+  Future<TarifaVentaBorradorCambiadaPayload> previewTarifa(
+    CambiarTarifaVentaBorradorCommand command,
+  ) => store.atomic(() => _prepareTarifa(command));
+
+  Future<TarifaVentaBorradorCambiadaPayload?> cambiarTarifa(
+    CambiarTarifaVentaBorradorCommand command,
+  ) => store.atomic(() async {
+    InventoryMovementPayload.requiredUuidV4(
+      command.operationId,
+      'operation_id',
+    );
+    final applied = await (store as AppliedLocalEventReader).appliedLocalEvent(
+      command.operationId,
+    );
+    if (applied != null) {
+      if (applied.eventType != TarifaVentaBorradorCambiadaPayload.eventType ||
+          applied.aggregateType !=
+              TarifaVentaBorradorCambiadaPayload.aggregateType ||
+          applied.aggregateId != command.saleId ||
+          applied.userId != context.userId ||
+          applied.deviceId != context.deviceId ||
+          applied.baseVersion != command.expectedVersion) {
+        throw StateError('Identidad de operación reutilizada.');
+      }
+      final p = TarifaVentaBorradorCambiadaPayload.fromJson(applied.payload);
+      if (p.pricingMode != command.pricingMode ||
+          p.expectedDraftEventId != command.expectedDraftEventId ||
+          p.previousTotalMinor != command.expectedTotalMinor) {
+        throw StateError('Intención distinta para la misma operación.');
+      }
+      return p;
+    }
+    final sale = await _tarifaBase(command);
+    if ((sale?.pricingMode ?? 'normal') == command.pricingMode) {
+      var total = BigInt.zero;
+      for (final line in (await store.items(
+        command.saleId,
+      )).where((l) => l.active)) {
+        if (!line.snapshot.sameConditions(
+              line.snapshot.withPricingMode(command.pricingMode),
+            ) ||
+            (line.persistedTotalMinor != null &&
+                line.persistedTotalMinor != line.snapshot.totalMinor)) {
+          throw StateError(
+            'Las condiciones de precio no coinciden con el borrador.',
+          );
+        }
+        total += BigInt.from(line.snapshot.totalMinor);
+      }
+      if (total != BigInt.from(command.expectedTotalMinor)) {
+        throw StateError('El total del borrador es incoherente.');
+      }
+      return null;
+    }
+    final payload = await _prepareTarifa(command);
+    await offerPricing?.requireCompatible();
+    final refs = [
+      LocalEventRef.affects(refType: 'sale', refId: command.saleId),
+      for (final l in payload.lines)
+        LocalEventRef.affects(refType: 'sale_item', refId: l.id),
+    ];
+    if (refs.any((r) => r.refId.trim().isEmpty)) {
+      throw StateError('Referencias inválidas.');
+    }
+    await events.appendAndApply(
+      SyncEvent(
+        eventId: command.operationId,
+        aggregateType: TarifaVentaBorradorCambiadaPayload.aggregateType,
+        aggregateId: command.saleId,
+        eventType: TarifaVentaBorradorCambiadaPayload.eventType,
+        deviceId: context.deviceId,
+        userId: context.userId,
+        baseVersion: command.expectedVersion,
+        createdAtLocal: DateTime.now(),
+        deliveryStatus: 'not_required',
+        payload: payload.toJson(),
+      ),
+      refs: refs,
+    );
+    return payload;
+  });
+
+  Future<SaleProjection?> _tarifaBase(
+    CambiarTarifaVentaBorradorCommand c,
+  ) async {
+    InventoryMovementPayload.requiredUuidV4(c.operationId, 'operation_id');
+    InventoryMovementPayload.requiredUuidV4(c.saleId, 'sale_id');
+    if (context.userId.trim().isEmpty ||
+        context.deviceId.trim().isEmpty ||
+        !['normal', 'offer'].contains(c.pricingMode) ||
+        c.expectedVersion < 0 ||
+        c.expectedVersion > SaleItemSnapshot.maxInteger ||
+        c.expectedTotalMinor < 0 ||
+        c.expectedTotalMinor > SaleItemSnapshot.maxInteger) {
+      throw const FormatException('Contexto o tarifa inválidos.');
+    }
+    final s = await store.findById(c.saleId);
+    if (await store.wasCleared(c.saleId) ||
+        (s?.version ?? 0) != c.expectedVersion ||
+        s?.lastEventId != c.expectedDraftEventId ||
+        (s?.totalMinor ?? 0) != c.expectedTotalMinor ||
+        (s != null &&
+            (!s.active ||
+                s.status != SaleStatus.borrador ||
+                s.userId != context.userId ||
+                s.deviceId != context.deviceId))) {
+      throw StateError('El borrador cambió o ya fue cobrado.');
+    }
+    return s;
+  }
+
+  Future<TarifaVentaBorradorCambiadaPayload> _prepareTarifa(
+    CambiarTarifaVentaBorradorCommand c,
+  ) async {
+    final sale = await _tarifaBase(c);
+    final lines = (await store.items(c.saleId)).where((l) => l.active).toList();
+    final after = [
+      for (final l in lines)
+        (
+          id: l.id,
+          sortOrder: l.sortOrder,
+          before: l.snapshot,
+          after: l.snapshot.withPricingMode(c.pricingMode),
+        ),
+    ];
+    final total = after.fold(
+      BigInt.zero,
+      (sum, l) => sum + BigInt.from(l.after.totalMinor),
+    );
+    if (total > BigInt.from(SaleItemSnapshot.maxInteger)) {
+      throw const FormatException('Total fuera de rango.');
+    }
+    return TarifaVentaBorradorCambiadaPayload(
+      previousMode: sale?.pricingMode ?? 'normal',
+      pricingMode: c.pricingMode,
+      expectedDraftEventId: c.expectedDraftEventId,
+      previousTotalMinor: c.expectedTotalMinor,
+      totalMinor: total.toInt(),
+      lines: after,
+    );
+  }
+
+  Future<SaleCaptureConditions> prepararCaptura(String variantId) {
+    final selected = drafts?.selectedDraftId;
+    return store.atomic(() async {
+      final sale = await _findSelectedDraft(selected);
+      final saleId = sale?.id ?? selected ?? _uuid.v4();
+      if (await store.wasCleared(saleId)) {
+        throw StateError('La venta fue limpiada.');
+      }
+      final prepared = await _prepareDraftItem(
+        AgregarProductoBorradorCommand(variantId: variantId),
+        sale,
+        preview: true,
+      );
+      final s = prepared.snapshot;
+      final unit = prepared.unitId == null
+          ? null
+          : await units.obtenerUnidadPorId(prepared.unitId!);
+      return SaleCaptureConditions(
+        saleId: saleId,
+        version: sale?.version ?? 0,
+        draftEventId: sale?.lastEventId,
+        pricingMode: sale?.pricingMode ?? 'normal',
+        snapshot: s,
+        measured: unit == null
+            ? null
+            : MeasuredSaleConditions(
+                variantId: s.variantId,
+                productName: s.productName,
+                variantName: s.variantName,
+                unit: unit,
+                unitPriceMinor: s.unitPriceMinor,
+                standardCostMinor: s.standardCostMinor,
+                priceReferenceQuantityAtomic: s.priceReferenceQuantityAtomic!,
+                consumptionConfigurationKey: s.consumptionConfigurationKey!,
+                priceSnapshotVersion: s.priceSnapshotVersion,
+                normalPriceMinorSnapshot: s.normalPriceMinorSnapshot,
+                offerPriceMinorSnapshot: s.offerPriceMinorSnapshot,
+                effectivePriceSource: s.effectivePriceSource,
+                priceConfigurationEventId: s.priceConfigurationEventId,
+              ),
+      );
+    });
+  }
 
   Future<void> limpiar(LimpiarVentaBorradorCommand command) =>
       store.atomic(() async {
@@ -94,10 +291,51 @@ class VentaBorradorCommandService {
 
   Future<void> agregar(AgregarProductoBorradorCommand command) {
     // Captura la selección antes de cualquier espera, incluida la transacción.
-    final selectedId = drafts?.selectedDraftId;
+    final selectedId = command.expectedSaleId ?? drafts?.selectedDraftId;
+    final selection = drafts?.selectedDraftId;
     return store.atomic(() async {
-      final item = await _prepareDraftItem(command);
+      if (command.expectedSaleId != null &&
+          drafts != null &&
+          selection != null &&
+          selection != command.expectedSaleId) {
+        throw StateError('Cambió la pestaña de captura.');
+      }
+      if (command.expectedSaleId == null &&
+          [
+            command.expectedVersion,
+            command.expectedPricingMode,
+            command.expectedDraftEventId,
+            command.expectedPriceConfigurationEventId,
+          ].any((v) => v != null)) {
+        throw const FormatException(
+          'La guarda de captura requiere venta y revisión completas.',
+        );
+      }
+      if (command.expectedSaleId != null &&
+          (command.expectedVersion == null ||
+              command.expectedPricingMode == null ||
+              command.expectedPriceConfigurationEventId == null)) {
+        throw const FormatException('Faltan condiciones revisadas de captura.');
+      }
+      if (command.expectedSaleId != null &&
+          drafts != null &&
+          selection == null) {
+        final current = await store.findDraft(context.userId, context.deviceId);
+        if (current != null && current.id != command.expectedSaleId) {
+          throw StateError('Cambió la venta mientras se capturaba.');
+        }
+      }
       final sale = await _findSelectedDraft(selectedId);
+      final item = await _prepareDraftItem(command, sale);
+      if (command.expectedSaleId != null &&
+          (command.expectedSaleId != (sale?.id ?? selectedId) ||
+              command.expectedDraftEventId != sale?.lastEventId ||
+              command.expectedVersion != (sale?.version ?? 0) ||
+              command.expectedPricingMode != (sale?.pricingMode ?? 'normal'))) {
+        throw StateError(
+          'La captura cambió. Revisa venta y tarifa antes de agregar.',
+        );
+      }
       final saleId = sale?.id ?? selectedId ?? _uuid.v4();
       if (sale == null && await store.wasCleared(saleId)) {
         throw StateError('La venta ya fue limpiada. Abre otra captura.');
@@ -280,7 +518,9 @@ class VentaBorradorCommandService {
 
   Future<_PreparedDraftItem> _prepareDraftItem(
     AgregarProductoBorradorCommand command,
-  ) async {
+    SaleProjection? sale, {
+    bool preview = false,
+  }) async {
     final variant = await products.findVariantById(command.variantId.trim());
     if (variant == null || !variant.active) {
       throw StateError('La variante ya no está disponible.');
@@ -293,12 +533,24 @@ class VentaBorradorCommandService {
     final unit = config is MeasuredSaleConfiguration
         ? await units.obtenerUnidadPorId(config.saleUnitId)
         : null;
-    final atomic = _readMeasuredQuantity(
-      command,
-      config,
-      unit,
-      variant.precioVentaMenor,
+    final priceEvent = variant.lastEventId ?? variant.createdEventId;
+    if (priceEvent == null) {
+      throw StateError('Falta trazabilidad de precio del artículo.');
+    }
+    if (command.expectedPriceConfigurationEventId != null &&
+        command.expectedPriceConfigurationEventId != priceEvent) {
+      throw StateError('El catálogo cambió durante la captura.');
+    }
+    await offerPricing?.requireCompatible();
+    final price = EffectiveSalePrice.resolve(
+      mode: sale?.pricingMode ?? 'normal',
+      normal: variant.precioVentaMenor,
+      offer: variant.offerPriceMinor,
     );
+    final effective = price.amount;
+    final atomic = preview
+        ? (config is MeasuredSaleConfiguration ? 1 : null)
+        : _readMeasuredQuantity(command, config, unit, effective);
     final snapshot = SaleItemSnapshot(
       variantId: variant.id,
       consumptionConfigurationKey: await products.consumptionConfigurationKey(
@@ -309,7 +561,13 @@ class VentaBorradorCommandService {
       saleMode: config is MeasuredSaleConfiguration ? 'measured' : 'unit',
       quantity: atomic == null ? 1 : null,
       measuredQuantityAtomic: atomic,
-      unitPriceMinor: variant.precioVentaMenor,
+      priceSnapshotVersion: 2,
+      normalPriceMinorSnapshot: variant.precioVentaMenor,
+      offerPriceMinorSnapshot: variant.offerPriceMinor,
+      effectivePriceSource: price.source,
+      priceSelection: 'inherit',
+      priceConfigurationEventId: priceEvent,
+      unitPriceMinor: effective,
       standardCostMinor: variant.costoEstandarMenor,
       priceReferenceQuantityAtomic: config.priceReferenceQuantityAtomic,
       unitCode: unit?.code,

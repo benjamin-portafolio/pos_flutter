@@ -58,6 +58,8 @@ class DriftProductoProjectionStore
           codigoBarras: variant.codigoBarras,
           inventoryItemId: variant.inventoryItemId,
           minimumStockAtomic: variant.minimumStockAtomic,
+          offerPriceMinor: variant.offerPriceMinor,
+          knowsOfferPrice: variant.knowsOfferPrice,
           knowsMinimumStock: variant.knowsMinimumStock,
           orden: variant.orden,
           proveedores: suppliersByVariant?[variant.id],
@@ -103,6 +105,41 @@ class DriftProductoProjectionStore
         ProductoActualizadoPayload.knowsMinimumStock(json),
       _ => false,
     };
+  }
+
+  static bool offerPriceKnownFromEvent(drift.EventRecord? event) {
+    if (event == null) return false;
+    final json = Map<String, Object?>.from(jsonDecode(event.payload) as Map);
+    final state = event.eventType == ProductoActualizadoPayload.eventType
+        ? (json['after'] ?? json['before'])
+        : json;
+    return state is Map &&
+        ProductoCreadoPayload.knowsOfferPriceJson(
+          Map<String, Object?>.from(state),
+        );
+  }
+
+  Future<bool> knowsOfferPrice(String productId) async {
+    final product = await _productoDao.obtenerProductoPorId(productId);
+    final base = product?.lastEventId == null
+        ? null
+        : await _productoDao.attachedDatabase.eventDao.obtenerEventoPorId(
+            product!.lastEventId!,
+          );
+    final json = base == null
+        ? null
+        : Map<String, Object?>.from(jsonDecode(base.payload) as Map);
+    final state =
+        base?.eventType == ProductoActualizadoPayload.eventType && json != null
+        ? (json['after'] ?? json['before'])
+        : json;
+    return (state is Map &&
+            ProductoCreadoPayload.knowsOfferPriceJson(
+              Map<String, Object?>.from(state),
+            )) ||
+        (await _productoDao.obtenerVariantesPorProducto(
+          productId,
+        )).any((v) => v.offerPriceMinor != null);
   }
 
   Future<bool> knowsMinimumStock(String productId) async {
@@ -254,6 +291,8 @@ class DriftProductoProjectionStore
             costoEstandarMenor: v.costoEstandarMenor,
             inventoryItemId: v.inventoryItemId,
             minimumStockAtomic: v.minimumStockAtomic,
+            offerPriceMinor: v.offerPriceMinor,
+            knowsOfferPrice: v.knowsOfferPrice,
             knowsMinimumStock: v.knowsMinimumStock,
             orden: v.orden,
             active: true,
@@ -278,6 +317,7 @@ class DriftProductoProjectionStore
             standardCostMinor: Value(v.costoEstandarMenor),
             inventoryItemId: Value(v.inventoryItemId),
             minimumStockAtomic: Value(v.minimumStockAtomic),
+            offerPriceMinor: Value(v.offerPriceMinor),
             sortOrder: Value(v.orden),
             version: Value(version),
             lastEventId: Value(lastEventId),
@@ -311,7 +351,11 @@ class DriftProductoProjectionStore
     final row = await _productoDao.obtenerVariantePorId(id);
     return row == null
         ? null
-        : _variantFromRow(row, await knowsMinimumStock(row.productId));
+        : _variantFromRow(
+            row,
+            await knowsMinimumStock(row.productId),
+            await knowsOfferPrice(row.productId),
+          );
   }
 
   @override
@@ -323,7 +367,11 @@ class DriftProductoProjectionStore
     );
     return row == null
         ? null
-        : _variantFromRow(row, await knowsMinimumStock(row.productId));
+        : _variantFromRow(
+            row,
+            await knowsMinimumStock(row.productId),
+            await knowsOfferPrice(row.productId),
+          );
   }
 
   @override
@@ -332,8 +380,9 @@ class DriftProductoProjectionStore
   ) async {
     final rows = await _productoDao.obtenerVariantesPorProducto(productId);
     final known = await knowsMinimumStock(productId);
+    final offerKnown = await knowsOfferPrice(productId);
     return rows
-        .map((row) => _variantFromRow(row, known))
+        .map((row) => _variantFromRow(row, known, offerKnown))
         .toList(growable: false);
   }
 
@@ -379,6 +428,7 @@ class DriftProductoProjectionStore
         standardCostMinor: Value(projection.costoEstandarMenor),
         inventoryItemId: Value(projection.inventoryItemId),
         minimumStockAtomic: Value(projection.minimumStockAtomic),
+        offerPriceMinor: Value(projection.offerPriceMinor),
         sortOrder: projection.orden,
         active: Value(projection.active),
         version: Value(projection.version),
@@ -485,6 +535,7 @@ class DriftProductoProjectionStore
   ProductoVarianteProjection _variantFromRow(
     drift.ProductVariantRow row,
     bool known,
+    bool offerKnown,
   ) {
     return ProductoVarianteProjection(
       id: row.id,
@@ -496,6 +547,8 @@ class DriftProductoProjectionStore
       costoEstandarMenor: row.standardCostMinor,
       inventoryItemId: row.inventoryItemId,
       minimumStockAtomic: row.minimumStockAtomic,
+      offerPriceMinor: row.offerPriceMinor,
+      knowsOfferPrice: offerKnown,
       knowsMinimumStock: known,
       orden: row.sortOrder,
       active: row.active,

@@ -14,9 +14,14 @@ abstract final class ArticuloCsvContract {
     'existencias',
     'codigo_barras',
   ];
-  static const columnas = <String>[
+  static const columnasConIdsAnteriores = <String>[
     'product_id',
     'variant_id',
     ...columnasAnteriores,
+  ];
+  static const columnas = <String>[
+    ...columnasConIdsAnteriores,
+    'precio_oferta',
+    'accion_oferta',
   ];
 }

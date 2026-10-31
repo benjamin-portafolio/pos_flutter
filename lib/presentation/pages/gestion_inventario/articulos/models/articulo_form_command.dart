@@ -18,6 +18,7 @@ extension ArticuloFormCommand on ArticuloFormResult {
             proveedores: variant.proveedores,
             inventoryUnitId: variant.inventoryUnitId,
             initialStockQuantity: variant.existenciaInicial,
+            offerPrice: variant.offerPrice,
             minimumStock: variant.minimumStock,
             recipeComponents: variant.recipeComponents
                 .map(

@@ -91,7 +91,7 @@ void main() {
           .single,
       1,
     );
-    expect(db.schemaVersion, 8);
+    expect(db.schemaVersion, 9);
     expect(await db.select(db.eventRefs).get(), isEmpty);
     expect(await db.eventDao.obtenerEventosPendientes(), isEmpty);
     final events = await db.select(db.events).get();
@@ -205,9 +205,7 @@ void main() {
               ),
             );
             productId = h.appends.last.event.aggregateId;
-            await h.db.customStatement(
-              'CREATE TABLE supplier_acceptance_marker(value TEXT)',
-            );
+            await h.db.customStatement('SELECT 1');
             before = await contents(h.db);
             for (var restart = 0; restart < 2; restart++) {
               await h.dispose();
@@ -224,7 +222,7 @@ void main() {
               expect(
                 await h.db
                     .customSelect(
-                      "SELECT name FROM sqlite_master WHERE name='supplier_acceptance_marker'",
+                      "SELECT name FROM sqlite_master WHERE name='products'",
                     )
                     .get(),
                 hasLength(1),
@@ -234,7 +232,7 @@ void main() {
               db: h.db,
               stateReader: DriftDatabaseStateReader(db: h.db),
             ).createSnapshot();
-            expect(snapshot!.schemaVersion, 8);
+            expect(snapshot!.schemaVersion, 9);
             expect(snapshot!.eventCount, populated ? 4 : 1);
             expect(snapshot!.lastLocalSequence, snapshot!.eventCount);
             expect(
@@ -429,7 +427,7 @@ void main() {
                 );
               } else {
                 raw.execute(
-                  'PRAGMA user_version = ${invalid == 'older-version' ? 7 : 9}',
+                  'PRAGMA user_version = ${invalid == 'older-version' ? 7 : 10}',
                 );
               }
             } finally {

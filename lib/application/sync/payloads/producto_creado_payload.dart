@@ -50,6 +50,32 @@ class ProductoCreadoPayload {
   }
 
   /// Presencia uniforme del umbral; el valor null por sí solo no la acredita.
+  bool get knowsOfferPrice => variantes.first.knowsOfferPrice;
+  static bool knowsOfferPriceJson(Map<String, Object?> json) {
+    final values = json['variants'];
+    if (values is! List || values.isEmpty) return false;
+    final flags = values
+        .map((v) => (v as Map).containsKey('offer_price_minor'))
+        .toList();
+    if (flags.any((v) => v != flags.first)) {
+      throw const FormatException('Snapshot parcial de oferta.');
+    }
+    return flags.first;
+  }
+
+  ProductoCreadoPayload withKnownOfferPrice() {
+    final json = toJson();
+    json['variants'] = variantes
+        .map(
+          (v) => <String, Object?>{
+            ...v.toJson(),
+            'offer_price_minor': v.offerPriceMinor,
+          },
+        )
+        .toList();
+    return ProductoCreadoPayload.fromJson(json);
+  }
+
   bool get knowsMinimumStock => variantes.first.knowsMinimumStock;
 
   static bool knowsMinimumStockJson(Map<String, Object?> json) {
@@ -90,6 +116,8 @@ class ProductoCreadoPayload {
           componentesReceta: v.componentesReceta,
           proveedores: v.proveedores,
           minimumStockAtomic: v.minimumStockAtomic,
+          offerPriceMinor: v.offerPriceMinor,
+          knowsOfferPrice: v.knowsOfferPrice,
           knowsMinimumStock: true,
           orden: v.orden,
         ),
@@ -117,6 +145,8 @@ class ProductoCreadoPayload {
           componentesReceta: v.componentesReceta,
           proveedores: v.proveedores ?? const [],
           minimumStockAtomic: v.minimumStockAtomic,
+          offerPriceMinor: v.offerPriceMinor,
+          knowsOfferPrice: v.knowsOfferPrice,
           knowsMinimumStock: v.knowsMinimumStock,
           orden: v.orden,
         ),
@@ -341,6 +371,8 @@ class ProductoCreadoVariante {
     required this.costoEstandarMenor,
     required this.inventoryItemId,
     required this.minimumStockAtomic,
+    required this.offerPriceMinor,
+    required this.knowsOfferPrice,
     required this.knowsMinimumStock,
     required this.componentesReceta,
     required this.proveedores,
@@ -355,6 +387,8 @@ class ProductoCreadoVariante {
     String? codigoBarras,
     String? inventoryItemId,
     int? minimumStockAtomic,
+    int? offerPriceMinor,
+    bool knowsOfferPrice = false,
     bool knowsMinimumStock = false,
     List<ProductoCreadoComponenteReceta> componentesReceta = const [],
     List<ProductoProveedorPrecio>? proveedores,
@@ -365,6 +399,12 @@ class ProductoCreadoVariante {
       throw const FormatException(
         'minimum_stock_atomic debe ser un entero seguro no negativo.',
       );
+    }
+    if (offerPriceMinor != null &&
+        (offerPriceMinor <= 0 ||
+            offerPriceMinor > 9007199254740991 ||
+            offerPriceMinor > precioVentaMenor)) {
+      throw const FormatException('Oferta inválida o mayor al normal.');
     }
     final normalizedName = NombreVariante.fromInput(nombre);
     final validatedComponents = _validateRecipeComponents(componentesReceta);
@@ -390,6 +430,8 @@ class ProductoCreadoVariante {
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
       inventoryItemId: normalizedInventoryItemId,
       minimumStockAtomic: minimumStockAtomic,
+      offerPriceMinor: offerPriceMinor,
+      knowsOfferPrice: knowsOfferPrice || offerPriceMinor != null,
       knowsMinimumStock: knowsMinimumStock || minimumStockAtomic != null,
       componentesReceta: validatedComponents,
       proveedores: ProductoProveedorPrecio.validate(proveedores),
@@ -411,6 +453,8 @@ class ProductoCreadoVariante {
   /// Átomos no negativos, null desactiva el aviso. En constructores anteriores
   /// el null por defecto conserva desconocimiento: no expresa una retirada.
   final int? minimumStockAtomic;
+  final int? offerPriceMinor;
+  final bool knowsOfferPrice;
 
   /// Distingue ausencia legada de null explícito. Un valor numérico siempre
   /// acredita conocimiento; para null explícito el constructor exige true.
@@ -462,6 +506,13 @@ class ProductoCreadoVariante {
           '$fieldName.minimum_stock_atomic',
         ),
         knowsMinimumStock: json.containsKey('minimum_stock_atomic'),
+        offerPriceMinor: json['offer_price_minor'] == null
+            ? null
+            : _requiredInt(
+                json['offer_price_minor'],
+                '$fieldName.offer_price_minor',
+              ),
+        knowsOfferPrice: json.containsKey('offer_price_minor'),
         codigoBarras: rawBarcode as String?,
         inventoryItemId: _optionalNonEmptyString(
           json['inventory_item_id'],
@@ -486,6 +537,7 @@ class ProductoCreadoVariante {
     'sale_price_minor': precioVentaMenor,
     'standard_cost_minor': costoEstandarMenor,
     if (knowsMinimumStock) 'minimum_stock_atomic': minimumStockAtomic,
+    if (knowsOfferPrice) 'offer_price_minor': offerPriceMinor,
     if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
     if (componentesReceta.isNotEmpty)
       'inventory_configuration': {
@@ -671,6 +723,11 @@ List<ProductoCreadoVariante> _validateVariants(
     throw const FormatException(
       'producto_creado requiere una o más variantes.',
     );
+  }
+  if (variants.any(
+    (v) => v.knowsOfferPrice != variants.first.knowsOfferPrice,
+  )) {
+    throw const FormatException('Snapshot parcial de oferta.');
   }
   if (variants.any((v) => v.proveedores == null) &&
       variants.any((v) => v.proveedores != null)) {

@@ -55,7 +55,7 @@ void main() {
           expect(row.copyWith().minimumStockAtomic, value);
         }
         expect(await db.select(db.inventoryMovements).get(), isEmpty);
-        expect(db.schemaVersion, 8);
+        expect(db.schemaVersion, 9);
       },
     );
     for (final value in <Object>[-1, 9007199254740992, 1.5, 'inválido']) {
@@ -107,24 +107,13 @@ void main() {
         if (protected) await markAppDatabaseAsRestored();
         final hash = sha256.convert(await file.readAsBytes()).toString();
         final reopened = AppDatabase();
-        if (protected) {
+        {
           await expectLater(
             reopened.select(reopened.products).get(),
             throwsStateError,
           );
           await expectLater(reopened.close(), throwsStateError);
           expect(sha256.convert(await file.readAsBytes()).toString(), hash);
-        } else {
-          expect(await reopened.select(reopened.products).get(), isEmpty);
-          expect(
-            (await reopened
-                    .customSelect('PRAGMA table_info(product_variants)')
-                    .get())
-                .map((r) => r.data['name']),
-            contains('minimum_stock_atomic'),
-          );
-          expect(reopened.schemaVersion, 8);
-          await reopened.close();
         }
       });
     }

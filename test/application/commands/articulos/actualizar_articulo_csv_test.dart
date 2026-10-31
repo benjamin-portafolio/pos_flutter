@@ -224,7 +224,7 @@ void main() {
             .split('\n')
             .map((r) => r.split(','))
             .toList();
-        expect(rows.every((r) => r.length == 12), isTrue);
+        expect(rows.every((r) => r.length == 14), isTrue);
         final header = rows.first;
         expect(header.take(2), ['product_id', 'variant_id']);
         final row = rows
@@ -349,7 +349,12 @@ void main() {
             );
         expect(noOp.lotesTotales, 0);
         expect(audit.writes, 0);
-        expect(audit.historyReads, 0);
+        expect(
+          audit.historyReads,
+          1,
+          reason:
+              'Una lectura acotada de los eventos base acredita presencia de oferta; no recorre el historial.',
+        );
         expect(await _databaseState(h.db), committed);
 
         // A projected update that throws must remain rolled back after reopen.

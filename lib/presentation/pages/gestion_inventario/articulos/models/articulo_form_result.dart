@@ -34,6 +34,8 @@ class ArticuloFormVarianteResult {
     this.existenciaInicial,
     this.recipeComponents = const [],
     this.linkedInventoryItemId,
+    this.offerPriceMinor,
+    this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStockAtomic,
     this.minimumStock = const CambioExplicito.conservar(),
   }) : proveedores = null;
@@ -48,6 +50,8 @@ class ArticuloFormVarianteResult {
     this.existenciaInicial,
     this.recipeComponents = const [],
     this.linkedInventoryItemId,
+    this.offerPriceMinor,
+    this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStockAtomic,
     this.minimumStock = const CambioExplicito.conservar(),
     List<ProveedorVariante>? proveedores,
@@ -67,6 +71,8 @@ class ArticuloFormVarianteResult {
   final String? existenciaInicial;
 
   /// Valor persistido para precargar; no expresa una intención de escritura.
+  final int? offerPriceMinor;
+  final CambioExplicito<String?> offerPrice;
   final int? minimumStockAtomic;
 
   /// Conserva por defecto, incluso para formularios de contratos legados.
@@ -99,6 +105,7 @@ class ArticuloFormVarianteResult {
     List<RecipeComponentFormResult>? recipeComponents,
     bool clearRecipeComponents = false,
     List<ProveedorVariante>? proveedores,
+    CambioExplicito<String?>? offerPrice,
     CambioExplicito<String?>? minimumStock,
   }) {
     return ArticuloFormVarianteResult.conProveedores(
@@ -122,6 +129,8 @@ class ArticuloFormVarianteResult {
           ? const []
           : recipeComponents ?? this.recipeComponents,
       linkedInventoryItemId: linkedInventoryItemId,
+      offerPriceMinor: offerPriceMinor,
+      offerPrice: offerPrice ?? this.offerPrice,
       minimumStockAtomic: minimumStockAtomic,
       minimumStock: minimumStock ?? this.minimumStock,
     );

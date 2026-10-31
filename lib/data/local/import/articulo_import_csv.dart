@@ -1,3 +1,5 @@
+import '../../../application/edicion_masiva/cambio_explicito.dart';
+import '../../../domain/articulos/importe_comercial_codec.dart';
 import 'dart:math' as math;
 
 import 'package:unorm_dart/unorm_dart.dart' as unorm;
@@ -24,9 +26,8 @@ import 'csv_records_parser.dart';
 /// Reglas que no se negocian aquí:
 /// - el encabezado tiene que coincidir exactamente; una columna desconocida o
 ///   faltante es error, no se ignora (R2);
-/// - diez columnas son altas; doce columnas identifican ediciones por ambos IDs;
-/// - los importes se convierten a centavos una sola vez, en este límite, con
-///   redondeo half-up a dos decimales (D7).
+/// - diez columnas son altas; doce identifican ediciones; catorce agregan oferta;
+/// - importes exactos con hasta dos decimales, sin redondeo silencioso (oferta v2).
 class ArticuloImportCsv implements ArticuloCatalogImportService {
   const ArticuloImportCsv();
 
@@ -224,7 +225,10 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     required bool conIds,
   }) {
     final columnas = conIds
-        ? ArticuloCsvContract.columnas
+        ? (encabezado.contains('precio_oferta') ||
+                  encabezado.contains('accion_oferta')
+              ? ArticuloCsvContract.columnas
+              : ArticuloCsvContract.columnasConIdsAnteriores)
         : ArticuloCsvContract.columnasAnteriores;
     final errores = <ArticuloImportError>[];
     for (final columna in columnas) {
@@ -420,6 +424,19 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
           );
         }
       }
+      for (final fila in grupo) {
+        final v = catalogo.variantesPorId[fila.variantId]!;
+        final offer = fila.offerPrice.establecer
+            ? fila.offerPrice.valor
+            : v.offerPriceMinor;
+        if (offer != null && offer > fila.precioVentaMinor) {
+          error(
+            fila,
+            'precio_oferta',
+            'La oferta conservada supera el precio normal. Retírala o corrígela explícitamente.',
+          );
+        }
+      }
       if (errores.length != inicio) continue;
       final propuesta = ArticuloImportActualizacion(
         actual: actual,
@@ -431,6 +448,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
               id: fila.variantId!,
               linea: fila.linea,
               nombre: fila.nombreVariante,
+              offerPrice: fila.offerPrice,
               precioVentaMinor: fila.precioVentaMinor,
               precioCosteMinor: fila.precioCosteMinor,
               codigoBarras: fila.codigoBarras,
@@ -444,6 +462,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
             final v = catalogo.variantesPorId[fila.variantId]!;
             return NombreVariante.fromInput(v.nombre).value !=
                     fila.nombreVariante ||
+                (fila.offerPrice.establecer &&
+                    (!v.knowsOfferPrice ||
+                        v.offerPriceMinor != fila.offerPrice.valor)) ||
                 v.precioVentaMinor != fila.precioVentaMinor ||
                 v.precioCosteMinor != fila.precioCosteMinor ||
                 _opcional(v.codigoBarras) != fila.codigoBarras;
@@ -532,6 +553,47 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       existente: existente,
     );
     final codigoBarras = _codigoBarras(campos[9], deFila);
+    var offerPrice = const CambioExplicito<int?>.conservar();
+    if (campos.length > 10) {
+      try {
+        final text = campos[10].trim();
+        final action = campos[11].trim();
+        if (action == 'retirar') {
+          if (text.isNotEmpty) {
+            throw const FormatException('Retirar exige precio_oferta vacío.');
+          }
+          offerPrice = const CambioExplicito.establecer(null);
+        } else if (action == 'establecer' ||
+            (action.isEmpty && text.isNotEmpty)) {
+          offerPrice = CambioExplicito.establecer(
+            const ImporteComercialCodec().parse(text, admiteCero: false),
+          );
+        } else if (action == 'conservar' || action.isEmpty) {
+          if (text.isNotEmpty) {
+            throw const FormatException('Conservar exige precio_oferta vacío.');
+          }
+        } else {
+          throw const FormatException(
+            'Acción de oferta inválida: conservar, establecer o retirar.',
+          );
+        }
+        if (offerPrice.establecer &&
+            offerPrice.valor != null &&
+            precioVenta != null &&
+            offerPrice.valor! > precioVenta) {
+          throw const FormatException(
+            'La oferta no puede superar el precio normal.',
+          );
+        }
+      } on FormatException catch (e) {
+        deFila.add(
+          ArticuloImportError(
+            columna: 'precio_oferta/accion_oferta',
+            motivo: e.message,
+          ),
+        );
+      }
+    }
 
     if (deFila.isNotEmpty) {
       errores.addAll(deFila.map((error) => error.enLinea(linea)));
@@ -545,6 +607,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       modoVenta: modoVenta!,
       unidadVenta: unidadVenta,
       nombreVariante: nombreVariante,
+      offerPrice: offerPrice,
       precioVentaMinor: precioVenta!,
       precioCosteMinor: precioCoste,
       seguimiento: seguimiento!,
@@ -688,9 +751,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     return normalizado;
   }
 
-  /// Conversión a centavos una sola vez, en este límite (D7): el archivo guarda
-  /// decimales y el redondeo es half-up a dos decimales, así que 18.005 entra
-  /// como 18.01 y 18.004 como 18.00.
+  /// Importes monetarios exactos; rechaza exceso de decimales en todos los formatos.
   int? _precio(
     String valor,
     List<ArticuloImportError> errores, {
@@ -708,45 +769,33 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       );
       return null;
     }
-    final centavosBig = _aCentavos(normalizado);
-    if (centavosBig == null) {
-      errores.add(
-        ArticuloImportError(
-          columna: columna,
-          motivo: '"$normalizado" no es un importe válido.',
-        ),
+    try {
+      return const ImporteComercialCodec().parse(
+        normalizado,
+        admiteCero: !obligatorio,
       );
-      return null;
-    }
-    final centavos = centavosBig.toInt();
-    final minimo = obligatorio ? 1 : 0;
-    if (centavos < minimo) {
+    } on FormatException catch (e) {
+      final text = e.message;
       errores.add(
         ArticuloImportError(
           columna: columna,
-          motivo: obligatorio
+          motivo: normalizado.startsWith('-')
+              ? (obligatorio
+                    ? 'El precio de venta tiene que ser mayor que 0.'
+                    : 'El precio de coste no puede ser negativo.')
+              : text.contains('mayor que cero')
               ? 'El precio de venta tiene que ser mayor que 0.'
-              : 'El precio de coste no puede ser negativo.',
+              : text.contains('hasta dos decimales')
+              ? '"$normalizado" no es un importe válido. Usa hasta dos decimales.'
+              : text,
         ),
       );
       return null;
     }
-    if (centavosBig > _maxImporte) {
-      errores.add(
-        ArticuloImportError(
-          columna: columna,
-          motivo: 'El importe excede el máximo permitido.',
-        ),
-      );
-      return null;
-    }
-    return centavos;
   }
 
-  static final BigInt _maxImporte = BigInt.from(9007199254740991);
-
-  /// Decimal del archivo a centavos enteros, con redondeo half-up a dos
-  /// decimales. Devuelve null cuando no es un número.
+  /// Auxiliar legado para validar magnitudes de existencias antes de su codec
+  /// atómico. Los importes monetarios no usan esta conversión.
   static BigInt? _aCentavos(String entrada) {
     final coincidencia = _decimal.firstMatch(entrada);
     if (coincidencia == null) return null;
@@ -963,6 +1012,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
             linea: fila.linea,
             sortOrder: variantes.length,
             nombre: fila.nombreVariante,
+            offerPrice: fila.offerPrice,
             precioVentaMinor: fila.precioVentaMinor,
             precioCosteMinor: fila.precioCosteMinor,
             codigoBarras: fila.codigoBarras,
@@ -1053,9 +1103,11 @@ class _Fila {
     this.nombreVariante,
     this.precioCosteMinor,
     this.codigoBarras,
+    this.offerPrice = const CambioExplicito.conservar(),
     this.variantId,
   });
 
+  final CambioExplicito<int?> offerPrice;
   final String? variantId;
   final int linea;
   final String nombre;

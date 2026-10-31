@@ -9,6 +9,16 @@ import 'clientes.dart';
   "CREATE INDEX ix_sales_local_drafts ON sales(user_id, device_id, created_at_local, id) WHERE active = 1 AND status = 'borrador'",
 )
 class Sales extends Table with CommonFields {
+  /// Versión del contrato de precio; null conserva confirmaciones históricas.
+  IntColumn get pricingContractVersion => integer().nullable().customConstraint(
+    'NULL CHECK (pricing_contract_version IS NULL OR pricing_contract_version = 2)',
+  )();
+
+  /// Elección global; null = histórico desconocido; borrador legado usa normal al leer.
+  TextColumn get pricingMode => text().nullable().customConstraint(
+    "NULL CHECK (pricing_mode IS NULL OR pricing_mode IN ('normal','offer'))",
+  )();
+
   /// Cliente opcional en efectivo y obligatorio al confirmar a crédito.
   TextColumn get clienteId => text().nullable().references(Clientes, #id)();
 

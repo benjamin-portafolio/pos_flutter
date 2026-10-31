@@ -16,7 +16,7 @@ import 'revision_edicion_masiva.dart';
 
 enum VistaEdicionMasiva { porTarea, recepcionCompacta }
 
-enum TareaEdicionMasiva { venta, costoProveedor, agregarExistencias }
+enum TareaEdicionMasiva { oferta, venta, costoProveedor, agregarExistencias }
 
 /// Único borrador de pantalla para ambas vistas; ninguna pulsación escribe.
 class BorradorEdicionMasiva {
@@ -66,6 +66,14 @@ class BorradorEdicionMasiva {
     _filas[clave] = _filas[clave]!.copiar(
       venta: CambioExplicito.establecer(texto),
     );
+  }
+
+  Future<void> editarOferta(
+    ClaveVariante clave,
+    CambioExplicito<String?> oferta,
+  ) async {
+    await _asegurarFila(clave);
+    _filas[clave] = _filas[clave]!.copiar(oferta: oferta);
   }
 
   Future<void> editarCosto(ClaveVariante clave, String texto) async {
@@ -162,6 +170,7 @@ class BorradorEdicionMasiva {
         nombreProducto: actual.nombreProducto,
         nombreVariante: actual.nombreVariante,
         ventaMinor: actual.ventaMinor,
+        ofertaMinor: actual.ofertaMinor,
         costoMinor: actual.costoMinor,
         configuracionVenta: actual.configuracionVenta,
         unidadVenta: actual.unidadVenta,
@@ -172,6 +181,13 @@ class BorradorEdicionMasiva {
       nuevas[cambio.clave] = FilaEdicionForm(
         original: original,
         baseProducto: cambio.baseProducto,
+        oferta: cambio.oferta.establecer
+            ? CambioExplicito.establecer(
+                cambio.oferta.valor == null
+                    ? null
+                    : _importes.format(cambio.oferta.valor!),
+              )
+            : const CambioExplicito.conservar(),
         venta: cambio.venta.establecer
             ? _importes.format(cambio.venta.valor)
             : null,
@@ -239,6 +255,7 @@ class BorradorEdicionMasiva {
       nuevas[actual.clave] = FilaEdicionForm(
         original: actual,
         baseProducto: actual.baseProducto,
+        oferta: fila.oferta,
         venta: fila.venta,
         costo: fila.costo,
         cantidad: fila.cantidad,
@@ -318,6 +335,7 @@ class BorradorEdicionMasiva {
     }
     var venta = const CambioExplicito<int>.conservar();
     var costo = const CambioExplicito<int>.conservar();
+    var oferta = const CambioExplicito<int?>.conservar();
     ProveedorVariante? proveedor;
     EntradaMercanciaMasiva? entrada;
     if (f.venta != null) {
@@ -328,6 +346,24 @@ class BorradorEdicionMasiva {
       if (value != null && value != f.original.ventaMinor) {
         venta = CambioExplicito.establecer(value);
       }
+    }
+    if (f.oferta.establecer) {
+      final text = f.oferta.valor;
+      if (text == null) {
+        oferta = const CambioExplicito.establecer(null);
+      } else {
+        final value = validar(
+          CampoEdicionMasiva.oferta,
+          () => _importes.parse(text, admiteCero: false),
+        );
+        if (value != null) oferta = CambioExplicito.establecer(value);
+      }
+    }
+    final offer = oferta.establecer ? oferta.valor : f.original.ofertaMinor;
+    final normal = venta.establecer ? venta.valor : f.original.ventaMinor;
+    if (offer != null && offer > normal) {
+      errores[CampoEdicionMasiva.oferta] =
+          'La oferta no puede superar el precio normal.';
     }
     if (f.costo != null) {
       final value = validar(
@@ -414,6 +450,7 @@ class BorradorEdicionMasiva {
           : CambioVarianteMasiva(
               clave: f.original.clave,
               baseProducto: f.baseProducto,
+              oferta: oferta,
               venta: venta,
               costo: costo,
               precioProveedor: proveedor,

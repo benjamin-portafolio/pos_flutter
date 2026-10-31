@@ -75,6 +75,9 @@ void main() {
           .into(db.productVariants)
           .insert(
             ProductVariantsCompanion.insert(
+              createdEventId: const Value(
+                '00000000-0000-4000-8000-000000000006',
+              ),
               id: entry.key,
               productId: entry.key,
               barcode: Value(entry.value),

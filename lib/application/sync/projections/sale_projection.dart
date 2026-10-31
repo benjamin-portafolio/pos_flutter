@@ -9,6 +9,8 @@ class SaleProjection extends SyncProjection {
     required super.createdEventId,
     required super.lastEventId,
     required super.lastServerSequence,
+    this.pricingContractVersion,
+    this.pricingMode,
     required this.userId,
     required this.deviceId,
     required this.status,
@@ -16,6 +18,8 @@ class SaleProjection extends SyncProjection {
     required this.createdAtLocal,
     required this.updatedAtLocal,
   });
+  final int? pricingContractVersion;
+  final String? pricingMode;
   final String userId;
   final String deviceId;
   final SaleStatus status;

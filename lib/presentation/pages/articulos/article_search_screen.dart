@@ -107,6 +107,11 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
       // La selección manual también espera todas las lecturas ya aceptadas.
       await reader?.finish(keepInputFocus: true);
       if (!mounted) return;
+      final commands =
+          widget.ventaBorradorCommandService ??
+          getIt<VentaBorradorCommandService>();
+      final capture = await commands.prepararCaptura(item.variant.varianteId);
+      if (!mounted) return;
       final unit = item.article.unidadVenta;
       SaleQuantityFormResult? amount;
       if (unit != null) {
@@ -114,8 +119,7 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
           context: context,
           builder: (_) => SaleMeasuredQuantityDialog(
             allowWeighing: true,
-            loadConditions: () => widget.productoRepository
-                .obtenerCondicionesVentaMedida(item.variant.varianteId),
+            loadConditions: () async => capture.measured,
             watchDraft:
                 (widget.saleDraftRepository ?? getIt<SaleDraftRepository>())
                     .watchCurrentDraft,
@@ -128,14 +132,14 @@ class _ArticleSearchScreenState extends State<ArticleSearchScreen> {
           return;
         }
       }
-      await (widget.ventaBorradorCommandService ??
-              getIt<VentaBorradorCommandService>())
-          .agregar(
-            amount?.toCommand(item.variant.varianteId) ??
-                AgregarProductoBorradorCommand(
-                  variantId: item.variant.varianteId,
-                ),
-          );
+      await commands.agregar(
+        capture.bind(
+          amount?.toCommand(item.variant.varianteId) ??
+              AgregarProductoBorradorCommand(
+                variantId: item.variant.varianteId,
+              ),
+        ),
+      );
       if (mounted) {
         if (unit?.dimension == DimensionUnidad.mass) {
           if (widget.cajaBarcodeSearch) {

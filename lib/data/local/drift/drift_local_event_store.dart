@@ -12,6 +12,7 @@ import '../../../application/sync/payloads/producto_eliminado_borrador_payload.d
 import '../../../application/sync/payloads/venta_borrador_limpiada_payload.dart';
 import '../../../application/sync/payloads/cotizacion_guardada_payload.dart';
 import '../../../application/sync/payloads/cotizacion_recuperada_payload.dart';
+import '../../../application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
 import 'app_database.dart';
 
 class DriftLocalEventStore
@@ -82,7 +83,15 @@ class DriftLocalEventStore
     await _db.transaction(() async {
       for (final entry in entries) {
         final localEvent = _localEventForCurrentMode(entry.event);
-        await _eventDao.insertarEvento(_eventCompanionFrom(localEvent));
+        await _eventDao.insertarEvento(
+          _eventCompanionFrom(localEvent).copyWith(
+            applicationStatus:
+                localEvent.eventType ==
+                    TarifaVentaBorradorCambiadaPayload.eventType
+                ? const Value('failed')
+                : Value(localEvent.applicationStatus),
+          ),
+        );
         if (_appConfigController?.mode != AppMode.standalone) {
           await _eventRefDao.insertarReferencias(
             entry.refs
@@ -91,6 +100,14 @@ class DriftLocalEventStore
           );
         }
         await _eventProcessor.apply(localEvent);
+        if (localEvent.eventType ==
+            TarifaVentaBorradorCambiadaPayload.eventType) {
+          await (_db.update(
+            _db.events,
+          )..where((t) => t.eventId.equals(localEvent.eventId))).write(
+            const EventsCompanion(applicationStatus: Value('applied')),
+          );
+        }
       }
     });
   }
@@ -106,6 +123,7 @@ class DriftLocalEventStore
           ProductoActualizadoBorradorPayload.eventType,
           ProductoEliminadoBorradorPayload.eventType,
           VentaBorradorLimpiadaPayload.eventType,
+          TarifaVentaBorradorCambiadaPayload.eventType,
         }.contains(event.eventType);
     final localQuotation =
         event.aggregateType == CotizacionGuardadaPayload.aggregateType &&

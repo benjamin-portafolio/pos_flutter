@@ -34,6 +34,11 @@ class ProductVariants extends Table with CommonFields {
   /// positivo y es el único importe obligatorio de la variante.
   IntColumn get salePriceMinor => integer()();
 
+  /// Oferta opcional capturada en centavos; null no acredita conocimiento histórico.
+  IntColumn get offerPriceMinor => integer().nullable().customConstraint(
+    "NULL CHECK (offer_price_minor IS NULL OR (typeof(offer_price_minor) = 'integer' AND offer_price_minor BETWEEN 1 AND 9007199254740991 AND offer_price_minor <= sale_price_minor))",
+  )();
+
   /// Costo estándar opcional en unidad monetaria menor. Null significa costo
   /// desconocido y cero significa costo conocido igual a cero.
   IntColumn get standardCostMinor => integer().nullable()();

@@ -48,6 +48,9 @@ class OperacionEdicionMasiva {
       if (fila.venta.establecer) {
         PrecioVenta.fromUnidadMenor(fila.venta.valor);
       }
+      if (fila.oferta.establecer && fila.oferta.valor != null) {
+        PrecioVenta.fromUnidadMenor(fila.oferta.valor!);
+      }
       if (fila.costo.establecer) {
         CostoEstandar.fromUnidadMenor(fila.costo.valor);
       }
@@ -74,6 +77,7 @@ class OperacionEdicionMasiva {
             'product_id': c.clave.productId,
             'variant_id': c.clave.variantId,
             'product_base': _baseJson(c.baseProducto),
+            if (c.oferta.establecer) 'offer_minor': c.oferta.valor,
             'sale_minor': c.venta.establecer ? c.venta.valor : null,
             'cost_minor': c.costo.establecer ? c.costo.valor : null,
             'supplier': c.precioProveedor == null
@@ -111,6 +115,9 @@ class OperacionEdicionMasiva {
           venta: c['sale_minor'] == null
               ? const CambioExplicito.conservar()
               : CambioExplicito.establecer(c['sale_minor'] as int),
+          oferta: c.containsKey('offer_minor')
+              ? CambioExplicito.establecer(c['offer_minor'] as int?)
+              : const CambioExplicito.conservar(),
           costo: c['cost_minor'] == null
               ? const CambioExplicito.conservar()
               : CambioExplicito.establecer(c['cost_minor'] as int),

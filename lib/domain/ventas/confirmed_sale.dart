@@ -6,6 +6,8 @@ import 'sale_adjustment_status.dart';
 /// Recibo de negocio conservado aun cuando la entrega requiera atención.
 class ConfirmedSale {
   ConfirmedSale({
+    this.pricingContractVersion,
+    this.pricingMode,
     required this.id,
     this.paymentMethod = 'cash',
     this.paymentReference,
@@ -22,6 +24,9 @@ class ConfirmedSale {
     this.adjustmentStatus = SaleAdjustmentStatus.current,
     required List<SaleDraftItem> items,
   }) : items = List.unmodifiable(items);
+  final int? pricingContractVersion;
+  final String? pricingMode;
+  String get effectivePricingMode => pricingMode ?? 'unknown';
   final String id, currency, deliveryStatus, paymentMethod;
   final String? clienteId, clienteNombre, paymentReference;
   bool get isCredit => paymentMethod == 'credit';
@@ -38,6 +43,8 @@ class ConfirmedSale {
   );
   ConfirmedSale withAdjustments(AdjustedSale sale) => ConfirmedSale(
     id: id,
+    pricingContractVersion: pricingContractVersion,
+    pricingMode: pricingMode,
     paymentMethod: paymentMethod,
     paymentReference: paymentReference,
     clienteId: clienteId,

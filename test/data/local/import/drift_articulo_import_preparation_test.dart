@@ -10,7 +10,7 @@ import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
 import 'package:pos_flutter/data/local/import/drift_articulo_import_catalog_reader.dart';
 
 String _archivo(List<String> filas) =>
-    '${ArticuloCsvContract.columnas.join(',')}\n${filas.join('\n')}\n';
+    '${ArticuloCsvContract.columnasConIdsAnteriores.join(',')}\n${filas.join('\n')}\n';
 String _fila(
   String p,
   String v, {
@@ -117,11 +117,10 @@ void main() {
         audit.reset();
         final report = await service.preparar(_archivo(filas));
         expect(audit.writes, 0);
-        expect(audit.selects, hasLength(6));
+        expect(audit.selects, hasLength(7));
         expect(
           audit.selects.any(
             (s) =>
-                s.contains('events') ||
                 s.contains('inventory_balances') ||
                 s.contains('product_update_undo'),
           ),
@@ -177,7 +176,7 @@ void main() {
     }
   });
   test(
-    '500 omitidos en catálogo de 10000: seis lecturas y cero escrituras',
+    '500 omitidos en catálogo de 10000: siete lecturas y cero escrituras',
     () async {
       await db.batch((b) {
         b.insertAll(db.products, [
@@ -212,7 +211,7 @@ void main() {
       expect(r.productosConCambios, isEmpty);
       expect(r.productos, isEmpty);
       expect(audit.writes, 0);
-      expect(audit.selects, hasLength(6));
+      expect(audit.selects, hasLength(7));
       expect(
         r.productosSinCambios.every((p) => p.actual.variantes.length == 1),
         isTrue,

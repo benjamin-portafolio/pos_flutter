@@ -1,3 +1,4 @@
+import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:uuid/uuid.dart';
@@ -83,6 +84,14 @@ class ControladorEdicionMasiva extends ChangeNotifier {
   bool get cancelacionSolicitada => _guardado?.cancelado ?? false;
   VistaEdicionMasiva get vista => borrador.vista;
   TareaEdicionMasiva get tarea => borrador.tarea;
+
+  Future<void> editarOferta(
+    ClaveVariante clave,
+    CambioExplicito<String?> oferta,
+  ) async {
+    await borrador.editarOferta(clave, oferta);
+    _notificarEstructura();
+  }
 
   void cambiarVista(VistaEdicionMasiva valor) {
     borrador.vista = valor;
@@ -258,6 +267,7 @@ class ControladorEdicionMasiva extends ChangeNotifier {
         (vista == VistaEdicionMasiva.recepcionCompacta
             ? CampoTextoEdicion.costo
             : switch (tarea) {
+                TareaEdicionMasiva.oferta => CampoTextoEdicion.venta,
                 TareaEdicionMasiva.venta => CampoTextoEdicion.venta,
                 TareaEdicionMasiva.costoProveedor => CampoTextoEdicion.costo,
                 TareaEdicionMasiva.agregarExistencias =>

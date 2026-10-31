@@ -6,6 +6,8 @@ import 'package:sqlite3/sqlite3.dart';
 import '../../../application/backup/backup_service.dart';
 import '../drift/app_database.dart';
 import '../drift/current_database_schema.dart';
+import '../drift/offer_pricing_schema.dart';
+import 'safe_database_replacement.dart';
 
 class DriftDatabaseRestoreService implements DatabaseRestoreService {
   DriftDatabaseRestoreService({required AppDatabase db}) : _db = db;
@@ -17,18 +19,39 @@ class DriftDatabaseRestoreService implements DatabaseRestoreService {
     File snapshotFile, {
     required String sha256,
   }) async {
+    final wal = File('${snapshotFile.path}-wal');
+    if (await wal.exists() && await wal.length() > 0) {
+      throw StateError(
+        'El respaldo tiene WAL pendiente; se requiere una captura consistente exportada.',
+      );
+    }
     final actualSha = await _sha256(snapshotFile);
     if (actualSha != sha256) {
       throw StateError('El respaldo descargado no coincide con el sha256.');
     }
 
-    _validateIntegrity(snapshotFile, schemaVersion: _db.schemaVersion);
-
     final databaseFile = await appDatabaseFile();
-    await _db.close();
-    await _deleteDatabaseFiles(databaseFile);
-    await snapshotFile.copy(databaseFile.path);
-    await markAppDatabaseAsRestored();
+    final stagingDir = await databaseFile.parent.createTemp(
+      'pos-restore-staging-',
+    );
+    final staged = File('${stagingDir.path}/database');
+    try {
+      await snapshotFile.copy(staged.path);
+      if (await _sha256(staged) != sha256) {
+        throw StateError('El respaldo cambió durante su copia.');
+      }
+      // El hash y el origen permanecen intactos: migración solo sobre staging.
+      await prepareAppDatabase(staged);
+      _validateIntegrity(staged, schemaVersion: _db.schemaVersion);
+      await _db.close();
+      await replaceDatabaseSafely(
+        databaseFile,
+        staged,
+        markRestored: markAppDatabaseAsRestored,
+      );
+    } finally {
+      await stagingDir.delete(recursive: true);
+    }
   }
 }
 
@@ -51,21 +74,6 @@ void _validateIntegrity(File databaseFile, {required int schemaVersion}) {
     }
   } finally {
     sqlite.close();
-  }
-}
-
-Future<void> _deleteDatabaseFiles(File databaseFile) async {
-  final databasePaths = [
-    databaseFile.path,
-    '${databaseFile.path}-wal',
-    '${databaseFile.path}-shm',
-  ];
-
-  for (final path in databasePaths) {
-    final file = File(path);
-    if (await file.exists()) {
-      await file.delete();
-    }
   }
 }
 

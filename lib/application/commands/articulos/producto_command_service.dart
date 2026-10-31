@@ -1,3 +1,4 @@
+import '../../edicion_masiva/cambio_explicito.dart';
 import '../../../domain/articulos/proveedor_variante.dart';
 import '../../sync/payloads/producto_proveedor_precio.dart';
 import '../../sync/payloads/producto_proveedor_dependencia.dart';
@@ -48,6 +49,7 @@ import 'recurso_recuperacion_resultado.dart';
 
 class ProductoCommandService {
   ProductoCommandService({
+    Future<void> Function()? requireOfferPricing,
     required LocalEventStore eventStore,
     required LocalCommandContext commandContext,
     required CategoriaProjectionStore categoriaProjectionStore,
@@ -58,7 +60,8 @@ class ProductoCommandService {
     ProveedorProjectionStore? proveedorProjectionStore,
     VariantInventoryMemoryStore? variantInventoryMemoryStore,
     VariantInventoryTrackingStore? variantInventoryTrackingStore,
-  }) : _proveedorProjectionStore = proveedorProjectionStore,
+  }) : _requireOfferPricingCallback = requireOfferPricing,
+       _proveedorProjectionStore = proveedorProjectionStore,
        _productoProjectionStore = productoProjectionStore,
        _eventStore = eventStore,
        _commandContext = commandContext,
@@ -81,6 +84,12 @@ class ProductoCommandService {
     return _proveedorProjectionStore != null
         ? current.withKnownSuppliers()
         : current;
+  }
+
+  final Future<void> Function()? _requireOfferPricingCallback;
+
+  Future<void> _requireOfferPricing() async {
+    if (!_isStandalone) await _requireOfferPricingCallback?.call();
   }
 
   final LocalEventStore _eventStore;
@@ -174,6 +183,8 @@ class ProductoCommandService {
             nombre: v.nombre,
             codigoBarras: codigo,
             precioVentaMenor: v.precioVentaMenor,
+            offerPriceMinor: v.offerPriceMinor,
+            knowsOfferPrice: v.knowsOfferPrice,
             costoEstandarMenor: v.costoEstandarMenor,
             inventoryItemId: v.inventoryItemId,
             minimumStockAtomic: v.minimumStockAtomic,
@@ -286,7 +297,10 @@ class ProductoCommandService {
     }
 
     // No usar _snapshotForEdit: el CSV no promueve proveedores legados a [].
-    final before = await _productoProjectionStore!.snapshot(product.id);
+    final current = await _productoProjectionStore!.snapshot(product.id);
+    final before = command.variantes.any((v) => v.offerPrice.establecer)
+        ? current.withKnownOfferPrice()
+        : current;
     final variants = [
       for (final v in before.variantes)
         if (changes[v.id] case final change?)
@@ -295,6 +309,10 @@ class ProductoCommandService {
             nombre: change.nombre,
             codigoBarras: change.codigoBarras,
             precioVentaMenor: change.precioVentaMinor,
+            offerPriceMinor: change.offerPrice.establecer
+                ? change.offerPrice.valor
+                : v.offerPriceMinor,
+            knowsOfferPrice: before.knowsOfferPrice,
             costoEstandarMenor: change.precioCosteMinor,
             inventoryItemId: v.inventoryItemId,
             minimumStockAtomic: v.minimumStockAtomic,
@@ -382,9 +400,12 @@ class ProductoCommandService {
     final incorporaPareja = command.cambios.any(
       (cambio) => cambio.precioProveedor != null,
     );
-    final before = legado && incorporaPareja
+    final suppliers = legado && incorporaPareja
         ? actual.withKnownSuppliers()
         : actual;
+    final before = command.cambios.any((c) => c.oferta.establecer)
+        ? suppliers.withKnownOfferPrice()
+        : suppliers;
     final variants = [
       for (final v in before.variantes)
         if (changes[v.id] case final cambio?)
@@ -445,6 +466,10 @@ class ProductoCommandService {
       precioVentaMenor: cambio.venta.establecer
           ? cambio.venta.valor
           : actual.precioVentaMenor,
+      offerPriceMinor: cambio.oferta.establecer
+          ? cambio.oferta.valor
+          : actual.offerPriceMinor,
+      knowsOfferPrice: actual.knowsOfferPrice,
       costoEstandarMenor: cambio.costo.establecer
           ? cambio.costo.valor
           : actual.costoEstandarMenor,
@@ -573,7 +598,10 @@ class ProductoCommandService {
     if (product.lastEventId != baseEventId) {
       throw StateError('El artículo cambió. Vuelve a abrirlo.');
     }
-    final current = await _snapshotForEdit(productId);
+    final read = await _snapshotForEdit(productId);
+    final current = command.variantes.any((v) => v.offerPrice.establecer)
+        ? read.withKnownOfferPrice()
+        : read;
     final before = command.variantes.any((v) => v.minimumStock.establecer)
         ? current.withKnownMinimumStock()
         : current;
@@ -708,24 +736,27 @@ class ProductoCommandService {
     ProductoProjection product,
     ProductoActualizadoPayload payload, {
     String? eventId,
-  }) async => SyncEvent(
-    eventId: eventId ?? _uuid.v4(),
-    aggregateType: ProductoActualizadoPayload.aggregateType,
-    aggregateId: product.id,
-    eventType: ProductoActualizadoPayload.eventType,
-    deviceId: _commandContext.deviceId,
-    userId: _commandContext.userId,
-    baseVersion: product.version,
-    baseServerSequence:
-        (await _syncedEventHistory.eventById(
-              payload.baseEventId,
-            ))?.deliveryStatus ==
-            'pending'
-        ? null
-        : product.lastServerSequence,
-    createdAtLocal: DateTime.now(),
-    payload: payload.toJson(),
-  );
+  }) async {
+    if (payload.after.knowsOfferPrice) await _requireOfferPricing();
+    return SyncEvent(
+      eventId: eventId ?? _uuid.v4(),
+      aggregateType: ProductoActualizadoPayload.aggregateType,
+      aggregateId: product.id,
+      eventType: ProductoActualizadoPayload.eventType,
+      deviceId: _commandContext.deviceId,
+      userId: _commandContext.userId,
+      baseVersion: product.version,
+      baseServerSequence:
+          (await _syncedEventHistory.eventById(
+                payload.baseEventId,
+              ))?.deliveryStatus ==
+              'pending'
+          ? null
+          : product.lastServerSequence,
+      createdAtLocal: DateTime.now(),
+      payload: payload.toJson(),
+    );
+  }
 
   Future<void> crearArticulo(CrearArticuloCommand command) =>
       _runInTransaction(() => _crearArticulo(command));
@@ -787,6 +818,7 @@ class ProductoCommandService {
     ProductoCreadoPayload? before,
     List<String?>? existingVariantIds,
   }) async {
+    if (before == null || before.knowsOfferPrice) await _requireOfferPricing();
     final nombre = NombreProducto.fromInput(command.nombre);
     final saleConfiguration = await _validateSaleConfiguration(
       command.saleConfiguration,
@@ -881,6 +913,15 @@ class ProductoCommandService {
           )?.unidadMenor,
           codigoBarras: CodigoBarras.fromInput(captured.codigoBarras).value,
           inventory: directInventory,
+          offerPrice: captured.offerPrice.establecer
+              ? CambioExplicito.establecer(
+                  captured.offerPrice.valor == null
+                      ? null
+                      : PrecioVenta.fromInput(
+                          captured.offerPrice.valor!,
+                        ).unidadMenor,
+                )
+              : const CambioExplicito.conservar(),
           changesMinimumStock: captured.minimumStock.establecer,
           minimumStockAtomic: _normalizeMinimumStock(captured, directInventory),
           recipeComponents: recipeComponents,
@@ -1113,6 +1154,13 @@ class ProductoCommandService {
                     .where((v) => v.id == variantIds[index])
                     .firstOrNull
                     ?.minimumStockAtomic,
+          offerPriceMinor: normalizedVariants[index].offerPrice.establecer
+              ? normalizedVariants[index].offerPrice.valor
+              : before?.variantes
+                    .where((v) => v.id == variantIds[index])
+                    .firstOrNull
+                    ?.offerPriceMinor,
+          knowsOfferPrice: before?.knowsOfferPrice ?? true,
           knowsMinimumStock: before?.knowsMinimumStock ?? true,
           // Una binding existe siempre que la variante conserva o recupera
           // seguimiento directo; su `inventoryItemId` manda sobre `before`,
@@ -1622,6 +1670,7 @@ class _NormalizedVariant {
     required this.codigoBarras,
     required this.inventory,
     required this.recipeComponents,
+    required this.offerPrice,
     required this.changesMinimumStock,
     required this.minimumStockAtomic,
     this.existingInventoryItemId,
@@ -1633,6 +1682,7 @@ class _NormalizedVariant {
   final int? costoEstandarMenor;
   final String? codigoBarras;
   final _NormalizedInventory? inventory;
+  final CambioExplicito<int?> offerPrice;
   final bool changesMinimumStock;
   final int? minimumStockAtomic;
   final List<_NormalizedRecipeComponent> recipeComponents;

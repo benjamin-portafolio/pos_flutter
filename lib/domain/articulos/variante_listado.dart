@@ -6,6 +6,7 @@ class VarianteListado {
     required this.nombre,
     required this.precioVentaMenor,
     this.costoEstandarMenor,
+    this.offerPriceMinor,
     this.minimumStockAtomic,
     this.knowsMinimumStock = false,
     required this.orden,
@@ -19,6 +20,9 @@ class VarianteListado {
   final String? nombre;
   final int precioVentaMenor;
   final int? costoEstandarMenor;
+
+  /// Oferta opcional, independiente del costo y del precio normal.
+  final int? offerPriceMinor;
 
   /// Umbral atómico y conocimiento del contrato, independiente de SQL null.
   final int? minimumStockAtomic;

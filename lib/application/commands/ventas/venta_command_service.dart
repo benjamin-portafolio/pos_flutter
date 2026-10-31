@@ -1,3 +1,4 @@
+import 'sale_draft_changed_exception.dart';
 import '../caja/caja_command_service.dart';
 import '../../sync/projections/cliente_projection_store.dart';
 import 'package:uuid/uuid.dart';
@@ -43,10 +44,10 @@ class VentaCommandService {
         sale.userId != context.userId ||
         sale.deviceId != context.deviceId ||
         sale.lastEventId != command.expectedDraftEventId ||
+        (command.expectedVersion != null &&
+            sale.version != command.expectedVersion) ||
         sale.totalMinor != command.expectedTotalMinor) {
-      throw StateError(
-        'El borrador cambió o ya fue cobrado. Revísalo antes de cobrar.',
-      );
+      throw SaleDraftChangedException();
     }
     final cliente = command.clienteId == null
         ? null
@@ -142,6 +143,9 @@ class VentaCommandService {
         throw StateError('Falta trazabilidad del artículo.');
       }
       dependencies.add(configEvent);
+      if (item.snapshot.priceConfigurationEventId case final priceEvent?) {
+        dependencies.add(priceEvent);
+      }
       lines.add(
         ConfirmedSaleLine(
           id: item.id,
@@ -166,6 +170,8 @@ class VentaCommandService {
         method: command.paymentMethod,
         amountMinor: sale.totalMinor,
       ),
+      pricingContractVersion: 2,
+      pricingMode: sale.pricingMode ?? 'normal',
       paymentId: credit ? null : _uuid.v4(),
       paymentMethod: command.paymentMethod,
       paymentReference: VentaConfirmadaPayload.normalizeReference(

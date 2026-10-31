@@ -3,6 +3,11 @@ import '../inventario/unidad_inventario.dart';
 /// Condiciones actuales del catálogo necesarias para anticipar una línea medida.
 class MeasuredSaleConditions {
   const MeasuredSaleConditions({
+    this.priceSnapshotVersion,
+    this.normalPriceMinorSnapshot,
+    this.offerPriceMinorSnapshot,
+    this.effectivePriceSource,
+    this.priceConfigurationEventId,
     required this.variantId,
     required this.productName,
     required this.variantName,
@@ -13,6 +18,10 @@ class MeasuredSaleConditions {
     required this.consumptionConfigurationKey,
   });
 
+  final int? priceSnapshotVersion,
+      normalPriceMinorSnapshot,
+      offerPriceMinorSnapshot;
+  final String? effectivePriceSource, priceConfigurationEventId;
   final String variantId;
   final String productName;
   final String? variantName;

@@ -49,7 +49,7 @@ void main() {
   const encabezado =
       'product_id,variant_id,categoria,nombre_articulo,tipo_venta,unidad_venta,nombre_variante,'
       'precio_venta,precio_coste,seguimiento_existencias,existencias,'
-      'codigo_barras';
+      'codigo_barras,precio_oferta,accion_oferta';
 
   Future<List<String>> leerLineas(String ruta) async {
     final bytes = await File(ruta).readAsBytes();
@@ -82,7 +82,7 @@ void main() {
       expect(lineas.first, encabezado);
       final variante = (await db.select(db.productVariants).get()).single;
       expect(lineas[1].split(',').take(2), ['cafe', variante.id]);
-      expect(lineas[1].split(','), hasLength(12));
+      expect(lineas[1].split(','), hasLength(14));
       final revision = await ArticuloImportPreparationService(
         parser: const ArticuloImportCsv(),
         reader: DriftArticuloImportCatalogReader(db),
@@ -90,7 +90,7 @@ void main() {
       expect(revision.errores, isEmpty);
       expect(revision.productosSinCambios.single.productId, 'cafe');
       expect(revision.productos, isEmpty);
-      // El servicio público activa el mismo contrato de doce columnas.
+      // El servicio público activa el mismo contrato de catorce columnas.
       final publico = await service.exportarCatalogo(
         ArticuloExportFiltro.sinFiltros,
       );
@@ -113,7 +113,7 @@ void main() {
       expect(
         lineas
             .skip(1)
-            .every((l) => l.split(',').length == 12 && l.startsWith(',,')),
+            .every((l) => l.split(',').length == 14 && l.startsWith(',,')),
         isTrue,
       );
       expect(
@@ -125,7 +125,7 @@ void main() {
       expect(ArticuloCatalogCsv.productosPlantilla, 4);
       final notas = await nuevo.exportarNotasColumnas();
       final texto = await File(notas.ruta).readAsString();
-      expect((await leerLineas(notas.ruta)), hasLength(13));
+      expect((await leerLineas(notas.ruta)), hasLength(15));
       expect(texto, contains('variant_id'));
       expect(texto, contains('nunca ajusta el saldo'));
       expect(texto, contains('Vacío retira'));
@@ -163,7 +163,7 @@ void main() {
   );
 
   test(
-    'escribe una fila por variante con las doce columnas del contrato',
+    'escribe una fila por variante con las catorce columnas del contrato',
     () async {
       await _articuloSinInventario(
         db,
@@ -191,6 +191,8 @@ void main() {
         'no',
         '0',
         '',
+        '',
+        'conservar',
       ]);
       expect(archivo.productos, 1);
       expect(archivo.filas, 1);
@@ -385,7 +387,7 @@ void main() {
     // duplican: es la forma de que un separador dentro del nombre no corra la fila.
     expect(
       lineas[1],
-      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,',
+      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,,,conservar',
     );
   });
 
@@ -512,9 +514,9 @@ void main() {
     expect(archivo.ruta.endsWith('catalogo_columnas.csv'), isTrue);
     final lineas = await leerLineas(archivo.ruta);
     expect(lineas.first, 'columna,obligatoria,valores_permitidos,descripcion');
-    expect(lineas, hasLength(13));
+    expect(lineas, hasLength(15));
     expect(lineas[1].split(',').first, 'product_id');
-    expect(lineas.last.split(',').first, 'codigo_barras');
+    expect(lineas.last.split(',').first, 'accion_oferta');
   });
 
   test(

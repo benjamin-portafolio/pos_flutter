@@ -1,3 +1,4 @@
+import '../edicion_masiva/cambio_explicito.dart';
 import '../commands/articulos/crear_articulo_command.dart';
 import '../commands/articulos/crear_articulo_variante_command.dart';
 import '../commands/articulos/producto_command_service.dart';
@@ -128,6 +129,7 @@ class ArticuloImportBatchService {
         ActualizarArticuloVarianteCsvCommand(
           variantId: variante.id,
           nombre: variante.nombre,
+          offerPrice: variante.offerPrice,
           precioVentaMinor: variante.precioVentaMinor,
           precioCosteMinor: variante.precioCosteMinor,
           codigoBarras: variante.codigoBarras,
@@ -152,6 +154,13 @@ class ArticuloImportBatchService {
       for (final variante in producto.variantes)
         CrearArticuloVarianteCommand(
           nombre: variante.nombre,
+          offerPrice: variante.offerPrice.establecer
+              ? CambioExplicito.establecer(
+                  variante.offerPrice.valor == null
+                      ? null
+                      : _dinero(variante.offerPrice.valor!),
+                )
+              : const CambioExplicito.conservar(),
           precioVenta: _dinero(variante.precioVentaMinor),
           costoEstandar: variante.precioCosteMinor == null
               ? null
@@ -182,7 +191,7 @@ class ArticuloImportBatchService {
       'No se pudo guardar el lote. Revisa los artículos e inténtalo de nuevo.',
   };
 
-  // Reconstrucción decimal exacta: la regla half-up ya se aplicó al leer el CSV.
+  // Reconstrucción decimal exacta de los importes validados al leer el CSV.
   String _dinero(int minor) =>
       '${minor ~/ 100}.${(minor % 100).toString().padLeft(2, '0')}';
 }

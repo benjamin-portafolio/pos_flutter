@@ -29,8 +29,8 @@ Usa esta lista antes, durante y despues de agregar un flujo similar a `espacio_c
       usar `CommonFields`.
 - [ ] Crear o modificar DAO en `data/local/drift/daos`.
 - [ ] Registrar tabla y DAO en `AppDatabase`.
-- [ ] No agregar migracion `onUpgrade` ni subir `schemaVersion` por defecto.
-- [ ] Asumir reinicio de base local con `_resetDatabaseOnStartup` hasta que el usuario indique lo contrario.
+- [ ] Registrar una evolución versionada con huella física y pruebas de conservación si cambia el esquema.
+- [ ] Usar la actualización segura previa a Drift; nunca reiniciar una base persistente ni eliminar desconocidos.
 
 ## Aplicacion
 

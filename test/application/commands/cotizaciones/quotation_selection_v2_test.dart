@@ -58,6 +58,7 @@ void main() {
           .insert(
             ProductVariantsCompanion.insert(
               id: row['id'] as String,
+              createdEventId: const Value(QuotationHarness.configId),
               productId: row['product_id'] as String,
               name: Value(row['name'] as String?),
               nameKey: Value((row['name'] as String?)?.toLowerCase()),
@@ -285,9 +286,21 @@ void main() {
         final lines = await h.db.saleDao.items(sale.id);
         for (var i = 0; i < lines.length; i++) {
           final row = (expected['sale_items'] as List)[i] as Map;
-          for (final entry in lines[i].snapshot.toJson().entries) {
-            expect(row[entry.key], entry.value, reason: entry.key);
+          for (final entry in row.entries) {
+            if (lines[i].snapshot.toJson().containsKey(entry.key)) {
+              expect(
+                lines[i].snapshot.toJson()[entry.key],
+                entry.value,
+                reason: entry.key as String,
+              );
+            }
           }
+          expect(lines[i].snapshot.priceSnapshotVersion, 2);
+          expect(lines[i].snapshot.effectivePriceSource, 'normal');
+          expect(
+            lines[i].snapshot.priceConfigurationEventId,
+            QuotationHarness.configId,
+          );
           expect(lines[i].id, row['id']);
           expect(lines[i].snapshot.totalMinor, row['total_minor']);
         }

@@ -1,6 +1,11 @@
 class AgregarProductoBorradorCommand {
   const AgregarProductoBorradorCommand({
     required this.variantId,
+    this.expectedSaleId,
+    this.expectedDraftEventId,
+    this.expectedVersion,
+    this.expectedPricingMode,
+    this.expectedPriceConfigurationEventId,
     this.measuredQuantity,
     this.targetAmountMinor,
     this.expectedUnitId,
@@ -8,6 +13,13 @@ class AgregarProductoBorradorCommand {
     this.expectedPriceReferenceQuantityAtomic,
   });
   final String variantId;
+
+  /// Guarda completa del diálogo. Si se proporciona saleId se exige la revisión.
+  final String? expectedSaleId,
+      expectedDraftEventId,
+      expectedPricingMode,
+      expectedPriceConfigurationEventId;
+  final int? expectedVersion;
 
   /// Texto capturado en la unidad visible, convertido exactamente en el servicio.
   final String? measuredQuantity;

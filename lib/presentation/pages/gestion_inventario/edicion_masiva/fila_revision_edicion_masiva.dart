@@ -106,6 +106,13 @@ class FilaRevisionEdicionMasiva extends StatelessWidget {
 
   List<Widget> _cambios(CambioVarianteMasiva cambio) {
     final widgets = <Widget>[];
+    if (cambio.oferta.establecer) {
+      widgets.add(
+        Text(
+          'Oferta: ${fila.captura.original.ofertaMinor == null ? "Sin oferta" : _importes.format(fila.captura.original.ofertaMinor!)} → ${cambio.oferta.valor == null ? "Sin oferta" : _importes.format(cambio.oferta.valor!)}',
+        ),
+      );
+    }
     if (cambio.venta.establecer) {
       widgets.add(
         Text(

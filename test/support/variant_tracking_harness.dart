@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/sync/handlers/tarifa_venta_borrador_cambiada_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
 import 'package:pos_flutter/application/sync/sale_adjustment_availability.dart';
 import 'package:http/http.dart' as http;
 import 'package:pos_flutter/application/commands/ventas/sale_reconciliation_command_service.dart';
@@ -110,6 +112,8 @@ class VariantTrackingHarness {
     );
     processor = EventProcessor(
       handlers: {
+        TarifaVentaBorradorCambiadaPayload.eventType:
+            TarifaVentaBorradorCambiadaEventHandler(db.saleDao).apply,
         CajaAbiertaPayload.eventType: cashHandler.apply,
         CajaCerradaPayload.eventType: cashHandler.apply,
         OperacionVentaConciliadaPayload.eventType: reconciliationHandler.apply,

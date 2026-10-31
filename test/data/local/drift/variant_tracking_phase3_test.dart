@@ -721,6 +721,8 @@ void main() {
               proveedores: before.variantes.single.proveedores,
               minimumStockAtomic: before.variantes.single.minimumStockAtomic,
               knowsMinimumStock: before.knowsMinimumStock,
+              offerPriceMinor: before.variantes.single.offerPriceMinor,
+              knowsOfferPrice: before.knowsOfferPrice,
               precioVentaMenor: 1000,
               costoEstandarMenor: null,
               inventoryItemId: officialId,

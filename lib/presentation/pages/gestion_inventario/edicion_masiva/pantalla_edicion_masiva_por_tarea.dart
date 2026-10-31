@@ -218,6 +218,10 @@ class _PantallaEdicionMasivaPorTareaState
                       child: Text('Precio de venta'),
                     ),
                     DropdownMenuItem(
+                      value: TareaEdicionMasiva.oferta,
+                      child: Text('Precio de oferta'),
+                    ),
+                    DropdownMenuItem(
                       value: TareaEdicionMasiva.costoProveedor,
                       child: Text('Costo estándar y proveedor'),
                     ),

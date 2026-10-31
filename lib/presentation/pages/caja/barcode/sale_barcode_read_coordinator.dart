@@ -23,7 +23,7 @@ class SaleBarcodeReadCoordinator {
   final VentaBorradorCommandService _commands;
 
   Future<MeasuredSaleConditions?> conditionsFor(String variantId) =>
-      _products.obtenerCondicionesVentaMedida(variantId);
+      _commands.prepararCaptura(variantId).then((c) => c.measured);
 
   Future<SaleBarcodeReadResult> read(
     String code, {
@@ -75,6 +75,8 @@ class SaleBarcodeReadCoordinator {
         return result(SaleBarcodeReadOutcome.selectionCancelled);
       }
 
+      final capture = await _commands.prepararCaptura(candidate.varianteId);
+      if (!canContinue()) return result(SaleBarcodeReadOutcome.interrupted);
       SaleQuantityFormResult? quantity;
       final unit = candidate.unidadVenta;
       if (candidate.saleConfiguration is MeasuredSaleConfiguration) {
@@ -103,8 +105,10 @@ class SaleBarcodeReadCoordinator {
       if (!canContinue()) return result(SaleBarcodeReadOutcome.interrupted);
       onCommandStarted?.call();
       await _commands.agregar(
-        quantity?.toCommand(candidate.varianteId) ??
-            AgregarProductoBorradorCommand(variantId: candidate.varianteId),
+        capture.bind(
+          quantity?.toCommand(candidate.varianteId) ??
+              AgregarProductoBorradorCommand(variantId: candidate.varianteId),
+        ),
       );
       return result(
         SaleBarcodeReadOutcome.added,

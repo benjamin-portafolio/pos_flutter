@@ -160,14 +160,14 @@ void main() {
         throwsStateError,
       );
       expect(await file.exists(), isTrue);
-      expect(
-        await resetDevelopmentDatabase(
+      await expectLater(
+        resetDevelopmentDatabase(
           file,
           shouldPreserveRestoredDatabase: () async => false,
         ),
-        isTrue,
+        throwsStateError,
       );
-      expect(await file.exists(), isFalse);
+      expect(await file.exists(), isTrue);
     },
   );
 }

@@ -1,3 +1,4 @@
+import '../../../application/sync/applied_local_event_reader.dart';
 import '../../../application/sync/sale_adjustment_sync_contract.dart';
 import 'tables/sale_reconciliation_effects.dart';
 import 'tables/sale_delivery_incidents.dart';
@@ -9,7 +10,8 @@ import 'tables/sale_adjustment_intents.dart';
 import 'tables/bulk_edit_operations.dart';
 import 'tables/suppliers.dart';
 import 'tables/variant_suppliers.dart';
-import 'development_database_reset.dart';
+import 'offer_pricing_schema.dart';
+import '../backup/safe_database_replacement.dart';
 import '../../../domain/inventario/inventory_consumption_configuration.dart';
 import 'tables/credit_sales.dart';
 import 'tables/customer_payments.dart';
@@ -156,42 +158,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await _seedInventoryUnits();
+      for (final sql in offerPricingTriggers) {
+        await customStatement(sql);
+      }
     },
     onUpgrade: (m, from, to) async {
-      if (from < 4) {
-        await m.createTable(units);
-        await _seedInventoryUnits();
-        await m.createTable(inventoryItems);
-        await m.createTable(inventoryBalances);
-        await m.createTable(inventoryMovements);
-      }
-      if (from < 5) {
-        await m.addColumn(products, products.saleMode);
-        await m.addColumn(products, products.saleUnitId);
-        await m.addColumn(products, products.priceReferenceQuantityAtomic);
-      }
-      if (from < 6) {
-        await customStatement('DROP TABLE IF EXISTS recipe_components');
-        await m.alterTable(TableMigration(products));
-        await m.alterTable(TableMigration(productVariants));
-        await m.alterTable(TableMigration(inventoryMovements));
-      }
-      if (from >= 4 && from < 7) {
-        await m.addColumn(inventoryBalances, inventoryBalances.version);
-        await m.alterTable(TableMigration(inventoryMovements));
-      }
-      // Bloque propio y no dentro del `from < 7` de arriba: ese rango excluye
-      // el esquema 7, y una base en 7 tiene que pasar por aquí.
-      if (from < 8) {
-        await m.createTable(accountBalanceBaselines);
-      }
+      throw StateError(
+        'Abra la base mediante la actualización física segura antes de Drift.',
+      );
     },
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -254,32 +235,11 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final file = await appDatabaseFile();
-    await _resetDatabaseOnStartup(file);
+    await recoverDatabaseReplacement(file);
+    await prepareAppDatabase(file);
 
     return NativeDatabase.createInBackground(file);
   });
-}
-
-/// Durante desarrollo se recrea una base anterior a este esquema, sin migrar
-/// ni cambiar schemaVersion. Las tablas de crédito y clientes deben existir,
-/// sales debe incluir cliente_id, product_variants debe incluir barcode, no
-/// puede conservarse la columna legada is_default y el módulo de
-/// ingresos/gastos requiere financial_categories y financial_entries; el
-/// seguimiento de existencias requiere inventory_items.origin_variant_id y las
-/// tablas variant_inventory_memory e inventory_item_discards; las bases
-/// actuales se conservan entre arranques. Cotizaciones requiere quotations,
-/// quotation_items sin condiciones monetarias y sus índices. Una base previa
-/// o con columnas retiradas se reinicia, salvo respaldos restaurados protegidos.
-/// Edición masiva exige bulk_edit_operations y su índice de captura/producto.
-/// Proveedores exige suppliers con CommonFields y variant_suppliers con precio/fecha.
-/// Las pestañas de Caja requieren ix_sales_local_drafts, sin unicidad por dispositivo.
-/// Anulaciones/devoluciones requieren documentos, líneas, diario, reducciones y
-/// vínculos compensatorios; la detección compartida rechaza el esquema previo.
-Future<void> _resetDatabaseOnStartup(File file) async {
-  await resetDevelopmentDatabase(
-    file,
-    shouldPreserveRestoredDatabase: appDatabaseShouldPreserveRestoredDatabase,
-  );
 }
 
 Future<File> appDatabaseFile() async {

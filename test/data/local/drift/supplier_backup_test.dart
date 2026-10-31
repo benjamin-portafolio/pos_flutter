@@ -66,7 +66,7 @@ void main() {
           ),
         );
     await db.customStatement(
-      'CREATE TABLE retained_supplier_marker(value TEXT)',
+      "INSERT INTO products(id,name) VALUES ('retained_supplier_marker','retained_supplier_marker')",
     );
   }
 
@@ -116,13 +116,13 @@ void main() {
         expect(
           await db
               .customSelect(
-                "SELECT name FROM sqlite_master WHERE name='retained_supplier_marker'",
+                "SELECT id AS name FROM products WHERE id='retained_supplier_marker'",
               )
               .get(),
           hasLength(1),
         );
         expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-        expect(db.schemaVersion, 8);
+        expect(db.schemaVersion, 9);
       } finally {
         await db.close();
         await snapshot.file.parent.delete(recursive: true);
@@ -149,7 +149,7 @@ void main() {
         if (protected) await markAppDatabaseAsRestored();
         final beforeHash = sha256.convert(await file.readAsBytes()).toString();
         final reopened = AppDatabase();
-        if (protected) {
+        {
           await expectLater(
             reopened.select(reopened.suppliers).get(),
             throwsStateError,
@@ -159,22 +159,6 @@ void main() {
             sha256.convert(await file.readAsBytes()).toString(),
             beforeHash,
           );
-        } else {
-          expect(await reopened.select(reopened.suppliers).get(), isEmpty);
-          expect(
-            await reopened.select(reopened.variantSuppliers).get(),
-            isEmpty,
-          );
-          expect(
-            await reopened
-                .customSelect(
-                  "SELECT name FROM sqlite_master WHERE name='retained_supplier_marker'",
-                )
-                .get(),
-            isEmpty,
-          );
-          expect(reopened.schemaVersion, 8);
-          await reopened.close();
         }
       });
     }

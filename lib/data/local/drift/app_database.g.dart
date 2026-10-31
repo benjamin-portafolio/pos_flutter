@@ -3782,6 +3782,19 @@ class $ProductVariantsTable extends ProductVariants
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _offerPriceMinorMeta = const VerificationMeta(
+    'offerPriceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> offerPriceMinor = GeneratedColumn<int>(
+    'offer_price_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NULL CHECK (offer_price_minor IS NULL OR (typeof(offer_price_minor) = \'integer\' AND offer_price_minor BETWEEN 1 AND 9007199254740991 AND offer_price_minor <= sale_price_minor))',
+  );
   static const VerificationMeta _standardCostMinorMeta = const VerificationMeta(
     'standardCostMinor',
   );
@@ -3841,6 +3854,7 @@ class $ProductVariantsTable extends ProductVariants
     nameKey,
     barcode,
     salePriceMinor,
+    offerPriceMinor,
     standardCostMinor,
     inventoryItemId,
     minimumStockAtomic,
@@ -3939,6 +3953,15 @@ class $ProductVariantsTable extends ProductVariants
     } else if (isInserting) {
       context.missing(_salePriceMinorMeta);
     }
+    if (data.containsKey('offer_price_minor')) {
+      context.handle(
+        _offerPriceMinorMeta,
+        offerPriceMinor.isAcceptableOrUnknown(
+          data['offer_price_minor']!,
+          _offerPriceMinorMeta,
+        ),
+      );
+    }
     if (data.containsKey('standard_cost_minor')) {
       context.handle(
         _standardCostMinorMeta,
@@ -4027,6 +4050,10 @@ class $ProductVariantsTable extends ProductVariants
         DriftSqlType.int,
         data['${effectivePrefix}sale_price_minor'],
       )!,
+      offerPriceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}offer_price_minor'],
+      ),
       standardCostMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}standard_cost_minor'],
@@ -4092,6 +4119,9 @@ class ProductVariantRow extends DataClass
   /// positivo y es el único importe obligatorio de la variante.
   final int salePriceMinor;
 
+  /// Oferta opcional capturada en centavos; null no acredita conocimiento histórico.
+  final int? offerPriceMinor;
+
   /// Costo estándar opcional en unidad monetaria menor. Null significa costo
   /// desconocido y cero significa costo conocido igual a cero.
   final int? standardCostMinor;
@@ -4120,6 +4150,7 @@ class ProductVariantRow extends DataClass
     this.nameKey,
     this.barcode,
     required this.salePriceMinor,
+    this.offerPriceMinor,
     this.standardCostMinor,
     this.inventoryItemId,
     this.minimumStockAtomic,
@@ -4151,6 +4182,9 @@ class ProductVariantRow extends DataClass
       map['barcode'] = Variable<String>(barcode);
     }
     map['sale_price_minor'] = Variable<int>(salePriceMinor);
+    if (!nullToAbsent || offerPriceMinor != null) {
+      map['offer_price_minor'] = Variable<int>(offerPriceMinor);
+    }
     if (!nullToAbsent || standardCostMinor != null) {
       map['standard_cost_minor'] = Variable<int>(standardCostMinor);
     }
@@ -4187,6 +4221,9 @@ class ProductVariantRow extends DataClass
           ? const Value.absent()
           : Value(barcode),
       salePriceMinor: Value(salePriceMinor),
+      offerPriceMinor: offerPriceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(offerPriceMinor),
       standardCostMinor: standardCostMinor == null && nullToAbsent
           ? const Value.absent()
           : Value(standardCostMinor),
@@ -4217,6 +4254,7 @@ class ProductVariantRow extends DataClass
       nameKey: serializer.fromJson<String?>(json['nameKey']),
       barcode: serializer.fromJson<String?>(json['barcode']),
       salePriceMinor: serializer.fromJson<int>(json['salePriceMinor']),
+      offerPriceMinor: serializer.fromJson<int?>(json['offerPriceMinor']),
       standardCostMinor: serializer.fromJson<int?>(json['standardCostMinor']),
       inventoryItemId: serializer.fromJson<String?>(json['inventoryItemId']),
       minimumStockAtomic: serializer.fromJson<int?>(json['minimumStockAtomic']),
@@ -4238,6 +4276,7 @@ class ProductVariantRow extends DataClass
       'nameKey': serializer.toJson<String?>(nameKey),
       'barcode': serializer.toJson<String?>(barcode),
       'salePriceMinor': serializer.toJson<int>(salePriceMinor),
+      'offerPriceMinor': serializer.toJson<int?>(offerPriceMinor),
       'standardCostMinor': serializer.toJson<int?>(standardCostMinor),
       'inventoryItemId': serializer.toJson<String?>(inventoryItemId),
       'minimumStockAtomic': serializer.toJson<int?>(minimumStockAtomic),
@@ -4257,6 +4296,7 @@ class ProductVariantRow extends DataClass
     Value<String?> nameKey = const Value.absent(),
     Value<String?> barcode = const Value.absent(),
     int? salePriceMinor,
+    Value<int?> offerPriceMinor = const Value.absent(),
     Value<int?> standardCostMinor = const Value.absent(),
     Value<String?> inventoryItemId = const Value.absent(),
     Value<int?> minimumStockAtomic = const Value.absent(),
@@ -4277,6 +4317,9 @@ class ProductVariantRow extends DataClass
     nameKey: nameKey.present ? nameKey.value : this.nameKey,
     barcode: barcode.present ? barcode.value : this.barcode,
     salePriceMinor: salePriceMinor ?? this.salePriceMinor,
+    offerPriceMinor: offerPriceMinor.present
+        ? offerPriceMinor.value
+        : this.offerPriceMinor,
     standardCostMinor: standardCostMinor.present
         ? standardCostMinor.value
         : this.standardCostMinor,
@@ -4309,6 +4352,9 @@ class ProductVariantRow extends DataClass
       salePriceMinor: data.salePriceMinor.present
           ? data.salePriceMinor.value
           : this.salePriceMinor,
+      offerPriceMinor: data.offerPriceMinor.present
+          ? data.offerPriceMinor.value
+          : this.offerPriceMinor,
       standardCostMinor: data.standardCostMinor.present
           ? data.standardCostMinor.value
           : this.standardCostMinor,
@@ -4336,6 +4382,7 @@ class ProductVariantRow extends DataClass
           ..write('nameKey: $nameKey, ')
           ..write('barcode: $barcode, ')
           ..write('salePriceMinor: $salePriceMinor, ')
+          ..write('offerPriceMinor: $offerPriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
           ..write('minimumStockAtomic: $minimumStockAtomic, ')
@@ -4357,6 +4404,7 @@ class ProductVariantRow extends DataClass
     nameKey,
     barcode,
     salePriceMinor,
+    offerPriceMinor,
     standardCostMinor,
     inventoryItemId,
     minimumStockAtomic,
@@ -4377,6 +4425,7 @@ class ProductVariantRow extends DataClass
           other.nameKey == this.nameKey &&
           other.barcode == this.barcode &&
           other.salePriceMinor == this.salePriceMinor &&
+          other.offerPriceMinor == this.offerPriceMinor &&
           other.standardCostMinor == this.standardCostMinor &&
           other.inventoryItemId == this.inventoryItemId &&
           other.minimumStockAtomic == this.minimumStockAtomic &&
@@ -4395,6 +4444,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
   final Value<String?> nameKey;
   final Value<String?> barcode;
   final Value<int> salePriceMinor;
+  final Value<int?> offerPriceMinor;
   final Value<int?> standardCostMinor;
   final Value<String?> inventoryItemId;
   final Value<int?> minimumStockAtomic;
@@ -4412,6 +4462,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.nameKey = const Value.absent(),
     this.barcode = const Value.absent(),
     this.salePriceMinor = const Value.absent(),
+    this.offerPriceMinor = const Value.absent(),
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
     this.minimumStockAtomic = const Value.absent(),
@@ -4430,6 +4481,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     this.nameKey = const Value.absent(),
     this.barcode = const Value.absent(),
     required int salePriceMinor,
+    this.offerPriceMinor = const Value.absent(),
     this.standardCostMinor = const Value.absent(),
     this.inventoryItemId = const Value.absent(),
     this.minimumStockAtomic = const Value.absent(),
@@ -4451,6 +4503,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Expression<String>? nameKey,
     Expression<String>? barcode,
     Expression<int>? salePriceMinor,
+    Expression<int>? offerPriceMinor,
     Expression<int>? standardCostMinor,
     Expression<String>? inventoryItemId,
     Expression<int>? minimumStockAtomic,
@@ -4470,6 +4523,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       if (nameKey != null) 'name_key': nameKey,
       if (barcode != null) 'barcode': barcode,
       if (salePriceMinor != null) 'sale_price_minor': salePriceMinor,
+      if (offerPriceMinor != null) 'offer_price_minor': offerPriceMinor,
       if (standardCostMinor != null) 'standard_cost_minor': standardCostMinor,
       if (inventoryItemId != null) 'inventory_item_id': inventoryItemId,
       if (minimumStockAtomic != null)
@@ -4491,6 +4545,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     Value<String?>? nameKey,
     Value<String?>? barcode,
     Value<int>? salePriceMinor,
+    Value<int?>? offerPriceMinor,
     Value<int?>? standardCostMinor,
     Value<String?>? inventoryItemId,
     Value<int?>? minimumStockAtomic,
@@ -4509,6 +4564,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
       nameKey: nameKey ?? this.nameKey,
       barcode: barcode ?? this.barcode,
       salePriceMinor: salePriceMinor ?? this.salePriceMinor,
+      offerPriceMinor: offerPriceMinor ?? this.offerPriceMinor,
       standardCostMinor: standardCostMinor ?? this.standardCostMinor,
       inventoryItemId: inventoryItemId ?? this.inventoryItemId,
       minimumStockAtomic: minimumStockAtomic ?? this.minimumStockAtomic,
@@ -4553,6 +4609,9 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
     if (salePriceMinor.present) {
       map['sale_price_minor'] = Variable<int>(salePriceMinor.value);
     }
+    if (offerPriceMinor.present) {
+      map['offer_price_minor'] = Variable<int>(offerPriceMinor.value);
+    }
     if (standardCostMinor.present) {
       map['standard_cost_minor'] = Variable<int>(standardCostMinor.value);
     }
@@ -4585,6 +4644,7 @@ class ProductVariantsCompanion extends UpdateCompanion<ProductVariantRow> {
           ..write('nameKey: $nameKey, ')
           ..write('barcode: $barcode, ')
           ..write('salePriceMinor: $salePriceMinor, ')
+          ..write('offerPriceMinor: $offerPriceMinor, ')
           ..write('standardCostMinor: $standardCostMinor, ')
           ..write('inventoryItemId: $inventoryItemId, ')
           ..write('minimumStockAtomic: $minimumStockAtomic, ')
@@ -9236,6 +9296,31 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, SaleRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pricingContractVersionMeta =
+      const VerificationMeta('pricingContractVersion');
+  @override
+  late final GeneratedColumn<int> pricingContractVersion = GeneratedColumn<int>(
+    'pricing_contract_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NULL CHECK (pricing_contract_version IS NULL OR pricing_contract_version = 2)',
+  );
+  static const VerificationMeta _pricingModeMeta = const VerificationMeta(
+    'pricingMode',
+  );
+  @override
+  late final GeneratedColumn<String> pricingMode = GeneratedColumn<String>(
+    'pricing_mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NULL CHECK (pricing_mode IS NULL OR pricing_mode IN (\'normal\',\'offer\'))',
+  );
   static const VerificationMeta _clienteIdMeta = const VerificationMeta(
     'clienteId',
   );
@@ -9323,6 +9408,8 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, SaleRow> {
     createdEventId,
     lastEventId,
     lastServerSequence,
+    pricingContractVersion,
+    pricingMode,
     clienteId,
     userId,
     deviceId,
@@ -9384,6 +9471,24 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, SaleRow> {
         lastServerSequence.isAcceptableOrUnknown(
           data['last_server_sequence']!,
           _lastServerSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pricing_contract_version')) {
+      context.handle(
+        _pricingContractVersionMeta,
+        pricingContractVersion.isAcceptableOrUnknown(
+          data['pricing_contract_version']!,
+          _pricingContractVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pricing_mode')) {
+      context.handle(
+        _pricingModeMeta,
+        pricingMode.isAcceptableOrUnknown(
+          data['pricing_mode']!,
+          _pricingModeMeta,
         ),
       );
     }
@@ -9478,6 +9583,14 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, SaleRow> {
         DriftSqlType.int,
         data['${effectivePrefix}last_server_sequence'],
       ),
+      pricingContractVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pricing_contract_version'],
+      ),
+      pricingMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pricing_mode'],
+      ),
       clienteId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}cliente_id'],
@@ -9534,6 +9647,12 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
   /// Sync cursor representing the official server sequence
   final int? lastServerSequence;
 
+  /// Versión del contrato de precio; null conserva confirmaciones históricas.
+  final int? pricingContractVersion;
+
+  /// Elección global; null = histórico desconocido; borrador legado usa normal al leer.
+  final String? pricingMode;
+
   /// Cliente opcional en efectivo y obligatorio al confirmar a crédito.
   final String? clienteId;
 
@@ -9561,6 +9680,8 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
     this.createdEventId,
     this.lastEventId,
     this.lastServerSequence,
+    this.pricingContractVersion,
+    this.pricingMode,
     this.clienteId,
     required this.userId,
     required this.deviceId,
@@ -9583,6 +9704,12 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
     }
     if (!nullToAbsent || lastServerSequence != null) {
       map['last_server_sequence'] = Variable<int>(lastServerSequence);
+    }
+    if (!nullToAbsent || pricingContractVersion != null) {
+      map['pricing_contract_version'] = Variable<int>(pricingContractVersion);
+    }
+    if (!nullToAbsent || pricingMode != null) {
+      map['pricing_mode'] = Variable<String>(pricingMode);
     }
     if (!nullToAbsent || clienteId != null) {
       map['cliente_id'] = Variable<String>(clienteId);
@@ -9610,6 +9737,12 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
       lastServerSequence: lastServerSequence == null && nullToAbsent
           ? const Value.absent()
           : Value(lastServerSequence),
+      pricingContractVersion: pricingContractVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pricingContractVersion),
+      pricingMode: pricingMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pricingMode),
       clienteId: clienteId == null && nullToAbsent
           ? const Value.absent()
           : Value(clienteId),
@@ -9634,6 +9767,10 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
       createdEventId: serializer.fromJson<String?>(json['createdEventId']),
       lastEventId: serializer.fromJson<String?>(json['lastEventId']),
       lastServerSequence: serializer.fromJson<int?>(json['lastServerSequence']),
+      pricingContractVersion: serializer.fromJson<int?>(
+        json['pricingContractVersion'],
+      ),
+      pricingMode: serializer.fromJson<String?>(json['pricingMode']),
       clienteId: serializer.fromJson<String?>(json['clienteId']),
       userId: serializer.fromJson<String>(json['userId']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
@@ -9653,6 +9790,8 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
       'createdEventId': serializer.toJson<String?>(createdEventId),
       'lastEventId': serializer.toJson<String?>(lastEventId),
       'lastServerSequence': serializer.toJson<int?>(lastServerSequence),
+      'pricingContractVersion': serializer.toJson<int?>(pricingContractVersion),
+      'pricingMode': serializer.toJson<String?>(pricingMode),
       'clienteId': serializer.toJson<String?>(clienteId),
       'userId': serializer.toJson<String>(userId),
       'deviceId': serializer.toJson<String>(deviceId),
@@ -9670,6 +9809,8 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
     Value<String?> createdEventId = const Value.absent(),
     Value<String?> lastEventId = const Value.absent(),
     Value<int?> lastServerSequence = const Value.absent(),
+    Value<int?> pricingContractVersion = const Value.absent(),
+    Value<String?> pricingMode = const Value.absent(),
     Value<String?> clienteId = const Value.absent(),
     String? userId,
     String? deviceId,
@@ -9688,6 +9829,10 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
     lastServerSequence: lastServerSequence.present
         ? lastServerSequence.value
         : this.lastServerSequence,
+    pricingContractVersion: pricingContractVersion.present
+        ? pricingContractVersion.value
+        : this.pricingContractVersion,
+    pricingMode: pricingMode.present ? pricingMode.value : this.pricingMode,
     clienteId: clienteId.present ? clienteId.value : this.clienteId,
     userId: userId ?? this.userId,
     deviceId: deviceId ?? this.deviceId,
@@ -9710,6 +9855,12 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
       lastServerSequence: data.lastServerSequence.present
           ? data.lastServerSequence.value
           : this.lastServerSequence,
+      pricingContractVersion: data.pricingContractVersion.present
+          ? data.pricingContractVersion.value
+          : this.pricingContractVersion,
+      pricingMode: data.pricingMode.present
+          ? data.pricingMode.value
+          : this.pricingMode,
       clienteId: data.clienteId.present ? data.clienteId.value : this.clienteId,
       userId: data.userId.present ? data.userId.value : this.userId,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
@@ -9735,6 +9886,8 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
           ..write('createdEventId: $createdEventId, ')
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('pricingContractVersion: $pricingContractVersion, ')
+          ..write('pricingMode: $pricingMode, ')
           ..write('clienteId: $clienteId, ')
           ..write('userId: $userId, ')
           ..write('deviceId: $deviceId, ')
@@ -9754,6 +9907,8 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
     createdEventId,
     lastEventId,
     lastServerSequence,
+    pricingContractVersion,
+    pricingMode,
     clienteId,
     userId,
     deviceId,
@@ -9772,6 +9927,8 @@ class SaleRow extends DataClass implements Insertable<SaleRow> {
           other.createdEventId == this.createdEventId &&
           other.lastEventId == this.lastEventId &&
           other.lastServerSequence == this.lastServerSequence &&
+          other.pricingContractVersion == this.pricingContractVersion &&
+          other.pricingMode == this.pricingMode &&
           other.clienteId == this.clienteId &&
           other.userId == this.userId &&
           other.deviceId == this.deviceId &&
@@ -9788,6 +9945,8 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
   final Value<String?> createdEventId;
   final Value<String?> lastEventId;
   final Value<int?> lastServerSequence;
+  final Value<int?> pricingContractVersion;
+  final Value<String?> pricingMode;
   final Value<String?> clienteId;
   final Value<String> userId;
   final Value<String> deviceId;
@@ -9803,6 +9962,8 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
     this.createdEventId = const Value.absent(),
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
+    this.pricingContractVersion = const Value.absent(),
+    this.pricingMode = const Value.absent(),
     this.clienteId = const Value.absent(),
     this.userId = const Value.absent(),
     this.deviceId = const Value.absent(),
@@ -9819,6 +9980,8 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
     this.createdEventId = const Value.absent(),
     this.lastEventId = const Value.absent(),
     this.lastServerSequence = const Value.absent(),
+    this.pricingContractVersion = const Value.absent(),
+    this.pricingMode = const Value.absent(),
     this.clienteId = const Value.absent(),
     required String userId,
     required String deviceId,
@@ -9840,6 +10003,8 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
     Expression<String>? createdEventId,
     Expression<String>? lastEventId,
     Expression<int>? lastServerSequence,
+    Expression<int>? pricingContractVersion,
+    Expression<String>? pricingMode,
     Expression<String>? clienteId,
     Expression<String>? userId,
     Expression<String>? deviceId,
@@ -9857,6 +10022,9 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
       if (lastEventId != null) 'last_event_id': lastEventId,
       if (lastServerSequence != null)
         'last_server_sequence': lastServerSequence,
+      if (pricingContractVersion != null)
+        'pricing_contract_version': pricingContractVersion,
+      if (pricingMode != null) 'pricing_mode': pricingMode,
       if (clienteId != null) 'cliente_id': clienteId,
       if (userId != null) 'user_id': userId,
       if (deviceId != null) 'device_id': deviceId,
@@ -9875,6 +10043,8 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
     Value<String?>? createdEventId,
     Value<String?>? lastEventId,
     Value<int?>? lastServerSequence,
+    Value<int?>? pricingContractVersion,
+    Value<String?>? pricingMode,
     Value<String?>? clienteId,
     Value<String>? userId,
     Value<String>? deviceId,
@@ -9891,6 +10061,9 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
       createdEventId: createdEventId ?? this.createdEventId,
       lastEventId: lastEventId ?? this.lastEventId,
       lastServerSequence: lastServerSequence ?? this.lastServerSequence,
+      pricingContractVersion:
+          pricingContractVersion ?? this.pricingContractVersion,
+      pricingMode: pricingMode ?? this.pricingMode,
       clienteId: clienteId ?? this.clienteId,
       userId: userId ?? this.userId,
       deviceId: deviceId ?? this.deviceId,
@@ -9922,6 +10095,14 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
     }
     if (lastServerSequence.present) {
       map['last_server_sequence'] = Variable<int>(lastServerSequence.value);
+    }
+    if (pricingContractVersion.present) {
+      map['pricing_contract_version'] = Variable<int>(
+        pricingContractVersion.value,
+      );
+    }
+    if (pricingMode.present) {
+      map['pricing_mode'] = Variable<String>(pricingMode.value);
     }
     if (clienteId.present) {
       map['cliente_id'] = Variable<String>(clienteId.value);
@@ -9959,6 +10140,8 @@ class SalesCompanion extends UpdateCompanion<SaleRow> {
           ..write('createdEventId: $createdEventId, ')
           ..write('lastEventId: $lastEventId, ')
           ..write('lastServerSequence: $lastServerSequence, ')
+          ..write('pricingContractVersion: $pricingContractVersion, ')
+          ..write('pricingMode: $pricingMode, ')
           ..write('clienteId: $clienteId, ')
           ..write('userId: $userId, ')
           ..write('deviceId: $deviceId, ')
@@ -10146,6 +10329,71 @@ class $SaleItemsTable extends SaleItems
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _priceSnapshotVersionMeta =
+      const VerificationMeta('priceSnapshotVersion');
+  @override
+  late final GeneratedColumn<int> priceSnapshotVersion = GeneratedColumn<int>(
+    'price_snapshot_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _normalPriceMinorSnapshotMeta =
+      const VerificationMeta('normalPriceMinorSnapshot');
+  @override
+  late final GeneratedColumn<int> normalPriceMinorSnapshot =
+      GeneratedColumn<int>(
+        'normal_price_minor_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _offerPriceMinorSnapshotMeta =
+      const VerificationMeta('offerPriceMinorSnapshot');
+  @override
+  late final GeneratedColumn<int> offerPriceMinorSnapshot =
+      GeneratedColumn<int>(
+        'offer_price_minor_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _effectivePriceSourceMeta =
+      const VerificationMeta('effectivePriceSource');
+  @override
+  late final GeneratedColumn<String> effectivePriceSource =
+      GeneratedColumn<String>(
+        'effective_price_source',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _priceSelectionMeta = const VerificationMeta(
+    'priceSelection',
+  );
+  @override
+  late final GeneratedColumn<String> priceSelection = GeneratedColumn<String>(
+    'price_selection',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _priceConfigurationEventIdMeta =
+      const VerificationMeta('priceConfigurationEventId');
+  @override
+  late final GeneratedColumn<String> priceConfigurationEventId =
+      GeneratedColumn<String>(
+        'price_configuration_event_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _standardCostMinorSnapshotMeta =
       const VerificationMeta('standardCostMinorSnapshot');
   @override
@@ -10240,6 +10488,12 @@ class $SaleItemsTable extends SaleItems
     quantity,
     measuredQuantityAtomic,
     unitPriceMinor,
+    priceSnapshotVersion,
+    normalPriceMinorSnapshot,
+    offerPriceMinorSnapshot,
+    effectivePriceSource,
+    priceSelection,
+    priceConfigurationEventId,
     standardCostMinorSnapshot,
     priceReferenceQuantityAtomicSnapshot,
     saleUnitCodeSnapshot,
@@ -10386,6 +10640,60 @@ class $SaleItemsTable extends SaleItems
     } else if (isInserting) {
       context.missing(_unitPriceMinorMeta);
     }
+    if (data.containsKey('price_snapshot_version')) {
+      context.handle(
+        _priceSnapshotVersionMeta,
+        priceSnapshotVersion.isAcceptableOrUnknown(
+          data['price_snapshot_version']!,
+          _priceSnapshotVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('normal_price_minor_snapshot')) {
+      context.handle(
+        _normalPriceMinorSnapshotMeta,
+        normalPriceMinorSnapshot.isAcceptableOrUnknown(
+          data['normal_price_minor_snapshot']!,
+          _normalPriceMinorSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('offer_price_minor_snapshot')) {
+      context.handle(
+        _offerPriceMinorSnapshotMeta,
+        offerPriceMinorSnapshot.isAcceptableOrUnknown(
+          data['offer_price_minor_snapshot']!,
+          _offerPriceMinorSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('effective_price_source')) {
+      context.handle(
+        _effectivePriceSourceMeta,
+        effectivePriceSource.isAcceptableOrUnknown(
+          data['effective_price_source']!,
+          _effectivePriceSourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('price_selection')) {
+      context.handle(
+        _priceSelectionMeta,
+        priceSelection.isAcceptableOrUnknown(
+          data['price_selection']!,
+          _priceSelectionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('price_configuration_event_id')) {
+      context.handle(
+        _priceConfigurationEventIdMeta,
+        priceConfigurationEventId.isAcceptableOrUnknown(
+          data['price_configuration_event_id']!,
+          _priceConfigurationEventIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('standard_cost_minor_snapshot')) {
       context.handle(
         _standardCostMinorSnapshotMeta,
@@ -10516,6 +10824,30 @@ class $SaleItemsTable extends SaleItems
         DriftSqlType.int,
         data['${effectivePrefix}unit_price_minor'],
       )!,
+      priceSnapshotVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}price_snapshot_version'],
+      ),
+      normalPriceMinorSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}normal_price_minor_snapshot'],
+      ),
+      offerPriceMinorSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}offer_price_minor_snapshot'],
+      ),
+      effectivePriceSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}effective_price_source'],
+      ),
+      priceSelection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}price_selection'],
+      ),
+      priceConfigurationEventId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}price_configuration_event_id'],
+      ),
       standardCostMinorSnapshot: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}standard_cost_minor_snapshot'],
@@ -10599,6 +10931,24 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
   /// Precio capturado en centavos por pieza o por cantidad de referencia.
   final int unitPriceMinor;
 
+  /// Versión de captura; null mantiene el legado sin alternativas acreditadas.
+  final int? priceSnapshotVersion;
+
+  /// Precio normal capturado, nunca reconstruido desde catálogo durante migración.
+  final int? normalPriceMinorSnapshot;
+
+  /// Oferta capturada; null en v2 significa sin oferta conocida.
+  final int? offerPriceMinorSnapshot;
+
+  /// Procedencia acreditada: normal u offer; null conserva unknown legado.
+  final String? effectivePriceSource;
+
+  /// Herencia del modo global; no se admiten excepciones por línea todavía.
+  final String? priceSelection;
+
+  /// Evento histórico de producto que acredita precio y costo, separado del consumo.
+  final String? priceConfigurationEventId;
+
   /// Costo estándar capturado; null conserva que se desconoce el costo.
   final int? standardCostMinorSnapshot;
 
@@ -10635,6 +10985,12 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
     this.quantity,
     this.measuredQuantityAtomic,
     required this.unitPriceMinor,
+    this.priceSnapshotVersion,
+    this.normalPriceMinorSnapshot,
+    this.offerPriceMinorSnapshot,
+    this.effectivePriceSource,
+    this.priceSelection,
+    this.priceConfigurationEventId,
     this.standardCostMinorSnapshot,
     this.priceReferenceQuantityAtomicSnapshot,
     this.saleUnitCodeSnapshot,
@@ -10677,6 +11033,30 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
       map['measured_quantity_atomic'] = Variable<int>(measuredQuantityAtomic);
     }
     map['unit_price_minor'] = Variable<int>(unitPriceMinor);
+    if (!nullToAbsent || priceSnapshotVersion != null) {
+      map['price_snapshot_version'] = Variable<int>(priceSnapshotVersion);
+    }
+    if (!nullToAbsent || normalPriceMinorSnapshot != null) {
+      map['normal_price_minor_snapshot'] = Variable<int>(
+        normalPriceMinorSnapshot,
+      );
+    }
+    if (!nullToAbsent || offerPriceMinorSnapshot != null) {
+      map['offer_price_minor_snapshot'] = Variable<int>(
+        offerPriceMinorSnapshot,
+      );
+    }
+    if (!nullToAbsent || effectivePriceSource != null) {
+      map['effective_price_source'] = Variable<String>(effectivePriceSource);
+    }
+    if (!nullToAbsent || priceSelection != null) {
+      map['price_selection'] = Variable<String>(priceSelection);
+    }
+    if (!nullToAbsent || priceConfigurationEventId != null) {
+      map['price_configuration_event_id'] = Variable<String>(
+        priceConfigurationEventId,
+      );
+    }
     if (!nullToAbsent || standardCostMinorSnapshot != null) {
       map['standard_cost_minor_snapshot'] = Variable<int>(
         standardCostMinorSnapshot,
@@ -10737,6 +11117,25 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           ? const Value.absent()
           : Value(measuredQuantityAtomic),
       unitPriceMinor: Value(unitPriceMinor),
+      priceSnapshotVersion: priceSnapshotVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(priceSnapshotVersion),
+      normalPriceMinorSnapshot: normalPriceMinorSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(normalPriceMinorSnapshot),
+      offerPriceMinorSnapshot: offerPriceMinorSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(offerPriceMinorSnapshot),
+      effectivePriceSource: effectivePriceSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(effectivePriceSource),
+      priceSelection: priceSelection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(priceSelection),
+      priceConfigurationEventId:
+          priceConfigurationEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(priceConfigurationEventId),
       standardCostMinorSnapshot:
           standardCostMinorSnapshot == null && nullToAbsent
           ? const Value.absent()
@@ -10789,6 +11188,22 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
         json['measuredQuantityAtomic'],
       ),
       unitPriceMinor: serializer.fromJson<int>(json['unitPriceMinor']),
+      priceSnapshotVersion: serializer.fromJson<int?>(
+        json['priceSnapshotVersion'],
+      ),
+      normalPriceMinorSnapshot: serializer.fromJson<int?>(
+        json['normalPriceMinorSnapshot'],
+      ),
+      offerPriceMinorSnapshot: serializer.fromJson<int?>(
+        json['offerPriceMinorSnapshot'],
+      ),
+      effectivePriceSource: serializer.fromJson<String?>(
+        json['effectivePriceSource'],
+      ),
+      priceSelection: serializer.fromJson<String?>(json['priceSelection']),
+      priceConfigurationEventId: serializer.fromJson<String?>(
+        json['priceConfigurationEventId'],
+      ),
       standardCostMinorSnapshot: serializer.fromJson<int?>(
         json['standardCostMinorSnapshot'],
       ),
@@ -10829,6 +11244,18 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
       'quantity': serializer.toJson<int?>(quantity),
       'measuredQuantityAtomic': serializer.toJson<int?>(measuredQuantityAtomic),
       'unitPriceMinor': serializer.toJson<int>(unitPriceMinor),
+      'priceSnapshotVersion': serializer.toJson<int?>(priceSnapshotVersion),
+      'normalPriceMinorSnapshot': serializer.toJson<int?>(
+        normalPriceMinorSnapshot,
+      ),
+      'offerPriceMinorSnapshot': serializer.toJson<int?>(
+        offerPriceMinorSnapshot,
+      ),
+      'effectivePriceSource': serializer.toJson<String?>(effectivePriceSource),
+      'priceSelection': serializer.toJson<String?>(priceSelection),
+      'priceConfigurationEventId': serializer.toJson<String?>(
+        priceConfigurationEventId,
+      ),
       'standardCostMinorSnapshot': serializer.toJson<int?>(
         standardCostMinorSnapshot,
       ),
@@ -10863,6 +11290,12 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
     Value<int?> quantity = const Value.absent(),
     Value<int?> measuredQuantityAtomic = const Value.absent(),
     int? unitPriceMinor,
+    Value<int?> priceSnapshotVersion = const Value.absent(),
+    Value<int?> normalPriceMinorSnapshot = const Value.absent(),
+    Value<int?> offerPriceMinorSnapshot = const Value.absent(),
+    Value<String?> effectivePriceSource = const Value.absent(),
+    Value<String?> priceSelection = const Value.absent(),
+    Value<String?> priceConfigurationEventId = const Value.absent(),
     Value<int?> standardCostMinorSnapshot = const Value.absent(),
     Value<int?> priceReferenceQuantityAtomicSnapshot = const Value.absent(),
     Value<String?> saleUnitCodeSnapshot = const Value.absent(),
@@ -10896,6 +11329,24 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
         ? measuredQuantityAtomic.value
         : this.measuredQuantityAtomic,
     unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+    priceSnapshotVersion: priceSnapshotVersion.present
+        ? priceSnapshotVersion.value
+        : this.priceSnapshotVersion,
+    normalPriceMinorSnapshot: normalPriceMinorSnapshot.present
+        ? normalPriceMinorSnapshot.value
+        : this.normalPriceMinorSnapshot,
+    offerPriceMinorSnapshot: offerPriceMinorSnapshot.present
+        ? offerPriceMinorSnapshot.value
+        : this.offerPriceMinorSnapshot,
+    effectivePriceSource: effectivePriceSource.present
+        ? effectivePriceSource.value
+        : this.effectivePriceSource,
+    priceSelection: priceSelection.present
+        ? priceSelection.value
+        : this.priceSelection,
+    priceConfigurationEventId: priceConfigurationEventId.present
+        ? priceConfigurationEventId.value
+        : this.priceConfigurationEventId,
     standardCostMinorSnapshot: standardCostMinorSnapshot.present
         ? standardCostMinorSnapshot.value
         : this.standardCostMinorSnapshot,
@@ -10950,6 +11401,24 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
       unitPriceMinor: data.unitPriceMinor.present
           ? data.unitPriceMinor.value
           : this.unitPriceMinor,
+      priceSnapshotVersion: data.priceSnapshotVersion.present
+          ? data.priceSnapshotVersion.value
+          : this.priceSnapshotVersion,
+      normalPriceMinorSnapshot: data.normalPriceMinorSnapshot.present
+          ? data.normalPriceMinorSnapshot.value
+          : this.normalPriceMinorSnapshot,
+      offerPriceMinorSnapshot: data.offerPriceMinorSnapshot.present
+          ? data.offerPriceMinorSnapshot.value
+          : this.offerPriceMinorSnapshot,
+      effectivePriceSource: data.effectivePriceSource.present
+          ? data.effectivePriceSource.value
+          : this.effectivePriceSource,
+      priceSelection: data.priceSelection.present
+          ? data.priceSelection.value
+          : this.priceSelection,
+      priceConfigurationEventId: data.priceConfigurationEventId.present
+          ? data.priceConfigurationEventId.value
+          : this.priceConfigurationEventId,
       standardCostMinorSnapshot: data.standardCostMinorSnapshot.present
           ? data.standardCostMinorSnapshot.value
           : this.standardCostMinorSnapshot,
@@ -10991,6 +11460,12 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           ..write('quantity: $quantity, ')
           ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
           ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('priceSnapshotVersion: $priceSnapshotVersion, ')
+          ..write('normalPriceMinorSnapshot: $normalPriceMinorSnapshot, ')
+          ..write('offerPriceMinorSnapshot: $offerPriceMinorSnapshot, ')
+          ..write('effectivePriceSource: $effectivePriceSource, ')
+          ..write('priceSelection: $priceSelection, ')
+          ..write('priceConfigurationEventId: $priceConfigurationEventId, ')
           ..write('standardCostMinorSnapshot: $standardCostMinorSnapshot, ')
           ..write(
             'priceReferenceQuantityAtomicSnapshot: $priceReferenceQuantityAtomicSnapshot, ',
@@ -11023,6 +11498,12 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
     quantity,
     measuredQuantityAtomic,
     unitPriceMinor,
+    priceSnapshotVersion,
+    normalPriceMinorSnapshot,
+    offerPriceMinorSnapshot,
+    effectivePriceSource,
+    priceSelection,
+    priceConfigurationEventId,
     standardCostMinorSnapshot,
     priceReferenceQuantityAtomicSnapshot,
     saleUnitCodeSnapshot,
@@ -11051,6 +11532,12 @@ class SaleItemRow extends DataClass implements Insertable<SaleItemRow> {
           other.quantity == this.quantity &&
           other.measuredQuantityAtomic == this.measuredQuantityAtomic &&
           other.unitPriceMinor == this.unitPriceMinor &&
+          other.priceSnapshotVersion == this.priceSnapshotVersion &&
+          other.normalPriceMinorSnapshot == this.normalPriceMinorSnapshot &&
+          other.offerPriceMinorSnapshot == this.offerPriceMinorSnapshot &&
+          other.effectivePriceSource == this.effectivePriceSource &&
+          other.priceSelection == this.priceSelection &&
+          other.priceConfigurationEventId == this.priceConfigurationEventId &&
           other.standardCostMinorSnapshot == this.standardCostMinorSnapshot &&
           other.priceReferenceQuantityAtomicSnapshot ==
               this.priceReferenceQuantityAtomicSnapshot &&
@@ -11078,6 +11565,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
   final Value<int?> quantity;
   final Value<int?> measuredQuantityAtomic;
   final Value<int> unitPriceMinor;
+  final Value<int?> priceSnapshotVersion;
+  final Value<int?> normalPriceMinorSnapshot;
+  final Value<int?> offerPriceMinorSnapshot;
+  final Value<String?> effectivePriceSource;
+  final Value<String?> priceSelection;
+  final Value<String?> priceConfigurationEventId;
   final Value<int?> standardCostMinorSnapshot;
   final Value<int?> priceReferenceQuantityAtomicSnapshot;
   final Value<String?> saleUnitCodeSnapshot;
@@ -11102,6 +11595,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     this.quantity = const Value.absent(),
     this.measuredQuantityAtomic = const Value.absent(),
     this.unitPriceMinor = const Value.absent(),
+    this.priceSnapshotVersion = const Value.absent(),
+    this.normalPriceMinorSnapshot = const Value.absent(),
+    this.offerPriceMinorSnapshot = const Value.absent(),
+    this.effectivePriceSource = const Value.absent(),
+    this.priceSelection = const Value.absent(),
+    this.priceConfigurationEventId = const Value.absent(),
     this.standardCostMinorSnapshot = const Value.absent(),
     this.priceReferenceQuantityAtomicSnapshot = const Value.absent(),
     this.saleUnitCodeSnapshot = const Value.absent(),
@@ -11127,6 +11626,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     this.quantity = const Value.absent(),
     this.measuredQuantityAtomic = const Value.absent(),
     required int unitPriceMinor,
+    this.priceSnapshotVersion = const Value.absent(),
+    this.normalPriceMinorSnapshot = const Value.absent(),
+    this.offerPriceMinorSnapshot = const Value.absent(),
+    this.effectivePriceSource = const Value.absent(),
+    this.priceSelection = const Value.absent(),
+    this.priceConfigurationEventId = const Value.absent(),
     this.standardCostMinorSnapshot = const Value.absent(),
     this.priceReferenceQuantityAtomicSnapshot = const Value.absent(),
     this.saleUnitCodeSnapshot = const Value.absent(),
@@ -11159,6 +11664,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     Expression<int>? quantity,
     Expression<int>? measuredQuantityAtomic,
     Expression<int>? unitPriceMinor,
+    Expression<int>? priceSnapshotVersion,
+    Expression<int>? normalPriceMinorSnapshot,
+    Expression<int>? offerPriceMinorSnapshot,
+    Expression<String>? effectivePriceSource,
+    Expression<String>? priceSelection,
+    Expression<String>? priceConfigurationEventId,
     Expression<int>? standardCostMinorSnapshot,
     Expression<int>? priceReferenceQuantityAtomicSnapshot,
     Expression<String>? saleUnitCodeSnapshot,
@@ -11189,6 +11700,17 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
       if (measuredQuantityAtomic != null)
         'measured_quantity_atomic': measuredQuantityAtomic,
       if (unitPriceMinor != null) 'unit_price_minor': unitPriceMinor,
+      if (priceSnapshotVersion != null)
+        'price_snapshot_version': priceSnapshotVersion,
+      if (normalPriceMinorSnapshot != null)
+        'normal_price_minor_snapshot': normalPriceMinorSnapshot,
+      if (offerPriceMinorSnapshot != null)
+        'offer_price_minor_snapshot': offerPriceMinorSnapshot,
+      if (effectivePriceSource != null)
+        'effective_price_source': effectivePriceSource,
+      if (priceSelection != null) 'price_selection': priceSelection,
+      if (priceConfigurationEventId != null)
+        'price_configuration_event_id': priceConfigurationEventId,
       if (standardCostMinorSnapshot != null)
         'standard_cost_minor_snapshot': standardCostMinorSnapshot,
       if (priceReferenceQuantityAtomicSnapshot != null)
@@ -11222,6 +11744,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     Value<int?>? quantity,
     Value<int?>? measuredQuantityAtomic,
     Value<int>? unitPriceMinor,
+    Value<int?>? priceSnapshotVersion,
+    Value<int?>? normalPriceMinorSnapshot,
+    Value<int?>? offerPriceMinorSnapshot,
+    Value<String?>? effectivePriceSource,
+    Value<String?>? priceSelection,
+    Value<String?>? priceConfigurationEventId,
     Value<int?>? standardCostMinorSnapshot,
     Value<int?>? priceReferenceQuantityAtomicSnapshot,
     Value<String?>? saleUnitCodeSnapshot,
@@ -11249,6 +11777,15 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
       measuredQuantityAtomic:
           measuredQuantityAtomic ?? this.measuredQuantityAtomic,
       unitPriceMinor: unitPriceMinor ?? this.unitPriceMinor,
+      priceSnapshotVersion: priceSnapshotVersion ?? this.priceSnapshotVersion,
+      normalPriceMinorSnapshot:
+          normalPriceMinorSnapshot ?? this.normalPriceMinorSnapshot,
+      offerPriceMinorSnapshot:
+          offerPriceMinorSnapshot ?? this.offerPriceMinorSnapshot,
+      effectivePriceSource: effectivePriceSource ?? this.effectivePriceSource,
+      priceSelection: priceSelection ?? this.priceSelection,
+      priceConfigurationEventId:
+          priceConfigurationEventId ?? this.priceConfigurationEventId,
       standardCostMinorSnapshot:
           standardCostMinorSnapshot ?? this.standardCostMinorSnapshot,
       priceReferenceQuantityAtomicSnapshot:
@@ -11321,6 +11858,32 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
     if (unitPriceMinor.present) {
       map['unit_price_minor'] = Variable<int>(unitPriceMinor.value);
     }
+    if (priceSnapshotVersion.present) {
+      map['price_snapshot_version'] = Variable<int>(priceSnapshotVersion.value);
+    }
+    if (normalPriceMinorSnapshot.present) {
+      map['normal_price_minor_snapshot'] = Variable<int>(
+        normalPriceMinorSnapshot.value,
+      );
+    }
+    if (offerPriceMinorSnapshot.present) {
+      map['offer_price_minor_snapshot'] = Variable<int>(
+        offerPriceMinorSnapshot.value,
+      );
+    }
+    if (effectivePriceSource.present) {
+      map['effective_price_source'] = Variable<String>(
+        effectivePriceSource.value,
+      );
+    }
+    if (priceSelection.present) {
+      map['price_selection'] = Variable<String>(priceSelection.value);
+    }
+    if (priceConfigurationEventId.present) {
+      map['price_configuration_event_id'] = Variable<String>(
+        priceConfigurationEventId.value,
+      );
+    }
     if (standardCostMinorSnapshot.present) {
       map['standard_cost_minor_snapshot'] = Variable<int>(
         standardCostMinorSnapshot.value,
@@ -11376,6 +11939,12 @@ class SaleItemsCompanion extends UpdateCompanion<SaleItemRow> {
           ..write('quantity: $quantity, ')
           ..write('measuredQuantityAtomic: $measuredQuantityAtomic, ')
           ..write('unitPriceMinor: $unitPriceMinor, ')
+          ..write('priceSnapshotVersion: $priceSnapshotVersion, ')
+          ..write('normalPriceMinorSnapshot: $normalPriceMinorSnapshot, ')
+          ..write('offerPriceMinorSnapshot: $offerPriceMinorSnapshot, ')
+          ..write('effectivePriceSource: $effectivePriceSource, ')
+          ..write('priceSelection: $priceSelection, ')
+          ..write('priceConfigurationEventId: $priceConfigurationEventId, ')
           ..write('standardCostMinorSnapshot: $standardCostMinorSnapshot, ')
           ..write(
             'priceReferenceQuantityAtomicSnapshot: $priceReferenceQuantityAtomicSnapshot, ',
@@ -29490,6 +30059,7 @@ typedef $$ProductVariantsTableCreateCompanionBuilder =
       Value<String?> nameKey,
       Value<String?> barcode,
       required int salePriceMinor,
+      Value<int?> offerPriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
       Value<int?> minimumStockAtomic,
@@ -29509,6 +30079,7 @@ typedef $$ProductVariantsTableUpdateCompanionBuilder =
       Value<String?> nameKey,
       Value<String?> barcode,
       Value<int> salePriceMinor,
+      Value<int?> offerPriceMinor,
       Value<int?> standardCostMinor,
       Value<String?> inventoryItemId,
       Value<int?> minimumStockAtomic,
@@ -29704,6 +30275,11 @@ class $$ProductVariantsTableFilterComposer
 
   ColumnFilters<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get offerPriceMinor => $composableBuilder(
+    column: $table.offerPriceMinor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29929,6 +30505,11 @@ class $$ProductVariantsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get offerPriceMinor => $composableBuilder(
+    column: $table.offerPriceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get standardCostMinor => $composableBuilder(
     column: $table.standardCostMinor,
     builder: (column) => ColumnOrderings(column),
@@ -30035,6 +30616,11 @@ class $$ProductVariantsTableAnnotationComposer
 
   GeneratedColumn<int> get salePriceMinor => $composableBuilder(
     column: $table.salePriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get offerPriceMinor => $composableBuilder(
+    column: $table.offerPriceMinor,
     builder: (column) => column,
   );
 
@@ -30247,6 +30833,7 @@ class $$ProductVariantsTableTableManager
                 Value<String?> nameKey = const Value.absent(),
                 Value<String?> barcode = const Value.absent(),
                 Value<int> salePriceMinor = const Value.absent(),
+                Value<int?> offerPriceMinor = const Value.absent(),
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
                 Value<int?> minimumStockAtomic = const Value.absent(),
@@ -30264,6 +30851,7 @@ class $$ProductVariantsTableTableManager
                 nameKey: nameKey,
                 barcode: barcode,
                 salePriceMinor: salePriceMinor,
+                offerPriceMinor: offerPriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
                 minimumStockAtomic: minimumStockAtomic,
@@ -30283,6 +30871,7 @@ class $$ProductVariantsTableTableManager
                 Value<String?> nameKey = const Value.absent(),
                 Value<String?> barcode = const Value.absent(),
                 required int salePriceMinor,
+                Value<int?> offerPriceMinor = const Value.absent(),
                 Value<int?> standardCostMinor = const Value.absent(),
                 Value<String?> inventoryItemId = const Value.absent(),
                 Value<int?> minimumStockAtomic = const Value.absent(),
@@ -30300,6 +30889,7 @@ class $$ProductVariantsTableTableManager
                 nameKey: nameKey,
                 barcode: barcode,
                 salePriceMinor: salePriceMinor,
+                offerPriceMinor: offerPriceMinor,
                 standardCostMinor: standardCostMinor,
                 inventoryItemId: inventoryItemId,
                 minimumStockAtomic: minimumStockAtomic,
@@ -34017,6 +34607,8 @@ typedef $$SalesTableCreateCompanionBuilder =
       Value<String?> createdEventId,
       Value<String?> lastEventId,
       Value<int?> lastServerSequence,
+      Value<int?> pricingContractVersion,
+      Value<String?> pricingMode,
       Value<String?> clienteId,
       required String userId,
       required String deviceId,
@@ -34034,6 +34626,8 @@ typedef $$SalesTableUpdateCompanionBuilder =
       Value<String?> createdEventId,
       Value<String?> lastEventId,
       Value<int?> lastServerSequence,
+      Value<int?> pricingContractVersion,
+      Value<String?> pricingMode,
       Value<String?> clienteId,
       Value<String> userId,
       Value<String> deviceId,
@@ -34200,6 +34794,16 @@ class $$SalesTableFilterComposer extends Composer<_$AppDatabase, $SalesTable> {
 
   ColumnFilters<int> get lastServerSequence => $composableBuilder(
     column: $table.lastServerSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pricingContractVersion => $composableBuilder(
+    column: $table.pricingContractVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pricingMode => $composableBuilder(
+    column: $table.pricingMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34422,6 +35026,16 @@ class $$SalesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get pricingContractVersion => $composableBuilder(
+    column: $table.pricingContractVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pricingMode => $composableBuilder(
+    column: $table.pricingMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get userId => $composableBuilder(
     column: $table.userId,
     builder: (column) => ColumnOrderings(column),
@@ -34506,6 +35120,16 @@ class $$SalesTableAnnotationComposer
 
   GeneratedColumn<int> get lastServerSequence => $composableBuilder(
     column: $table.lastServerSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pricingContractVersion => $composableBuilder(
+    column: $table.pricingContractVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pricingMode => $composableBuilder(
+    column: $table.pricingMode,
     builder: (column) => column,
   );
 
@@ -34724,6 +35348,8 @@ class $$SalesTableTableManager
                 Value<String?> createdEventId = const Value.absent(),
                 Value<String?> lastEventId = const Value.absent(),
                 Value<int?> lastServerSequence = const Value.absent(),
+                Value<int?> pricingContractVersion = const Value.absent(),
+                Value<String?> pricingMode = const Value.absent(),
                 Value<String?> clienteId = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
@@ -34739,6 +35365,8 @@ class $$SalesTableTableManager
                 createdEventId: createdEventId,
                 lastEventId: lastEventId,
                 lastServerSequence: lastServerSequence,
+                pricingContractVersion: pricingContractVersion,
+                pricingMode: pricingMode,
                 clienteId: clienteId,
                 userId: userId,
                 deviceId: deviceId,
@@ -34756,6 +35384,8 @@ class $$SalesTableTableManager
                 Value<String?> createdEventId = const Value.absent(),
                 Value<String?> lastEventId = const Value.absent(),
                 Value<int?> lastServerSequence = const Value.absent(),
+                Value<int?> pricingContractVersion = const Value.absent(),
+                Value<String?> pricingMode = const Value.absent(),
                 Value<String?> clienteId = const Value.absent(),
                 required String userId,
                 required String deviceId,
@@ -34771,6 +35401,8 @@ class $$SalesTableTableManager
                 createdEventId: createdEventId,
                 lastEventId: lastEventId,
                 lastServerSequence: lastServerSequence,
+                pricingContractVersion: pricingContractVersion,
+                pricingMode: pricingMode,
                 clienteId: clienteId,
                 userId: userId,
                 deviceId: deviceId,
@@ -34989,6 +35621,12 @@ typedef $$SaleItemsTableCreateCompanionBuilder =
       Value<int?> quantity,
       Value<int?> measuredQuantityAtomic,
       required int unitPriceMinor,
+      Value<int?> priceSnapshotVersion,
+      Value<int?> normalPriceMinorSnapshot,
+      Value<int?> offerPriceMinorSnapshot,
+      Value<String?> effectivePriceSource,
+      Value<String?> priceSelection,
+      Value<String?> priceConfigurationEventId,
       Value<int?> standardCostMinorSnapshot,
       Value<int?> priceReferenceQuantityAtomicSnapshot,
       Value<String?> saleUnitCodeSnapshot,
@@ -35015,6 +35653,12 @@ typedef $$SaleItemsTableUpdateCompanionBuilder =
       Value<int?> quantity,
       Value<int?> measuredQuantityAtomic,
       Value<int> unitPriceMinor,
+      Value<int?> priceSnapshotVersion,
+      Value<int?> normalPriceMinorSnapshot,
+      Value<int?> offerPriceMinorSnapshot,
+      Value<String?> effectivePriceSource,
+      Value<String?> priceSelection,
+      Value<String?> priceConfigurationEventId,
       Value<int?> standardCostMinorSnapshot,
       Value<int?> priceReferenceQuantityAtomicSnapshot,
       Value<String?> saleUnitCodeSnapshot,
@@ -35184,6 +35828,36 @@ class $$SaleItemsTableFilterComposer
 
   ColumnFilters<int> get unitPriceMinor => $composableBuilder(
     column: $table.unitPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priceSnapshotVersion => $composableBuilder(
+    column: $table.priceSnapshotVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get normalPriceMinorSnapshot => $composableBuilder(
+    column: $table.normalPriceMinorSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get offerPriceMinorSnapshot => $composableBuilder(
+    column: $table.offerPriceMinorSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get effectivePriceSource => $composableBuilder(
+    column: $table.effectivePriceSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get priceSelection => $composableBuilder(
+    column: $table.priceSelection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get priceConfigurationEventId => $composableBuilder(
+    column: $table.priceConfigurationEventId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -35394,6 +36068,36 @@ class $$SaleItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get priceSnapshotVersion => $composableBuilder(
+    column: $table.priceSnapshotVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get normalPriceMinorSnapshot => $composableBuilder(
+    column: $table.normalPriceMinorSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get offerPriceMinorSnapshot => $composableBuilder(
+    column: $table.offerPriceMinorSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get effectivePriceSource => $composableBuilder(
+    column: $table.effectivePriceSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get priceSelection => $composableBuilder(
+    column: $table.priceSelection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get priceConfigurationEventId => $composableBuilder(
+    column: $table.priceConfigurationEventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get standardCostMinorSnapshot => $composableBuilder(
     column: $table.standardCostMinorSnapshot,
     builder: (column) => ColumnOrderings(column),
@@ -35540,6 +36244,36 @@ class $$SaleItemsTableAnnotationComposer
 
   GeneratedColumn<int> get unitPriceMinor => $composableBuilder(
     column: $table.unitPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get priceSnapshotVersion => $composableBuilder(
+    column: $table.priceSnapshotVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get normalPriceMinorSnapshot => $composableBuilder(
+    column: $table.normalPriceMinorSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get offerPriceMinorSnapshot => $composableBuilder(
+    column: $table.offerPriceMinorSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get effectivePriceSource => $composableBuilder(
+    column: $table.effectivePriceSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get priceSelection => $composableBuilder(
+    column: $table.priceSelection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get priceConfigurationEventId => $composableBuilder(
+    column: $table.priceConfigurationEventId,
     builder: (column) => column,
   );
 
@@ -35725,6 +36459,12 @@ class $$SaleItemsTableTableManager
                 Value<int?> quantity = const Value.absent(),
                 Value<int?> measuredQuantityAtomic = const Value.absent(),
                 Value<int> unitPriceMinor = const Value.absent(),
+                Value<int?> priceSnapshotVersion = const Value.absent(),
+                Value<int?> normalPriceMinorSnapshot = const Value.absent(),
+                Value<int?> offerPriceMinorSnapshot = const Value.absent(),
+                Value<String?> effectivePriceSource = const Value.absent(),
+                Value<String?> priceSelection = const Value.absent(),
+                Value<String?> priceConfigurationEventId = const Value.absent(),
                 Value<int?> standardCostMinorSnapshot = const Value.absent(),
                 Value<int?> priceReferenceQuantityAtomicSnapshot =
                     const Value.absent(),
@@ -35750,6 +36490,12 @@ class $$SaleItemsTableTableManager
                 quantity: quantity,
                 measuredQuantityAtomic: measuredQuantityAtomic,
                 unitPriceMinor: unitPriceMinor,
+                priceSnapshotVersion: priceSnapshotVersion,
+                normalPriceMinorSnapshot: normalPriceMinorSnapshot,
+                offerPriceMinorSnapshot: offerPriceMinorSnapshot,
+                effectivePriceSource: effectivePriceSource,
+                priceSelection: priceSelection,
+                priceConfigurationEventId: priceConfigurationEventId,
                 standardCostMinorSnapshot: standardCostMinorSnapshot,
                 priceReferenceQuantityAtomicSnapshot:
                     priceReferenceQuantityAtomicSnapshot,
@@ -35778,6 +36524,12 @@ class $$SaleItemsTableTableManager
                 Value<int?> quantity = const Value.absent(),
                 Value<int?> measuredQuantityAtomic = const Value.absent(),
                 required int unitPriceMinor,
+                Value<int?> priceSnapshotVersion = const Value.absent(),
+                Value<int?> normalPriceMinorSnapshot = const Value.absent(),
+                Value<int?> offerPriceMinorSnapshot = const Value.absent(),
+                Value<String?> effectivePriceSource = const Value.absent(),
+                Value<String?> priceSelection = const Value.absent(),
+                Value<String?> priceConfigurationEventId = const Value.absent(),
                 Value<int?> standardCostMinorSnapshot = const Value.absent(),
                 Value<int?> priceReferenceQuantityAtomicSnapshot =
                     const Value.absent(),
@@ -35803,6 +36555,12 @@ class $$SaleItemsTableTableManager
                 quantity: quantity,
                 measuredQuantityAtomic: measuredQuantityAtomic,
                 unitPriceMinor: unitPriceMinor,
+                priceSnapshotVersion: priceSnapshotVersion,
+                normalPriceMinorSnapshot: normalPriceMinorSnapshot,
+                offerPriceMinorSnapshot: offerPriceMinorSnapshot,
+                effectivePriceSource: effectivePriceSource,
+                priceSelection: priceSelection,
+                priceConfigurationEventId: priceConfigurationEventId,
                 standardCostMinorSnapshot: standardCostMinorSnapshot,
                 priceReferenceQuantityAtomicSnapshot:
                     priceReferenceQuantityAtomicSnapshot,

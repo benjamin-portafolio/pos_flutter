@@ -46,6 +46,8 @@ class DriftConfirmedSaleStore implements ConfirmedSaleStore {
         lastEventId: event.eventId,
         lastServerSequence: event.serverSequence,
         userId: event.userId,
+        pricingContractVersion: p.pricingContractVersion,
+        pricingMode: p.pricingMode,
         deviceId: event.deviceId,
         status: SaleStatus.confirmada,
         totalMinor: p.totalMinor,

@@ -9,6 +9,7 @@ class CambioVarianteMasiva {
   const CambioVarianteMasiva({
     required this.clave,
     required this.baseProducto,
+    this.oferta = const CambioExplicito.conservar(),
     required this.venta,
     required this.costo,
     required this.precioProveedor,
@@ -18,6 +19,7 @@ class CambioVarianteMasiva {
   final ClaveVariante clave;
   final BaseRevisionMasiva baseProducto;
   final CambioExplicito<int> venta;
+  final CambioExplicito<int?> oferta;
   final CambioExplicito<int> costo;
 
   /// Null conserva todas las parejas; un valor modifica solo esta pareja.
@@ -25,6 +27,7 @@ class CambioVarianteMasiva {
   final EntradaMercanciaMasiva? entrada;
 
   bool get tieneCambios =>
+      oferta.establecer ||
       venta.establecer ||
       costo.establecer ||
       precioProveedor != null ||

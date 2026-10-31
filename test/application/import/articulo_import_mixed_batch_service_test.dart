@@ -483,7 +483,7 @@ Future<List<_Target>> _seed(ProductSupplierHarness h, int count) async {
 }
 
 String _file(List<String> rows) =>
-    '${ArticuloCsvContract.columnas.join(',')}\n${rows.join('\n')}\n';
+    '${ArticuloCsvContract.columnasConIdsAnteriores.join(',')}\n${rows.join('\n')}\n';
 String _row(_Target t, {String price = '10'}) =>
     '${t.id},${t.variantId},,${t.name},unidad,,,$price,,no,9999,';
 String _newRow(String name) => ',,,$name,unidad,,,10,,si,3,001';

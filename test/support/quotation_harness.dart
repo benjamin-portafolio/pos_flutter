@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/sync/handlers/tarifa_venta_borrador_cambiada_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
 import 'package:pos_flutter/application/commands/caja/caja_command_service.dart';
 import 'package:pos_flutter/application/commands/clientes/cliente_command_service.dart';
 import 'package:pos_flutter/application/commands/clientes/crear_cliente_command.dart';
@@ -88,6 +90,8 @@ class QuotationHarness {
     appConfigController: config,
     eventProcessor: EventProcessor(
       handlers: {
+        TarifaVentaBorradorCambiadaPayload.eventType:
+            TarifaVentaBorradorCambiadaEventHandler(db.saleDao).apply,
         CajaAbiertaPayload.eventType: CashEventHandler(
           DriftCashProjectionStore(db),
         ).apply,

@@ -102,6 +102,8 @@ class ProductoEventHandler {
           costoEstandarMenor: variant.costoEstandarMenor,
           inventoryItemId: variant.inventoryItemId,
           minimumStockAtomic: variant.minimumStockAtomic,
+          offerPriceMinor: variant.offerPriceMinor,
+          knowsOfferPrice: variant.knowsOfferPrice,
           knowsMinimumStock: variant.knowsMinimumStock,
           orden: variant.orden,
           active: true,

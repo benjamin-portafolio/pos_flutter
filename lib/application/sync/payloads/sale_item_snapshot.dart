@@ -1,8 +1,16 @@
+import '../../../domain/ventas/effective_sale_price.dart';
 import '../../../domain/ventas/measured_sale_calculator.dart';
+import 'inventory_movement_payload.dart';
 
 /// Datos capturados de una línea. Los cambios de catálogo no los reescriben.
 class SaleItemSnapshot {
   SaleItemSnapshot({
+    this.priceSnapshotVersion,
+    this.normalPriceMinorSnapshot,
+    this.offerPriceMinorSnapshot,
+    this.effectivePriceSource,
+    this.priceSelection,
+    this.priceConfigurationEventId,
     required this.variantId,
     this.consumptionConfigurationKey,
     required String productName,
@@ -24,6 +32,38 @@ class SaleItemSnapshot {
       throw const FormatException(
         'El artículo y su variante son obligatorios.',
       );
+    }
+    if (priceSnapshotVersion != null) {
+      if (priceSnapshotVersion != 2 ||
+          priceSelection != 'inherit' ||
+          !['normal', 'offer'].contains(effectivePriceSource)) {
+        throw const FormatException('Snapshot v2 incompleto.');
+      }
+      _positive(normalPriceMinorSnapshot);
+      if (offerPriceMinorSnapshot != null) {
+        _positive(offerPriceMinorSnapshot);
+        if (offerPriceMinorSnapshot! > normalPriceMinorSnapshot!) {
+          throw const FormatException('Oferta mayor al normal.');
+        }
+      }
+      InventoryMovementPayload.requiredUuidV4(
+        priceConfigurationEventId ?? '',
+        'price_configuration_event_id',
+      );
+      if (unitPriceMinor !=
+          (effectivePriceSource == 'offer'
+              ? offerPriceMinorSnapshot
+              : normalPriceMinorSnapshot)) {
+        throw const FormatException('Precio efectivo incoherente.');
+      }
+    } else if ([
+      normalPriceMinorSnapshot,
+      offerPriceMinorSnapshot,
+      effectivePriceSource,
+      priceSelection,
+      priceConfigurationEventId,
+    ].any((v) => v != null)) {
+      throw const FormatException('Snapshot parcial sin versión.');
     }
     _positive(unitPriceMinor);
     if (standardCostMinor != null &&
@@ -57,6 +97,12 @@ class SaleItemSnapshot {
   }
 
   static const maxInteger = MeasuredSaleCalculator.maxInteger;
+  final int? priceSnapshotVersion;
+  final int? normalPriceMinorSnapshot;
+  final int? offerPriceMinorSnapshot;
+  final String? effectivePriceSource;
+  final String? priceSelection;
+  final String? priceConfigurationEventId;
   final String variantId;
   final String? consumptionConfigurationKey;
   final String productName;
@@ -91,8 +137,32 @@ class SaleItemSnapshot {
     return result.toInt();
   }
 
+  SaleItemSnapshot withPricingMode(String mode) {
+    if (!['normal', 'offer'].contains(mode) || priceSnapshotVersion != 2) {
+      throw StateError(
+        'Recaptura las líneas legadas o termina con sus precios originales.',
+      );
+    }
+    final price = EffectiveSalePrice.resolve(
+      mode: mode,
+      normal: normalPriceMinorSnapshot!,
+      offer: offerPriceMinorSnapshot,
+    );
+    return SaleItemSnapshot.fromJson({
+      ...toJson(),
+      'effective_price_source': price.source,
+      'unit_price_minor': price.amount,
+    });
+  }
+
   bool sameConditions(SaleItemSnapshot other) =>
       variantId == other.variantId &&
+      priceSnapshotVersion == other.priceSnapshotVersion &&
+      normalPriceMinorSnapshot == other.normalPriceMinorSnapshot &&
+      offerPriceMinorSnapshot == other.offerPriceMinorSnapshot &&
+      effectivePriceSource == other.effectivePriceSource &&
+      priceSelection == other.priceSelection &&
+      priceConfigurationEventId == other.priceConfigurationEventId &&
       consumptionConfigurationKey == other.consumptionConfigurationKey &&
       productName == other.productName &&
       variantName == other.variantName &&
@@ -136,6 +206,14 @@ class SaleItemSnapshot {
   }
 
   Map<String, Object?> toJson() => {
+    if (priceSnapshotVersion != null) ...{
+      'price_snapshot_version': priceSnapshotVersion,
+      'normal_price_minor_snapshot': normalPriceMinorSnapshot,
+      'offer_price_minor_snapshot': offerPriceMinorSnapshot,
+      'effective_price_source': effectivePriceSource,
+      'price_selection': priceSelection,
+      'price_configuration_event_id': priceConfigurationEventId,
+    },
     'variant_id': variantId,
     'consumption_configuration_key': consumptionConfigurationKey,
     'product_name_snapshot': productName,
@@ -168,7 +246,26 @@ class SaleItemSnapshot {
       return value;
     }
 
+    final priceKeys = [
+      'price_snapshot_version',
+      'normal_price_minor_snapshot',
+      'offer_price_minor_snapshot',
+      'effective_price_source',
+      'price_selection',
+      'price_configuration_event_id',
+    ];
+    if (priceKeys.any(json.containsKey) &&
+        (!priceKeys.every(json.containsKey) ||
+            json['price_snapshot_version'] != 2)) {
+      throw const FormatException('Snapshot de precio parcial.');
+    }
     return SaleItemSnapshot(
+      priceSnapshotVersion: number('price_snapshot_version'),
+      normalPriceMinorSnapshot: number('normal_price_minor_snapshot'),
+      offerPriceMinorSnapshot: number('offer_price_minor_snapshot'),
+      effectivePriceSource: text('effective_price_source'),
+      priceSelection: text('price_selection'),
+      priceConfigurationEventId: text('price_configuration_event_id'),
       variantId: text('variant_id', required: true)!,
       consumptionConfigurationKey: text('consumption_configuration_key'),
       productName: text('product_name_snapshot', required: true)!,

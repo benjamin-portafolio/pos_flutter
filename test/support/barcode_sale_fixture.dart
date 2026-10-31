@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/sync/handlers/tarifa_venta_borrador_cambiada_event_handler.dart';
+import 'package:pos_flutter/application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
 import 'package:pos_flutter/presentation/pages/articulos/sale_quantity_form_result.dart';
 import 'dart:convert';
 
@@ -52,6 +54,8 @@ class BarcodeSaleFixture {
   );
   late final processor = EventProcessor(
     handlers: {
+      TarifaVentaBorradorCambiadaPayload.eventType:
+          TarifaVentaBorradorCambiadaEventHandler(db.saleDao).apply,
       ProductoActualizadoBorradorPayload.eventType:
           VentaBorradorActualizadoEventHandler(db.saleDao).apply,
       ProductoEliminadoBorradorPayload.eventType:
@@ -100,6 +104,9 @@ class BarcodeSaleFixture {
           .into(db.productVariants)
           .insert(
             ProductVariantsCompanion.insert(
+              createdEventId: const Value(
+                '00000000-0000-4000-8000-000000000006',
+              ),
               id: data.$1,
               productId: 'product-${data.$1}',
               barcode: Value(data.$2),

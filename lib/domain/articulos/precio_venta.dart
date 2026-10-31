@@ -14,12 +14,19 @@ class PrecioVenta {
     }
 
     final parts = normalized.split('.');
-    final whole = int.parse(parts.first);
+    final whole = BigInt.parse(parts.first);
     final decimals = parts.length == 1
         ? 0
         : int.parse(parts.last.padRight(2, '0'));
-    final unidadMenor = whole * 100 + decimals;
-    return PrecioVenta.fromUnidadMenor(unidadMenor);
+    final unidadMenor = whole * BigInt.from(100) + BigInt.from(decimals);
+    if (unidadMenor > BigInt.from(maxUnidadMenor)) {
+      throw ArgumentError.value(
+        input,
+        'precio',
+        'El importe excede el límite permitido.',
+      );
+    }
+    return PrecioVenta.fromUnidadMenor(unidadMenor.toInt());
   }
 
   factory PrecioVenta.fromUnidadMenor(int value) {

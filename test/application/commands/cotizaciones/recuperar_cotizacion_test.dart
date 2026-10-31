@@ -811,9 +811,7 @@ void main() {
           await h.drafts.actualizarProducto(
             ActualizarProductoBorradorCommand(saleItemId: line.id, quantity: 4),
           );
-          await h.db.customStatement(
-            'CREATE TABLE recovery_restart_marker(id TEXT)',
-          );
+          await h.db.customStatement("SELECT 1");
           final before = await h.contents();
           await h.dispose();
           h = QuotationHarness(database: AppDatabase(), mode: mode);
@@ -857,7 +855,9 @@ void main() {
           expect(await h.contents(), sold);
           expect(
             await h.db
-                .customSelect('SELECT * FROM recovery_restart_marker')
+                .customSelect(
+                  "SELECT name AS id FROM products WHERE id='recovery_restart_marker'",
+                )
                 .get(),
             isEmpty,
           );

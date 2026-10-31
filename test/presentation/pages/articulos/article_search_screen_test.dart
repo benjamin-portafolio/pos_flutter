@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/commands/ventas/sale_capture_conditions.dart';
+import 'package:pos_flutter/application/sync/payloads/sale_item_snapshot.dart';
 import 'package:pos_flutter/domain/ventas/measured_sale_conditions.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
@@ -438,6 +440,7 @@ Future<void> _pump(
   ProductoRepository repository, {
   _Capture? capture,
 }) async {
+  capture?.repository = repository;
   await tester.pumpWidget(
     MaterialApp(
       home: ArticleSearchScreen(
@@ -559,6 +562,32 @@ final _catalog = [
 ];
 
 class _Capture implements VentaBorradorCommandService {
+  ProductoRepository? repository;
+  @override
+  Future<SaleCaptureConditions> prepararCaptura(String id) async {
+    final c = await repository?.obtenerCondicionesVentaMedida(id);
+    return SaleCaptureConditions(
+      saleId: 'test-sale',
+      version: 0,
+      draftEventId: null,
+      pricingMode: 'normal',
+      measured: c,
+      snapshot: SaleItemSnapshot(
+        variantId: id,
+        productName: 'Test',
+        saleMode: c == null ? 'unit' : 'measured',
+        quantity: c == null ? 1 : null,
+        measuredQuantityAtomic: c == null ? null : 1,
+        unitPriceMinor: c?.unitPriceMinor ?? 100,
+        standardCostMinor: null,
+        priceReferenceQuantityAtomic: c?.priceReferenceQuantityAtomic,
+        unitCode: c?.unit.code,
+        unitSymbol: c?.unit.simbolo,
+        unitAtomicFactor: c?.unit.factorAtomico,
+      ),
+    );
+  }
+
   final commands = <AgregarProductoBorradorCommand>[];
   Future<void>? gate;
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../application/commands/ventas/sale_draft_changed_exception.dart';
 import '../../../application/commands/ventas/confirmar_venta_command.dart';
 import '../../../application/commands/ventas/venta_command_service.dart';
 import '../../../core/di/injection.dart';
@@ -20,6 +21,7 @@ class PaymentMethodScreen extends StatefulWidget {
     required this.totalMinor,
     this.saleId,
     this.expectedDraftEventId,
+    this.expectedVersion,
     this.commandService,
     this.clienteRepository,
     this.consumeOpeningEnter = false,
@@ -27,6 +29,7 @@ class PaymentMethodScreen extends StatefulWidget {
   });
 
   final int totalMinor;
+  final int? expectedVersion;
   final String? saleId, expectedDraftEventId;
   final VentaCommandService? commandService;
   final ClienteRepository? clienteRepository;
@@ -128,9 +131,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
+        final messenger = ScaffoldMessenger.of(context);
+        if (error is SaleDraftChangedException) Navigator.pop(context);
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(error is StateError ? error.message : '$error'),
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -147,6 +154,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         saleId: widget.saleId!,
         expectedDraftEventId: widget.expectedDraftEventId!,
         expectedTotalMinor: widget.totalMinor,
+        expectedVersion: widget.expectedVersion,
         receivedMinor: receivedMinor,
         clienteId: _cliente?.id,
       ),
@@ -160,6 +168,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         saleId: widget.saleId!,
         expectedDraftEventId: widget.expectedDraftEventId!,
         expectedTotalMinor: widget.totalMinor,
+        expectedVersion: widget.expectedVersion,
         clienteId: _cliente?.id,
         paymentMethod: 'transfer',
         paymentReference: reference,
@@ -195,6 +204,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         saleId: widget.saleId!,
         expectedDraftEventId: widget.expectedDraftEventId!,
         expectedTotalMinor: widget.totalMinor,
+        expectedVersion: widget.expectedVersion,
         clienteId: cliente.id,
         paymentMethod: 'credit',
       ),

@@ -1,6 +1,12 @@
 /// Línea de lectura con las condiciones guardadas al capturar la venta.
 class SaleDraftItem {
   const SaleDraftItem({
+    this.priceSnapshotVersion,
+    this.normalPriceMinorSnapshot,
+    this.offerPriceMinorSnapshot,
+    this.effectivePriceSource,
+    this.priceSelection,
+    this.priceConfigurationEventId,
     required this.id,
     required this.variantId,
     required this.productName,
@@ -17,6 +23,11 @@ class SaleDraftItem {
     required this.totalMinor,
   });
 
+  final int? priceSnapshotVersion,
+      normalPriceMinorSnapshot,
+      offerPriceMinorSnapshot;
+  final String? effectivePriceSource, priceSelection, priceConfigurationEventId;
+  String get effectivePriceOrigin => effectivePriceSource ?? 'unknown';
   final String id;
   final String variantId;
 

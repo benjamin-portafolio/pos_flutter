@@ -7,6 +7,7 @@ class FilaEdicionForm {
   const FilaEdicionForm({
     required this.original,
     required this.baseProducto,
+    this.oferta = const CambioExplicito.conservar(),
     this.venta,
     this.costo,
     this.cantidad,
@@ -17,6 +18,7 @@ class FilaEdicionForm {
 
   final FilaCatalogoMasivo original;
   final BaseRevisionMasiva baseProducto;
+  final CambioExplicito<String?> oferta;
   final String? venta;
   final String? costo;
   final String? cantidad;
@@ -25,6 +27,7 @@ class FilaEdicionForm {
   final DateTime? fechaInformada;
 
   FilaEdicionForm copiar({
+    CambioExplicito<String?>? oferta,
     CambioExplicito<String?> venta = const CambioExplicito.conservar(),
     CambioExplicito<String?> costo = const CambioExplicito.conservar(),
     CambioExplicito<String?> cantidad = const CambioExplicito.conservar(),
@@ -34,6 +37,7 @@ class FilaEdicionForm {
   }) => FilaEdicionForm(
     original: original,
     baseProducto: baseProducto,
+    oferta: oferta ?? this.oferta,
     venta: venta.establecer ? venta.valor : this.venta,
     costo: costo.establecer ? costo.valor : this.costo,
     cantidad: cantidad.establecer ? cantidad.valor : this.cantidad,

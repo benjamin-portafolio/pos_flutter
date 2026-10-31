@@ -195,7 +195,7 @@ void main() {
             db = AppDatabase();
             expect(await fotoRecepcion(db), before);
             expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-            expect(db.schemaVersion, 8);
+            expect(db.schemaVersion, 9);
           } finally {
             await snapshot.file.parent.delete(recursive: true);
           }
@@ -316,15 +316,10 @@ void main() {
         expect(hasCurrentAppDatabaseSchema(raw), isFalse);
         raw.close();
         db = AppDatabase();
-        if (protected) {
+        {
           await expectLater(db.select(db.products).get(), throwsStateError);
           await expectLater(db.close(), throwsStateError);
           expect(sha256.convert(await file.readAsBytes()), before);
-        } else {
-          expect(await db.select(db.products).get(), isEmpty);
-          expect(await db.select(db.bulkEditOperations).get(), isEmpty);
-          expect(db.schemaVersion, 8);
-          await db.close();
         }
       });
     }

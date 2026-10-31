@@ -28,6 +28,7 @@ import 'drift_variant_inventory_memory_store.dart';
 /// transacción exterior. No admite almacenes arbitrarios ni fallback serial.
 class DriftDiarioEdicionMasiva implements DiarioEdicionMasiva {
   DriftDiarioEdicionMasiva({
+    Future<void> Function()? requireOfferPricing,
     required AppDatabase db,
     required AppConfigController config,
     required LocalCommandContext context,
@@ -71,6 +72,7 @@ class DriftDiarioEdicionMasiva implements DiarioEdicionMasiva {
       ),
     );
     _products = ProductoCommandService(
+      requireOfferPricing: requireOfferPricing,
       eventStore: events,
       commandContext: context,
       categoriaProjectionStore: DriftCategoriaProjectionStore(

@@ -1,3 +1,5 @@
+import 'capturar_oferta_masiva.dart';
+import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../application/edicion_masiva/clave_variante.dart';
@@ -147,6 +149,41 @@ class _FilaEdicionMasivaState extends State<FilaEdicionMasiva> {
       return _compacta(context, capturada, estilo);
     }
     switch (widget.controller.tarea) {
+      case TareaEdicionMasiva.oferta:
+        return [
+          Text(
+            widget.fila.ofertaMinor == null
+                ? 'Sin oferta'
+                : 'Oferta actual: ${_importes.format(widget.fila.ofertaMinor!)}',
+          ),
+          TextButton(
+            key: ValueKey('offer_edit_${widget.fila.clave.variantId}'),
+            onPressed: widget.controller.guardando
+                ? null
+                : () async {
+                    final change = await capturarOfertaMasiva(
+                      context,
+                      actual: widget.fila.ofertaMinor,
+                      cambio:
+                          capturada?.oferta ??
+                          const CambioExplicito.conservar(),
+                    );
+                    if (change != null) {
+                      await widget.controller.editarOferta(
+                        widget.fila.clave,
+                        change,
+                      );
+                    }
+                  },
+            child: Text(
+              capturada?.oferta.establecer != true
+                  ? 'Configurar oferta'
+                  : capturada!.oferta.valor == null
+                  ? 'Retirar oferta'
+                  : 'Oferta propuesta: ${capturada.oferta.valor}',
+            ),
+          ),
+        ];
       case TareaEdicionMasiva.venta:
         final venta = capturada?.venta;
         return [

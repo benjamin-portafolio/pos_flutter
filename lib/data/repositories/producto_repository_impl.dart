@@ -38,6 +38,21 @@ class ProductoRepositoryImpl implements ProductoRepository {
     if (unit == null || !unit.active) return null;
     return MeasuredSaleConditions(
       variantId: variant.id,
+      priceSnapshotVersion:
+          (variant.lastEventId ?? variant.createdEventId) == null ? null : 2,
+      normalPriceMinorSnapshot:
+          (variant.lastEventId ?? variant.createdEventId) == null
+          ? null
+          : variant.salePriceMinor,
+      offerPriceMinorSnapshot:
+          (variant.lastEventId ?? variant.createdEventId) == null
+          ? null
+          : variant.offerPriceMinor,
+      effectivePriceSource:
+          (variant.lastEventId ?? variant.createdEventId) == null
+          ? null
+          : 'normal',
+      priceConfigurationEventId: variant.lastEventId ?? variant.createdEventId,
       productName: product.name,
       variantName: variant.name,
       unit: _toUnit(unit),
@@ -105,6 +120,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
               .toList(),
           nombre: row.name,
           precioVentaMenor: row.salePriceMinor,
+          offerPriceMinor: row.offerPriceMinor,
           costoEstandarMenor: row.standardCostMinor,
           codigoBarras: row.barcode,
           inventoryItemId: row.inventoryItemId,
@@ -190,6 +206,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
             nombre: variante.name,
             codigoBarras: variante.barcode,
             precioVentaMenor: variante.salePriceMinor,
+            offerPriceMinor: variante.offerPriceMinor,
             costoEstandarMenor: variante.standardCostMinor,
             orden: variante.sortOrder,
             minimumStockAtomic: variante.minimumStockAtomic,
