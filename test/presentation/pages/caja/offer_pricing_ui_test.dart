@@ -105,6 +105,18 @@ void main() {
   final toggle = find.byKey(const Key('sale_offer_toggle'));
   final confirm = find.byKey(const Key('confirm_sale_pricing'));
 
+  void expectOfferMode(WidgetTester tester, {required bool active}) {
+    expect(
+      find.descendant(
+        of: toggle,
+        matching: find.byIcon(
+          active ? Icons.local_offer : Icons.local_offer_outlined,
+        ),
+      ),
+      findsOneWidget,
+    );
+  }
+
   void connect() {
     drafts = SaleDraftRepositoryImpl(
       saleDao: h.db.saleDao,
@@ -134,6 +146,11 @@ void main() {
     }
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  }
+
+  Future<void> dismissSnackBar(WidgetTester tester) async {
+    await tester.pump(const Duration(seconds: 9));
+    await settle(tester);
   }
 
   Future<void> open(
@@ -245,14 +262,14 @@ void main() {
       await tester.tap(toggle);
       await settle(tester);
       expect(find.byType(AlertDialog), findsNothing);
-      expect(find.text('Precio de oferta · Activo'), findsOneWidget);
+      expectOfferMode(tester, active: true);
       expect(commands.attempts.single.saleId, first);
       await add(tester);
       expect(find.text(r'Cobrar: $20.00'), findsOneWidget);
       expect(find.text('Oferta aplicada'), findsOneWidget);
       await tester.tap(find.text('Venta 2'));
       await settle(tester);
-      expect(find.text('Precio de oferta · Normal'), findsOneWidget);
+      expectOfferMode(tester, active: false);
       await add(tester);
       expect(find.text(r'Cobrar: $35.00'), findsOneWidget);
       await tester.tap(find.text('Venta 1'));
@@ -260,7 +277,7 @@ void main() {
       expect(find.text(r'Cobrar: $20.00'), findsOneWidget);
       await tester.tap(find.byTooltip('Agregar venta'));
       await settle(tester);
-      expect(find.text('Precio de oferta · Normal'), findsOneWidget);
+      expectOfferMode(tester, active: false);
     },
   );
 
@@ -349,11 +366,11 @@ void main() {
     await settle(tester);
     expect(commands.attempts, hasLength(1));
     expect(tester.widget<OutlinedButton>(toggle).onPressed, isNull);
-    expect(find.text('Precio de oferta · Normal'), findsOneWidget);
+    expectOfferMode(tester, active: false);
     expect(find.text(r'Cobrar: $35.00'), findsOneWidget);
     gate.complete();
     await settle(tester);
-    expect(find.text('Precio de oferta · Activo'), findsOneWidget);
+    expectOfferMode(tester, active: true);
   });
 
   check('preview obsoleto rechaza completo y recupera total persistido', (
@@ -370,10 +387,11 @@ void main() {
       find.textContaining('No se pudo confirmar el cambio de tarifa.'),
       findsOneWidget,
     );
-    expect(find.text('Precio de oferta · Normal'), findsOneWidget);
+    expectOfferMode(tester, active: false);
     await capture(tester, 'error-revision-420x950');
     expect(find.text(r'Cobrar: $70.00'), findsOneWidget);
     expect(find.text('Oferta aplicada'), findsNothing);
+    await dismissSnackBar(tester);
     await accept(tester);
     expect(find.text(r'Cobrar: $40.00'), findsOneWidget);
   });
@@ -385,13 +403,14 @@ void main() {
     commands.beforeApply = () async => throw StateError('Fallo local');
     await tester.tap(toggle);
     await settle(tester);
-    expect(find.text('Precio de oferta · Normal'), findsOneWidget);
+    expectOfferMode(tester, active: false);
     commands.beforeApply = null;
+    await dismissSnackBar(tester);
     await tester.tap(toggle);
     await settle(tester);
     expect(commands.attempts, hasLength(2));
     expect(commands.attempts[0].operationId, commands.attempts[1].operationId);
-    expect(find.text('Precio de oferta · Activo'), findsOneWidget);
+    expectOfferMode(tester, active: true);
   });
 
   check('respuesta perdida recupera éxito persistido sin repetir cambio', (
@@ -401,7 +420,7 @@ void main() {
     commands.failAfterApply = true;
     await tester.tap(toggle);
     await settle(tester);
-    expect(find.text('Precio de oferta · Activo'), findsOneWidget);
+    expectOfferMode(tester, active: true);
     expect(commands.attempts, hasLength(1));
     expect(
       (await tester.runAsync(
@@ -424,7 +443,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Precio de oferta · Normal'), findsOneWidget);
+    expectOfferMode(tester, active: false);
     expect(await tester.runAsync(() => h.db.select(h.db.sales).get()), isEmpty);
   });
 
@@ -486,7 +505,7 @@ void main() {
     );
     connect();
     await open(tester, seed: false);
-    expect(find.text('Precio de oferta · Activo'), findsOneWidget);
+    expectOfferMode(tester, active: true);
     expect(find.text('Oferta aplicada'), findsOneWidget);
     expect(find.text(r'Cobrar: $20.00'), findsOneWidget);
   });
@@ -659,7 +678,7 @@ void main() {
     await tester.tap(find.text('Recibido por efectivo'));
     await settle(tester);
     expect(find.byType(PaymentMethodScreen), findsNothing);
-    expect(find.text('Precio de oferta · Activo'), findsOneWidget);
+    expectOfferMode(tester, active: true);
     expect(find.text(r'Cobrar: $20.00'), findsOneWidget);
     expect(find.textContaining('Revísalo antes de cobrar.'), findsOneWidget);
     await capture(tester, 'error-cobro-420x950');

@@ -447,34 +447,6 @@ class CajaScreenState extends State<CajaScreen> {
                   builder: (context, constraints) => Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                        child: Semantics(
-                          key: const Key('sale_pricing_state'),
-                          toggled: sale?.pricingMode == 'offer',
-                          child: OutlinedButton.icon(
-                            key: const Key('sale_offer_toggle'),
-                            onPressed: _busy ? null : _togglePricing,
-                            style: sale?.pricingMode == 'offer'
-                                ? OutlinedButton.styleFrom(
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer,
-                                  )
-                                : null,
-                            icon: Icon(
-                              sale?.pricingMode == 'offer'
-                                  ? Icons.local_offer
-                                  : Icons.local_offer_outlined,
-                            ),
-                            label: Text(
-                              'Precio de oferta · '
-                              '${sale?.pricingMode == 'offer' ? 'Activo' : 'Normal'}',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ),
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, listConstraints) => ListView(
@@ -599,6 +571,39 @@ class CajaScreenState extends State<CajaScreen> {
                             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                             child: Row(
                               children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Semantics(
+                                    key: const Key('sale_pricing_state'),
+                                    toggled: sale?.pricingMode == 'offer',
+                                    child: OutlinedButton.icon(
+                                      key: const Key('sale_offer_toggle'),
+                                      onPressed: _busy ? null : _togglePricing,
+                                      style: OutlinedButton.styleFrom(
+                                        backgroundColor:
+                                            sale?.pricingMode == 'offer'
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primaryContainer
+                                            : null,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                      ),
+                                      icon: Icon(
+                                        sale?.pricingMode == 'offer'
+                                            ? Icons.local_offer
+                                            : Icons.local_offer_outlined,
+                                        size: 16,
+                                      ),
+                                      label: const FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text('Oferta'),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   flex: 4,
                                   child: FilledButton.icon(
