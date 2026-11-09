@@ -1,3 +1,7 @@
+import '../inventory_deletion_policy.dart';
+import '../projections/variant_inventory_tracking_store.dart';
+import '../inventory_deletion_conflict_restorer.dart';
+import '../payloads/recurso_inventario_eliminado_payload.dart';
 import '../models/sync_event.dart';
 import '../payloads/movimiento_inventario_registrado_payload.dart';
 import '../payloads/recurso_inventario_actualizado_payload.dart';
@@ -13,11 +17,13 @@ class InventoryPendingEventValidator implements PendingEventValidator {
     required InventoryProjectionStore? inventoryProjectionStore,
     required SyncedEventHistory syncedEventHistory,
     required PendingEventDependencyResolver dependencies,
+    this.trackingStore,
   }) : _inventoryProjectionStore = inventoryProjectionStore,
        _syncedEventHistory = syncedEventHistory,
        _dependencies = dependencies;
 
   final InventoryProjectionStore? _inventoryProjectionStore;
+  final VariantInventoryTrackingStore? trackingStore;
   final SyncedEventHistory _syncedEventHistory;
   final PendingEventDependencyResolver _dependencies;
 
@@ -34,6 +40,8 @@ class InventoryPendingEventValidator implements PendingEventValidator {
     return switch (event.eventType) {
       RecursoInventarioCreadoPayload.eventType =>
         await _inventoryItemCreadoConflict(event),
+      RecursoInventarioEliminadoPayload.eventType =>
+        await _inventoryMutationConflict(event),
       RecursoInventarioActualizadoPayload.eventType =>
         await _inventoryMutationConflict(event),
       MovimientoInventarioRegistradoPayload.eventType =>
@@ -46,6 +54,17 @@ class InventoryPendingEventValidator implements PendingEventValidator {
     SyncEvent event,
     Set<String> conflictedEventIds,
   ) async {
+    if (event.eventType == RecursoInventarioEliminadoPayload.eventType) {
+      final base = RecursoInventarioEliminadoPayload.fromJson(
+        event.payload,
+      ).baseEventId;
+      if (conflictedEventIds.contains(base) ||
+          await _dependencies.hasFailed(base)) {
+        return const PendingConflict(
+          'La eliminación depende de un evento en conflicto.',
+        );
+      }
+    }
     if (event.eventType == RecursoInventarioActualizadoPayload.eventType) {
       final payload = RecursoInventarioActualizadoPayload.fromJson(
         event.payload,
@@ -103,14 +122,33 @@ class InventoryPendingEventValidator implements PendingEventValidator {
     final store = _inventoryProjectionStore;
     if (store == null) return null;
     final item = await store.findItemById(event.aggregateId);
-    if (item == null || !item.active) {
+    final tip = item?.lastEventId == null
+        ? null
+        : await _syncedEventHistory.eventById(item!.lastEventId!);
+    final pendingDeletion =
+        tip?.eventType == RecursoInventarioEliminadoPayload.eventType &&
+        tip?.deliveryStatus == 'pending';
+    if (item == null || (!item.active && !pendingDeletion)) {
       return const PendingConflict(
         'Ya no existe el recurso de inventario que se intentó modificar.',
       );
     }
+    if (event.eventType == RecursoInventarioEliminadoPayload.eventType &&
+        trackingStore != null) {
+      final reason = await InventoryDeletionPolicy(
+        store,
+        trackingStore!,
+      ).blockingReason(event.aggregateId);
+      if (reason != null) return PendingConflict(reason);
+    }
 
     final String baseEventId;
-    if (event.eventType == RecursoInventarioActualizadoPayload.eventType) {
+    if (event.eventType == RecursoInventarioEliminadoPayload.eventType) {
+      baseEventId = RecursoInventarioEliminadoPayload.fromJson(
+        event.payload,
+      ).baseEventId;
+    } else if (event.eventType ==
+        RecursoInventarioActualizadoPayload.eventType) {
       baseEventId = RecursoInventarioActualizadoPayload.fromJson(
         event.payload,
       ).baseEventId;
@@ -146,6 +184,8 @@ class InventoryPendingEventValidator implements PendingEventValidator {
       (officialEvent) =>
           officialEvent.eventId != event.eventId &&
           (officialEvent.eventType ==
+                  RecursoInventarioEliminadoPayload.eventType ||
+              officialEvent.eventType ==
                   RecursoInventarioActualizadoPayload.eventType ||
               officialEvent.eventType ==
                   MovimientoInventarioRegistradoPayload.eventType),
@@ -159,6 +199,8 @@ class InventoryPendingEventValidator implements PendingEventValidator {
   @override
   Future<void> restore(SyncEvent event, PendingConflict conflict) async {
     switch (event.eventType) {
+      case RecursoInventarioEliminadoPayload.eventType:
+        await restoreInventoryDeletion(_inventoryProjectionStore, event);
       case RecursoInventarioCreadoPayload.eventType:
         await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
       case RecursoInventarioActualizadoPayload.eventType:

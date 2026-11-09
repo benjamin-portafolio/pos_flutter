@@ -229,8 +229,14 @@ class DriftVariantInventoryTrackingStore
   }
 
   @override
-  Future<List<String>> unresolvedSaleIdsReferencing(String inventoryItemId) {
-    return _inventoryDao.obtenerVentasPendientesConRecurso(inventoryItemId);
+  Future<List<String>> unresolvedSaleIdsReferencing(
+    String inventoryItemId, {
+    bool includeConfirmed = true,
+  }) {
+    return _inventoryDao.obtenerVentasPendientesConRecurso(
+      inventoryItemId,
+      includeConfirmed: includeConfirmed,
+    );
   }
 
   @override

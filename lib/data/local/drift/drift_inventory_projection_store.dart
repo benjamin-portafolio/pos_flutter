@@ -130,6 +130,7 @@ class DriftInventoryProjectionStore implements InventoryProjectionStore {
     return _inventoryDao.actualizarRecurso(
       item: local.InventoryItemsCompanion(
         name: drift.Value(item.name),
+        active: drift.Value(item.active),
         version: drift.Value(item.version),
         lastEventId: drift.Value(item.lastEventId),
         lastServerSequence: drift.Value(item.lastServerSequence),

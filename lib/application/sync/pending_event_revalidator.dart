@@ -1,3 +1,5 @@
+import 'projections/variant_inventory_tracking_store.dart';
+import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'payloads/operacion_venta_conciliada_payload.dart';
 import 'payloads/venta_anulada_payload.dart';
 import 'payloads/devolucion_venta_registrada_payload.dart';
@@ -66,6 +68,7 @@ class PendingEventRevalidator {
     required CategoriaProjectionStore categoriaProjectionStore,
     ProductoProjectionStore? productoProjectionStore,
     InventoryProjectionStore? inventoryProjectionStore,
+    VariantInventoryTrackingStore? inventoryTrackingStore,
     FinancialCategoryProjectionStore? financialCategoryProjectionStore,
     required CategoriaConflictProjectionRestorer
     categoriaConflictProjectionRestorer,
@@ -99,6 +102,7 @@ class PendingEventRevalidator {
       dependencies: dependencies,
     );
     final inventory = InventoryPendingEventValidator(
+      trackingStore: inventoryTrackingStore,
       inventoryProjectionStore: inventoryProjectionStore,
       syncedEventHistory: syncedEventHistory,
       dependencies: dependencies,
@@ -161,6 +165,7 @@ class PendingEventRevalidator {
       ProductoCreadoPayload.eventType: product,
       RecursoInventarioCreadoPayload.eventType: inventory,
       RecursoInventarioActualizadoPayload.eventType: inventory,
+      RecursoInventarioEliminadoPayload.eventType: inventory,
       MovimientoInventarioRegistradoPayload.eventType: inventory,
       if (financialCategoryProjectionStore != null)
         CategoriaFinancieraCreadaPayload.eventType: financial,

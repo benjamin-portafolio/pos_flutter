@@ -48,9 +48,13 @@ abstract interface class VariantInventoryTrackingStore {
   /// suma neta sea cero.
   Future<int> movementCount(String inventoryItemId);
 
-  /// Identificadores de venta que capturaron el recurso en su configuración y que
-  /// todavía esperan resolverse. Conserva el recurso mientras deba revisarse.
-  Future<List<String>> unresolvedSaleIdsReferencing(String inventoryItemId);
+  /// Ventas que capturaron el recurso en su configuración. El descarte físico
+  /// conserva también confirmadas; la baja lógica usa includeConfirmed = false
+  /// porque mantiene las identidades necesarias para su historial y ajustes.
+  Future<List<String>> unresolvedSaleIdsReferencing(
+    String inventoryItemId, {
+    bool includeConfirmed = true,
+  });
 
   /// Comprobación de descarte ya aplicado y persistido. Un descarte repetido es
   /// idempotente solo con esta prueba; sin ella, un recurso faltante es error.

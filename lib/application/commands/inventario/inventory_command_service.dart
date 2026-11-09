@@ -12,6 +12,10 @@ import '../../sync/payloads/recurso_inventario_actualizado_payload.dart';
 import '../../sync/payloads/recurso_inventario_creado_payload.dart';
 import '../../sync/projections/inventory_projection_store.dart';
 import 'crear_recurso_inventario_command.dart';
+import 'eliminar_recurso_inventario_command.dart';
+import '../../sync/payloads/recurso_inventario_eliminado_payload.dart';
+import '../../sync/inventory_deletion_policy.dart';
+import '../../sync/projections/variant_inventory_tracking_store.dart';
 import 'editar_recurso_inventario_command.dart';
 import 'registrar_movimiento_inventario_command.dart';
 import 'registrar_entrada_confirmada_command.dart';
@@ -24,11 +28,13 @@ class InventoryCommandService {
     required LocalCommandContext commandContext,
     required InventoryProjectionStore inventoryProjectionStore,
     SyncedEventHistory? history,
+    VariantInventoryTrackingStore? trackingStore,
     Uuid uuid = const Uuid(),
   }) : _eventStore = eventStore,
        _commandContext = commandContext,
        _inventoryProjectionStore = inventoryProjectionStore,
        _history = history,
+       _trackingStore = trackingStore,
        _uuid = uuid;
 
   final LocalEventStore _eventStore;
@@ -36,6 +42,56 @@ class InventoryCommandService {
   final InventoryProjectionStore _inventoryProjectionStore;
   final Uuid _uuid;
   final SyncedEventHistory? _history;
+  final VariantInventoryTrackingStore? _trackingStore;
+
+  Future<void> eliminarRecurso(EliminarRecursoInventarioCommand command) async {
+    final store = _eventStore;
+    final tracking = _trackingStore;
+    if (store is! LocalTransactionalEventStore || tracking == null) {
+      throw StateError(
+        'La eliminación requiere transacción y validación de dependencias.',
+      );
+    }
+    await (store as LocalTransactionalEventStore).runInTransaction(() async {
+      final item = await _inventoryProjectionStore.findItemById(
+        command.inventoryItemId.trim(),
+      );
+      if (item == null || !item.active) {
+        throw const InventoryProjectionConflict(
+          'El recurso no existe o está inactivo.',
+        );
+      }
+      final reason = await InventoryDeletionPolicy(
+        _inventoryProjectionStore,
+        tracking,
+      ).blockingReason(item.id);
+      if (reason != null) throw InventoryProjectionConflict(reason);
+      final base = item.lastEventId ?? item.createdEventId;
+      if (base == null) {
+        throw StateError('El recurso no tiene una base trazable.');
+      }
+      final payload = RecursoInventarioEliminadoPayload.create(
+        baseEventId: base,
+      );
+      await _eventStore.appendAndApply(
+        SyncEvent(
+          eventId: _uuid.v4(),
+          aggregateType: RecursoInventarioEliminadoPayload.aggregateType,
+          aggregateId: item.id,
+          eventType: RecursoInventarioEliminadoPayload.eventType,
+          deviceId: _commandContext.deviceId,
+          userId: _commandContext.userId,
+          baseVersion: item.version,
+          baseServerSequence: item.lastServerSequence,
+          createdAtLocal: DateTime.now(),
+          payload: payload.toJson(),
+        ),
+        refs: [
+          LocalEventRef.affects(refType: 'inventory_item', refId: item.id),
+        ],
+      );
+    });
+  }
 
   Future<void> crearRecurso(CrearRecursoInventarioCommand command) async {
     final name = NombreRecursoInventario.fromInput(command.nombre).value;

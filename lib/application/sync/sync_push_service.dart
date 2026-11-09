@@ -1,3 +1,4 @@
+import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'sync_capability_store.dart';
 import 'sale_adjustment_sync_contract.dart';
 import 'synced_event_history.dart';
@@ -242,7 +243,8 @@ class SyncPushService {
         case 'rejected':
           rejected++;
           rejectedIds.add(event.eventId);
-          if (event.aggregateType == ProveedorCreadoPayload.aggregateType ||
+          if (event.eventType == RecursoInventarioEliminadoPayload.eventType ||
+              event.aggregateType == ProveedorCreadoPayload.aggregateType ||
               event.aggregateType == ProductoCreadoPayload.aggregateType ||
               event.eventType ==
                   MovimientoInventarioRegistradoPayload.eventType) {
@@ -388,6 +390,10 @@ class SyncPushService {
                   dependency.dependsOnEventId != null &&
                   eventIds.contains(dependency.dependsOnEventId),
             );
+      case RecursoInventarioEliminadoPayload.eventType:
+        return eventIds.contains(
+          RecursoInventarioEliminadoPayload.fromJson(event.payload).baseEventId,
+        );
       case RecursoInventarioActualizadoPayload.eventType:
         final payload = RecursoInventarioActualizadoPayload.fromJson(
           event.payload,

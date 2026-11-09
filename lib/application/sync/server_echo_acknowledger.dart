@@ -1,3 +1,4 @@
+import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'payloads/operacion_venta_conciliada_payload.dart';
 import 'projections/sale_reconciliation_store.dart';
 import 'projections/sale_adjustment_store.dart';
@@ -163,6 +164,7 @@ class ServerEchoAcknowledger {
           serverSequence: serverSequence,
         );
         return;
+      case RecursoInventarioEliminadoPayload.eventType:
       case RecursoInventarioActualizadoPayload.eventType:
         await _inventoryProjectionStore?.advanceEventServerSequence(
           inventoryItemId: event.aggregateId,

@@ -1,3 +1,4 @@
+import '../../../application/sync/payloads/recurso_inventario_eliminado_payload.dart';
 import '../../../application/sync/sale_adjustment_sync_contract.dart';
 import '../../../application/commands/ventas/sale_adjustment_command_contract.dart';
 import 'package:drift/drift.dart';
@@ -119,7 +120,17 @@ class DriftSyncedEventStore implements SyncedEventStore {
     final existing = await (_db.select(
       _db.events,
     )..where((event) => event.eventId.equals(eventId))).getSingleOrNull();
-    return existing?.applicationStatus == 'applied';
+    if (existing?.applicationStatus != 'applied') return false;
+    if (existing!.eventType == RecursoInventarioEliminadoPayload.eventType) {
+      // Una baja optimista pudo haberse restaurado mientras se recibía una
+      // página anterior del historial. Su aceptación posterior debe aplicarse,
+      // no reducirse a un eco de metadatos sobre el recurso reactivado.
+      final item = await (_db.select(
+        _db.inventoryItems,
+      )..where((row) => row.id.equals(existing.aggregateId))).getSingleOrNull();
+      return item != null && !item.active && item.lastEventId == eventId;
+    }
+    return true;
   }
 
   Future<void> _markEventRefsSynced(SyncEvent event) async {

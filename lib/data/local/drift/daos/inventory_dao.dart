@@ -161,23 +161,28 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     return query.map((row) => row.read(count) ?? 0).getSingle();
   }
 
-  /// Ventas no cobradas cuya configuración capturada todavía nombra al recurso.
+  /// Ventas cuya configuración capturada todavía nombra al recurso.
   ///
   /// `consumption_configuration_key` es el JSON de la configuración de consumo
   /// congelada al capturar la línea (vínculo directo y componentes). Una venta
-  /// en borrador o confirmada sin resolver puede necesitar ese recurso para
-  /// cobrar o revertirse, así que su presencia bloquea el descarte.
+  /// en borrador o confirmada puede necesitar ese recurso para cobrar o
+  /// revertirse, así que ambas bloquean el descarte físico. La baja lógica
+  /// excluye confirmadas con includeConfirmed = false y conserva su historial.
   ///
   /// No usa `event_refs`: en `standalone` esas filas no existen.
   Future<List<String>> obtenerVentasPendientesConRecurso(
-    String inventoryItemId,
-  ) {
+    String inventoryItemId, {
+    bool includeConfirmed = true,
+  }) {
     final query =
         select(db.saleItems).join([
           innerJoin(db.sales, db.sales.id.equalsExp(db.saleItems.saleId)),
         ])..where(
           db.saleItems.active.equals(true) &
-              db.sales.status.isIn(['borrador', 'confirmada']),
+              db.sales.status.isIn([
+                'borrador',
+                if (includeConfirmed) 'confirmada',
+              ]),
         );
     return query.get().then(
       (rows) => rows

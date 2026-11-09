@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/sync/projections/inventory_projection_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
@@ -208,5 +209,84 @@ void main() {
     expect(saved?.quantityDeltaAtomic, -250);
     expect(saved?.movementType, TipoMovimientoInventario.manualAdjustment);
     expect(saved?.movementReason, 'Conteo físico');
+  });
+  testWidgets('eliminar confirma, advierte cambios y no ejecuta guardar', (
+    tester,
+  ) async {
+    var deleted = 0;
+    var saved = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryResourceFormScreen.edit(
+          resource: resource,
+          onSave: (_) async {
+            saved++;
+          },
+          onDelete: () async {
+            deleted++;
+          },
+        ),
+      ),
+    );
+    await tester.enterText(
+      find.byKey(const Key('inventory_resource_name_field')),
+      'Otro nombre',
+    );
+    final button = find.byKey(const Key('delete_inventory_resource_button'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('sin guardar se descartarán'), findsOneWidget);
+    await tester.tap(find.text('CANCELAR'));
+    await tester.pumpAndSettle();
+    expect(deleted, 0);
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ELIMINAR'));
+    await tester.pumpAndSettle();
+    expect(deleted, 1);
+    expect(saved, 0);
+  });
+
+  testWidgets('bloqueo de eliminación muestra motivo y permite reintentar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryResourceFormScreen.edit(
+          resource: resource,
+          onSave: (_) async {},
+          onDelete: () async {
+            throw const InventoryProjectionConflict('Tiene existencias.');
+          },
+        ),
+      ),
+    );
+    final button = find.byKey(const Key('delete_inventory_resource_button'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ELIMINAR'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Tiene existencias.'));
+    expect(find.text('Tiene existencias.'), findsOneWidget);
+    expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
+  });
+
+  testWidgets('alta no ofrece eliminar', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InventoryResourceFormScreen(
+          units: const [kg],
+          onSave: (_) async {},
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const Key('delete_inventory_resource_button')),
+      findsNothing,
+    );
   });
 }

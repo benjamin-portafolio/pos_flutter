@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../domain/inventario/nombre_recurso_inventario.dart';
+import '../../../../application/sync/projections/inventory_projection_store.dart';
 import '../../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
 import 'models/inventory_resource_form_result.dart';
@@ -13,17 +14,20 @@ class InventoryResourceFormScreen extends StatefulWidget {
     required this.units,
     required this.onSave,
     super.key,
-  }) : resource = null;
+  }) : resource = null,
+       onDelete = null;
 
   const InventoryResourceFormScreen.edit({
     required this.resource,
     required this.onSave,
+    this.onDelete,
     super.key,
   }) : units = const [];
 
   final List<UnidadInventario> units;
   final Future<void> Function(InventoryResourceFormResult result) onSave;
   final RecursoInventarioListado? resource;
+  final Future<void> Function()? onDelete;
 
   @override
   State<InventoryResourceFormScreen> createState() =>
@@ -33,6 +37,7 @@ class InventoryResourceFormScreen extends StatefulWidget {
 class _InventoryResourceFormScreenState
     extends State<InventoryResourceFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _errorKey = GlobalKey();
   final _movementKey = GlobalKey<InventoryMovementSectionState>();
   final _nameController = TextEditingController();
   UnidadInventario? _selectedUnit;
@@ -151,9 +156,23 @@ class _InventoryResourceFormScreenState
                         widget.resource?.existenciaAtomica ?? 0,
                     busy: _saving,
                   ),
+                  if (_editing && widget.onDelete != null) ...[
+                    const SizedBox(height: 32),
+                    FilledButton.icon(
+                      key: const Key('delete_inventory_resource_button'),
+                      onPressed: _saving ? null : _delete,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('ELIMINAR RECURSO'),
+                    ),
+                  ],
                   if (_saveError != null) ...[
                     const SizedBox(height: 16),
                     Material(
+                      key: _errorKey,
                       color: colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
@@ -272,6 +291,64 @@ class _InventoryResourceFormScreenState
         _saving = false;
         _saveError = 'No se pudo guardar el recurso de inventario.';
       });
+    }
+  }
+
+  Future<void> _delete() async {
+    if (_saving) return;
+    FocusScope.of(context).unfocus();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar recurso'),
+        content: Text(
+          '¿Eliminar "${widget.resource!.nombre}" del inventario? Se conservará su historial.'
+          '${_hasChanges ? " Los cambios de nombre o existencias sin guardar se descartarán." : ""}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCELAR'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('ELIMINAR'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      await widget.onDelete!();
+      if (!mounted) return;
+      setState(() => _canPop = true);
+      await Future<void>.delayed(Duration.zero);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _saveError = error is InventoryProjectionConflict
+            ? error.message
+            : 'No se pudo eliminar el recurso de inventario.';
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      final errorContext = _errorKey.currentContext;
+      if (errorContext != null && errorContext.mounted) {
+        await Scrollable.ensureVisible(
+          errorContext,
+          alignment: 1,
+          duration: const Duration(milliseconds: 200),
+        );
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
 import 'payloads/cliente_actualizado_payload.dart';
@@ -35,6 +36,30 @@ class RemoteEventPreparer {
       pending.map((event) => event.eventId).toList(growable: false),
     );
 
+    final officialResources = switch (officialEvent.eventType) {
+      ProductoCreadoPayload.eventType => ProductoCreadoPayload.fromJson(
+        officialEvent.payload,
+      ).dependenciasInventario.map((d) => d.refId).toSet(),
+      ProductoActualizadoPayload.eventType =>
+        ProductoActualizadoPayload.fromJson(
+          officialEvent.payload,
+        ).after.dependenciasInventario.map((d) => d.refId).toSet(),
+      _ => <String>{},
+    };
+    for (final local in pending.reversed) {
+      if (local.eventType != RecursoInventarioEliminadoPayload.eventType ||
+          !officialResources.contains(local.aggregateId)) {
+        continue;
+      }
+      await _conflictProjectionCleaner.hideConflictProjection(local);
+      await _syncPersistence.updateEventSyncStatus(
+        local.eventId,
+        'conflict',
+        rejectionReason:
+            'Un artículo oficial utiliza el recurso que se intentó eliminar.',
+      );
+    }
+
     if (officialEvent.aggregateType ==
         RecursoInventarioCreadoPayload.aggregateType) {
       // Restaurar primero la cadena optimista en orden inverso. El handler
@@ -46,7 +71,9 @@ class RemoteEventPreparer {
             (local.eventType !=
                     MovimientoInventarioRegistradoPayload.eventType &&
                 local.eventType !=
-                    RecursoInventarioActualizadoPayload.eventType)) {
+                    RecursoInventarioActualizadoPayload.eventType &&
+                local.eventType !=
+                    RecursoInventarioEliminadoPayload.eventType)) {
           continue;
         }
         await _conflictProjectionCleaner.hideConflictProjection(local);

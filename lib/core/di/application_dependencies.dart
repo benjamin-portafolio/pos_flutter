@@ -612,6 +612,7 @@ void registerApplicationDependencies(
           getIt<CategoriaMovidaConflictProjectionRestorer>(),
       categoriaEliminadaConflictProjectionRestorer:
           getIt<CategoriaEliminadaConflictProjectionRestorer>(),
+      inventoryTrackingStore: getIt<VariantInventoryTrackingStore>(),
     ),
   );
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
@@ -776,6 +777,7 @@ void registerApplicationDependencies(
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
       inventoryProjectionStore: getIt<InventoryProjectionStore>(),
+      trackingStore: getIt<VariantInventoryTrackingStore>(),
     ),
   );
 }

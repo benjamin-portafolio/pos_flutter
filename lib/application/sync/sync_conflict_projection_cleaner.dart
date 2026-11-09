@@ -1,3 +1,5 @@
+import 'inventory_deletion_conflict_restorer.dart';
+import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'sale_adjustment_sync_contract.dart';
 import 'proveedor_conflict_projection_restorer.dart';
 import 'payloads/proveedor_creado_payload.dart';
@@ -114,6 +116,8 @@ class SyncConflictProjectionCleaner {
       );
     } else if (event.eventType == ProductoCreadoPayload.eventType) {
       await _productoProjectionStore?.deleteCreatedByEvent(event.eventId);
+    } else if (event.eventType == RecursoInventarioEliminadoPayload.eventType) {
+      await restoreInventoryDeletion(_inventoryProjectionStore, event);
     } else if (event.eventType == RecursoInventarioCreadoPayload.eventType) {
       await _inventoryProjectionStore?.deleteCreatedByEvent(event.eventId);
     } else if (event.eventType ==

@@ -1,3 +1,4 @@
+import '../../../application/commands/inventario/eliminar_recurso_inventario_command.dart';
 import '../../../application/config/app_config.dart';
 import '../../../application/config/app_config_controller.dart';
 import '../../../application/commands/proveedores/crear_proveedor_command.dart';
@@ -532,17 +533,33 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     BuildContext context,
     RecursoInventarioListado resource,
   ) async {
+    var deleted = false;
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => InventoryResourceFormScreen.edit(
           resource: resource,
           onSave: (result) => _editInventoryResource(resource, result),
+          onDelete: () async {
+            final service =
+                widget.inventoryCommandService ??
+                getIt<InventoryCommandService>();
+            await service.eliminarRecurso(
+              EliminarRecursoInventarioCommand(inventoryItemId: resource.id),
+            );
+            deleted = true;
+          },
         ),
       ),
     );
     if (saved == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recurso de inventario actualizado.')),
+        SnackBar(
+          content: Text(
+            deleted
+                ? 'Recurso de inventario eliminado.'
+                : 'Recurso de inventario actualizado.',
+          ),
+        ),
       );
     }
   }

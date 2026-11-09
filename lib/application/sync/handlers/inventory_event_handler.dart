@@ -1,4 +1,6 @@
 import 'inventory_discard_event_handler.dart';
+import '../inventory_deletion_policy.dart';
+import '../payloads/recurso_inventario_eliminado_payload.dart';
 import '../projections/variant_inventory_tracking_store.dart';
 import '../models/sync_event.dart';
 import '../payloads/inventory_movement_payload.dart';
@@ -142,6 +144,49 @@ class InventoryEventHandler {
                 serverSequence: event.serverSequence,
               ),
       ),
+    );
+  }
+
+  Future<void> applyRecursoInventarioEliminado(SyncEvent event) async {
+    _validateAggregate(event);
+    final payload = RecursoInventarioEliminadoPayload.fromJson(event.payload);
+    final item = await _projectionStore.findItemById(event.aggregateId);
+    if (item != null && item.lastEventId == event.eventId && !item.active) {
+      await _advanceEcho(event, includesBalance: false);
+      return;
+    }
+    if (item == null || !item.active) {
+      throw const InventoryProjectionConflict(
+        'El recurso no existe o está inactivo.',
+      );
+    }
+    _validateBase(event, payload.baseEventId, item);
+    // El pull es autoritativo: los borradores locales no vetan una baja oficial.
+    if (event.serverSequence == null) {
+      final tracking = trackingStore;
+      if (tracking == null) {
+        throw StateError('Falta la validación de dependencias.');
+      }
+      final reason = await InventoryDeletionPolicy(
+        _projectionStore,
+        tracking,
+      ).blockingReason(item.id);
+      if (reason != null) throw InventoryProjectionConflict(reason);
+    }
+    await _projectionStore.applyItemUpdate(
+      item: InventoryItemProjection(
+        id: item.id,
+        defaultUnitId: item.defaultUnitId,
+        name: item.name,
+        active: false,
+        version: item.version + 1,
+        createdEventId: item.createdEventId,
+        lastEventId: event.eventId,
+        lastServerSequence: event.serverSequence ?? item.lastServerSequence,
+        originVariantId: item.originVariantId,
+      ),
+      expectedBaseEventId: payload.baseEventId,
+      expectedBaseVersion: event.baseVersion!,
     );
   }
 
