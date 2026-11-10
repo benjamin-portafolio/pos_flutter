@@ -210,6 +210,10 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
   @override
   Widget build(BuildContext context) {
     final source = _package ?? _source;
+    // El manifiesto toma su identidad de origen de este mismo corte.
+    final packageCut = _package?['cut'] as Map?;
+    final packageSource = packageCut?['source'] as Map?;
+    final sourceDeviceId = packageSource?['device_id'];
     final diagnostic = source?['diagnostic'] as Map?;
     final cut = source?['cut'] as Map?;
     final target = _target;
@@ -287,9 +291,12 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
             if (_package != null) ...[
               Text('Paquete: ${_package!['package_id']}'),
               SelectableText('Digest: ${_package!['manifest_digest']}'),
+              if (sourceDeviceId is String && sourceDeviceId.isNotEmpty)
+                SelectableText('ID del dispositivo de origen: $sourceDeviceId'),
               Text('Conservado en: ${_package!['package_path']}'),
               const Text(
-                'Entrega el ID y digest al operador para obtener la credencial temporal de este paquete.',
+                'Entrega el ID del paquete, el digest y el ID del dispositivo de origen '
+                'al operador para obtener la credencial temporal.',
               ),
             ],
             if (widget.mode == AppMode.serverSync) ...[

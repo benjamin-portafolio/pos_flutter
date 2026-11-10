@@ -102,7 +102,10 @@ class _WorkflowService extends _Service {
     'manifest_digest': 'digest-fixture',
     'package_path': '/private/package',
     'snapshot_path': '/private/source.sqlite',
-    'cut': {'cut_at': '2026-11-09T12:00:00Z'},
+    'cut': {
+      'cut_at': '2026-11-09T12:00:00Z',
+      'source': {'device_id': 'package-origin-fixture'},
+    },
     'diagnostic': {
       'admissible': true,
       'counts': {},
@@ -242,6 +245,14 @@ void main() {
       );
       await tester.pumpWidget(screen());
       await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SelectableText &&
+              widget.data == 'ID del dispositivo de origen: package-origin-fixture',
+        ),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.widgetWithText(TextField, 'URL HTTPS del destino'),
         'https://destination.example',
