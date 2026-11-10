@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/import/articulo_import_eliminacion.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -650,14 +651,16 @@ class _Fixture {
 
   Future<Map<String, List<Map<String, Object?>>>> state() async => {
     for (final table in h.db.allTables)
-      table.actualTableName:
-          (await h.db
-                  .customSelect(
-                    'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
-                  )
-                  .get())
-              .map((r) => r.data)
-              .toList(),
+      // Revisión técnica se verifica en recovery_capture_test; esta foto compara negocio.
+      if (table.actualTableName != 'recovery_local_state')
+        table.actualTableName:
+            (await h.db
+                    .customSelect(
+                      'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
+                    )
+                    .get())
+                .map((r) => r.data)
+                .toList(),
   };
   Future<void> dispose() async {
     await h.dispose();
@@ -674,6 +677,7 @@ class _GatedBatch implements ArticuloImportBatchService {
   Future<ArticuloImportProgreso> importar(
     List<ArticuloImportProducto> productos, {
     List<ArticuloImportActualizacion> actualizaciones = const [],
+    List<ArticuloImportEliminacion> eliminaciones = const [],
     List<ArticuloImportActualizacion> omitidos = const [],
     required void Function(ArticuloImportProgreso) onProgress,
   }) async {
@@ -682,6 +686,7 @@ class _GatedBatch implements ArticuloImportBatchService {
     return delegate.importar(
       productos,
       actualizaciones: actualizaciones,
+      eliminaciones: eliminaciones,
       omitidos: omitidos,
       onProgress: onProgress,
     );

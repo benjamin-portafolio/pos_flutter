@@ -3,6 +3,396 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $RecoveryLocalStateTable extends RecoveryLocalState
+    with TableInfo<$RecoveryLocalStateTable, RecoveryLocalStateData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecoveryLocalStateTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _singletonMeta = const VerificationMeta(
+    'singleton',
+  );
+  @override
+  late final GeneratedColumn<int> singleton = GeneratedColumn<int>(
+    'singleton',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL CHECK (singleton = 1)',
+  );
+  static const VerificationMeta _dataRevisionMeta = const VerificationMeta(
+    'dataRevision',
+  );
+  @override
+  late final GeneratedColumn<int> dataRevision = GeneratedColumn<int>(
+    'data_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _serverInstanceIdMeta = const VerificationMeta(
+    'serverInstanceId',
+  );
+  @override
+  late final GeneratedColumn<String> serverInstanceId = GeneratedColumn<String>(
+    'server_instance_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _generationIdMeta = const VerificationMeta(
+    'generationId',
+  );
+  @override
+  late final GeneratedColumn<String> generationId = GeneratedColumn<String>(
+    'generation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _datasetIdMeta = const VerificationMeta(
+    'datasetId',
+  );
+  @override
+  late final GeneratedColumn<String> datasetId = GeneratedColumn<String>(
+    'dataset_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    singleton,
+    dataRevision,
+    serverInstanceId,
+    generationId,
+    datasetId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recovery_local_state';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecoveryLocalStateData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('singleton')) {
+      context.handle(
+        _singletonMeta,
+        singleton.isAcceptableOrUnknown(data['singleton']!, _singletonMeta),
+      );
+    }
+    if (data.containsKey('data_revision')) {
+      context.handle(
+        _dataRevisionMeta,
+        dataRevision.isAcceptableOrUnknown(
+          data['data_revision']!,
+          _dataRevisionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_instance_id')) {
+      context.handle(
+        _serverInstanceIdMeta,
+        serverInstanceId.isAcceptableOrUnknown(
+          data['server_instance_id']!,
+          _serverInstanceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('generation_id')) {
+      context.handle(
+        _generationIdMeta,
+        generationId.isAcceptableOrUnknown(
+          data['generation_id']!,
+          _generationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dataset_id')) {
+      context.handle(
+        _datasetIdMeta,
+        datasetId.isAcceptableOrUnknown(data['dataset_id']!, _datasetIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {singleton};
+  @override
+  RecoveryLocalStateData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecoveryLocalStateData(
+      singleton: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}singleton'],
+      )!,
+      dataRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}data_revision'],
+      )!,
+      serverInstanceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_instance_id'],
+      ),
+      generationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}generation_id'],
+      ),
+      datasetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dataset_id'],
+      ),
+    );
+  }
+
+  @override
+  $RecoveryLocalStateTable createAlias(String alias) {
+    return $RecoveryLocalStateTable(attachedDatabase, alias);
+  }
+}
+
+class RecoveryLocalStateData extends DataClass
+    implements Insertable<RecoveryLocalStateData> {
+  /// Singleton de la instalación; siempre 1.
+  final int singleton;
+
+  /// Revisión durable: cada escritura de datos incrementa dentro del mismo commit.
+  final int dataRevision;
+
+  /// Instalación acreditada por un bootstrap; null para instalaciones legadas.
+  final String? serverInstanceId;
+
+  /// Generación acreditada; no se genera al capturar un origen legado.
+  final String? generationId;
+
+  /// Dataset del bootstrap, cuando existe.
+  final String? datasetId;
+  const RecoveryLocalStateData({
+    required this.singleton,
+    required this.dataRevision,
+    this.serverInstanceId,
+    this.generationId,
+    this.datasetId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['singleton'] = Variable<int>(singleton);
+    map['data_revision'] = Variable<int>(dataRevision);
+    if (!nullToAbsent || serverInstanceId != null) {
+      map['server_instance_id'] = Variable<String>(serverInstanceId);
+    }
+    if (!nullToAbsent || generationId != null) {
+      map['generation_id'] = Variable<String>(generationId);
+    }
+    if (!nullToAbsent || datasetId != null) {
+      map['dataset_id'] = Variable<String>(datasetId);
+    }
+    return map;
+  }
+
+  RecoveryLocalStateCompanion toCompanion(bool nullToAbsent) {
+    return RecoveryLocalStateCompanion(
+      singleton: Value(singleton),
+      dataRevision: Value(dataRevision),
+      serverInstanceId: serverInstanceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverInstanceId),
+      generationId: generationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(generationId),
+      datasetId: datasetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(datasetId),
+    );
+  }
+
+  factory RecoveryLocalStateData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecoveryLocalStateData(
+      singleton: serializer.fromJson<int>(json['singleton']),
+      dataRevision: serializer.fromJson<int>(json['dataRevision']),
+      serverInstanceId: serializer.fromJson<String?>(json['serverInstanceId']),
+      generationId: serializer.fromJson<String?>(json['generationId']),
+      datasetId: serializer.fromJson<String?>(json['datasetId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'singleton': serializer.toJson<int>(singleton),
+      'dataRevision': serializer.toJson<int>(dataRevision),
+      'serverInstanceId': serializer.toJson<String?>(serverInstanceId),
+      'generationId': serializer.toJson<String?>(generationId),
+      'datasetId': serializer.toJson<String?>(datasetId),
+    };
+  }
+
+  RecoveryLocalStateData copyWith({
+    int? singleton,
+    int? dataRevision,
+    Value<String?> serverInstanceId = const Value.absent(),
+    Value<String?> generationId = const Value.absent(),
+    Value<String?> datasetId = const Value.absent(),
+  }) => RecoveryLocalStateData(
+    singleton: singleton ?? this.singleton,
+    dataRevision: dataRevision ?? this.dataRevision,
+    serverInstanceId: serverInstanceId.present
+        ? serverInstanceId.value
+        : this.serverInstanceId,
+    generationId: generationId.present ? generationId.value : this.generationId,
+    datasetId: datasetId.present ? datasetId.value : this.datasetId,
+  );
+  RecoveryLocalStateData copyWithCompanion(RecoveryLocalStateCompanion data) {
+    return RecoveryLocalStateData(
+      singleton: data.singleton.present ? data.singleton.value : this.singleton,
+      dataRevision: data.dataRevision.present
+          ? data.dataRevision.value
+          : this.dataRevision,
+      serverInstanceId: data.serverInstanceId.present
+          ? data.serverInstanceId.value
+          : this.serverInstanceId,
+      generationId: data.generationId.present
+          ? data.generationId.value
+          : this.generationId,
+      datasetId: data.datasetId.present ? data.datasetId.value : this.datasetId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecoveryLocalStateData(')
+          ..write('singleton: $singleton, ')
+          ..write('dataRevision: $dataRevision, ')
+          ..write('serverInstanceId: $serverInstanceId, ')
+          ..write('generationId: $generationId, ')
+          ..write('datasetId: $datasetId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    singleton,
+    dataRevision,
+    serverInstanceId,
+    generationId,
+    datasetId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecoveryLocalStateData &&
+          other.singleton == this.singleton &&
+          other.dataRevision == this.dataRevision &&
+          other.serverInstanceId == this.serverInstanceId &&
+          other.generationId == this.generationId &&
+          other.datasetId == this.datasetId);
+}
+
+class RecoveryLocalStateCompanion
+    extends UpdateCompanion<RecoveryLocalStateData> {
+  final Value<int> singleton;
+  final Value<int> dataRevision;
+  final Value<String?> serverInstanceId;
+  final Value<String?> generationId;
+  final Value<String?> datasetId;
+  const RecoveryLocalStateCompanion({
+    this.singleton = const Value.absent(),
+    this.dataRevision = const Value.absent(),
+    this.serverInstanceId = const Value.absent(),
+    this.generationId = const Value.absent(),
+    this.datasetId = const Value.absent(),
+  });
+  RecoveryLocalStateCompanion.insert({
+    this.singleton = const Value.absent(),
+    this.dataRevision = const Value.absent(),
+    this.serverInstanceId = const Value.absent(),
+    this.generationId = const Value.absent(),
+    this.datasetId = const Value.absent(),
+  });
+  static Insertable<RecoveryLocalStateData> custom({
+    Expression<int>? singleton,
+    Expression<int>? dataRevision,
+    Expression<String>? serverInstanceId,
+    Expression<String>? generationId,
+    Expression<String>? datasetId,
+  }) {
+    return RawValuesInsertable({
+      if (singleton != null) 'singleton': singleton,
+      if (dataRevision != null) 'data_revision': dataRevision,
+      if (serverInstanceId != null) 'server_instance_id': serverInstanceId,
+      if (generationId != null) 'generation_id': generationId,
+      if (datasetId != null) 'dataset_id': datasetId,
+    });
+  }
+
+  RecoveryLocalStateCompanion copyWith({
+    Value<int>? singleton,
+    Value<int>? dataRevision,
+    Value<String?>? serverInstanceId,
+    Value<String?>? generationId,
+    Value<String?>? datasetId,
+  }) {
+    return RecoveryLocalStateCompanion(
+      singleton: singleton ?? this.singleton,
+      dataRevision: dataRevision ?? this.dataRevision,
+      serverInstanceId: serverInstanceId ?? this.serverInstanceId,
+      generationId: generationId ?? this.generationId,
+      datasetId: datasetId ?? this.datasetId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (singleton.present) {
+      map['singleton'] = Variable<int>(singleton.value);
+    }
+    if (dataRevision.present) {
+      map['data_revision'] = Variable<int>(dataRevision.value);
+    }
+    if (serverInstanceId.present) {
+      map['server_instance_id'] = Variable<String>(serverInstanceId.value);
+    }
+    if (generationId.present) {
+      map['generation_id'] = Variable<String>(generationId.value);
+    }
+    if (datasetId.present) {
+      map['dataset_id'] = Variable<String>(datasetId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecoveryLocalStateCompanion(')
+          ..write('singleton: $singleton, ')
+          ..write('dataRevision: $dataRevision, ')
+          ..write('serverInstanceId: $serverInstanceId, ')
+          ..write('generationId: $generationId, ')
+          ..write('datasetId: $datasetId')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BulkEditOperationsTable extends BulkEditOperations
     with TableInfo<$BulkEditOperationsTable, BulkEditOperationRow> {
   @override
@@ -26398,6 +26788,8 @@ class SaleReconciliationEffectsCompanion
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $RecoveryLocalStateTable recoveryLocalState =
+      $RecoveryLocalStateTable(this);
   late final $BulkEditOperationsTable bulkEditOperations =
       $BulkEditOperationsTable(this);
   late final $ClientesTable clientes = $ClientesTable(this);
@@ -26585,6 +26977,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    recoveryLocalState,
     bulkEditOperations,
     clientes,
     categories,
@@ -26697,6 +27090,219 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ]);
 }
 
+typedef $$RecoveryLocalStateTableCreateCompanionBuilder =
+    RecoveryLocalStateCompanion Function({
+      Value<int> singleton,
+      Value<int> dataRevision,
+      Value<String?> serverInstanceId,
+      Value<String?> generationId,
+      Value<String?> datasetId,
+    });
+typedef $$RecoveryLocalStateTableUpdateCompanionBuilder =
+    RecoveryLocalStateCompanion Function({
+      Value<int> singleton,
+      Value<int> dataRevision,
+      Value<String?> serverInstanceId,
+      Value<String?> generationId,
+      Value<String?> datasetId,
+    });
+
+class $$RecoveryLocalStateTableFilterComposer
+    extends Composer<_$AppDatabase, $RecoveryLocalStateTable> {
+  $$RecoveryLocalStateTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get singleton => $composableBuilder(
+    column: $table.singleton,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dataRevision => $composableBuilder(
+    column: $table.dataRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverInstanceId => $composableBuilder(
+    column: $table.serverInstanceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get generationId => $composableBuilder(
+    column: $table.generationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get datasetId => $composableBuilder(
+    column: $table.datasetId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RecoveryLocalStateTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecoveryLocalStateTable> {
+  $$RecoveryLocalStateTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get singleton => $composableBuilder(
+    column: $table.singleton,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dataRevision => $composableBuilder(
+    column: $table.dataRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverInstanceId => $composableBuilder(
+    column: $table.serverInstanceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get generationId => $composableBuilder(
+    column: $table.generationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get datasetId => $composableBuilder(
+    column: $table.datasetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecoveryLocalStateTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecoveryLocalStateTable> {
+  $$RecoveryLocalStateTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get singleton =>
+      $composableBuilder(column: $table.singleton, builder: (column) => column);
+
+  GeneratedColumn<int> get dataRevision => $composableBuilder(
+    column: $table.dataRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverInstanceId => $composableBuilder(
+    column: $table.serverInstanceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get generationId => $composableBuilder(
+    column: $table.generationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get datasetId =>
+      $composableBuilder(column: $table.datasetId, builder: (column) => column);
+}
+
+class $$RecoveryLocalStateTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecoveryLocalStateTable,
+          RecoveryLocalStateData,
+          $$RecoveryLocalStateTableFilterComposer,
+          $$RecoveryLocalStateTableOrderingComposer,
+          $$RecoveryLocalStateTableAnnotationComposer,
+          $$RecoveryLocalStateTableCreateCompanionBuilder,
+          $$RecoveryLocalStateTableUpdateCompanionBuilder,
+          (
+            RecoveryLocalStateData,
+            BaseReferences<
+              _$AppDatabase,
+              $RecoveryLocalStateTable,
+              RecoveryLocalStateData
+            >,
+          ),
+          RecoveryLocalStateData,
+          PrefetchHooks Function()
+        > {
+  $$RecoveryLocalStateTableTableManager(
+    _$AppDatabase db,
+    $RecoveryLocalStateTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecoveryLocalStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecoveryLocalStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecoveryLocalStateTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> singleton = const Value.absent(),
+                Value<int> dataRevision = const Value.absent(),
+                Value<String?> serverInstanceId = const Value.absent(),
+                Value<String?> generationId = const Value.absent(),
+                Value<String?> datasetId = const Value.absent(),
+              }) => RecoveryLocalStateCompanion(
+                singleton: singleton,
+                dataRevision: dataRevision,
+                serverInstanceId: serverInstanceId,
+                generationId: generationId,
+                datasetId: datasetId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> singleton = const Value.absent(),
+                Value<int> dataRevision = const Value.absent(),
+                Value<String?> serverInstanceId = const Value.absent(),
+                Value<String?> generationId = const Value.absent(),
+                Value<String?> datasetId = const Value.absent(),
+              }) => RecoveryLocalStateCompanion.insert(
+                singleton: singleton,
+                dataRevision: dataRevision,
+                serverInstanceId: serverInstanceId,
+                generationId: generationId,
+                datasetId: datasetId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecoveryLocalStateTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecoveryLocalStateTable,
+      RecoveryLocalStateData,
+      $$RecoveryLocalStateTableFilterComposer,
+      $$RecoveryLocalStateTableOrderingComposer,
+      $$RecoveryLocalStateTableAnnotationComposer,
+      $$RecoveryLocalStateTableCreateCompanionBuilder,
+      $$RecoveryLocalStateTableUpdateCompanionBuilder,
+      (
+        RecoveryLocalStateData,
+        BaseReferences<
+          _$AppDatabase,
+          $RecoveryLocalStateTable,
+          RecoveryLocalStateData
+        >,
+      ),
+      RecoveryLocalStateData,
+      PrefetchHooks Function()
+    >;
 typedef $$BulkEditOperationsTableCreateCompanionBuilder =
     BulkEditOperationsCompanion Function({
       required String operationId,
@@ -48237,6 +48843,8 @@ typedef $$SaleReconciliationEffectsTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$RecoveryLocalStateTableTableManager get recoveryLocalState =>
+      $$RecoveryLocalStateTableTableManager(_db, _db.recoveryLocalState);
   $$BulkEditOperationsTableTableManager get bulkEditOperations =>
       $$BulkEditOperationsTableTableManager(_db, _db.bulkEditOperations);
   $$ClientesTableTableManager get clientes =>

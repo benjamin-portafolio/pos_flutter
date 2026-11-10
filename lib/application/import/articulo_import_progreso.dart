@@ -9,6 +9,7 @@ class ArticuloImportProgreso {
     this.productosImportados = 0,
     this.productosCreados = 0,
     this.productosActualizados = 0,
+    this.productosEliminados = 0,
     this.productosOmitidos = 0,
     this.productosFallidos = 0,
     this.lotesFallidos = const [],
@@ -22,6 +23,7 @@ class ArticuloImportProgreso {
   final int productosImportados;
   final int productosCreados;
   final int productosActualizados;
+  final int productosEliminados;
 
   /// Incluye omisiones de preparación y no-ops detectados al guardar.
   final int productosOmitidos;

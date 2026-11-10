@@ -300,7 +300,8 @@ class QuotationHarness {
     Set<String> excluded = const {},
   }) async => {
     for (final table in db.allTables)
-      if (!excluded.contains(table.actualTableName))
+      if (table.actualTableName != 'recovery_local_state' &&
+          !excluded.contains(table.actualTableName))
         table.actualTableName:
             (await db
                     .customSelect(

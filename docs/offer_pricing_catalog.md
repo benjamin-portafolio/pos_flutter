@@ -36,26 +36,36 @@ cambiar oferta.
 
 ## CSV
 
-El formato actual de 14 columnas añade `precio_oferta,accion_oferta` al formato
-con product_id/variant_id. También se aceptan los formatos anteriores de 10
-columnas (altas) y 12 (altas/actualizaciones por IDs). Se conservan pertenencia,
-variantes omitidas, revisión y protección frente a bases obsoletas.
+El formato actual de 14 columnas termina en `precio_oferta,eliminar_producto`.
+El importe válido establece o actualiza oferta, el mismo importe es un no-op y
+una celda vacía retira la oferta. En altas, vacío crea sin oferta. Una exportación
+sin editar vuelve a entrar sin cambios, incluso si el historial legado desconoce
+la oferta y la proyección no tiene una.
 
-| Acción | Importe | Intención |
-|---|---|---|
-| Vacía o conservar | Vacío | Conservar; alta sin oferta |
-| Vacía o establecer | Positivo exacto | Establecer |
-| Retirar | Vacío | Retirar explícitamente |
-| Establecer | Vacío | Error |
-| Conservar o retirar | Con importe | Error |
+Se reconocen por encabezado exacto cuatro contratos: 10 columnas (altas), 12
+(con IDs, sin oferta), 14 con `accion_oferta` (legado) y 14 con
+`eliminar_producto` (actual). Los dos primeros conservan oferta existente. El
+legado con acción conserva su interpretación original: vacío/conservar sin
+importe conserva, establecer o acción vacía con importe establece, retirar sin
+importe retira. Encabezados parciales, híbridos o reordenados son errores.
 
-No se acepta texto `null`, cero, exceso de decimales ni combinaciones
-contradictorias. Conforme al contrato cerrado, **todos los importes monetarios**
-se leen sin redondeo silencioso; esto sustituye el redondeo del importador anterior.
-Exportar oferta conocida produce establecer+importe o retirar+vacío. Una oferta
-null desconocida se exporta conservar+vacío, sin fabricar conocimiento. La lectura
-para revisión añade una consulta por conjunto de eventos base (hasta 500 IDs),
-sin cargar todo el historial ni hacer una consulta por fila.
+`eliminar_producto` admite `si`, `no` o vacío, recortando espacios y sin distinguir
+mayúsculas. `si` requiere product_id existente; variant_id es opcional y, si se
+informa, debe pertenecer al producto. Los campos comerciales de esa fila se
+ignoran. Basta marcar una fila exportada; las demás pueden quedar intactas.
+El grupo se rechaza si mezcla eliminación con cambios efectivos o intenta agregar
+variantes. Omitir filas nunca elimina productos ni variantes.
+
+La revisión y el diálogo muestran nombre, ID y todas las variantes activas del
+producto completo que se eliminará. Al aplicar se reutiliza `eliminarArticulo`
+y su evento `producto_actualizado` con `deleteProduct`, protección de base,
+validación de referencias y desactivación histórica. El lote se revierte completo
+ante cualquier error. No hay borrado SQL directo, cambios de esquema ni actividad
+remota nueva.
+
+No se acepta texto `null`, cero, exceso de decimales ni oferta superior al precio
+normal. Todos los importes monetarios se leen sin redondeo silencioso.
+Ejemplos y evidencia: [Verificación CSV](testing/csv_import_verification.md).
 
 ## Compatibilidad
 

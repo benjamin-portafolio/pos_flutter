@@ -6,6 +6,7 @@ import 'offer_pricing_schema.dart';
 /// Restore usa la misma comprobación antes de reemplazar la base vigente.
 /// La versión numérica por sí sola no acredita compatibilidad en desarrollo.
 bool hasCurrentAppDatabaseSchema(Database connection) =>
+    connection.select('PRAGMA user_version').single['user_version'] == 10 &&
     hasRecognizedOfferSchema(connection);
 
 /// Comprobación específica usada también en pruebas de ajustes.

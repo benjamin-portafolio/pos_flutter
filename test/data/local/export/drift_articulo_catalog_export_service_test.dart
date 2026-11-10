@@ -49,7 +49,7 @@ void main() {
   const encabezado =
       'product_id,variant_id,categoria,nombre_articulo,tipo_venta,unidad_venta,nombre_variante,'
       'precio_venta,precio_coste,seguimiento_existencias,existencias,'
-      'codigo_barras,precio_oferta,accion_oferta';
+      'codigo_barras,precio_oferta,eliminar_producto';
 
   Future<List<String>> leerLineas(String ruta) async {
     final bytes = await File(ruta).readAsBytes();
@@ -192,7 +192,7 @@ void main() {
         '0',
         '',
         '',
-        'conservar',
+        '',
       ]);
       expect(archivo.productos, 1);
       expect(archivo.filas, 1);
@@ -387,7 +387,7 @@ void main() {
     // duplican: es la forma de que un separador dentro del nombre no corra la fila.
     expect(
       lineas[1],
-      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,,,conservar',
+      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,,,',
     );
   });
 
@@ -516,7 +516,7 @@ void main() {
     expect(lineas.first, 'columna,obligatoria,valores_permitidos,descripcion');
     expect(lineas, hasLength(15));
     expect(lineas[1].split(',').first, 'product_id');
-    expect(lineas.last.split(',').first, 'accion_oferta');
+    expect(lineas.last.split(',').first, 'eliminar_producto');
   });
 
   test(

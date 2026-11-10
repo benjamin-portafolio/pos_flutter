@@ -1,3 +1,6 @@
+import 'package:pos_flutter/application/sync/sync_installation.dart';
+import 'package:pos_flutter/application/sync/sync_pull_service.dart';
+import 'package:pos_flutter/presentation/pages/recovery/recovery_activation_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -73,6 +76,19 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
             ? getIt<AppConfigController>().config
             : AppConfig.initial.copyWith(setupCompleted: true));
 
+    if (getIt.isRegistered<SyncInstallation>() &&
+        getIt<SyncInstallation>().needsPull) {
+      return RecoveryActivationScreen(
+        activate: () async {
+          await getIt<SyncPullService>().pullAvailableEvents();
+          await getIt<SyncInstallation>().activate();
+        },
+        onActivated: () {
+          setState(() {});
+          unawaited(startConfiguredRuntimeServices(config));
+        },
+      );
+    }
     if (!config.setupCompleted) {
       return const FirstRunSetupScreen();
     }

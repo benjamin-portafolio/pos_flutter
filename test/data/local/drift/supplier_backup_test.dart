@@ -122,7 +122,7 @@ void main() {
           hasLength(1),
         );
         expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-        expect(db.schemaVersion, 9);
+        expect(db.schemaVersion, 10);
       } finally {
         await db.close();
         await snapshot.file.parent.delete(recursive: true);

@@ -13,8 +13,9 @@ import 'articulo_catalog_import_service.dart';
 import 'articulo_import_lote_fallido.dart';
 import 'articulo_import_progreso.dart';
 import 'articulo_import_actualizacion.dart';
+import 'articulo_import_eliminacion.dart';
 
-/// Ejecuta altas y actualizaciones confirmadas; las omisiones solo se cuentan.
+/// Ejecuta altas, actualizaciones y eliminaciones; las omisiones se cuentan.
 /// ProductoCommandService prepara y aplica cada lote en una transacción real.
 class ArticuloImportBatchService {
   ArticuloImportBatchService({
@@ -31,10 +32,13 @@ class ArticuloImportBatchService {
   Future<ArticuloImportProgreso> importar(
     List<ArticuloImportProducto> productos, {
     List<ArticuloImportActualizacion> actualizaciones = const [],
+    List<ArticuloImportEliminacion> eliminaciones = const [],
     List<ArticuloImportActualizacion> omitidos = const [],
     required void Function(ArticuloImportProgreso) onProgress,
   }) async {
     final pendientes = [
+      for (final producto in eliminaciones)
+        _ProductoPendiente.eliminacion(producto),
       for (final producto in productos) _ProductoPendiente.alta(producto),
       for (final producto in actualizaciones)
         _ProductoPendiente.actualizacion(producto),
@@ -51,6 +55,7 @@ class ArticuloImportBatchService {
     var importados = 0;
     var creados = 0;
     var actualizados = 0;
+    var eliminados = 0;
     var sinCambios = omitidos.length;
     var fallidos = 0;
     final errores = <ArticuloImportLoteFallido>[];
@@ -61,6 +66,7 @@ class ArticuloImportBatchService {
       productosImportados: importados,
       productosCreados: creados,
       productosActualizados: actualizados,
+      productosEliminados: eliminados,
       productosOmitidos: sinCambios,
       productosFallidos: fallidos,
       lotesFallidos: List.unmodifiable(errores),
@@ -75,6 +81,18 @@ class ArticuloImportBatchService {
       final lote = pendientes.sublist(inicio, fin);
       try {
         final resultado = await _productos.importarArticulosLote(
+          eliminaciones: [
+            for (final producto in lote)
+              if (producto.eliminacion case final eliminacion?)
+                (
+                  productId: eliminacion.actual.id,
+                  baseEventId:
+                      eliminacion.actual.lastEventId ??
+                      (throw StateError(
+                        "El artículo no tiene una base confirmada.",
+                      )),
+                ),
+          ],
           altas: [
             for (final producto in lote)
               if (producto.alta case final alta?) _command(alta, unidades),
@@ -87,8 +105,10 @@ class ArticuloImportBatchService {
         );
         creados += resultado.creados;
         actualizados += resultado.actualizados;
+        eliminados += resultado.eliminados;
         sinCambios += resultado.sinCambios;
-        importados += resultado.creados + resultado.actualizados;
+        importados +=
+            resultado.creados + resultado.actualizados + resultado.eliminados;
       } catch (error) {
         fallidos += lote.length;
         errores.add(
@@ -104,6 +124,9 @@ class ArticuloImportBatchService {
               for (final producto in lote)
                 if (producto.actualizacion case final actualizacion?)
                   actualizacion.productId,
+              for (final producto in lote)
+                if (producto.eliminacion case final eliminacion?)
+                  eliminacion.actual.id,
             ]),
             motivo: _motivo(error),
           ),
@@ -199,15 +222,24 @@ class ArticuloImportBatchService {
 class _ProductoPendiente {
   const _ProductoPendiente.alta(ArticuloImportProducto producto)
     : alta = producto,
+      eliminacion = null,
       actualizacion = null;
   const _ProductoPendiente.actualizacion(ArticuloImportActualizacion producto)
     : actualizacion = producto,
+      eliminacion = null,
       alta = null;
+  const _ProductoPendiente.eliminacion(ArticuloImportEliminacion producto)
+    : eliminacion = producto,
+      alta = null,
+      actualizacion = null;
 
   final ArticuloImportProducto? alta;
+  final ArticuloImportEliminacion? eliminacion;
   final ArticuloImportActualizacion? actualizacion;
-  String get nombre => alta?.nombre ?? actualizacion!.nombre;
+  String get nombre =>
+      alta?.nombre ?? eliminacion?.actual.nombre ?? actualizacion!.nombre;
   List<int> get lineas => [
+    if (eliminacion case final producto?) ...producto.lineas,
     if (alta case final producto?)
       for (final v in producto.variantes) v.linea,
     if (actualizacion case final producto?)

@@ -9,15 +9,21 @@ import 'sync_persistence.dart';
 
 class SyncSocketListener {
   SyncSocketListener({
+    bool Function()? allowsNetwork,
+    Map<String, dynamic> Function()? authentication,
     required SyncEndpointConfig endpointConfig,
     required LocalCommandContext commandContext,
     required SyncPersistence syncPersistence,
-  }) : _endpointConfig = endpointConfig,
+  }) : _authentication = authentication ?? (() => const {}),
+       _allowsNetwork = allowsNetwork ?? (() => true),
+       _endpointConfig = endpointConfig,
        _commandContext = commandContext,
        _syncPersistence = syncPersistence;
 
   static const eventsAvailableMessage = 'sync:events_available';
 
+  final bool Function() _allowsNetwork;
+  final Map<String, dynamic> Function() _authentication;
   final SyncEndpointConfig _endpointConfig;
   final LocalCommandContext _commandContext;
   final SyncPersistence _syncPersistence;
@@ -37,6 +43,7 @@ class SyncSocketListener {
       _connectionEstablishedController.stream;
 
   void start() {
+    if (!_allowsNetwork()) return;
     final baseUrl = _endpointConfig.baseUrl;
     if (_socket != null && _connectedBaseUrl == baseUrl) return;
 
@@ -47,6 +54,7 @@ class SyncSocketListener {
       io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
+          .setAuth(_authentication())
           .setQuery({'device_id': _commandContext.deviceId})
           .build(),
     );
@@ -82,7 +90,7 @@ class SyncSocketListener {
     final lastFullPullServerSequence = await _syncPersistence
         .lastFullPullServerSequence();
 
-    if (_socket != socket) return;
+    if (_socket != socket || !_allowsNetwork()) return;
 
     socket.emit('sync:join', {
       'device_id': _commandContext.deviceId,

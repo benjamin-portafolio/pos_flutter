@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/import/articulo_import_eliminacion.dart';
 import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
 import 'package:pos_flutter/application/import/articulo_import_catalog_reader.dart';
 import 'package:pos_flutter/application/import/articulo_import_solicitud.dart';
@@ -80,6 +81,10 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('csv_separator_,')),
+      200,
+    );
     expect(find.byKey(const Key('csv_separator_,')), findsOneWidget);
     expect(find.byKey(const Key('csv_separator_;')), findsOneWidget);
     await tester.tap(find.byKey(const Key('csv_separator_;')));
@@ -200,6 +205,10 @@ void main() {
       findsOneWidget,
       reason: 'La pantalla tiene que decir qué archivo se revisó.',
     );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_report')),
+      200,
+    );
     expect(
       find.textContaining('Nuevos: 2 productos · 2 filas.'),
       findsOneWidget,
@@ -230,6 +239,10 @@ void main() {
     await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('import_only_valid_switch')),
+      200,
+    );
     expect(
       tester
           .widget<SwitchListTile>(
@@ -246,6 +259,10 @@ void main() {
     await tester.tap(find.byKey(const Key('import_only_valid_switch')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('import_only_valid_switch')),
+      200,
+    );
     expect(
       tester
           .widget<SwitchListTile>(
@@ -268,6 +285,10 @@ void main() {
     await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_report')),
+      200,
+    );
     expect(find.byKey(const Key('bulk_import_blocked')), findsOneWidget);
     expect(
       find.textContaining('Nuevos: 0 productos · 0 filas.'),
@@ -314,6 +335,10 @@ void main() {
     await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_report')),
+      200,
+    );
     expect(
       find.textContaining('Ya existe un producto llamado "Café".'),
       findsOneWidget,
@@ -385,6 +410,10 @@ void main() {
     expect(find.text('Lotes: 0/1'), findsOneWidget);
     expect(find.text('Artículos importados: 0/1'), findsOneWidget);
     expect(find.text('Artículos fallidos: 0'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('confirm_bulk_import_button')),
+      200,
+    );
     expect(
       tester
           .widget<FilledButton>(
@@ -403,9 +432,17 @@ void main() {
     );
     servicio.gate!.complete();
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_progress')),
+      -200,
+    );
     expect(find.text('Carga finalizada'), findsOneWidget);
     expect(find.text('Lotes: 1/1'), findsOneWidget);
     expect(find.text('Artículos importados: 1/1'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('confirm_bulk_import_button')),
+      200,
+    );
     expect(
       tester
           .widget<FilledButton>(
@@ -561,7 +598,15 @@ void main() {
     await tester.tap(find.byKey(const Key('pick_bulk_import_file_button')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_report')),
+      200,
+    );
     expect(find.text('archivo: El archivo está vacío.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_report')),
+      200,
+    );
     expect(find.byKey(const Key('bulk_import_blocked')), findsOneWidget);
   });
 
@@ -696,6 +741,7 @@ class _FakeBatchService implements ArticuloImportBatchService {
   Future<ArticuloImportProgreso> importar(
     List<ArticuloImportProducto> productos, {
     List<ArticuloImportActualizacion> actualizaciones = const [],
+    List<ArticuloImportEliminacion> eliminaciones = const [],
     List<ArticuloImportActualizacion> omitidos = const [],
     required void Function(ArticuloImportProgreso) onProgress,
   }) async {

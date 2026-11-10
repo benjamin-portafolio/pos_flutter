@@ -16,6 +16,7 @@ import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/edicion_masiva/cambio_explicito.dart';
 import 'package:pos_flutter/application/edicion_masiva/operacion_edicion_masiva.dart';
 import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
+import 'package:pos_flutter/application/import/articulo_csv_contract.dart';
 import 'package:pos_flutter/application/import/articulo_import_batch_service.dart';
 import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
 import 'package:pos_flutter/data/local/import/drift_articulo_import_catalog_reader.dart';
@@ -234,7 +235,7 @@ void main() {
               .split('\n')
               .map((r) => r.split(','))
               .toList();
-          expect(rows.last.sublist(12), ['15.00', 'establecer']);
+          expect(rows.last.sublist(12), ['15.00', '']);
           final old = [
             rows.first.take(12).join(','),
             [
@@ -253,7 +254,6 @@ void main() {
           await run(rows.map((r) => r.join(',')).join('\n'));
           expect((await h.tracking.storedEvents()).length, count);
           rows.last[12] = '';
-          rows.last[13] = 'retirar';
           await run(rows.map((r) => r.join(',')).join('\n'));
           expect(await offer(id), isNull);
         },
@@ -451,7 +451,7 @@ void main() {
         },
       );
       test(
-        'CSV acciones vacías, contradictorias e importes inválidos no escriben al revisar',
+        'CSV legado con accion_oferta conserva acciones e importes al revisar',
         () async {
           await create();
           final exported = ArticuloCatalogCsv.catalogo(
@@ -488,7 +488,7 @@ void main() {
             row[12] = entry.$1;
             row[13] = entry.$2;
             final report = await preparation.preparar(
-              '${source.first.join(',')}\n${row.join(',')}\n',
+              '${ArticuloCsvContract.columnasConOfertaAnteriores.join(',')}\n${row.join(',')}\n',
             );
             expect(
               report.errores.isEmpty,

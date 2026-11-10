@@ -129,12 +129,14 @@ class InventoryBarcodeFixture {
 
   Future<Map<String, List<Map<String, Object?>>>> state() async => {
     for (final table in h.db.allTables)
-      table.actualTableName: await h.db
-          .customSelect(
-            'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
-          )
-          .get()
-          .then((rows) => rows.map((row) => row.data).toList()),
+      // Revisión técnica se verifica en recovery_capture_test; esta foto compara negocio.
+      if (table.actualTableName != 'recovery_local_state')
+        table.actualTableName: await h.db
+            .customSelect(
+              'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
+            )
+            .get()
+            .then((rows) => rows.map((row) => row.data).toList()),
   };
 }
 

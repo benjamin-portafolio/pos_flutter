@@ -38,6 +38,8 @@ ArticuloImportVarianteLocal _variante(
   bool activa = true,
   bool seguimiento = false,
   int orden = 0,
+  int? oferta,
+  bool conoceOferta = true,
 }) => ArticuloImportVarianteLocal(
   id: id,
   productId: productId,
@@ -45,6 +47,8 @@ ArticuloImportVarianteLocal _variante(
   sortOrder: orden,
   nombre: nombre,
   precioVentaMinor: 2500,
+  offerPriceMinor: oferta,
+  knowsOfferPrice: conoceOferta,
   precioCosteMinor: 1000,
   codigoBarras: '00123',
   seguimientoExistencias: seguimiento,
@@ -118,6 +122,7 @@ ArticuloImportReporte _validar(
 );
 
 void main() {
+  _nuevoFormatoTests();
   test('C01-C03 dos formatos explícitos; altas sin IDs no generan identidad', () {
     final nuevo = _validar([_fila(p: '', v: '', nombre: 'Nuevo')]);
     expect(nuevo.errores, isEmpty);
@@ -433,4 +438,200 @@ void main() {
       }
     },
   );
+}
+
+void _nuevoFormatoTests() {
+  ArticuloImportReporte revisar(
+    List<String> filas, {
+    int? oferta = 2000,
+    bool conocida = true,
+    List<String> columnas = ArticuloCsvContract.columnas,
+    List<ArticuloImportProductoLocal>? productos,
+  }) => _parser.validar(
+    '${columnas.join(',')}\n${filas.join('\n')}\n',
+    catalogo: _catalogo(
+      productos ??
+          [
+            _producto(
+              variantes: [
+                _variante('V', oferta: oferta, conoceOferta: conocida),
+              ],
+            ),
+          ],
+    ),
+  );
+  test('nuevo precio_oferta: igual, cambiado, vacío y sin oferta conocida', () {
+    expect(revisar(['${_fila()},20,']).productosSinCambios, hasLength(1));
+    expect(
+      revisar([
+        '${_fila()},19.50,',
+      ]).productosConCambios.single.variantes.single.offerPrice.valor,
+      1950,
+    );
+    expect(
+      revisar([
+        '${_fila()},,',
+      ]).productosConCambios.single.variantes.single.offerPrice.valor,
+      isNull,
+    );
+    for (final conocida in [true, false]) {
+      expect(
+        revisar(
+          ['${_fila()},,'],
+          oferta: null,
+          conocida: conocida,
+        ).productosSinCambios,
+        hasLength(1),
+      );
+    }
+    for (final precio in ['0', '-1', '26', '1.234', 'abc']) {
+      expect(revisar(['${_fila()},$precio,']).errores, isNotEmpty);
+    }
+  });
+  test(
+    'sin columnas de oferta conserva; accion_oferta conserva contrato legado',
+    () {
+      final ausente = revisar([
+        _fila(),
+      ], columnas: ArticuloCsvContract.columnasConIdsAnteriores);
+      expect(
+        ausente
+            .productosSinCambios
+            .single
+            .variantes
+            .single
+            .offerPrice
+            .establecer,
+        isFalse,
+      );
+      for (final oferta in ['', ',conservar']) {
+        final celda = oferta.isEmpty ? ',' : oferta;
+        final legado = revisar([
+          '${_fila()},$celda',
+        ], columnas: ArticuloCsvContract.columnasConOfertaAnteriores);
+        expect(legado.productosSinCambios, hasLength(1));
+      }
+      expect(
+        revisar(
+          ['${_fila()},,retirar'],
+          columnas: ArticuloCsvContract.columnasConOfertaAnteriores,
+        ).productosConCambios.single.variantes.single.offerPrice.valor,
+        isNull,
+      );
+      expect(
+        revisar(
+          ['${_fila()},19,establecer'],
+          columnas: ArticuloCsvContract.columnasConOfertaAnteriores,
+        ).productosConCambios.single.variantes.single.offerPrice.valor,
+        1900,
+      );
+      expect(
+        revisar([
+          '${_fila()},20,retirar',
+        ], columnas: ArticuloCsvContract.columnasConOfertaAnteriores).errores,
+        isNotEmpty,
+      );
+    },
+  );
+  test('alta nueva con precio_oferta vacío crea sin oferta', () {
+    final r = revisar(['${_fila(p: '', v: '', nombre: 'Nuevo')},,']);
+    expect(r.errores, isEmpty);
+    expect(r.productos.single.variantes.single.offerPrice.valor, isNull);
+  });
+  test(
+    'eliminación completa con campos comerciales vacíos e IDs normalizados',
+    () {
+      final p = _producto(
+        variantes: [
+          _variante('V', nombre: 'Chica', oferta: 2000),
+          _variante('W', nombre: 'Grande', oferta: 2000),
+        ],
+      );
+      final r = revisar(
+        [
+          [' P ', '', ...List.filled(11, ''), ' SI '].join(','),
+          '${_fila(v: 'W', variante: 'Grande')},20,',
+        ],
+        productos: [p],
+      );
+      expect(r.errores, isEmpty);
+      expect(r.eliminaciones.single.actual.variantes, hasLength(2));
+      expect(r.eliminaciones.single.lineas, [2, 3]);
+      expect(r.productosConCambios, isEmpty);
+      expect(r.productosSinCambios, isEmpty);
+      expect(r.importable, isTrue);
+      final dos = revisar(['${_fila()},,si', '${_fila(v: '')},,si']);
+      expect(dos.errores, isEmpty);
+      expect(dos.eliminaciones, hasLength(1));
+      // La fila de eliminación ignora incluso datos comerciales inválidos.
+      expect(revisar(['${_fila(precio: 'abc')},inválido,si']).errores, isEmpty);
+    },
+  );
+  test('eliminación: IDs inválidos, pertenencia y acciones desconocidas', () {
+    for (final fila in [
+      '${_fila(p: '', v: '')},,si',
+      '${_fila(p: 'desconocido')},,si',
+      '${_fila(v: 'desconocida')},,si',
+      '${_fila()},,quizás',
+    ]) {
+      final r = revisar([fila]);
+      expect(r.errores, isNotEmpty);
+      expect(r.eliminaciones, isEmpty);
+      expect(r.importable, isFalse);
+    }
+    final p = _producto();
+    final q = _producto(
+      id: 'Q',
+      variantes: [_variante('W', productId: 'Q')],
+    );
+    expect(
+      revisar(['${_fila(v: 'W')},,si'], productos: [p, q]).eliminaciones,
+      isEmpty,
+    );
+    expect(
+      revisar(
+        ['${_fila()},,si'],
+        productos: [_producto(activo: false)],
+      ).eliminaciones,
+      isEmpty,
+    );
+    expect(revisar(['${_fila()},20, NO ']).productosSinCambios, hasLength(1));
+  });
+  test(
+    'rechaza eliminación con cambios comerciales, oferta real o variante nueva',
+    () {
+      final p = _producto(
+        variantes: [
+          _variante('V', nombre: 'Chica', oferta: 2000),
+          _variante('W', nombre: 'Grande', oferta: 2000),
+        ],
+      );
+      for (final otra in [
+        '${_fila(v: 'W', variante: 'Grande', precio: '26')},20,',
+        '${_fila(v: 'W', variante: 'Grande')},19,',
+        '${_fila(v: 'W', variante: 'Grande')},,',
+        '${_fila(v: '', variante: 'Nueva')},,',
+        '${_fila(v: 'W', variante: 'Grande', precio: 'inválido')},20,',
+      ]) {
+        final r = revisar(
+          ['${_fila(variante: 'Chica')},,si', otra],
+          productos: [p],
+        );
+        expect(r.errores, isNotEmpty);
+        expect(r.eliminaciones, isEmpty);
+        expect(r.productosConCambios, isEmpty);
+        expect(r.productos, isEmpty);
+      }
+    },
+  );
+  test('encabezados híbridos o incompletos se rechazan explícitamente', () {
+    for (final columnas in [
+      [...ArticuloCsvContract.columnas, 'accion_oferta'],
+      [...ArticuloCsvContract.columnasConIdsAnteriores, 'precio_oferta'],
+      [...ArticuloCsvContract.columnasConIdsAnteriores, 'eliminar_producto'],
+      [...ArticuloCsvContract.columnasConIdsAnteriores, 'accion_oferta'],
+    ]) {
+      expect(revisar([], columnas: columnas).erroresEstructurales, isTrue);
+    }
+  });
 }

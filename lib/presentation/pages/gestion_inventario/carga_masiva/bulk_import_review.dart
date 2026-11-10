@@ -27,7 +27,8 @@ class BulkImportReview extends StatelessWidget {
       'precio de coste vacío significa costo desconocido. Nombre y precio de '
       'venta son obligatorios; nombre de variante puede quedar vacío solo si '
       'hay una variante.\n'
-      'Oferta: acción/celda vacías conservan; establecer exige importe; retirar exige celda vacía. '
+      'Oferta: precio_oferta establece el importe; vacío retira. Los formatos antiguos sin oferta conservan; accion_oferta mantiene su interpretación anterior. '
+      'Eliminar: escribe si en eliminar_producto con product_id existente; elimina el producto completo y todas sus variantes. No mezcles eliminación y cambios. Quitar filas del archivo no elimina nada. '
       'Las existencias de productos existentes son informativas: no ajustan '
       'inventario. Se conservan las variantes omitidas, recetas y proveedores.';
 
@@ -43,6 +44,7 @@ class BulkImportReview extends StatelessWidget {
       Text(
         'Nuevos: ${reporte.productos.length} productos · ${reporte.filasNuevas} filas.\n'
         'Con cambios: ${reporte.productosConCambios.length} productos · ${reporte.filasConCambios} filas.\n'
+        'Eliminaciones: ${reporte.eliminaciones.length} productos completos.\n'
         'Sin cambios: ${reporte.productosSinCambios.length} productos · ${reporte.filasSinCambios} filas.\n'
         'Con errores: ${reporte.productosConErrores.length} productos · ${reporte.filasExcluidas} filas excluidas.',
         key: const Key('bulk_import_valid_count'),
@@ -65,6 +67,16 @@ class BulkImportReview extends StatelessWidget {
         const Text(
           'Todo está sin cambios. No hay productos que guardar.',
           key: Key('bulk_import_unchanged'),
+        ),
+      for (final eliminacion in reporte.eliminaciones)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'Eliminar producto completo: ${eliminacion.actual.nombre} (${eliminacion.actual.id})\n'
+            '${eliminacion.actual.variantes.where((v) => v.activa).length} variantes: '
+            '${eliminacion.actual.variantes.where((v) => v.activa).map((v) => "${v.nombre ?? 'Única'} (${v.id})").join(', ')}',
+            key: ValueKey('bulk_import_delete_${eliminacion.actual.id}'),
+          ),
         ),
       if (reporte.productosConCambios.isNotEmpty) ...[
         const SizedBox(height: 12),

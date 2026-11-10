@@ -1,3 +1,5 @@
+import '../../data/local/drift/app_database.dart';
+import '../../application/sync/sync_installation.dart';
 import '../../application/weighing/scale_session_service.dart';
 import '../../application/weighing/scale_settings_controller.dart';
 import '../../application/printing/ticket_print_service.dart';
@@ -35,6 +37,10 @@ Future<DependencyBootstrap> setupDependencyInjection() async {
 
 Future<void> startConfiguredRuntimeServices(AppConfig config) async {
   if (!config.setupCompleted) return;
+  if (getIt.isRegistered<SyncInstallation>() &&
+      getIt<SyncInstallation>().needsPull) {
+    return;
+  }
 
   if (config.isServerSync) {
     getIt<SyncAvailabilityMonitor>().start();
@@ -75,6 +81,7 @@ Future<DependencyBootstrap> restartDependencyInjection({
   if (getIt.isRegistered<PrinterSettingsController>()) {
     await getIt<PrinterSettingsController>().dispose();
   }
+  if (getIt.isRegistered<AppDatabase>()) await getIt<AppDatabase>().close();
   await getIt.reset(dispose: false);
 
   final bootstrap = await setupDependencyInjection();

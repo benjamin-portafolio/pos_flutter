@@ -63,14 +63,16 @@ void main() {
 
   Future<Map<String, Object?>> contents(AppDatabase db) async => {
     for (final table in db.allTables)
-      table.actualTableName:
-          (await db
-                  .customSelect(
-                    'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
-                  )
-                  .get())
-              .map((row) => row.data)
-              .toList(),
+      // Revisión técnica se verifica en recovery_capture_test; esta foto compara negocio.
+      if (table.actualTableName != 'recovery_local_state')
+        table.actualTableName:
+            (await db
+                    .customSelect(
+                      'SELECT * FROM "${table.actualTableName}" ORDER BY rowid',
+                    )
+                    .get())
+                .map((row) => row.data)
+                .toList(),
   };
 
   Future<void> checkIntegrity(AppDatabase db) async {
@@ -91,7 +93,7 @@ void main() {
           .single,
       1,
     );
-    expect(db.schemaVersion, 9);
+    expect(db.schemaVersion, 10);
     expect(await db.select(db.eventRefs).get(), isEmpty);
     expect(await db.eventDao.obtenerEventosPendientes(), isEmpty);
     final events = await db.select(db.events).get();
@@ -232,7 +234,7 @@ void main() {
               db: h.db,
               stateReader: DriftDatabaseStateReader(db: h.db),
             ).createSnapshot();
-            expect(snapshot!.schemaVersion, 9);
+            expect(snapshot!.schemaVersion, 10);
             expect(snapshot!.eventCount, populated ? 4 : 1);
             expect(snapshot!.lastLocalSequence, snapshot!.eventCount);
             expect(
@@ -427,7 +429,7 @@ void main() {
                 );
               } else {
                 raw.execute(
-                  'PRAGMA user_version = ${invalid == 'older-version' ? 7 : 10}',
+                  'PRAGMA user_version = ${invalid == 'older-version' ? 7 : 11}',
                 );
               }
             } finally {

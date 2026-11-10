@@ -311,7 +311,7 @@ void main() {
           raw.select('SELECT name FROM products').single['name'],
           'Confirmado en WAL',
         );
-        expect(raw.select('PRAGMA user_version').single.values.single, 9);
+        expect(raw.select('PRAGMA user_version').single.values.single, 10);
       } finally {
         raw.close();
       }

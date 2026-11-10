@@ -1,5 +1,6 @@
 import '../edicion_masiva/cambio_explicito.dart';
 import 'articulo_import_actualizacion.dart';
+import 'articulo_import_eliminacion.dart';
 import 'articulo_import_producto_error.dart';
 import 'articulo_import_producto_local.dart';
 import 'articulo_import_variante_local.dart';
@@ -135,7 +136,7 @@ class ArticuloImportProducto {
   final List<ArticuloImportVariante> variantes;
 }
 
-/// Clasificación independiente de altas, actualizaciones, omisiones y errores.
+/// Clasificación de altas, actualizaciones, eliminaciones, omisiones y errores.
 ///
 /// El archivo con problemas no se importa entero: la pantalla muestra este
 /// reporte y pregunta si se importan solo las filas válidas.
@@ -144,6 +145,7 @@ class ArticuloImportReporte {
     this.productos = const <ArticuloImportProducto>[],
     this.errores = const <ArticuloImportError>[],
     this.productosConCambios = const [],
+    this.eliminaciones = const [],
     this.productosSinCambios = const [],
     this.productosConErrores = const [],
     this.categorias = const [],
@@ -156,6 +158,7 @@ class ArticuloImportReporte {
   /// Exclusivamente altas; nunca incluye propuestas de actualización.
   final List<ArticuloImportProducto> productos;
   final List<ArticuloImportActualizacion> productosConCambios;
+  final List<ArticuloImportEliminacion> eliminaciones;
   final List<ArticuloImportActualizacion> productosSinCambios;
   final List<ArticuloImportError> errores;
   final List<ArticuloImportProductoError> productosConErrores;
@@ -176,10 +179,15 @@ class ArticuloImportReporte {
       productosConCambios.fold(0, (n, p) => n + p.variantes.length);
   int get filasSinCambios =>
       productosSinCambios.fold(0, (n, p) => n + p.variantes.length);
-  int get filasValidas => filasNuevas + filasConCambios + filasSinCambios;
+  int get filasValidas =>
+      filasNuevas +
+      filasConCambios +
+      filasSinCambios +
+      eliminaciones.fold<int>(0, (n, p) => n + p.lineas.length);
   int get filasExcluidas =>
       productosConErrores.fold(0, (n, p) => n + p.lineas.length);
-  int get productosEjecutables => productos.length + productosConCambios.length;
+  int get productosEjecutables =>
+      productos.length + productosConCambios.length + eliminaciones.length;
 
   bool get hayErrores => errores.isNotEmpty;
 
@@ -187,9 +195,7 @@ class ArticuloImportReporte {
   /// ofrecer importar las filas válidas.
   bool get erroresEstructurales => errores.any((error) => error.linea == null);
 
-  bool get importable =>
-      (productos.isNotEmpty || productosConCambios.isNotEmpty) &&
-      !erroresEstructurales;
+  bool get importable => (productosEjecutables > 0) && !erroresEstructurales;
 }
 
 /// Valida un archivo del contrato de columnas y devuelve el reporte.

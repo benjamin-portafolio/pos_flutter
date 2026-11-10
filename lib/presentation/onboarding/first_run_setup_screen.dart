@@ -1,3 +1,4 @@
+import '../pages/recovery/recovery_access_tile.dart';
 import 'package:flutter/material.dart';
 
 import '../../application/backup/backup_service.dart';
@@ -47,6 +48,8 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              RecoveryAccessTile(enabled: !_isSaving),
+              const SizedBox(height: 16),
               Text(
                 'Modo de operacion',
                 style: Theme.of(context).textTheme.titleLarge,

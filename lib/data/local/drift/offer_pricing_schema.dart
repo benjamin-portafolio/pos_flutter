@@ -1,3 +1,4 @@
+import 'recovery_revision_schema.dart';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
@@ -91,10 +92,40 @@ Map<String, String> _buildExpected() {
   }
 }
 
-bool hasRecognizedOfferSchema(Database db) =>
-    db.select('PRAGMA user_version').single['user_version'] == 9 &&
-    (_same(_fingerprint(db), _expectedMigrated()) ||
-        _same(_fingerprint(db), recognizedFreshSchemaV9));
+bool hasRecognizedOfferSchema(Database db) {
+  final version = db.select('PRAGMA user_version').single['user_version'];
+  final actual = _fingerprint(db);
+  if (version == 10) {
+    final expected = sqlite3.openInMemory();
+    try {
+      for (final ddl in recognizedSchemaV8Sql) {
+        expected.execute(ddl);
+      }
+      _addOfferSchema(expected);
+      expected.execute(recoveryStateDdl);
+      for (final ddl in recoveryRevisionTriggers) {
+        expected.execute(ddl);
+      }
+      final extended = _fingerprint(expected);
+      final added = {
+        for (final e in extended.entries)
+          if (e.key == 'recovery_local_state' ||
+              e.key.startsWith('recovery_revision_'))
+            e.key: e.value,
+      };
+      if (!added.entries.every((e) => actual[e.key] == e.value)) return false;
+      final base = Map<String, String>.from(actual)
+        ..removeWhere((k, v) => added.containsKey(k));
+      return _same(base, _expectedMigrated()) ||
+          _same(base, recognizedFreshSchemaV9);
+    } finally {
+      expected.close();
+    }
+  }
+  return db.select('PRAGMA user_version').single['user_version'] == 9 &&
+      (_same(_fingerprint(db), _expectedMigrated()) ||
+          _same(_fingerprint(db), recognizedFreshSchemaV9));
+}
 
 void _addOfferSchema(Database db) {
   for (final table in offerPricingColumns.entries) {
@@ -139,8 +170,13 @@ Future<void> prepareAppDatabase(
   } finally {
     await probeDir.delete(recursive: true);
   }
-  if (current) return;
-  if (!legacy) {
+  if (current) {
+    final probe = sqlite3.open(file.path, mode: OpenMode.readOnly);
+    final version = probe.select('PRAGMA user_version').single['user_version'];
+    probe.close();
+    if (version == 10) return;
+  }
+  if (!legacy && !current) {
     throw StateError(
       'Esquema SQLite no reconocido. Archivo conservado; se requiere una ruta de migración acreditada.',
     );
@@ -149,14 +185,24 @@ Future<void> prepareAppDatabase(
   try {
     db.execute('BEGIN IMMEDIATE');
     try {
-      if (db.select('PRAGMA user_version').single['user_version'] != 8 ||
-          !_same(_fingerprint(db), recognizedSchemaV8)) {
+      if (!(hasRecognizedOfferSchema(db) ||
+          (db.select('PRAGMA user_version').single['user_version'] == 8 &&
+              _same(_fingerprint(db), recognizedSchemaV8)))) {
         throw StateError('El esquema cambió durante la apertura.');
       }
       _validate(db);
-      _addOfferSchema(db);
+      if (db.select('PRAGMA user_version').single['user_version'] == 10) {
+        db.execute('COMMIT');
+        return;
+      }
+      if (legacy) _addOfferSchema(db);
       afterAlterForTesting?.call(db);
-      db.execute('PRAGMA user_version = 9');
+      db.execute(recoveryStateDdl);
+      db.execute('INSERT INTO recovery_local_state(singleton) VALUES (1)');
+      for (final ddl in recoveryRevisionTriggers) {
+        db.execute(ddl);
+      }
+      db.execute('PRAGMA user_version = 10');
       _validate(db);
       if (!hasRecognizedOfferSchema(db)) {
         throw StateError('Esquema migrado inesperado.');

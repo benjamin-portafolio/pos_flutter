@@ -1,3 +1,4 @@
+import '../recovery/recovery_access_tile.dart';
 import 'package:flutter/material.dart';
 import '../../../application/weighing/scale_gateway.dart';
 import '../../../application/weighing/scale_session_service.dart';
@@ -87,6 +88,15 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text('Configuracion', style: Theme.of(context).textTheme.titleLarge),
+          RecoveryAccessTile(
+            enabled:
+                !_isSyncing &&
+                !_isTestingConnection &&
+                !_isSavingServer &&
+                !_isSavingWifiDetection &&
+                !_isSavingCashEnabled &&
+                !_isSavingBankEnabled,
+          ),
           const SizedBox(height: 16),
           _InstalledModeHeader(mode: _mode),
           const SizedBox(height: 12),

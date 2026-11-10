@@ -1,3 +1,8 @@
+import '../../application/sync/sync_installation.dart';
+import 'package:http/http.dart' as http;
+import '../../application/sync/sync_network_gate.dart';
+import '../../data/local/sync/guarded_sync_client.dart';
+import '../../application/recovery/recovery_package_service.dart';
 import '../../application/sync/handlers/tarifa_venta_borrador_cambiada_event_handler.dart';
 import '../../application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
 import '../../application/sync/offer_pricing_availability.dart';
@@ -160,6 +165,19 @@ void registerApplicationDependencies(
   required String? storedSyncBaseUrl,
   required bool requireWifiForServerDetection,
 }) {
+  getIt.registerSingleton<SyncNetworkGate>(
+    SyncNetworkGate(
+      isServerSync: () => getIt<AppConfigController>().config.isServerSync,
+    ),
+  );
+  if (!getIt.isRegistered<SyncInstallation>()) {
+    getIt.registerSingleton<SyncInstallation>(
+      SyncInstallation(null, persist: (_) async {}),
+    );
+  }
+  getIt.registerLazySingleton<RecoveryPackageService>(
+    () => RecoveryPackageService(),
+  );
   getIt.registerLazySingleton<ScaleSessionService>(
     () => ScaleSessionService(getIt<ScaleGateway>()),
     dispose: (service) => service.dispose(),
@@ -208,6 +226,11 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncHealthService>(
     () => SyncHealthService(
+      client: GuardedSyncClient(
+        getIt<SyncNetworkGate>(),
+        http.Client(),
+        installation: getIt<SyncInstallation>(),
+      ),
       endpointConfig: getIt<SyncEndpointConfig>(),
       capabilityStore: getIt<SyncCapabilityStore>(),
     ),
@@ -642,6 +665,11 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncPushService>(
     () => SyncPushService(
+      client: GuardedSyncClient(
+        getIt<SyncNetworkGate>(),
+        http.Client(),
+        installation: getIt<SyncInstallation>(),
+      ),
       syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       conflictProjectionCleaner: getIt<SyncConflictProjectionCleaner>(),
@@ -650,12 +678,22 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncConflictReportService>(
     () => SyncConflictReportService(
+      client: GuardedSyncClient(
+        getIt<SyncNetworkGate>(),
+        http.Client(),
+        installation: getIt<SyncInstallation>(),
+      ),
       syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
     ),
   );
   getIt.registerLazySingleton<SyncPullService>(
     () => SyncPullService(
+      client: GuardedSyncClient(
+        getIt<SyncNetworkGate>(),
+        http.Client(),
+        installation: getIt<SyncInstallation>(),
+      ),
       syncPersistence: getIt<SyncPersistence>(),
       remoteEventApplier: getIt<RemoteEventApplier>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
@@ -664,6 +702,11 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncPreflightService>(
     () => SyncPreflightService(
+      client: GuardedSyncClient(
+        getIt<SyncNetworkGate>(),
+        http.Client(),
+        installation: getIt<SyncInstallation>(),
+      ),
       syncPersistence: getIt<SyncPersistence>(),
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
@@ -673,6 +716,23 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<SyncSocketListener>(
     () => SyncSocketListener(
+      authentication: () {
+        final headers = getIt<SyncInstallation>().headers;
+        return headers.isEmpty
+            ? const {}
+            : {
+                'protocol': '2',
+                'server_instance_id': headers['X-POS-Server'],
+                'generation_id': headers['X-POS-Generation'],
+                'device_id': headers['X-POS-Device'],
+                'token':
+                    (getIt<SyncInstallation>().value!['binding']
+                        as Map)['token'],
+              };
+      },
+      allowsNetwork: () =>
+          getIt<SyncNetworkGate>().allowsNetwork &&
+          !getIt<SyncInstallation>().needsPull,
       endpointConfig: getIt<SyncEndpointConfig>(),
       commandContext: getIt<LocalCommandContext>(),
       syncPersistence: getIt<SyncPersistence>(),

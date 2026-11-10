@@ -305,6 +305,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
       final resultado = await servicio.importar(
         reporte.productos,
         actualizaciones: reporte.productosConCambios,
+        eliminaciones: reporte.eliminaciones,
         omitidos: reporte.productosSinCambios,
         onProgress: (progreso) {
           if (!mounted) return;
@@ -403,8 +404,8 @@ class _ReglasDelArchivo extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              '• Es la plantilla que descargas, con las 12 columnas en el mismo '
-              'orden, o el formato anterior de 10 columnas. UTF-8 con o sin BOM, '
+              '• Es la plantilla que descargas, con las 14 columnas en el mismo '
+              'orden; también se admiten los formatos anteriores de 10, 12 y 14 columnas con accion_oferta. UTF-8 con o sin BOM, '
               'separado por coma (",") o punto y coma (";").\n'
               '• Reemplaza o elimina las filas de ejemplo antes de cargar el '
               'archivo.\n'

@@ -1,3 +1,5 @@
+import 'tables/recovery_local_state.dart';
+import 'recovery_revision_schema.dart';
 import '../../../application/sync/applied_local_event_reader.dart';
 import '../../../application/sync/sale_adjustment_sync_contract.dart';
 import 'tables/sale_reconciliation_effects.dart';
@@ -93,6 +95,7 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
 /// Database class configuring connection, schema and registered tables/DAOs.
 @DriftDatabase(
   tables: [
+    RecoveryLocalState,
     BulkEditOperations,
     Clientes,
     Categories,
@@ -158,13 +161,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await _seedInventoryUnits();
+      await customStatement(
+        'INSERT INTO recovery_local_state(singleton) VALUES (1)',
+      );
+      for (final sql in recoveryRevisionTriggers) {
+        await customStatement(sql);
+      }
       for (final sql in offerPricingTriggers) {
         await customStatement(sql);
       }

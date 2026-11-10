@@ -59,6 +59,8 @@ class SyncAvailabilityMonitor {
 
   SyncAvailabilitySnapshot get snapshot => _snapshot;
 
+  bool get isStarted => _isStarted;
+
   void start() {
     if (_isStarted) return;
 

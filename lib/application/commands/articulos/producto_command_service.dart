@@ -519,13 +519,14 @@ class ProductoCommandService {
     return ProductoProveedorPrecio.validate(result)!;
   }
 
-  /// Altas y ediciones comparten una transacción exterior desde la preparación.
+  /// Altas, ediciones y eliminaciones comparten una transacción exterior.
   /// El alta pura conserva su camino y todos los recursos preceden a productos.
   Future<ProductoImportLoteResult> importarArticulosLote({
     required List<CrearArticuloCommand> altas,
     required List<ActualizarArticuloCsvCommand> actualizaciones,
+    List<({String productId, String baseEventId})> eliminaciones = const [],
   }) async {
-    final total = altas.length + actualizaciones.length;
+    final total = altas.length + actualizaciones.length + eliminaciones.length;
     if (total > 50) {
       throw const FormatException('Un lote admite hasta 50 productos.');
     }
@@ -536,8 +537,11 @@ class ProductoCommandService {
         sinCambios: 0,
       );
     }
-    final ids = actualizaciones.map((c) => c.productId).toSet();
-    if (ids.length != actualizaciones.length) {
+    final ids = {
+      ...actualizaciones.map((c) => c.productId),
+      ...eliminaciones.map((c) => c.productId),
+    };
+    if (ids.length != actualizaciones.length + eliminaciones.length) {
       throw const FormatException('El producto está repetido en el lote.');
     }
     // No aceptar el fallback secuencial de appendAndApplyAll para importación.
@@ -547,10 +551,17 @@ class ProductoCommandService {
       );
     }
     return _transactionalImportStore.runInTransaction(() async {
+      for (final command in eliminaciones) {
+        await _eliminarArticulo(
+          productId: command.productId,
+          baseEventId: command.baseEventId,
+        );
+      }
       if (actualizaciones.isEmpty) {
         await _crearArticulosLote(altas);
         return ProductoImportLoteResult(
           creados: altas.length,
+          eliminados: eliminaciones.length,
           actualizados: 0,
           sinCambios: 0,
         );
@@ -582,6 +593,7 @@ class ProductoCommandService {
       }
       return ProductoImportLoteResult(
         creados: altas.length,
+        eliminados: eliminaciones.length,
         actualizados: updated,
         sinCambios: actualizaciones.length - updated,
       );

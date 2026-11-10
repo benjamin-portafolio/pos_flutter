@@ -8,6 +8,7 @@ import '../../../application/import/articulo_catalog_import_service.dart';
 import '../../../application/import/articulo_csv_contract.dart';
 import '../../../application/import/articulo_import_solicitud.dart';
 import '../../../application/import/articulo_import_actualizacion.dart';
+import '../../../application/import/articulo_import_eliminacion.dart';
 import '../../../application/import/articulo_import_producto_error.dart';
 import '../../../application/import/articulo_import_variante_cambio.dart';
 import '../../../domain/articulos/nombre_variante.dart';
@@ -26,7 +27,8 @@ import 'csv_records_parser.dart';
 /// Reglas que no se negocian aquí:
 /// - el encabezado tiene que coincidir exactamente; una columna desconocida o
 ///   faltante es error, no se ignora (R2);
-/// - diez columnas son altas; doce identifican ediciones; catorce agregan oferta;
+/// - diez columnas son altas; doce identifican ediciones; catorce distinguen
+///   oferta legada con accion_oferta y oferta/eliminación con eliminar_producto;
 /// - importes exactos con hasta dos decimales, sin redondeo silencioso (oferta v2).
 class ArticuloImportCsv implements ArticuloCatalogImportService {
   const ArticuloImportCsv();
@@ -85,12 +87,18 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         delimitadorAmbiguo: archivo.ambiguo,
       );
     }
-    return _revisarFilas(archivo.filas, catalogo, conIds: archivo.conIds);
+    return _revisarFilas(
+      archivo.filas,
+      catalogo,
+      conIds: archivo.conIds,
+      formatoNuevo: archivo.formatoNuevo,
+    );
   }
 
   ({
     List<List<String>> filas,
     bool conIds,
+    bool formatoNuevo,
     bool ambiguo,
     List<ArticuloImportError> errores,
   })
@@ -173,6 +181,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       return (
         filas: [],
         conIds: conIds,
+        formatoNuevo: encabezado.contains('eliminar_producto'),
         ambiguo: true,
         errores: errores.isNotEmpty
             ? errores
@@ -213,6 +222,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     return (
       filas: errores.isEmpty ? filas.skip(1).toList(growable: false) : [],
       conIds: conIds,
+      formatoNuevo: encabezado.contains('eliminar_producto'),
       ambiguo: false,
       errores: errores,
     );
@@ -225,9 +235,11 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     required bool conIds,
   }) {
     final columnas = conIds
-        ? (encabezado.contains('precio_oferta') ||
-                  encabezado.contains('accion_oferta')
+        ? (encabezado.contains('eliminar_producto')
               ? ArticuloCsvContract.columnas
+              : encabezado.contains('precio_oferta') ||
+                    encabezado.contains('accion_oferta')
+              ? ArticuloCsvContract.columnasConOfertaAnteriores
               : ArticuloCsvContract.columnasConIdsAnteriores)
         : ArticuloCsvContract.columnasAnteriores;
     final errores = <ArticuloImportError>[];
@@ -286,6 +298,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     List<List<String>> filas,
     ArticuloImportCatalogo catalogo, {
     required bool conIds,
+    required bool formatoNuevo,
   }) {
     final contexto = _Contexto(catalogo);
     final errores = <ArticuloImportError>[];
@@ -294,6 +307,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     final rechazados = <String>{};
     final variantesVistas = <String, String>{};
     final nombresActualizados = <String>{};
+    final borrar = <String, List<int>>{};
 
     for (var indice = 0; indice < filas.length; indice++) {
       final linea = indice + 2;
@@ -305,6 +319,32 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       void error(String columna, String motivo) => errores.add(
         ArticuloImportError(linea: linea, columna: columna, motivo: motivo),
       );
+      final accion = formatoNuevo ? campos.last.trim().toLowerCase() : '';
+      if (formatoNuevo && !{'', 'si', 'no'}.contains(accion)) {
+        error('eliminar_producto', 'Escribe si, no o deja la celda vacía.');
+      }
+      if (accion == 'si') {
+        final producto = catalogo.productosPorId[productId];
+        final variante = catalogo.variantesPorId[variantId];
+        if (productId.isEmpty || producto == null || !producto.activo) {
+          error(
+            'product_id',
+            'Eliminar requiere product_id de un producto existente y activo.',
+          );
+        }
+        if (variantId.isNotEmpty &&
+            (variante == null ||
+                !variante.activa ||
+                variante.productId != productId)) {
+          error(
+            'variant_id',
+            'La variante no existe, está inactiva o no pertenece al producto.',
+          );
+        }
+        borrar.putIfAbsent(productId, () => []).add(linea);
+        if (errores.length != antes) rechazados.add(productId);
+        continue; // Los campos comerciales no son actualizaciones al eliminar.
+      }
       if (existente) {
         if (productId.isEmpty || variantId.isEmpty) {
           error(
@@ -342,6 +382,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         contexto,
         errores,
         existente: existente,
+        formatoNuevo: formatoNuevo,
         variantId: existente ? variantId : null,
       );
       if (existente) {
@@ -352,7 +393,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
           if (propietario != null) rechazados.add(propietario);
         }
         if (fila != null) grupos.putIfAbsent(productId, () => []).add(fila);
-      } else if (fila != null) {
+      } else if (fila != null && errores.length == antes) {
         altas.add(fila);
       }
     }
@@ -366,6 +407,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     );
     final cambiados = <ArticuloImportActualizacion>[];
     final iguales = <ArticuloImportActualizacion>[];
+    final eliminaciones = <ArticuloImportEliminacion>[];
     for (final entry in grupos.entries) {
       if (rechazados.contains(entry.key)) continue;
       final actual = catalogo.productosPorId[entry.key]!;
@@ -379,6 +421,14 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
           motivo: motivo,
         ),
       );
+      for (final fila in grupo) {
+        if (formatoNuevo &&
+            fila.offerPrice.establecer &&
+            fila.offerPrice.valor ==
+                catalogo.variantesPorId[fila.variantId]!.offerPriceMinor) {
+          fila.offerPrice = const CambioExplicito.conservar();
+        }
+      }
       final propuestas = {for (final fila in grupo) fila.variantId!: fila};
       for (final fila in grupo) {
         if (fila.nombre != primera.nombre ||
@@ -463,15 +513,50 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
             return NombreVariante.fromInput(v.nombre).value !=
                     fila.nombreVariante ||
                 (fila.offerPrice.establecer &&
-                    (!v.knowsOfferPrice ||
-                        v.offerPriceMinor != fila.offerPrice.valor)) ||
+                    (v.offerPriceMinor != fila.offerPrice.valor ||
+                        (!formatoNuevo && !v.knowsOfferPrice))) ||
                 v.precioVentaMinor != fila.precioVentaMinor ||
                 v.precioCosteMinor != fila.precioCosteMinor ||
                 _opcional(v.codigoBarras) != fila.codigoBarras;
           });
-      (cambia ? cambiados : iguales).add(propuesta);
+      if (borrar.containsKey(entry.key)) {
+        if (cambia) {
+          error(
+            primera,
+            'eliminar_producto',
+            'No se puede mezclar eliminación y actualización del mismo producto.',
+          );
+          rechazados.add(entry.key);
+        }
+      } else {
+        (cambia ? cambiados : iguales).add(propuesta);
+      }
+    }
+    for (final entry in borrar.entries) {
+      // También excluye grupos con filas comerciales inválidas.
+      if (rechazados.contains(entry.key) ||
+          errores.any(
+            (e) =>
+                e.linea != null && filas[e.linea! - 2][0].trim() == entry.key,
+          )) {
+        continue;
+      }
+      final actual = catalogo.productosPorId[entry.key];
+      if (actual == null) continue;
+      eliminaciones.add(
+        ArticuloImportEliminacion(
+          actual: actual,
+          lineas: List.unmodifiable(
+            [
+              ...entry.value,
+              for (final fila in grupos[entry.key] ?? <_Fila>[]) fila.linea,
+            ]..sort(),
+          ),
+        ),
+      );
     }
     final aceptadas = {
+      for (final p in eliminaciones) ...p.lineas,
       for (final p in nuevos)
         for (final v in p.variantes) v.linea,
       for (final p in [...cambiados, ...iguales])
@@ -493,6 +578,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     }
     return ArticuloImportReporte(
       productos: nuevos,
+      eliminaciones: List.unmodifiable(eliminaciones),
       productosConCambios: List.unmodifiable(cambiados),
       productosSinCambios: List.unmodifiable(iguales),
       errores: List.unmodifiable(errores),
@@ -531,6 +617,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     _Contexto contexto,
     List<ArticuloImportError> errores, {
     bool existente = false,
+    bool formatoNuevo = false,
     String? variantId,
   }) {
     final deFila = <ArticuloImportError>[];
@@ -557,7 +644,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     if (campos.length > 10) {
       try {
         final text = campos[10].trim();
-        final action = campos[11].trim();
+        final action = formatoNuevo
+            ? (text.isEmpty ? 'retirar' : 'establecer')
+            : campos[11].trim();
         if (action == 'retirar') {
           if (text.isNotEmpty) {
             throw const FormatException('Retirar exige precio_oferta vacío.');
@@ -588,7 +677,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       } on FormatException catch (e) {
         deFila.add(
           ArticuloImportError(
-            columna: 'precio_oferta/accion_oferta',
+            columna: formatoNuevo
+                ? 'precio_oferta'
+                : 'precio_oferta/accion_oferta',
             motivo: e.message,
           ),
         );
@@ -1107,7 +1198,7 @@ class _Fila {
     this.variantId,
   });
 
-  final CambioExplicito<int?> offerPrice;
+  CambioExplicito<int?> offerPrice;
   final String? variantId;
   final int linea;
   final String nombre;

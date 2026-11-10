@@ -108,14 +108,18 @@ class SaleAdjustmentCommandService {
         if (original == null) {
           throw StateError('Se requiere una venta confirmada.');
         }
+        final history = await store.history(p.saleId);
         final entry = SaleAdjustmentCommandContract.prepare(
           payload: p,
           original: VentaConfirmadaPayload.fromJson(original.payload),
           saleId: original.aggregateId,
           confirmationEventId: original.eventId,
-          history: (await store.history(
-            p.saleId,
-          )).map((e) => SaleAdjustmentPayload.fromJson(e.payload)).toList(),
+          history: history
+              .map((e) => SaleAdjustmentPayload.fromJson(e.payload))
+              .toList(),
+          effectiveBaseServerSequence: history.isEmpty
+              ? original.serverSequence
+              : history.last.serverSequence,
           mode: mode,
           userId: userId,
           deviceId: deviceId,

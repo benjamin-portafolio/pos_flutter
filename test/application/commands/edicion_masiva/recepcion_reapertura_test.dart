@@ -195,7 +195,7 @@ void main() {
             db = AppDatabase();
             expect(await fotoRecepcion(db), before);
             expect(await appDatabaseShouldPreserveRestoredDatabase(), isTrue);
-            expect(db.schemaVersion, 9);
+            expect(db.schemaVersion, 10);
           } finally {
             await snapshot.file.parent.delete(recursive: true);
           }

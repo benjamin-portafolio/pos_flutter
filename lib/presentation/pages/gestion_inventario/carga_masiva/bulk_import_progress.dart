@@ -32,6 +32,7 @@ class BulkImportProgress extends StatelessWidget {
           ),
           Text('Artículos creados: ${progreso.productosCreados}'),
           Text('Artículos actualizados: ${progreso.productosActualizados}'),
+          Text('Artículos eliminados: ${progreso.productosEliminados}'),
           Text('Artículos omitidos: ${progreso.productosOmitidos}'),
           Text('Artículos fallidos: ${progreso.productosFallidos}'),
           for (final fallo in progreso.lotesFallidos) ...[

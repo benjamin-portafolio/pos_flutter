@@ -55,7 +55,7 @@ void main() {
           expect(row.copyWith().minimumStockAtomic, value);
         }
         expect(await db.select(db.inventoryMovements).get(), isEmpty);
-        expect(db.schemaVersion, 9);
+        expect(db.schemaVersion, 10);
       },
     );
     for (final value in <Object>[-1, 9007199254740992, 1.5, 'inválido']) {

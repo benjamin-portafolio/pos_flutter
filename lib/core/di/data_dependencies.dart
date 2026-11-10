@@ -1,3 +1,17 @@
+import '../../application/sync/sync_installation.dart';
+import '../../application/recovery/recovery_source_binder.dart';
+import '../../data/local/recovery/drift_recovery_source_binder.dart';
+import '../../data/local/recovery/sync_installation_file_store.dart';
+import '../../application/config/app_config_controller.dart';
+import 'dart:io';
+import '../../data/local/recovery/sqlite_recovery_snapshot.dart';
+import '../../data/local/recovery/http_recovery_transport.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../application/recovery/recovery_readiness_service.dart';
+import '../../application/recovery/recovery_destination_inspector.dart';
+import '../../data/local/recovery/http_recovery_destination_inspector.dart';
+import '../../application/recovery/recovery_snapshot_source.dart';
+import '../../data/local/recovery/drift_recovery_snapshot_source.dart';
 import '../../application/weighing/scale_gateway.dart';
 import '../../application/weighing/scale_settings_store.dart';
 import '../../data/local/weighing/scale_settings_file_store.dart';
@@ -130,12 +144,43 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   final syncEndpointStore = SyncEndpointFileStore();
   final syncDetectionSettingsStore = SyncDetectionSettingsFileStore();
   final appConfig = await appConfigStore.readConfig();
-  final deviceId = await deviceIdentityProvider.getDeviceId();
-  final storedSyncBaseUrl = await syncEndpointStore.readBaseUrl();
+  final recoveryDirectory = Directory(
+    '${(await getApplicationSupportDirectory()).path}/server-recovery',
+  );
+  final database = AppDatabase();
+  await DriftRecoverySourceBinder.recover(database, recoveryDirectory);
+  final installationStore = SyncInstallationFileStore(recoveryDirectory);
+  final installation = await installationStore.read();
+  if (installation != null) {
+    final state =
+        (await database
+                .customSelect(
+                  'SELECT * FROM recovery_local_state WHERE singleton=1',
+                )
+                .getSingle())
+            .data;
+    final binding = installation['binding'] as Map;
+    if (state['dataset_id'] != binding['dataset_id'] ||
+        state['generation_id'] != binding['generation_id'] ||
+        state['server_instance_id'] != binding['server_instance_id']) {
+      throw StateError(
+        'La identidad instalada no corresponde a esta base. Se conserva para revisión.',
+      );
+    }
+  }
+  final deviceId =
+      (installation?['binding'] as Map?)?['device_id'] as String? ??
+      await deviceIdentityProvider.getDeviceId();
+  final storedSyncBaseUrl =
+      installation?['endpoint'] as String? ??
+      await syncEndpointStore.readBaseUrl();
+  getIt.registerSingleton<SyncInstallation>(
+    SyncInstallation(installation, persist: installationStore.write),
+  );
   final requireWifiForServerDetection = await syncDetectionSettingsStore
       .readRequireWifiForServerDetection();
 
-  getIt.registerLazySingleton<AppDatabase>(() => AppDatabase());
+  getIt.registerSingleton<AppDatabase>(database);
   getIt.registerSingleton<AppConfigStore>(appConfigStore);
   getIt.registerSingleton<DeviceIdentityProvider>(deviceIdentityProvider);
   getIt.registerSingleton<SyncEndpointStore>(syncEndpointStore);
@@ -207,6 +252,41 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<DatabaseStateReader>(
     () => DriftDatabaseStateReader(db: getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<RecoverySourceBinder>(
+    () => DriftRecoverySourceBinder(
+      db: getIt<AppDatabase>(),
+      directory: recoveryDirectory,
+      mode: () => getIt<AppConfigController>().mode,
+    ),
+  );
+  getIt.registerLazySingleton<RecoveryDestinationInspector>(
+    () => HttpRecoveryDestinationInspector(),
+  );
+  getIt.registerLazySingleton<RecoveryReadinessService>(
+    () => RecoveryReadinessService(
+      source: getIt<RecoverySnapshotSource>(),
+      openSnapshot: SqliteRecoverySnapshot.open,
+      sourceBinder: getIt<RecoverySourceBinder>(),
+      transportFactory: (journal) => HttpRecoveryTransport(
+        mode: getIt<AppConfigController>().mode,
+        destination: Uri.parse(journal['destination'] as String),
+        server: journal['server_instance_id'] as String,
+        generation: journal['generation_id'] as String,
+        token: journal['recovery_token'] as String,
+      ),
+      privateDirectory: () async => Directory(
+        '${(await getApplicationSupportDirectory()).path}/server-recovery',
+      ),
+      deviceId: deviceId,
+      appRevision: const String.fromEnvironment(
+        'POS_APP_REVISION',
+        defaultValue: '0.1.0+1;revision_unknown',
+      ),
+    ),
+  );
+  getIt.registerLazySingleton<RecoverySnapshotSource>(
+    () => DriftRecoverySnapshotSource(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<DatabaseSnapshotService>(
     () => DriftDatabaseSnapshotService(

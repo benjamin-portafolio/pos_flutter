@@ -95,14 +95,15 @@ EdicionMasivaCommandService coordinadorRecepcion(ProductSupplierHarness h) =>
       ),
     );
 
-/// Todas las tablas, incluidos respaldos, refs y diario; el orden por rowid hace
+/// Tablas de negocio, incluidos respaldos, refs y diario; revisión técnica aparte.
+/// el orden por rowid hace
 /// visible una escritura extra aunque sus importes coincidan con los anteriores.
 Future<Map<String, List<Map<String, Object?>>>> fotoRecepcion(
   AppDatabase db,
 ) async {
   final tables = await db
       .customSelect(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'recovery_local_state' ORDER BY name",
       )
       .get();
   return {

@@ -1,4 +1,3 @@
-import '../drift/drift_producto_projection_store.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -69,13 +68,7 @@ abstract final class ArticuloCatalogCsv {
               row.variante!.offerPriceMinor == null
                   ? ''
                   : _importe(row.variante!.offerPriceMinor!),
-              row.variante!.offerPriceMinor == null
-                  ? (DriftProductoProjectionStore.offerPriceKnownFromEvent(
-                          row.eventoBase,
-                        )
-                        ? 'retirar'
-                        : 'conservar')
-                  : 'establecer',
+              '',
             ],
           ].map(_campo).join(separador),
         );
@@ -93,7 +86,7 @@ abstract final class ArticuloCatalogCsv {
         [
           if (incluirIds) ...['', ''],
           ...campos,
-          if (incluirIds) ...['', 'conservar'],
+          if (incluirIds) ...['', ''],
         ].map(_campo).join(separador),
     ];
     return '${lineas.join('\n')}\n';
@@ -180,14 +173,14 @@ abstract final class ArticuloCatalogCsv {
               obligatoria: 'condicional',
               valoresPermitidos: 'ID exportado o vacío',
               descripcion:
-                  'Conserva ambos IDs exportados para editar. Con variant_id identifica una actualización. Ambos vacíos crean un producto; el formato anterior de diez columnas solo permite altas. No se identifica por nombre ni barcode.',
+                  'Para eliminar basta product_id existente y eliminar_producto=si; se ignoran campos comerciales. Conserva ambos IDs exportados para editar. Con variant_id identifica una actualización. Ambos vacíos crean un producto; el formato anterior de diez columnas solo permite altas. No se identifica por nombre ni barcode.',
             ),
             const _NotaColumna(
               columna: 'variant_id',
               obligatoria: 'condicional',
               valoresPermitidos: 'ID exportado o vacío',
               descripcion:
-                  'Debe pertenecer al producto activo. No repetir ni informar solo uno de los IDs. Las variantes omitidas se conservan.',
+                  'Debe pertenecer al producto activo. Para actualizar, no repetir ni informar solo uno de los IDs; para eliminar variant_id es opcional. Las variantes omitidas se conservan.',
             ),
             for (final nota in _notas) _notaConIds(nota),
             const _NotaColumna(
@@ -195,14 +188,14 @@ abstract final class ArticuloCatalogCsv {
               obligatoria: 'no',
               valoresPermitidos: 'decimal positivo con hasta dos decimales',
               descripcion:
-                  'Oferta <= precio de venta. Vacío por sí solo conserva; no equivale a cero.',
+                  'Oferta <= precio de venta. Vacío retira la oferta. Sin columna de oferta (formatos antiguos) se conserva.',
             ),
             const _NotaColumna(
-              columna: 'accion_oferta',
+              columna: 'eliminar_producto',
               obligatoria: 'no',
-              valoresPermitidos: 'conservar; establecer; retirar',
+              valoresPermitidos: 'si; no; vacío',
               descripcion:
-                  'Sin acción ni importe conserva. Importe sin acción establece. Retirar exige importe vacío; establecer exige importe.',
+                  'si elimina el producto completo y sus variantes por product_id existente; variant_id es opcional y debe pertenecer al producto. no o vacío sigue el flujo normal. No mezclar eliminación y cambios. Quitar filas del archivo no elimina nada.',
             ),
           ]
         : _notas;

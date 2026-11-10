@@ -1,4 +1,4 @@
-/// Contratos explícitos. El formato anterior solo representa altas.
+/// Contratos explícitos. El formato de diez columnas solo representa altas.
 abstract final class ArticuloCsvContract {
   static const separador = ',';
   static const bom = '\uFEFF';
@@ -19,9 +19,14 @@ abstract final class ArticuloCsvContract {
     'variant_id',
     ...columnasAnteriores,
   ];
-  static const columnas = <String>[
+  static const columnasConOfertaAnteriores = <String>[
     ...columnasConIdsAnteriores,
     'precio_oferta',
     'accion_oferta',
+  ];
+  static const columnas = <String>[
+    ...columnasConIdsAnteriores,
+    'precio_oferta',
+    'eliminar_producto',
   ];
 }

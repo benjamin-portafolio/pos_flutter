@@ -142,7 +142,7 @@ void main() {
                 .get(),
             hasLength(1),
           );
-          expect(h.db.schemaVersion, 9);
+          expect(h.db.schemaVersion, 10);
           await export('backup-${mode.name}-${status.name}', {
             'schema_version': h.db.schemaVersion,
             'status': status.name,
@@ -336,7 +336,7 @@ void main() {
           final raw = sqlite.sqlite3.open(file.path);
           Map<String, Object?> result;
           try {
-            expect(raw.select('PRAGMA user_version').single.values.single, 9);
+            expect(raw.select('PRAGMA user_version').single.values.single, 10);
             final columns = {
               for (final table in forbidden.keys)
                 table.toString(): raw

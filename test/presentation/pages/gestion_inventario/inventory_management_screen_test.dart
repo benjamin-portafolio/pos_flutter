@@ -1142,6 +1142,7 @@ class _FakeProductoCommandService implements ProductoCommandService {
   Future<ProductoImportLoteResult> importarArticulosLote({
     required List<CrearArticuloCommand> altas,
     required List<ActualizarArticuloCsvCommand> actualizaciones,
+    List<({String productId, String baseEventId})> eliminaciones = const [],
   }) => throw StateError('Esta prueba no debe importar CSV.');
 
   @override
