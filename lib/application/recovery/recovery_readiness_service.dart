@@ -23,6 +23,7 @@ class RecoveryReadinessService {
     this.openSnapshot,
     this.transportFactory,
     this.sourceBinder,
+    this.requestConnection,
   });
   final RecoverySnapshotSource source;
   final Future<Directory> Function() privateDirectory;
@@ -31,12 +32,67 @@ class RecoveryReadinessService {
   final Future<RecoverySnapshot> Function(File)? openSnapshot;
   final RecoveryTransport Function(Map<String, Object?>)? transportFactory;
   final RecoverySourceBinder? sourceBinder;
-  Future<void> bindSource(String token) async {
+  final Future<Map<String, Object?>> Function(
+    Uri destination,
+    Map<String, Object?> package, {
+    String? server,
+    String? generation,
+  })?
+  requestConnection;
+
+  Future<Map<String, Object?>> authorizeDestination(
+    Uri destination,
+    Map<String, Object?> package,
+    AppMode mode,
+  ) {
+    if (mode != AppMode.serverSync) {
+      throw StateError('Standalone solo permite diagnóstico local.');
+    }
+    final request = requestConnection;
+    if (request == null) throw StateError('Autorización sin configurar.');
+    return request(destination, package);
+  }
+
+  Future<Map<String, Object?>> _refresh(
+    Map<String, Object?> journal,
+    Map<String, Object?> package,
+  ) async {
+    final request = requestConnection;
+    if (request == null) throw StateError('Autorización sin configurar.');
+    final result = await request(
+      Uri.parse(journal['destination'] as String),
+      package,
+      server: journal['server_instance_id'] as String,
+      generation: journal['generation_id'] as String,
+    );
+    if (result['request_id'] != journal['connection_request_id']) {
+      throw StateError('El servidor devolvió una solicitud distinta.');
+    }
+    if (result['status'] != 'approved') {
+      throw StateError(switch (result['status']) {
+        'pending' =>
+          'Aprobación pendiente para este intento. Vuelve a intentar tras la aprobación.',
+        'rejected' => 'El administrador rechazó esta solicitud.',
+        'disabled' => 'La recuperación está deshabilitada en el destino.',
+        _ => 'La autorización de este intento no está disponible.',
+      });
+    }
+    return result;
+  }
+
+  Future<void> bindSource([String? token]) async {
     final binder = sourceBinder,
         package = await prepared(),
         current = await attempt();
     if (binder == null || package == null || current == null) {
       throw StateError('No hay publicación y corte conservados para vincular.');
+    }
+    if (token == null) {
+      final approval = await _refresh(current, package);
+      token = approval['enrollment_token'] as String?;
+      if (token == null) {
+        throw StateError('La vinculación del origen aún no está autorizada.');
+      }
     }
     await binder.bind(
       prepared: package,
@@ -164,17 +220,16 @@ class RecoveryReadinessService {
       );
     }
     final service = await _service();
-    final current = await service.begin(
+    return service.begin(
       mode: mode,
       package: Directory(package['package_path'] as String),
       destination: Uri.parse(destination),
       server: target['server_instance_id'] as String,
       generation: target['generation_id'] as String,
       token: token,
+      preparedSource: package,
+      connectionRequestId: target['request_id'] as String?,
     );
-    final journal = <String, Object?>{...current, 'prepared_source': package};
-    await service.store.write(journal);
-    return journal;
   }
 
   Future<Map<String, Object?>> transfer(
@@ -187,7 +242,16 @@ class RecoveryReadinessService {
     if (factory == null) throw StateError('Transferencia no configurada.');
     final service = await _service(), journal = await service.store.read();
     if (journal == null) throw StateError('No hay intento guardado.');
-    final transport = factory(journal);
+    var active = journal;
+    if (journal['connection_request_id'] != null) {
+      final package = Map<String, Object?>.from(
+        journal['prepared_source'] as Map,
+      );
+      final approval = await _refresh(journal, package);
+      active = {...journal, 'recovery_token': approval['token'] as String};
+      await service.store.write(active);
+    }
+    final transport = factory(active);
     try {
       return await service.run(
         transport,

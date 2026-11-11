@@ -1,3 +1,7 @@
+import '../../application/recovery/empty_device_enrollment.dart';
+import '../../application/sync/sync_network_gate.dart';
+import '../../data/local/recovery/drift_empty_device_enrollment.dart';
+import '../../data/local/recovery/http_connection_attempts.dart';
 import '../../application/sync/sync_installation.dart';
 import '../../application/recovery/recovery_source_binder.dart';
 import '../../data/local/recovery/drift_recovery_source_binder.dart';
@@ -143,22 +147,30 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   final deviceIdentityProvider = DeviceIdentityFileStore();
   final syncEndpointStore = SyncEndpointFileStore();
   final syncDetectionSettingsStore = SyncDetectionSettingsFileStore();
-  final appConfig = await appConfigStore.readConfig();
+  var appConfig = await appConfigStore.readConfig();
   final recoveryDirectory = Directory(
     '${(await getApplicationSupportDirectory()).path}/server-recovery',
+  );
+  final connections = HttpConnectionAttempts(
+    Directory('${recoveryDirectory.path}/connection-attempts'),
   );
   final database = AppDatabase();
   await DriftRecoverySourceBinder.recover(database, recoveryDirectory);
   final installationStore = SyncInstallationFileStore(recoveryDirectory);
   final installation = await installationStore.read();
+  final state =
+      (await database
+              .customSelect(
+                'SELECT * FROM recovery_local_state WHERE singleton=1',
+              )
+              .getSingle())
+          .data;
+  if (installation == null && state['dataset_id'] != null) {
+    throw StateError(
+      'La base tiene un dataset sin instalación recuperable. Se conserva para revisión.',
+    );
+  }
   if (installation != null) {
-    final state =
-        (await database
-                .customSelect(
-                  'SELECT * FROM recovery_local_state WHERE singleton=1',
-                )
-                .getSingle())
-            .data;
     final binding = installation['binding'] as Map;
     if (state['dataset_id'] != binding['dataset_id'] ||
         state['generation_id'] != binding['generation_id'] ||
@@ -167,6 +179,11 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
         'La identidad instalada no corresponde a esta base. Se conserva para revisión.',
       );
     }
+  }
+  final setup = installation?['setup_config'];
+  if (!appConfig.setupCompleted && setup is Map) {
+    appConfig = AppConfig.fromJson(Map<String, Object?>.from(setup));
+    await appConfigStore.saveConfig(appConfig);
   }
   final deviceId =
       (installation?['binding'] as Map?)?['device_id'] as String? ??
@@ -253,11 +270,21 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   getIt.registerLazySingleton<DatabaseStateReader>(
     () => DriftDatabaseStateReader(db: getIt<AppDatabase>()),
   );
-  getIt.registerLazySingleton<RecoverySourceBinder>(
+  getIt.registerLazySingleton<DriftRecoverySourceBinder>(
     () => DriftRecoverySourceBinder(
       db: getIt<AppDatabase>(),
       directory: recoveryDirectory,
       mode: () => getIt<AppConfigController>().mode,
+    ),
+  );
+  getIt.registerLazySingleton<RecoverySourceBinder>(
+    () => getIt<DriftRecoverySourceBinder>(),
+  );
+  getIt.registerLazySingleton<EmptyDeviceEnrollment>(
+    () => DriftEmptyDeviceEnrollment(
+      connections: connections,
+      binder: getIt<DriftRecoverySourceBinder>(),
+      network: getIt<SyncNetworkGate>(),
     ),
   );
   getIt.registerLazySingleton<RecoveryDestinationInspector>(
@@ -268,6 +295,14 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
       source: getIt<RecoverySnapshotSource>(),
       openSnapshot: SqliteRecoverySnapshot.open,
       sourceBinder: getIt<RecoverySourceBinder>(),
+      requestConnection: (destination, package, {server, generation}) =>
+          connections.authorizeRecovery(
+            destination,
+            package,
+            inspector: getIt<RecoveryDestinationInspector>(),
+            server: server,
+            generation: generation,
+          ),
       transportFactory: (journal) => HttpRecoveryTransport(
         mode: getIt<AppConfigController>().mode,
         destination: Uri.parse(journal['destination'] as String),

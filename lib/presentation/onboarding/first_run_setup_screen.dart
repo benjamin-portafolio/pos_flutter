@@ -1,3 +1,4 @@
+import '../../application/recovery/empty_device_enrollment.dart';
 import '../pages/recovery/recovery_access_tile.dart';
 import 'package:flutter/material.dart';
 
@@ -20,6 +21,7 @@ class FirstRunSetupScreen extends StatefulWidget {
 class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _serverController;
+  bool _downloading = false;
   AppMode _mode = AppMode.standalone;
   bool _isSaving = false;
   bool _cashEnabled = AppConfig.initial.cashEnabled;
@@ -48,6 +50,8 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (_downloading)
+                const Text('Descargando y verificando la base inicial…'),
               RecoveryAccessTile(enabled: !_isSaving),
               const SizedBox(height: 16),
               Text(
@@ -225,6 +229,20 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
         final nextBaseUrl = SyncEndpointConfig.normalizeBaseUrl(
           _serverController.text,
         );
+        final installed =
+            getIt.isRegistered<EmptyDeviceEnrollment>() &&
+            await getIt<EmptyDeviceEnrollment>().checkAndInstall(
+              nextBaseUrl,
+              mode: _mode,
+              setupConfig: config,
+              onDownloading: () {
+                if (mounted) setState(() => _downloading = true);
+              },
+            );
+        if (installed) {
+          if (mounted) await AppRestartScope.restart(context);
+          return;
+        }
         await getIt<SyncEndpointStore>().saveBaseUrl(nextBaseUrl);
         getIt<SyncEndpointConfig>().updateFromInput(nextBaseUrl);
 
@@ -246,14 +264,22 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
 
       if (!mounted) return;
       await AppRestartScope.restart(context);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar la configuracion.')),
-      );
+      final message = switch (error) {
+        FormatException() => error.message,
+        StateError() => error.message.toString(),
+        _ => 'No se pudo completar la conexión. Vuelve a intentar.',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _isSaving = false;
+          _downloading = false;
+        });
       }
     }
   }

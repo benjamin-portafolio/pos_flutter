@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/recovery/baseline_bootstrap_service.dart';
 import 'package:pos_flutter/application/recovery/baseline_bootstrap_transport.dart';
@@ -173,7 +174,7 @@ void main() {
       await expectLater(install(), throwsA(isA<SocketException>()));
       final caches = (await dir.list().toList())
           .whereType<Directory>()
-          .where((d) => d.path.split('/').last.startsWith('download-'))
+          .where((d) => p.basename(d.path).startsWith('download-'))
           .single;
       final committed =
           jsonDecode(await File('${caches.path}/installed.json').readAsString())
@@ -201,7 +202,7 @@ void main() {
       final files = await dir.list().toList();
       expect(
         files.whereType<Directory>().every(
-          (d) => d.path.split('/').last.startsWith('download-'),
+          (d) => p.basename(d.path).startsWith('download-'),
         ),
         isTrue,
       );

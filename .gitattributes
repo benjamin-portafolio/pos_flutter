@@ -1,3 +1,6 @@
 # Normaliza finales de linea en el repositorio para evitar diferencias
 # falsas entre Windows (CRLF) y macOS/Linux (LF).
 * text=auto
+
+# Los hashes del paquete cubren los bytes originales.
+test/fixtures/recovery_s3/** -text

@@ -77,6 +77,8 @@ class RecoveryTransferService {
     required String server,
     required String generation,
     required String token,
+    Map<String, Object?>? preparedSource,
+    String? connectionRequestId,
   }) async {
     if (mode != AppMode.serverSync) {
       throw StateError('Standalone solo admite diagnóstico.');
@@ -92,6 +94,8 @@ class RecoveryTransferService {
       final digest = await reader.verify(package, RecoveryCancellation());
       final journal = <String, Object?>{
         'journal_version': 1,
+        'prepared_source': ?preparedSource,
+        'connection_request_id': ?connectionRequestId,
         'package_path': package.path,
         'package_id': manifest['package_id'],
         'manifest_digest': digest,

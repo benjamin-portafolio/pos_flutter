@@ -188,55 +188,62 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 
+  static const inventoryUnitSeed = <UnitRow>[
+    UnitRow(
+      unitId: InventoryUnitIds.piece,
+      code: 'piece',
+      name: 'Pieza',
+      symbol: 'pza',
+      dimension: 'count',
+      atomicFactor: 1,
+      maxFractionDigits: 0,
+      active: true,
+    ),
+    UnitRow(
+      unitId: InventoryUnitIds.gram,
+      code: 'g',
+      name: 'Gramo',
+      symbol: 'g',
+      dimension: 'mass',
+      atomicFactor: 1,
+      maxFractionDigits: 0,
+      active: true,
+    ),
+    UnitRow(
+      unitId: InventoryUnitIds.kilogram,
+      code: 'kg',
+      name: 'Kilogramo',
+      symbol: 'kg',
+      dimension: 'mass',
+      atomicFactor: 1000,
+      maxFractionDigits: 3,
+      active: true,
+    ),
+    UnitRow(
+      unitId: InventoryUnitIds.milliliter,
+      code: 'ml',
+      name: 'Mililitro',
+      symbol: 'ml',
+      dimension: 'volume',
+      atomicFactor: 1,
+      maxFractionDigits: 0,
+      active: true,
+    ),
+    UnitRow(
+      unitId: InventoryUnitIds.liter,
+      code: 'l',
+      name: 'Litro',
+      symbol: 'L',
+      dimension: 'volume',
+      atomicFactor: 1000,
+      maxFractionDigits: 3,
+      active: true,
+    ),
+  ];
+
   Future<void> _seedInventoryUnits() async {
     await batch((batch) {
-      batch.insertAllOnConflictUpdate(units, [
-        UnitsCompanion.insert(
-          unitId: InventoryUnitIds.piece,
-          code: 'piece',
-          name: 'Pieza',
-          symbol: 'pza',
-          dimension: 'count',
-          atomicFactor: 1,
-          maxFractionDigits: 0,
-        ),
-        UnitsCompanion.insert(
-          unitId: InventoryUnitIds.gram,
-          code: 'g',
-          name: 'Gramo',
-          symbol: 'g',
-          dimension: 'mass',
-          atomicFactor: 1,
-          maxFractionDigits: 0,
-        ),
-        UnitsCompanion.insert(
-          unitId: InventoryUnitIds.kilogram,
-          code: 'kg',
-          name: 'Kilogramo',
-          symbol: 'kg',
-          dimension: 'mass',
-          atomicFactor: 1000,
-          maxFractionDigits: 3,
-        ),
-        UnitsCompanion.insert(
-          unitId: InventoryUnitIds.milliliter,
-          code: 'ml',
-          name: 'Mililitro',
-          symbol: 'ml',
-          dimension: 'volume',
-          atomicFactor: 1,
-          maxFractionDigits: 0,
-        ),
-        UnitsCompanion.insert(
-          unitId: InventoryUnitIds.liter,
-          code: 'l',
-          name: 'Litro',
-          symbol: 'L',
-          dimension: 'volume',
-          atomicFactor: 1000,
-          maxFractionDigits: 3,
-        ),
-      ]);
+      batch.insertAllOnConflictUpdate(units, inventoryUnitSeed);
     });
   }
 }

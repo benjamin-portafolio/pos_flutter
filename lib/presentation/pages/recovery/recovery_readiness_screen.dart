@@ -26,8 +26,6 @@ class RecoveryReadinessScreen extends StatefulWidget {
 
 class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
   final _destination = TextEditingController();
-  final _token = TextEditingController();
-  final _enrollment = TextEditingController();
   bool _confirmBinding = false;
   bool _binding = false;
   final _cancellation = RecoveryCancellation();
@@ -72,10 +70,6 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
     _cancellation.cancel();
     widget.inspector.cancel();
     _destination.dispose();
-    _token.clear();
-    _token.dispose();
-    _enrollment.clear();
-    _enrollment.dispose();
     super.dispose();
   }
 
@@ -136,11 +130,10 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
             package,
             target,
             destination,
-            _token.text.trim(),
+            target['token'] as String,
             widget.mode,
           );
           if (mounted) setState(() => _attempt = attempt);
-          _token.clear();
         }
         final attempt = await widget.service.transfer(
           _cancellation,
@@ -178,11 +171,10 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
   Future<void> _bind() => _run(() async {
     setState(() => _binding = true);
     try {
-      await widget.service.bindSource(_enrollment.text.trim());
+      await widget.service.bindSource();
     } finally {
       if (mounted) setState(() => _binding = false);
     }
-    _enrollment.clear();
     if (mounted) await AppRestartScope.restart(context);
   });
 
@@ -194,10 +186,12 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
     final input = _destination.text.trim();
     final uri = Uri.tryParse(input);
     if (uri == null) throw const FormatException('Ingresa una URL completa.');
-    final report = await widget.inspector.inspect(
-      mode: widget.mode,
-      destination: uri,
-      token: _token.text.trim(),
+    final package = _package;
+    if (package == null) throw StateError('Prepara el paquete del corte.');
+    final report = await widget.service.authorizeDestination(
+      uri,
+      package,
+      widget.mode,
     );
     if (mounted) {
       setState(() {
@@ -294,12 +288,10 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
               if (sourceDeviceId is String && sourceDeviceId.isNotEmpty)
                 SelectableText('ID del dispositivo de origen: $sourceDeviceId'),
               Text('Conservado en: ${_package!['package_path']}'),
-              const Text(
-                'Entrega el ID del paquete, el digest y el ID del dispositivo de origen '
-                'al operador para obtener la credencial temporal.',
-              ),
             ],
-            if (widget.mode == AppMode.serverSync) ...[
+            if (widget.mode == AppMode.serverSync &&
+                _package != null &&
+                _attempt == null) ...[
               const SizedBox(height: 20),
               const Text('Servidor destino'),
               TextField(
@@ -314,26 +306,20 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
                   labelText: 'URL HTTPS del destino',
                 ),
               ),
-              TextField(
-                controller: _token,
-                enabled: !_busy,
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                onChanged: (_) => setState(() {
-                  _target = null;
-                  _checkedDestination = null;
-                }),
-                decoration: const InputDecoration(
-                  labelText: 'Credencial temporal del operador',
-                ),
-              ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _busy ? null : _inspect,
                 child: const Text('Comprobar destino'),
               ),
-              if (target != null) ...[
+              if (target?['status'] == 'pending')
+                Text(
+                  'Aprobación pendiente. Solicitud: ${target?['request_id']}. Vuelve a comprobar tras la aprobación.',
+                ),
+              if (target?['status'] == 'rejected')
+                const Text('El administrador rechazó esta solicitud.'),
+              if (target?['status'] == 'disabled')
+                const Text('La recuperación está deshabilitada en el destino.'),
+              if (target?['status'] == 'approved' && target != null) ...[
                 Text('Destino comprobado: $_checkedDestination'),
                 Text('Identidad: ${target['server_instance_id']}'),
                 Text('Generación: ${target['generation_id']}'),
@@ -364,19 +350,6 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
                 child: const Text('Transferir y validar paquete'),
               ),
             if (_attempt != null) ...[
-              OutlinedButton(
-                onPressed: _busy
-                    ? null
-                    : () => _run(() async {
-                        await widget.service.renewCredential(
-                          _token.text.trim(),
-                        );
-                        _token.clear();
-                      }),
-                child: const Text(
-                  'Actualizar credencial temporal de este intento',
-                ),
-              ),
               Text('Destino del intento: ${_attempt!['destination']}'),
               Text('Generación del intento: ${_attempt!['generation_id']}'),
               Text('Estado: ${_attempt!['state']}'),
@@ -433,19 +406,6 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
                   child: const Text('Archivar intento conservando evidencia'),
                 ),
               if (_attempt!['state'] == 'completed') ...[
-                const Text(
-                  'Publicación confirmada. Vincula este origen explícitamente con la credencial de alta emitida por el operador para esta generación.',
-                ),
-                TextField(
-                  controller: _enrollment,
-                  enabled: !_busy,
-                  obscureText: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Credencial de alta del dispositivo',
-                  ),
-                ),
                 CheckboxListTile(
                   value: _confirmBinding,
                   onChanged: _busy

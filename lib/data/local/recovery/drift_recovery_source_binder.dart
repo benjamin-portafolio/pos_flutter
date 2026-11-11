@@ -124,7 +124,11 @@ class DriftRecoverySourceBinder implements RecoverySourceBinder {
     SyncInstallationFileStore.validate(installation);
     final staged = result['database_path'] as String;
     await db.exclusively(() async {
-      if(mode()!=AppMode.serverSync)throw StateError('El modo cambió; se conserva el origen sin sustituir.');
+      if (mode() != AppMode.serverSync) {
+        throw StateError(
+          'El modo cambió; se conserva el origen sin sustituir.',
+        );
+      }
       final current =
           (await db
                   .customSelect(
@@ -153,15 +157,106 @@ class DriftRecoverySourceBinder implements RecoverySourceBinder {
       } finally {
         await comparison.delete(recursive: true);
       }
-      await journal.write({
-        'journal_version': 1,
+      await _replace(
+        staged,
+        installation,
+        evidence: {
+          'snapshot_path': snapshot.path,
+          'snapshot_sha256': cut['snapshot_sha256'],
+          'source_revision': cut['data_revision'],
+        },
+        recheck: () async {
+          final locked = await db
+              .customSelect(
+                'SELECT data_revision FROM recovery_local_state WHERE singleton=1',
+              )
+              .getSingle();
+          if ('${locked.data['data_revision']}' != '${cut['data_revision']}') {
+            throw StateError(
+              'El origen cambió antes de obtener exclusión SQLite.',
+            );
+          }
+        },
+      );
+    });
+  }
+
+  Future<void> assertEmpty() async {
+    final state =
+        (await db
+                .customSelect(
+                  'SELECT * FROM recovery_local_state WHERE singleton=1',
+                )
+                .getSingle())
+            .data;
+    if (await SyncInstallationFileStore(directory).read() != null ||
+        [
+          'dataset_id',
+          'generation_id',
+          'server_instance_id',
+        ].any((k) => state[k] != null)) {
+      throw StateError(
+        'La instalación ya tiene una vinculación. Se conserva su base.',
+      );
+    }
+    for (final table in recoveryRevisionTables.where(
+      (name) => name != 'units',
+    )) {
+      if ((await db.customSelect('SELECT 1 FROM "$table" LIMIT 1').get())
+          .isNotEmpty) {
+        throw StateError(
+          'La instalación contiene datos o actividad de sincronización. Se conserva su base.',
+        );
+      }
+    }
+    final current = await db.select(db.units).get();
+    final seed = AppDatabase.inventoryUnitSeed;
+    if (current.length != seed.length || !seed.every(current.contains)) {
+      throw StateError(
+        'El catálogo local de unidades cambió. Se conserva su base.',
+      );
+    }
+  }
+
+  Future<void> installEmpty({
+    required String endpoint,
+    required Map<String, Object?> staged,
+    AppConfig? setupConfig,
+  }) async {
+    final installation = <String, Object?>{
+      'installation_version': 1,
+      'endpoint': endpoint,
+      'binding': staged['binding'],
+      'phase': 'needs_pull',
+      if (setupConfig != null) 'setup_config': setupConfig.toJson(),
+    };
+    SyncInstallationFileStore.validate(installation);
+    await db.exclusively(
+      () => _replace(
+        staged['database_path'] as String,
+        installation,
+        recheck: assertEmpty,
+      ),
+    );
+  }
+
+  Future<void> _replace(
+    String staged,
+    Map<String, Object?> installation, {
+    Map<String, Object?> evidence = const {},
+    required Future<void> Function() recheck,
+  }) async {
+    await journal.withFileLock(() async {
+      await recover(db, directory);
+      await recheck();
+      final binding = installation['binding'] as Map;
+      final prepared = {
         'state': 'prepared',
         'installation': installation,
-        'snapshot_path': snapshot.path,
-        'snapshot_sha256': cut['snapshot_sha256'],
         'staged_path': staged,
-        'source_revision': cut['data_revision'],
-      });
+        ...evidence,
+      };
+      await journal.write(prepared);
       await db.customStatement('ATTACH DATABASE ? AS recovery_baseline', [
         staged,
       ]);
@@ -170,18 +265,7 @@ class DriftRecoverySourceBinder implements RecoverySourceBinder {
           await db.customStatement(
             'UPDATE recovery_local_state SET data_revision=data_revision WHERE singleton=1',
           );
-          final locked =
-              (await db
-                      .customSelect(
-                        'SELECT data_revision FROM recovery_local_state WHERE singleton=1',
-                      )
-                      .getSingle())
-                  .data;
-          if ('${locked['data_revision']}' != '${cut['data_revision']}') {
-            throw StateError(
-              'El origen cambió antes de obtener exclusión SQLite.',
-            );
-          }
+          await recheck();
           await beforeCopyForTesting?.call();
           await db.customStatement('PRAGMA defer_foreign_keys=ON');
           for (final table in recoveryRevisionTables) {
@@ -211,13 +295,7 @@ class DriftRecoverySourceBinder implements RecoverySourceBinder {
         await db.customStatement('PRAGMA query_only=ON');
         await afterCommitForTesting?.call();
         await SyncInstallationFileStore(directory).write(installation);
-        await journal.write({
-          'journal_version': 1,
-          'state': 'installed',
-          'installation': installation,
-          'snapshot_path': snapshot.path,
-          'snapshot_sha256': cut['snapshot_sha256'],
-        });
+        await journal.write({...prepared, 'state': 'installed'});
       } finally {
         await db.customStatement('DETACH DATABASE recovery_baseline');
       }

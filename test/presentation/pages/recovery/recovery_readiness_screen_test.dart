@@ -39,7 +39,7 @@ class _Service extends RecoveryReadinessService {
   @override
   Future<Map<String, Object?>?> attempt() async => null;
   @override
-  Future<List<Map<String,Object?>>> history()async=>[];
+  Future<List<Map<String, Object?>>> history() async => [];
   @override
   Future<Map<String, Object?>?> prepared() async => null;
   int calls = 0;
@@ -95,6 +95,24 @@ class _Inspector implements RecoveryDestinationInspector {
 }
 
 class _WorkflowService extends _Service {
+  var status = 'pending';
+  @override
+  Future<Map<String, Object?>> authorizeDestination(
+    Uri destination,
+    Map<String, Object?> package,
+    AppMode mode,
+  ) async => {
+    'status': status,
+    'request_id': 'approved-by-operator',
+    if (status == 'approved') ...{
+      'token': 'internal-token',
+      'eligible': true,
+      'commercial_recovery_complete': true,
+      'server_instance_id': 'fixture-server',
+      'generation_id': 'generation-fixture',
+      'reasons': [],
+    },
+  };
   int transfers = 0, publications = 0;
   Map<String, Object?>? saved;
   final package = <String, Object?>{
@@ -249,7 +267,8 @@ void main() {
         find.byWidgetPredicate(
           (widget) =>
               widget is SelectableText &&
-              widget.data == 'ID del dispositivo de origen: package-origin-fixture',
+              widget.data ==
+                  'ID del dispositivo de origen: package-origin-fixture',
         ),
         findsOneWidget,
       );
@@ -257,10 +276,16 @@ void main() {
         find.widgetWithText(TextField, 'URL HTTPS del destino'),
         'https://destination.example',
       );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Credencial temporal del operador'),
-        'scoped-recovery-token',
-      );
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.tap(find.text('Comprobar destino'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Aprobación pendiente'), findsOneWidget);
+      expect(find.text('Transferir y validar paquete'), findsNothing);
+      service.status = 'rejected';
+      await tester.tap(find.text('Comprobar destino'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('rechazó esta solicitud'), findsOneWidget);
+      service.status = 'approved';
       await tester.tap(find.text('Comprobar destino'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Transferir y validar paquete'));
@@ -285,10 +310,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(service.publications, 1);
       expect(find.text('Abortar antes de publicar'), findsNothing);
-      expect(
-        find.widgetWithText(TextField, 'Credencial de alta del dispositivo'),
-        findsOneWidget,
-      );
+      expect(find.text('Vincular este origen y reabrir'), findsOneWidget);
     },
   );
 
@@ -337,7 +359,7 @@ void main() {
   );
 
   testWidgets(
-    'revisión muestra corte, exclusiones, pendientes y capacidad comercial incompleta',
+    'un diagnóstico bloqueado conserva sus razones y no abre una conexión',
     (tester) async {
       final service = _Service();
       final inspector = _Inspector();
@@ -355,47 +377,9 @@ void main() {
       expect(find.textContaining('2026-11-09'), findsOneWidget);
       expect(find.textContaining('eventos pendientes'), findsOneWidget);
       expect(find.textContaining('cotizaciones'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(TextField, 'URL HTTPS del destino'),
-        250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'URL HTTPS del destino'),
-        'https://destination.test',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Credencial temporal del operador'),
-        'a' * 64,
-      );
-      await tester.ensureVisible(find.text('Comprobar destino'));
-      await tester.tap(find.text('Comprobar destino'));
-      await tester.pumpAndSettle();
-      expect(inspector.calls, 1);
-      await tester.scrollUntilVisible(
-        find.textContaining('secuencia 0'),
-        250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.textContaining('fixture-generation'), findsOneWidget);
-      expect(
-        find.textContaining('todavía recuperar todo el negocio'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('secuencia 0'), findsOneWidget);
-      expect(find.text('Vincular'), findsNothing);
-      // Cambiar el campo invalida la identidad comprobada anterior.
-      await tester.scrollUntilVisible(
-        find.widgetWithText(TextField, 'URL HTTPS del destino'),
-        -250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'URL HTTPS del destino'),
-        'https://other.test',
-      );
-      await tester.pump();
-      expect(find.textContaining('fixture-generation'), findsNothing);
+      expect(find.text('Comprobar destino'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(inspector.calls, 0);
     },
   );
   testWidgets(

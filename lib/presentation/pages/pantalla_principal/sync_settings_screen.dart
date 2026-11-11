@@ -1,3 +1,5 @@
+import '../../app/app_restart_scope.dart';
+import '../../../application/recovery/empty_device_enrollment.dart';
 import '../recovery/recovery_access_tile.dart';
 import 'package:flutter/material.dart';
 import '../../../application/weighing/scale_gateway.dart';
@@ -47,6 +49,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   late final TextEditingController _serverController;
 
   bool _isSyncing = false;
+  bool _checkingEndpoint = false;
+  bool _downloading = false;
   bool _isTestingConnection = false;
   bool _isSavingServer = false;
   bool _isSavingWifiDetection = false;
@@ -83,13 +87,14 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
+    final settings = SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text('Configuracion', style: Theme.of(context).textTheme.titleLarge),
           RecoveryAccessTile(
             enabled:
+                !_checkingEndpoint &&
                 !_isSyncing &&
                 !_isTestingConnection &&
                 !_isSavingServer &&
@@ -241,6 +246,12 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (_checkingEndpoint)
+              Text(
+                _downloading
+                    ? 'Descargando y verificando la base inicial…'
+                    : 'Comprobando el servidor…',
+              ),
             Text('URL actual: ${_endpointConfig.baseUrl}'),
             const SizedBox(height: 8),
             SwitchListTile(
@@ -258,7 +269,9 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               runSpacing: 12,
               children: [
                 FilledButton.icon(
-                  onPressed: _isSavingServer ? null : _guardarServidor,
+                  onPressed: _checkingEndpoint || _isSavingServer
+                      ? null
+                      : _guardarServidor,
                   icon: _isSavingServer
                       ? const SizedBox.square(
                           dimension: 18,
@@ -268,7 +281,9 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                   label: const Text('Aplicar'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: _isTestingConnection ? null : _probarConexion,
+                  onPressed: _checkingEndpoint || _isTestingConnection
+                      ? null
+                      : _probarConexion,
                   icon: _isTestingConnection
                       ? const SizedBox.square(
                           dimension: 18,
@@ -278,7 +293,9 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                   label: const Text('Probar conexion'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: _isSyncing ? null : _sincronizarPendientes,
+                  onPressed: _checkingEndpoint || _isSyncing
+                      ? null
+                      : _sincronizarPendientes,
                   icon: _isSyncing
                       ? const SizedBox.square(
                           dimension: 18,
@@ -293,6 +310,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         ],
       ),
     );
+    return PopScope(canPop: !_checkingEndpoint, child: settings);
   }
 
   String _backupSubtitle(AppConfig config) {
@@ -529,6 +547,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   }
 
   Future<bool> _aplicarServidorActual() async {
+    if (_checkingEndpoint) return false;
     if (_mode != AppMode.serverSync) return true;
     if (!(_formKey.currentState?.validate() ?? false)) return false;
 
@@ -537,15 +556,41 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     );
     final previousBaseUrl = _endpointConfig.baseUrl;
 
+    setState(() => _checkingEndpoint = true);
     try {
+      final installed =
+          getIt.isRegistered<EmptyDeviceEnrollment>() &&
+          await getIt<EmptyDeviceEnrollment>().checkAndInstall(
+            nextBaseUrl,
+            mode: _mode,
+            onDownloading: () {
+              if (mounted) setState(() => _downloading = true);
+            },
+          );
+      if (installed) {
+        if (mounted) await AppRestartScope.restart(context);
+        return false;
+      }
       await _endpointStore.saveBaseUrl(nextBaseUrl);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar el servidor.')),
-        );
+        final message = switch (error) {
+          FormatException() => error.message,
+          StateError() => error.message.toString(),
+          _ => 'No se pudo completar la conexión. Vuelve a intentar.',
+        };
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
       return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _checkingEndpoint = false;
+          _downloading = false;
+        });
+      }
     }
 
     if (!mounted) return false;

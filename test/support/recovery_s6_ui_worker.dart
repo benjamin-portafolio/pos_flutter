@@ -31,6 +31,7 @@ import 'package:pos_flutter/data/local/recovery/drift_recovery_snapshot_source.d
 import 'package:pos_flutter/data/local/recovery/drift_recovery_source_binder.dart';
 import 'package:pos_flutter/data/local/recovery/http_baseline_bootstrap_transport.dart';
 import 'package:pos_flutter/data/local/recovery/http_recovery_destination_inspector.dart';
+import 'package:pos_flutter/data/local/recovery/http_connection_attempts.dart';
 import 'package:pos_flutter/data/local/recovery/http_recovery_transport.dart';
 import 'package:pos_flutter/data/local/recovery/sqlite_baseline_bootstrap_installer.dart';
 import 'package:pos_flutter/data/local/recovery/sqlite_recovery_snapshot.dart';
@@ -172,7 +173,19 @@ void main() {
         db = AppDatabase.forTesting(NativeDatabase(aFile));
       });
       final bindingDirectory = Directory('${private.path}/binding');
+      final inspector = HttpRecoveryDestinationInspector();
+      final connections = HttpConnectionAttempts(
+        Directory('${private.path}/connection-attempts'),
+      );
       final service = RecoveryReadinessService(
+        requestConnection: (destination, package, {server, generation}) =>
+            connections.authorizeRecovery(
+              destination,
+              package,
+              inspector: inspector,
+              server: server,
+              generation: generation,
+            ),
         source: DriftRecoverySnapshotSource(db),
         privateDirectory: () async => private,
         deviceId: (original['cut'] as Map)['source']['device_id'] as String,
@@ -213,7 +226,7 @@ void main() {
                 : RecoveryReadinessScreen(
                     mode: AppMode.serverSync,
                     service: service,
-                    inspector: HttpRecoveryDestinationInspector(),
+                    inspector: inspector,
                   ),
           ),
         ),
@@ -233,18 +246,20 @@ void main() {
         () => find.textContaining('Paquete:').evaluate().isNotEmpty,
       );
       timings['package_ms'] = clock.elapsedMilliseconds - start;
-      late Map grant;
-      await tester.runAsync(() async {
-        grant = await admin('grant');
-      });
       await tester.enterText(
         find.widgetWithText(TextField, 'URL HTTPS del destino'),
         input['url'] as String,
       );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Credencial temporal del operador'),
-        grant['token'] as String,
+      await press(
+        'Comprobar destino',
+        () => find.textContaining('Aprobación pendiente').evaluate().isNotEmpty,
       );
+      expect(find.text('Transferir y validar paquete'), findsNothing);
+      final message = tester
+          .widget<Text>(find.textContaining('Aprobación pendiente'))
+          .data!;
+      final requestId = RegExp(r'[0-9a-f-]{36}').firstMatch(message)!.group(0)!;
+      await tester.runAsync(() => admin('approve?id=$requestId'));
       await press(
         'Comprobar destino',
         () => find.text('Transferir y validar paquete').evaluate().isNotEmpty,
@@ -269,14 +284,6 @@ void main() {
         () => find.text('Estado: completed').evaluate().isNotEmpty,
       );
       timings['publication_ms'] = clock.elapsedMilliseconds - start;
-      late Map enrollment;
-      await tester.runAsync(() async {
-        enrollment = await admin('enroll');
-      });
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Credencial de alta del dispositivo'),
-        enrollment['token'] as String,
-      );
       final check = find.byType(CheckboxListTile);
       await tester.ensureVisible(check);
       await tester.tap(check);

@@ -7,6 +7,19 @@ class RecoveryAttemptStore {
   RecoveryAttemptStore(this.directory);
   final Directory directory;
   File get file => File('${directory.path}/attempt.json');
+  Future<T> withFileLock<T>(Future<T> Function() action) async {
+    await directory.create(recursive: true);
+    final lock = await File(
+      '${directory.path}/.lock',
+    ).open(mode: FileMode.append);
+    try {
+      await lock.lock(FileLock.blockingExclusive);
+      return await action();
+    } finally {
+      await lock.close();
+    }
+  }
+
   Future<Map<String, Object?>?> read() async {
     if (!await file.exists()) return null;
     final text = await file.readAsString();
