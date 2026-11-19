@@ -11,6 +11,20 @@ El analisis general del sistema se encuentra en:
 
 Nota: el nombre del directorio `analisis ` incluye un espacio final.
 
+## Diagrama ER obligatorio con cambios de base de datos
+
+- Al cambiar tablas Drift, columnas, tipos, nulabilidad, PK/FK, restricciones,
+  indices, triggers relevantes o migraciones, actualizar en la misma tarea el
+  archivo `05 - Datos/Diagrama ER actual.md` del vault indicado arriba.
+- Seguir `tools/er/README.md` de ese vault: regenerar Drift cuando corresponda,
+  exportar SQLite con `test/tools/export_er_schema_test.dart`, renovar la captura,
+  actualizar notas, regenerar el diagrama y ejecutar su comprobacion `--check`.
+- El exportador crea una base en memoria; nunca usar ni modificar la base del
+  usuario para generar el ER. Distinguir esquema de codigo de instalaciones
+  migradas, y conservar las diferencias SQLite/PostgreSQL y standalone/server_sync.
+- No cerrar un cambio de esquema sin actualizar el ER. Cambios de filas sin
+  cambios estructurales no requieren actualizarlo.
+
 ## Comunicacion con el usuario
 
 - Cuando existan dudas, decisiones pendientes o solicitudes de confirmacion,
