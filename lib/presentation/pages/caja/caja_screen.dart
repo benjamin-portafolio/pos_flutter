@@ -1,6 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'package:uuid/uuid.dart';
+
+import '../../../application/commands/ventas/actualizar_producto_borrador_command.dart';
+import '../../../application/commands/ventas/eliminar_producto_borrador_command.dart';
 
 import '../../../application/commands/articulos/producto_command_service.dart';
 import '../../../application/commands/cotizaciones/cotizacion_command_service.dart';
@@ -77,14 +82,9 @@ class CajaScreenState extends State<CajaScreen> {
   bool get isReaderEnabled =>
       _physicalReader.currentState?.isEnabled == true ||
       _restoreReaderAfterEdit;
-  int? get readerInterruptionGeneration =>
-      _physicalReader.currentState?.interruptionGeneration;
-
-  void restoreReader(int? generation) {
+  void restoreReader() {
     if (mounted && !_busy && _editingItemId == null) {
-      _physicalReader.currentState?.enableReader(
-        restoringGeneration: generation,
-      );
+      _physicalReader.currentState?.enableReader();
     }
   }
 
@@ -109,32 +109,35 @@ class CajaScreenState extends State<CajaScreen> {
     }
   }
 
-  Future<void> _runAction(Future<void> Function() action) async {
+  Future<void> _runAction(
+    Future<void> Function() action, {
+    bool keepIdleReader = false,
+  }) async {
     if (_busy) return;
     final reader = _physicalReader.currentState;
     final restoreMode = reader?.isEnabled == true || _restoreReaderAfterEdit;
-    final generation = _restoreReaderAfterEdit
-        ? _editorReaderGeneration
-        : reader?.interruptionGeneration;
+    final retainedReader =
+        keepIdleReader &&
+        _editingItemId == null &&
+        reader?.pauseIfIdle() == true;
     setState(() {
       _resolvingReads = true;
       _editingItemId = null;
       _restoreReaderAfterEdit = false;
     });
     try {
-      await reader?.finish();
+      if (!retainedReader) await reader?.finish();
       if (mounted) await action();
     } finally {
       if (mounted) {
         if (_editingItemId != null && restoreMode) {
           _restoreReaderAfterEdit = true;
-          _editorReaderGeneration = generation;
         }
         setState(() => _resolvingReads = false);
         // La selección puede haber cambiado; reconstruir antes de reabrir el HID.
-        await WidgetsBinding.instance.endOfFrame;
+        if (!retainedReader) await WidgetsBinding.instance.endOfFrame;
         if (mounted && restoreMode && _editingItemId == null) {
-          reader?.enableReader(restoringGeneration: generation);
+          reader?.enableReader();
         }
       }
     }
@@ -160,9 +163,9 @@ class CajaScreenState extends State<CajaScreen> {
   bool _quoting = false;
   GuardarCotizacionCommand? _quotationIntent;
   String? _editingItemId;
+  String? _selectedItemId;
   bool _editorSaving = false;
   bool _restoreReaderAfterEdit = false;
-  int? _editorReaderGeneration;
   bool get _busy => _resolvingReads || _editorSaving;
 
   CambiarTarifaVentaBorradorCommand? _pricingIntent;
@@ -373,327 +376,430 @@ class CajaScreenState extends State<CajaScreen> {
     if (!mounted || sale == null) return;
     final items = sale.items.where((item) => item.id == itemId);
     if (items.isEmpty) return;
-    setState(() => _editingItemId = items.single.id);
+    setState(() {
+      _editingItemId = items.single.id;
+      _selectedItemId = items.single.id;
+    });
   });
 
+  Future<void> _editLastItem() async {
+    if (_busy ||
+        _editingItemId != null ||
+        !(ModalRoute.isCurrentOf(context) ?? true)) {
+      return;
+    }
+    await _runAction(() async {
+      final sale = await _repository.watchCurrentDraft().first;
+      if (mounted && sale != null && sale.items.isNotEmpty) {
+        setState(() {
+          _editingItemId = sale.items.last.id;
+          _selectedItemId = sale.items.last.id;
+        });
+      }
+    });
+  }
+
+  Future<void> _quickAction(String id, {int? delta}) => _runAction(() async {
+    final sale = await _repository.watchCurrentDraft().first;
+    if (!mounted || sale == null) return;
+    final matches = sale.items.where((item) => item.id == id);
+    if (matches.isEmpty) return;
+    final item = matches.single;
+    setState(() => _selectedItemId = id);
+    final commands =
+        widget.ventaBorradorCommandService ??
+        getIt<VentaBorradorCommandService>();
+    try {
+      if (delta != null && item.quantity == null) return;
+      final quantity = delta == null ? 0 : item.quantity! + delta;
+      if (quantity <= 0) {
+        await commands.eliminarProducto(
+          EliminarProductoBorradorCommand(saleItemId: id),
+        );
+        if (mounted) setState(() => _selectedItemId = null);
+      } else {
+        await commands.actualizarProducto(
+          ActualizarProductoBorradorCommand(saleItemId: id, quantity: quantity),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo confirmar el cambio. Revisa la venta antes de volver a intentar.',
+            ),
+          ),
+        );
+      }
+    }
+  }, keepIdleReader: true);
+
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Column(
-      children: [
-        SaleDraftTabsBar(
-          controller: _tabs,
-          enabled: !_busy,
-          onSelect: (index) {
-            if (index == _tabs.selectedIndex) return;
-            _runAction(() async => _tabs.select(index));
-          },
-          onAdd: () => _runAction(() async => _tabs.add()),
-        ),
-        if (!_physicalReaderAvailable)
-          AbsorbPointer(
-            absorbing: _busy,
-            child: ArticleSearchBar(
-              showQuickAdd: false,
-              productoRepository: widget.productoRepository,
-              saleDraftRepository: _repository,
-              ventaBorradorCommandService: widget.ventaBorradorCommandService,
-              onOpenCaja: widget.onOpenCaja,
-              onOpenSearch: _openSearch,
-              onScanBarcode: _busy ? null : _openBarcodeScanner,
-            ),
+  Widget build(BuildContext context) => CallbackShortcuts(
+    bindings: {
+      const SingleActivator(LogicalKeyboardKey.f2): _editLastItem,
+      if (_editingItemId == null)
+        const SingleActivator(LogicalKeyboardKey.delete): () {
+          if (!_busy &&
+              _selectedItemId != null &&
+              (ModalRoute.isCurrentOf(context) ?? true)) {
+            _quickAction(_selectedItemId!);
+          }
+        },
+    },
+    child: SafeArea(
+      child: Column(
+        children: [
+          SaleDraftTabsBar(
+            controller: _tabs,
+            enabled: !_busy,
+            onSelect: (index) {
+              if (index == _tabs.selectedIndex) return;
+              _runAction(() async => _tabs.select(index));
+            },
+            onAdd: () => _runAction(() async => _tabs.add()),
           ),
-        if (_physicalReaderAvailable)
-          PhysicalBarcodeReader(
-            key: _physicalReader,
-            productoRepository:
-                widget.productoRepository ?? getIt<ProductoRepository>(),
-            createArticle: (command) =>
-                (widget.productoCommandService ??
-                        getIt<ProductoCommandService>())
-                    .crearArticulo(command),
-            assignBarcode: (command) =>
-                (widget.productoCommandService ??
-                        getIt<ProductoCommandService>())
-                    .asignarCodigoBarrasVariante(command),
-            saleDraftRepository:
-                widget.saleDraftRepository ?? getIt<SaleDraftRepository>(),
-            onOpenSearch: _openSearch,
-            onScanBarcode: _openBarcodeScanner,
-            onCharge: _busy ? null : () => _openPayment(enteredWithEnter: true),
-            interactionEnabled: !_busy && _editingItemId == null,
-            coordinator: SaleBarcodeReadCoordinator(
-              products:
+          if (!_physicalReaderAvailable)
+            AbsorbPointer(
+              absorbing: _busy,
+              child: ArticleSearchBar(
+                showQuickAdd: false,
+                productoRepository: widget.productoRepository,
+                saleDraftRepository: _repository,
+                ventaBorradorCommandService: widget.ventaBorradorCommandService,
+                onOpenCaja: widget.onOpenCaja,
+                onOpenSearch: _openSearch,
+                onScanBarcode: _busy ? null : _openBarcodeScanner,
+              ),
+            ),
+          if (_physicalReaderAvailable)
+            PhysicalBarcodeReader(
+              key: _physicalReader,
+              productoRepository:
                   widget.productoRepository ?? getIt<ProductoRepository>(),
-              commands:
-                  widget.ventaBorradorCommandService ??
-                  getIt<VentaBorradorCommandService>(),
+              createArticle: (command) =>
+                  (widget.productoCommandService ??
+                          getIt<ProductoCommandService>())
+                      .crearArticulo(command),
+              assignBarcode: (command) =>
+                  (widget.productoCommandService ??
+                          getIt<ProductoCommandService>())
+                      .asignarCodigoBarrasVariante(command),
+              saleDraftRepository:
+                  widget.saleDraftRepository ?? getIt<SaleDraftRepository>(),
+              onOpenSearch: _openSearch,
+              onScanBarcode: _openBarcodeScanner,
+              onCharge: _busy
+                  ? null
+                  : () => _openPayment(enteredWithEnter: true),
+              interactionEnabled: !_busy && _editingItemId == null,
+              coordinator: SaleBarcodeReadCoordinator(
+                products:
+                    widget.productoRepository ?? getIt<ProductoRepository>(),
+                commands:
+                    widget.ventaBorradorCommandService ??
+                    getIt<VentaBorradorCommandService>(),
+              ),
             ),
-          ),
-        Expanded(
-          child: StreamBuilder<SaleDraft?>(
-            stream: _draft,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('No se pudo cargar la venta.'));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final sale = snapshot.data;
-              final total = SaleDraftDisplay.money(sale?.totalMinor ?? 0);
-              return ColoredBox(
-                color: const Color(0xFFE6E6E6),
-                child: LayoutBuilder(
-                  builder: (context, constraints) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, listConstraints) => ListView(
-                            padding: const EdgeInsets.all(12),
-                            children: [
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minHeight: (listConstraints.maxHeight - 24)
-                                      .clamp(0, double.infinity),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        if (sale == null || sale.items.isEmpty)
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              vertical: 32,
-                                            ),
-                                            child: Text(
-                                              'La venta está vacía.',
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          )
-                                        else
-                                          Card(
-                                            margin: EdgeInsets.zero,
-                                            child: Column(
-                                              children: [
-                                                for (
-                                                  var i = sale.items.length - 1;
-                                                  i >= 0;
-                                                  i--
-                                                ) ...[
-                                                  if (i < sale.items.length - 1)
-                                                    const Divider(height: 1),
-                                                  _SaleLine(
-                                                    key: ValueKey(
-                                                      sale.items[i].id,
-                                                    ),
-                                                    item: sale.items[i],
-                                                    offerMode:
-                                                        sale.pricingMode ==
-                                                        'offer',
-                                                    selected:
-                                                        _editingItemId ==
-                                                        sale.items[i].id,
-                                                    editor:
-                                                        _editingItemId ==
-                                                            sale.items[i].id
-                                                        ? DraftItemInlineEditor(
-                                                            item: sale.items[i],
-                                                            enabled: !_busy,
-                                                            ventaBorradorCommandService:
-                                                                widget
-                                                                    .ventaBorradorCommandService,
-                                                            unidadInventarioRepository:
-                                                                widget
-                                                                    .unidadInventarioRepository,
-                                                            onClose:
-                                                                _closeEditor,
-                                                            onSavingChanged:
-                                                                _setEditorSaving,
-                                                          )
-                                                        : null,
-                                                    onEdit: _busy
-                                                        ? null
-                                                        : () => _openEditor(
-                                                            sale.items[i].id,
-                                                          ),
-                                                    onClose: _busy
-                                                        ? null
-                                                        : _closeEditor,
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Card(
-                                      margin: EdgeInsets.zero,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            _AmountRow(
-                                              label: 'Total general',
-                                              amount: total,
-                                              bold: true,
-                                            ),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              SaleDraftDisplay.summary(sale),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight * 0.55,
-                        ),
-                        child: SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                            child: Row(
+          Expanded(
+            child: StreamBuilder<SaleDraft?>(
+              stream: _draft,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('No se pudo cargar la venta.'),
+                  );
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final sale = snapshot.data;
+                final total = SaleDraftDisplay.money(sale?.totalMinor ?? 0);
+                return ColoredBox(
+                  color: const Color(0xFFE6E6E6),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, listConstraints) => ListView(
+                              padding: const EdgeInsets.all(12),
                               children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Semantics(
-                                    key: const Key('sale_pricing_state'),
-                                    toggled: sale?.pricingMode == 'offer',
-                                    child: OutlinedButton.icon(
-                                      key: const Key('sale_offer_toggle'),
-                                      onPressed: _busy ? null : _togglePricing,
-                                      style: OutlinedButton.styleFrom(
-                                        backgroundColor:
-                                            sale?.pricingMode == 'offer'
-                                            ? Theme.of(
-                                                context,
-                                              ).colorScheme.primaryContainer
-                                            : null,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: (listConstraints.maxHeight - 24)
+                                        .clamp(0, double.infinity),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (sale == null ||
+                                              sale.items.isEmpty)
+                                            const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: 32,
+                                              ),
+                                              child: Text(
+                                                'La venta está vacía.',
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            )
+                                          else
+                                            Card(
+                                              margin: EdgeInsets.zero,
+                                              child: Column(
+                                                children: [
+                                                  for (
+                                                    var i =
+                                                        sale.items.length - 1;
+                                                    i >= 0;
+                                                    i--
+                                                  ) ...[
+                                                    if (i <
+                                                        sale.items.length - 1)
+                                                      const Divider(height: 1),
+                                                    _SaleLine(
+                                                      key: ValueKey(
+                                                        sale.items[i].id,
+                                                      ),
+                                                      item: sale.items[i],
+                                                      highlighted:
+                                                          _selectedItemId ==
+                                                          sale.items[i].id,
+                                                      onSelect: () => setState(
+                                                        () => _selectedItemId =
+                                                            sale.items[i].id,
+                                                      ),
+                                                      onIncrement: _busy
+                                                          ? null
+                                                          : () => _quickAction(
+                                                              sale.items[i].id,
+                                                              delta: 1,
+                                                            ),
+                                                      onDecrement: _busy
+                                                          ? null
+                                                          : () => _quickAction(
+                                                              sale.items[i].id,
+                                                              delta: -1,
+                                                            ),
+                                                      onDelete: _busy
+                                                          ? null
+                                                          : () => _quickAction(
+                                                              sale.items[i].id,
+                                                            ),
+                                                      offerMode:
+                                                          sale.pricingMode ==
+                                                          'offer',
+                                                      selected:
+                                                          _editingItemId ==
+                                                          sale.items[i].id,
+                                                      editor:
+                                                          _editingItemId ==
+                                                              sale.items[i].id
+                                                          ? DraftItemInlineEditor(
+                                                              item:
+                                                                  sale.items[i],
+                                                              enabled: !_busy,
+                                                              ventaBorradorCommandService:
+                                                                  widget
+                                                                      .ventaBorradorCommandService,
+                                                              unidadInventarioRepository:
+                                                                  widget
+                                                                      .unidadInventarioRepository,
+                                                              onClose:
+                                                                  _closeEditor,
+                                                              onSavingChanged:
+                                                                  _setEditorSaving,
+                                                            )
+                                                          : null,
+                                                      onEdit: _busy
+                                                          ? null
+                                                          : () => _openEditor(
+                                                              sale.items[i].id,
+                                                            ),
+                                                      onClose: _busy
+                                                          ? null
+                                                          : _closeEditor,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Card(
+                                        margin: EdgeInsets.zero,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              _AmountRow(
+                                                label: 'Total general',
+                                                amount: total,
+                                                bold: true,
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                SaleDraftDisplay.summary(sale),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                      icon: Icon(
-                                        sale?.pricingMode == 'offer'
-                                            ? Icons.local_offer
-                                            : Icons.local_offer_outlined,
-                                        size: 16,
-                                      ),
-                                      label: const FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text('Oferta'),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 4,
-                                  child: FilledButton.icon(
-                                    onPressed: sale == null || _busy
-                                        ? null
-                                        : _clear,
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.error,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.delete_sweep_outlined,
-                                      size: 18,
-                                    ),
-                                    label: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        _clearing
-                                            ? 'Limpiando…'
-                                            : 'Limpiar venta',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 3,
-                                  child: OutlinedButton.icon(
-                                    onPressed:
-                                        sale == null ||
-                                            sale.items.isEmpty ||
-                                            sale.lastEventId == null ||
-                                            _busy
-                                        ? null
-                                        : _quote,
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.request_quote_outlined,
-                                      size: 18,
-                                    ),
-                                    label: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        _quoting ? 'Guardando…' : 'Cotizar',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 4,
-                                  child: FilledButton(
-                                    onPressed:
-                                        sale == null ||
-                                            sale.items.isEmpty ||
-                                            _busy
-                                        ? null
-                                        : () => _openPayment(),
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                      ),
-                                    ),
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text('Cobrar: $total'),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * 0.55,
+                          ),
+                          child: SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Semantics(
+                                      key: const Key('sale_pricing_state'),
+                                      toggled: sale?.pricingMode == 'offer',
+                                      child: OutlinedButton.icon(
+                                        key: const Key('sale_offer_toggle'),
+                                        onPressed: _busy
+                                            ? null
+                                            : _togglePricing,
+                                        style: OutlinedButton.styleFrom(
+                                          backgroundColor:
+                                              sale?.pricingMode == 'offer'
+                                              ? Theme.of(
+                                                  context,
+                                                ).colorScheme.primaryContainer
+                                              : null,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                        ),
+                                        icon: Icon(
+                                          sale?.pricingMode == 'offer'
+                                              ? Icons.local_offer
+                                              : Icons.local_offer_outlined,
+                                          size: 16,
+                                        ),
+                                        label: const FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text('Oferta'),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 4,
+                                    child: FilledButton.icon(
+                                      onPressed: sale == null || _busy
+                                          ? null
+                                          : _clear,
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                        Icons.delete_sweep_outlined,
+                                        size: 18,
+                                      ),
+                                      label: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          _clearing
+                                              ? 'Limpiando…'
+                                              : 'Limpiar venta',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 3,
+                                    child: OutlinedButton.icon(
+                                      onPressed:
+                                          sale == null ||
+                                              sale.items.isEmpty ||
+                                              sale.lastEventId == null ||
+                                              _busy
+                                          ? null
+                                          : _quote,
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                        Icons.request_quote_outlined,
+                                        size: 18,
+                                      ),
+                                      label: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          _quoting ? 'Guardando…' : 'Cotizar',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 4,
+                                    child: FilledButton(
+                                      onPressed:
+                                          sale == null ||
+                                              sale.items.isEmpty ||
+                                              _busy
+                                          ? null
+                                          : () => _openPayment(),
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text('Cobrar: $total'),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -701,6 +807,11 @@ class CajaScreenState extends State<CajaScreen> {
 class _SaleLine extends StatelessWidget {
   const _SaleLine({
     required this.item,
+    required this.highlighted,
+    required this.onSelect,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onDelete,
     required this.offerMode,
     required this.onEdit,
     required this.onClose,
@@ -709,6 +820,11 @@ class _SaleLine extends StatelessWidget {
     super.key,
   });
   final SaleDraftItem item;
+  final bool highlighted;
+  final VoidCallback onSelect;
+  final VoidCallback? onIncrement;
+  final VoidCallback? onDecrement;
+  final VoidCallback? onDelete;
   final bool offerMode;
   final VoidCallback? onEdit;
   final VoidCallback? onClose;
@@ -717,7 +833,7 @@ class _SaleLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: selected
+    color: highlighted
         ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35)
         : Colors.transparent,
     child: Padding(
@@ -733,12 +849,15 @@ class _SaleLine extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      [
-                        item.productName,
-                        if (item.variantName != null) item.variantName!,
-                      ].join(' · '),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    GestureDetector(
+                      onTap: onSelect,
+                      child: Text(
+                        [
+                          item.productName,
+                          if (item.variantName != null) item.variantName!,
+                        ].join(' · '),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                     Text(
                       item.effectivePriceOrigin == 'offer'
@@ -775,6 +894,29 @@ class _SaleLine extends StatelessWidget {
               ),
             ],
           ),
+          if (!selected)
+            Wrap(
+              alignment: WrapAlignment.end,
+              children: [
+                if (item.quantity != null) ...[
+                  IconButton(
+                    onPressed: onDecrement,
+                    tooltip: 'Disminuir cantidad',
+                    icon: const Icon(Icons.remove),
+                  ),
+                  IconButton(
+                    onPressed: onIncrement,
+                    tooltip: 'Aumentar cantidad',
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+                IconButton(
+                  onPressed: onDelete,
+                  tooltip: 'Eliminar artículo',
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
           ?editor,
         ],
       ),

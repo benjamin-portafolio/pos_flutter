@@ -8,6 +8,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/local_command_context.dart';
 import 'package:pos_flutter/application/commands/ventas/agregar_producto_borrador_command.dart';
+import 'package:pos_flutter/application/commands/ventas/actualizar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
@@ -44,6 +45,7 @@ class BarcodeSaleFixture {
   Future<void> Function(String)? beforeLookup;
   Future<void> Function(AgregarProductoBorradorCommand)? beforeSave;
   Future<void> Function(AgregarProductoBorradorCommand)? afterSave;
+  Future<void> Function(ActualizarProductoBorradorCommand)? beforeUpdate;
 
   late final products = _Products(this);
   late final commands = _Commands(this);
@@ -176,6 +178,14 @@ class _Commands extends VentaBorradorCommandService {
         drafts: fixture.drafts,
       );
   final BarcodeSaleFixture fixture;
+
+  @override
+  Future<void> actualizarProducto(
+    ActualizarProductoBorradorCommand command,
+  ) async {
+    await fixture.beforeUpdate?.call(command);
+    await super.actualizarProducto(command);
+  }
 
   @override
   Future<void> agregar(AgregarProductoBorradorCommand command) async {

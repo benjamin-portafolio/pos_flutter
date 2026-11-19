@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../application/commands/ventas/actualizar_producto_borrador_command.dart';
 import '../../../application/commands/ventas/eliminar_producto_borrador_command.dart';
@@ -42,9 +43,7 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
   String? _parseError;
   bool _saving = false;
   bool _deleting = false;
-  bool _confirmDelete = false;
   bool _updateFailed = false;
-  bool _pendingEdit = false;
   late int _committed;
 
   bool get _measured => widget.item.quantity == null;
@@ -80,9 +79,8 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     if (previous != _original) {
       final canRefreshText =
           !_saving &&
-          !_pendingEdit &&
           previous == _committed &&
-          (_parsed == _committed || _waitingForUnit);
+          (_parsed == _committed || (_measured && _unit == null));
       _committed = _original;
       // Confirmar un guardado no debe restablecer el texto ni el cursor.
       if (canRefreshText && _parsed != _original) {
@@ -150,14 +148,7 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
       }
       _validateInput();
     });
-    // El usuario pudo teclear mientras se cargaba la precisión de la unidad.
-    if (_pendingEdit && !_waitingForUnit) {
-      _pendingEdit = false;
-      _update();
-    }
   }
-
-  bool get _waitingForUnit => _measured && _unit == null;
 
   bool get _dirty => _parsed != null && _parsed != _committed;
 
@@ -193,7 +184,7 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     if (result < 0) return;
     if (result == 0) {
       // Llegar a cero equivale a eliminar la línea.
-      setState(() => _confirmDelete = true);
+      _delete();
       return;
     }
     _applyValue(result);
@@ -216,20 +207,22 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     _validateInput();
   }
 
-  void _onTextChanged(String _) {
-    setState(_validateInput);
-    if (_saving || _waitingForUnit) {
-      _pendingEdit = true;
-      return;
-    }
-    _update();
+  void _onTextChanged(String _) => setState(() {
+    _updateFailed = false;
+    _validateInput();
+  });
+
+  Future<void> _confirm() async {
+    if (_saving || !widget.enabled) return;
+    if (_parsed == null) return;
+    if (_dirty) await _update();
+    if (mounted && !_updateFailed && !_dirty) widget.onClose();
   }
 
   Future<void> _update() async {
     if (!_canUpdate) return;
     final value = _parsed!;
     final measuredQuantity = _controller.text.trim();
-    _pendingEdit = false;
     setState(() {
       _saving = true;
       _updateFailed = false;
@@ -264,11 +257,6 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     } finally {
       if (mounted) setState(() => _saving = false);
       widget.onSavingChanged(false);
-      if (mounted && _pendingEdit && !_updateFailed) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _update();
-        });
-      }
     }
   }
 
@@ -316,98 +304,99 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled && !_saving;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            IconButton(
-              onPressed: enabled && _canDecrement ? _decrement : null,
-              tooltip: 'Disminuir cantidad',
-              icon: const Icon(Icons.remove),
-            ),
-            Expanded(
-              child: TextField(
-                key: const Key('draft_item_quantity_field'),
-                controller: _controller,
-                autofocus: true,
-                selectAllOnFocus: false,
-                // Conservar el foco y admitir el resto de la captura mientras
-                // se persiste una cantidad anterior.
-                enabled: !_deleting && (widget.enabled || _saving),
-                textAlign: TextAlign.center,
-                textInputAction: TextInputAction.done,
-                onChanged: _onTextChanged,
-                onSubmitted: (_) => _update(),
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: _measured,
-                  signed: false,
-                ),
-                inputFormatters: [
-                  InventoryQuantityInputFormatter(
-                    _measured ? _unit?.maximosDecimales ?? 9 : 0,
-                  ),
-                ],
-                decoration: InputDecoration(
-                  labelText: 'Cantidad',
-                  suffixText: _measured ? widget.item.unitSymbol : null,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: enabled && _canIncrement ? _increment : null,
-              tooltip: 'Aumentar cantidad',
-              icon: const Icon(Icons.add),
-            ),
-            IconButton(
-              onPressed: enabled
-                  ? () => setState(() => _confirmDelete = !_confirmDelete)
-                  : null,
-              tooltip: 'Eliminar artículo',
-              color: Theme.of(context).colorScheme.error,
-              icon: const Icon(Icons.delete_outline),
-            ),
-          ],
-        ),
-        if (_updateFailed && _dirty)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _canUpdate ? _update : null,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
-            ),
-          ),
-        if (_parseError != null)
-          Text(
-            _parseError!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        if (_confirmDelete)
-          Wrap(
-            alignment: WrapAlignment.end,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (enabled) widget.onClose();
+        },
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('¿Eliminar artículo?'),
-              TextButton(
-                onPressed: enabled
-                    ? () => setState(() => _confirmDelete = false)
-                    : null,
-                child: const Text('Cancelar'),
+              IconButton(
+                onPressed: enabled && _canDecrement ? _decrement : null,
+                tooltip: 'Disminuir cantidad',
+                icon: const Icon(Icons.remove),
               ),
-              FilledButton(
+              Expanded(
+                child: TextField(
+                  key: const Key('draft_item_quantity_field'),
+                  controller: _controller,
+                  autofocus: true,
+                  selectAllOnFocus: false,
+                  // Conservar el foco durante la confirmación; bloquear cambios
+                  // hasta conocer el resultado del comando.
+                  enabled: !_deleting && (widget.enabled || _saving),
+                  readOnly: _saving,
+                  textAlign: TextAlign.center,
+                  textInputAction: TextInputAction.done,
+                  onChanged: _onTextChanged,
+                  onEditingComplete: () {},
+                  onSubmitted: (_) => _confirm(),
+                  keyboardType: TextInputType.numberWithOptions(
+                    decimal: _measured,
+                    signed: false,
+                  ),
+                  inputFormatters: [
+                    InventoryQuantityInputFormatter(
+                      _measured ? _unit?.maximosDecimales ?? 9 : 0,
+                    ),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Cantidad',
+                    suffixText: _measured ? widget.item.unitSymbol : null,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: enabled && _canIncrement ? _increment : null,
+                tooltip: 'Aumentar cantidad',
+                icon: const Icon(Icons.add),
+              ),
+              IconButton(
                 onPressed: enabled ? _delete : null,
-                child: const Text('Eliminar'),
+                tooltip: 'Eliminar artículo',
+                color: Theme.of(context).colorScheme.error,
+                icon: const Icon(Icons.delete_outline),
               ),
             ],
           ),
-      ],
+          Wrap(
+            alignment: WrapAlignment.end,
+            children: [
+              TextButton(
+                onPressed: enabled ? widget.onClose : null,
+                child: const Text('Cancelar edición'),
+              ),
+              FilledButton(
+                onPressed: enabled && _parsed != null ? _confirm : null,
+                child: const Text('Listo'),
+              ),
+            ],
+          ),
+          if (_updateFailed && _dirty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _canUpdate ? _update : null,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ),
+          if (_parseError != null)
+            Text(
+              _parseError!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      ),
     );
   }
 }

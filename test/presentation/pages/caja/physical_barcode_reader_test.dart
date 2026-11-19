@@ -259,7 +259,7 @@ void main() {
   );
 
   readerTest(
-    'entrar con app inactiva difiere preparación y exige reanudación',
+    'entrar con app inactiva prepara automáticamente al volver',
     (tester) async {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       try {
@@ -270,10 +270,8 @@ void main() {
           AppLifecycleState.resumed,
         );
         await settle(tester);
-        expect(field(tester).focusNode!.hasFocus, isFalse);
-        expect(find.textContaining('Lector en pausa'), findsOneWidget);
-        await tester.tap(find.text('Reanudar lector'));
-        await settle(tester);
+        expect(field(tester).focusNode!.hasFocus, isTrue);
+        expect(find.text('Reanudar lector'), findsNothing);
         await send(tester, '001');
         await settle(tester);
         expect(f.attempts, hasLength(1));
@@ -614,6 +612,12 @@ void main() {
     await tester.runAsync(
       () => f.db.customStatement('DROP TRIGGER reject_read'),
     );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    expect(f.attempts, hasLength(1));
+    expect(find.text('Reanudar lector'), findsOneWidget);
     await tester.tap(find.text('Reanudar lector'));
     await settle(tester);
     expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
@@ -664,7 +668,7 @@ void main() {
 
   for (final window in [true, false]) {
     readerTest(
-      'perder ${window ? "ventana" : "aplicación"} limpia y exige reanudación',
+      'perder ${window ? "ventana" : "aplicación"} limpia y recupera lector automáticamente',
       (tester) async {
         await pumpCaja(tester);
         await tester.enterText(find.byKey(inputKey), '00');
@@ -685,16 +689,11 @@ void main() {
             AppLifecycleState.resumed,
           );
         }
-        await tester.pump();
-        expect(find.textContaining('Lector en pausa'), findsOneWidget);
+        await settle(tester);
+        expect(find.text('Reanudar lector'), findsNothing);
         await send(tester, '001');
         await settle(tester);
-        expect(f.attempts, isEmpty);
-        await tester.tap(find.text('Reanudar lector'));
-        await tester.pump();
-        await send(tester, '002');
-        await settle(tester);
-        expect(f.lookups, ['002']);
+        expect(f.lookups, ['001']);
       },
     );
   }
@@ -1023,6 +1022,152 @@ void main() {
     },
   );
 
+  readerTest('F2 cantidad Enter y Escape permiten continuar escaneando', (
+    tester,
+  ) async {
+    await pumpCaja(tester);
+    await send(tester, '001');
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await settle(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    final quantity = find.byKey(const Key('draft_item_quantity_field'));
+    expect(
+      tester.widget<TextField>(quantity).focusNode?.hasFocus ??
+          tester
+              .widget<EditableText>(
+                find.descendant(
+                  of: quantity,
+                  matching: find.byType(EditableText),
+                ),
+              )
+              .focusNode
+              .hasFocus,
+      isTrue,
+    );
+    await tester.enterText(quantity, '5');
+    expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 1);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect(find.byType(DraftItemInlineEditor), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+    expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 5);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await settle(tester);
+    await tester.enterText(quantity, '99');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 5);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+    await send(tester, '002');
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))!.items, hasLength(2));
+  });
+
+  readerTest('ajuste rápido y Supr eliminan sin confirmar y recuperan lector', (
+    tester,
+  ) async {
+    await pumpCaja(tester);
+    await send(tester, '001');
+    await settle(tester);
+    await tester.tap(find.byTooltip('Aumentar cantidad'));
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 2);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await settle(tester);
+    expect(find.text('¿Eliminar artículo?'), findsNothing);
+    expect((await tester.runAsync(() => f.draft))?.items ?? [], isEmpty);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+    expect(find.byType(PaymentMethodScreen), findsNothing);
+    await send(tester, '002');
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))!.items.single.variantId, 'B');
+    await tester.tap(find.byTooltip('Eliminar artículo'));
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))?.items ?? [], isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+  });
+
+  readerTest('− directo hasta cero elimina y devuelve el foco al lector', (
+    tester,
+  ) async {
+    await pumpCaja(tester);
+    await send(tester, '001');
+    await settle(tester);
+    await tester.tap(find.byTooltip('Disminuir cantidad'));
+    await settle(tester);
+    expect((await tester.runAsync(() => f.draft))?.items ?? [], isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+  });
+
+  readerTest('ajuste rápido conserva campo y posición durante + y −', (
+    tester,
+  ) async {
+    await pumpCaja(tester);
+    await send(tester, '001');
+    await settle(tester);
+    final inputElement = tester.element(find.byKey(inputKey));
+    final inputController = field(tester).controller;
+    final inputFocus = field(tester).focusNode;
+    for (final tooltip in ['Aumentar cantidad', 'Disminuir cantidad']) {
+      final gate = Completer<void>();
+      f.beforeUpdate = (_) => gate.future;
+      final y = tester.getTopLeft(find.byTooltip(tooltip)).dy;
+      await tester.tap(find.byTooltip(tooltip));
+      await settle(tester);
+      expect(tester.element(find.byKey(inputKey)), same(inputElement));
+      expect(field(tester).controller, same(inputController));
+      expect(field(tester).focusNode, same(inputFocus));
+      expect(tester.getTopLeft(find.byTooltip(tooltip)).dy, y);
+      expect(find.text('Reanudar lector'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      inputFocus!.requestFocus();
+      await tester.pump();
+      await send(tester, '002');
+      await settle(tester);
+      expect(f.attempts, hasLength(1));
+      gate.complete();
+      await settle(tester);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+      expect(tester.getTopLeft(find.byTooltip(tooltip)).dy, y);
+    }
+    expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 1);
+  });
+
+  readerTest(
+    'ajuste rápido espera lecturas pendientes antes de cambiar cantidad',
+    (tester) async {
+      await pumpCaja(tester);
+      await send(tester, '001');
+      await settle(tester);
+      final gate = Completer<void>();
+      f.beforeSave = (_) => gate.future;
+      await send(tester, '001');
+      await settle(tester);
+      var updated = false;
+      f.beforeUpdate = (_) async {
+        updated = true;
+      };
+      await tester.tap(find.byTooltip('Aumentar cantidad'));
+      await tester.pump();
+      expect(updated, isFalse);
+      if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Reanudar pendientes'));
+      }
+      gate.complete();
+      await settle(tester);
+      expect(updated, isTrue);
+      expect((await tester.runAsync(() => f.draft))!.items.single.quantity, 3);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+    },
+  );
+
   readerTest(
     'edición recibe cantidad posterior al drenaje y al cerrar recupera foco',
     (tester) async {
@@ -1075,9 +1220,8 @@ void main() {
     await tester.tap(find.byTooltip('Editar artículo').first);
     await settle(tester);
     await tester.tap(find.byTooltip('Eliminar artículo'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
-    await tester.tap(find.text('Eliminar'));
     await settle(tester);
     expect(find.byType(DraftItemInlineEditor), findsNothing);
     expect((await tester.runAsync(() => f.draft))?.items ?? [], isEmpty);
@@ -1234,35 +1378,33 @@ void main() {
     },
   );
 
-  readerTest('pausa externa durante cantidad no se reanuda al cerrar diálogo', (
-    tester,
-  ) async {
-    await pumpCaja(tester);
-    await send(tester, '004');
-    await settle(tester);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    await tester.pump();
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
-    await tester.enterText(
-      find.descendant(
-        of: find.byType(SaleQuantityDialog),
-        matching: find.byKey(const ValueKey('sale-measured-quantity')),
-      ),
-      '0.500',
-    );
-    await tester.pump();
-    await tester.tap(find.text('Agregar'));
-    await settle(tester);
-    expect(f.attempts, isEmpty);
-    expect(find.textContaining('Lector en pausa'), findsOneWidget);
-    await tester.tap(find.text('Reanudar lector'));
-    await settle(tester);
-    expect(f.attempts.single.variantId, 'M');
-    expect(f.attempts.single.measuredQuantity, '0.500');
-  });
+  readerTest(
+    'volver durante cantidad conserva diálogo y recupera lector al confirmar',
+    (tester) async {
+      await pumpCaja(tester);
+      await send(tester, '004');
+      await settle(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(SaleQuantityDialog),
+          matching: find.byKey(const ValueKey('sale-measured-quantity')),
+        ),
+        '0.500',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Agregar'));
+      await settle(tester);
+      expect(find.text('Reanudar lector'), findsNothing);
+      expect(f.attempts.single.variantId, 'M');
+      expect(f.attempts.single.measuredQuantity, '0.500');
+    },
+  );
 
-  readerTest('ruta externa congela consulta y volver exige reanudación', (
+  readerTest('ruta externa congela consulta y volver recupera lector', (
     tester,
   ) async {
     await pumpCaja(tester);
@@ -1283,9 +1425,7 @@ void main() {
     expect(f.attempts, isEmpty);
     navigator.pop();
     await settle(tester);
-    expect(find.textContaining('Lector en pausa'), findsOneWidget);
-    await tester.tap(find.text('Reanudar lector'));
-    await settle(tester);
+    expect(find.text('Reanudar lector'), findsNothing);
     expect(f.attempts, hasLength(1));
   });
 
@@ -1353,9 +1493,7 @@ void main() {
       gate.complete();
       await settle(tester);
       expect(f.attempts, hasLength(1));
-      expect(find.textContaining('Lector en pausa'), findsOneWidget);
-      await tester.tap(find.text('Reanudar lector'));
-      await settle(tester);
+      expect(find.text('Reanudar lector'), findsNothing);
       expect(field(tester).focusNode!.hasFocus, isTrue);
       expect(find.text(r'Cobrar: $1.00'), findsOneWidget);
     },
@@ -1405,36 +1543,31 @@ void main() {
     platforms: [TargetPlatform.android],
   );
 
-  readerTest(
-    'pérdida de ventana durante búsqueda conserva modo pausado al volver',
-    (tester) async {
-      await pumpCaja(tester);
-      await tester.tap(
-        find.byWidgetPredicate(
-          (w) => w is TextField && w.decoration?.hintText == 'Quiero vender…',
-        ),
-      );
-      await settle(tester);
-      focusWindow(tester, false);
-      await tester.pump();
-      focusWindow(tester, true);
-      await tester.pump();
-      await tester.pageBack();
-      await settle(tester);
-      expect(
-        tester
-            .state<PhysicalBarcodeReaderState>(
-              find.byType(PhysicalBarcodeReader),
-            )
-            .isEnabled,
-        isTrue,
-      );
-      expect(find.textContaining('Lector en pausa'), findsOneWidget);
-      await tester.tap(find.text('Reanudar lector'));
-      await tester.pump();
-      expect(field(tester).focusNode!.hasFocus, isTrue);
-    },
-  );
+  readerTest('pérdida de ventana durante búsqueda recupera lector al volver', (
+    tester,
+  ) async {
+    await pumpCaja(tester);
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == 'Quiero vender…',
+      ),
+    );
+    await settle(tester);
+    focusWindow(tester, false);
+    await tester.pump();
+    focusWindow(tester, true);
+    await tester.pump();
+    await tester.pageBack();
+    await settle(tester);
+    expect(
+      tester
+          .state<PhysicalBarcodeReaderState>(find.byType(PhysicalBarcodeReader))
+          .isEnabled,
+      isTrue,
+    );
+    expect(find.text('Reanudar lector'), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+  });
   readerTest(
     'cerrar menú sin navegar recupera modo y foco para otras lecturas',
     (tester) async {

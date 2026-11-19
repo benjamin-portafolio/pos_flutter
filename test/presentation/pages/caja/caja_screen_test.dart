@@ -253,6 +253,7 @@ void main() {
         find.byKey(const Key('draft_item_quantity_field')),
         '8',
       );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
       await tester.tap(find.byTooltip('Editar artículo').first);
       await tester.pumpAndSettle();

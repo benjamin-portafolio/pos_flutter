@@ -620,6 +620,7 @@ void main() {
           find.byKey(const Key('draft_item_quantity_field')),
           '1.250',
         );
+        await tester.testTextInput.receiveAction(TextInputAction.done);
         await settle(tester);
         expect(find.text(r'Cobrar: $62.50'), findsOneWidget);
       },
@@ -636,6 +637,7 @@ void main() {
       find.byKey(const Key('draft_item_quantity_field')),
       '3',
     );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle(tester);
     expect(find.text(r'Cobrar: $60.00'), findsOneWidget);
     expect(find.text('Oferta aplicada'), findsOneWidget);

@@ -23,7 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _navigating = false;
   bool _restoreAfterMenu = false;
   bool _restoreAfterMenuRoute = false;
-  int? _menuReaderGeneration;
   final _caja = GlobalKey<CajaScreenState>();
   final _scaffold = GlobalKey<ScaffoldState>();
 
@@ -47,14 +46,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _onTabTapped(int index) async {
     final restore = _caja.currentState?.isReaderEnabled == true;
-    final generation = _caja.currentState?.readerInterruptionGeneration;
     if (index == _currentIndex || !await _prepareNavigation()) return;
     if (!mounted) return;
     if (index == 4) {
       await Navigator.of(
         context,
       ).push<void>(MaterialPageRoute(builder: (_) => const ClientesScreen()));
-      if (restore) _caja.currentState?.restoreReader(generation);
+      if (restore) _caja.currentState?.restoreReader();
       return;
     }
     setState(() => _currentIndex = index);
@@ -62,38 +60,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openMenu() async {
     final restore = _caja.currentState?.isReaderEnabled == true;
-    final generation = _caja.currentState?.readerInterruptionGeneration;
     if (await _prepareNavigation()) {
       _restoreAfterMenu = restore;
-      _menuReaderGeneration = generation;
       _scaffold.currentState?.openDrawer();
     }
   }
 
   Future<void> _openFinancialEntries() async {
     final restore = _caja.currentState?.isReaderEnabled == true;
-    final generation = _caja.currentState?.readerInterruptionGeneration;
     if (!await _prepareNavigation() || !mounted) return;
     try {
       await Navigator.of(context).push<void>(
         MaterialPageRoute(builder: (_) => const IngresosYGastosScreen()),
       );
     } finally {
-      if (restore && mounted) _caja.currentState?.restoreReader(generation);
+      if (restore && mounted) _caja.currentState?.restoreReader();
     }
   }
 
   Future<bool> _beforeMenuNavigate() async {
     final restore =
         _restoreAfterMenu || _caja.currentState?.isReaderEnabled == true;
-    final generation =
-        _caja.currentState?.readerInterruptionGeneration ??
-        _menuReaderGeneration;
     final allowed = await _prepareNavigation();
     if (allowed) {
       _restoreAfterMenu = false;
       _restoreAfterMenuRoute = restore;
-      _menuReaderGeneration = generation;
     }
     return allowed;
   }
@@ -101,14 +92,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _afterMenuNavigate() {
     if (_restoreAfterMenuRoute) {
       _restoreAfterMenuRoute = false;
-      _caja.currentState?.restoreReader(_menuReaderGeneration);
+      _caja.currentState?.restoreReader();
     }
   }
 
   void _drawerChanged(bool open) {
     if (!open && _restoreAfterMenu) {
       _restoreAfterMenu = false;
-      _caja.currentState?.restoreReader(_menuReaderGeneration);
+      _caja.currentState?.restoreReader();
     }
   }
 

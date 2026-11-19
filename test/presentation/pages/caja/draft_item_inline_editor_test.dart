@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/ventas/actualizar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/eliminar_producto_borrador_command.dart';
@@ -69,107 +70,51 @@ void main() {
     expect(closed, isFalse);
   });
 
-  testWidgets('cantidad manual se guarda sin confirmación y Enter no duplica', (
+  testWidgets('captura temporal, Enter confirma una vez y cierra', (
     tester,
   ) async {
-    final commands = await pumpEditor(tester);
+    var closed = 0;
+    final commands = await pumpEditor(tester, onClose: () => closed++);
     final field = find.byKey(const Key('draft_item_quantity_field'));
-    await tester.enterText(field, '7');
+    await tester.enterText(field, '2');
+    await tester.enterText(field, '25');
     await tester.pumpAndSettle();
-    expect(commands.updated.single.quantity, 7);
-    expect(find.text('Aplicar cantidad'), findsNothing);
-    await tester.enterText(field, '9');
+    expect(commands.updated, isEmpty);
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    expect(commands.updated.last.quantity, 9);
-    expect(commands.updated, hasLength(2));
+    expect(commands.updated.single.quantity, 25);
+    expect(closed, 1);
   });
 
-  testWidgets(
-    'el primer dígito reemplaza la cantidad y el siguiente se agrega tras el guardado',
-    (tester) async {
-      SaleDraftItem projected(int quantity) => SaleDraftItem(
-        id: piece.id,
-        variantId: piece.variantId,
-        productName: piece.productName,
-        variantName: null,
-        quantity: quantity,
-        measuredQuantityAtomic: null,
-        unitPriceMinor: piece.unitPriceMinor,
-        priceReferenceQuantityAtomic: null,
-        unitCode: null,
-        unitSymbol: null,
-        unitAtomicFactor: null,
-        totalMinor: piece.unitPriceMinor * quantity,
-      );
+  testWidgets('Escape descarta cantidad sin guardar', (tester) async {
+    var closed = false;
+    final commands = await pumpEditor(tester, onClose: () => closed = true);
+    await tester.enterText(find.byType(TextField), '75');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(commands.updated, isEmpty);
+    expect(closed, isTrue);
+  });
 
-      final commands = await pumpEditor(tester);
-      final input = tester.widget<EditableText>(find.byType(EditableText));
-      expect(input.focusNode.hasFocus, isTrue);
-      expect(
-        input.controller.selection,
-        const TextSelection(baseOffset: 0, extentOffset: 1),
-      );
-      expect(commands.updated, isEmpty);
+  testWidgets('confirmar espera guardado y bloquea doble Enter', (
+    tester,
+  ) async {
+    var closed = false;
+    final gate = Completer<void>();
+    final commands = EditingCommands()..gate = gate.future;
+    await pumpEditor(tester, commands: commands, onClose: () => closed = true);
+    await tester.enterText(find.byType(TextField), '75');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    expect(commands.updated.single.quantity, 75);
+    expect(closed, isFalse);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
+  });
 
-      void typeDigit(String digit) {
-        final value = input.controller.value;
-        final selection = value.selection;
-        tester.testTextInput.updateEditingValue(
-          TextEditingValue(
-            text: value.text.replaceRange(
-              selection.start,
-              selection.end,
-              digit,
-            ),
-            selection: TextSelection.collapsed(offset: selection.start + 1),
-          ),
-        );
-      }
-
-      typeDigit('7');
-      await tester.pumpAndSettle();
-      expect(commands.updated.single.quantity, 7);
-      await pumpEditor(tester, commands: commands, item: projected(7));
-      expect(input.focusNode.hasFocus, isTrue);
-      expect(
-        input.controller.selection,
-        const TextSelection.collapsed(offset: 1),
-      );
-
-      typeDigit('5');
-      await tester.pumpAndSettle();
-      await pumpEditor(tester, commands: commands, item: projected(75));
-      expect(input.controller.text, '75');
-      expect(commands.updated.map((command) => command.quantity), [7, 75]);
-    },
-    variant: const TargetPlatformVariant({
-      TargetPlatform.windows,
-      TargetPlatform.android,
-    }),
-  );
-
-  testWidgets(
-    'permite seguir escribiendo durante el guardado sin perder foco',
-    (tester) async {
-      final gate = Completer<void>();
-      final commands = EditingCommands()..gate = gate.future;
-      await pumpEditor(tester, commands: commands);
-      final field = find.byType(TextField);
-      await tester.enterText(field, '7');
-      await tester.pump();
-      await tester.enterText(field, '75');
-      await tester.pump();
-      expect(commands.updated.single.quantity, 7);
-      expect(tester.widget<TextField>(field).enabled, isTrue);
-      gate.complete();
-      await tester.pumpAndSettle();
-      expect(commands.updated.map((command) => command.quantity), [7, 75]);
-      expect(find.text('75'), findsOneWidget);
-    },
-  );
-
-  testWidgets('la cantidad escrita durante la carga de la unidad se guarda', (
+  testWidgets('unidad cargada conserva captura hasta confirmar', (
     tester,
   ) async {
     final units = _DelayedUnits();
@@ -179,12 +124,26 @@ void main() {
       units: units,
     );
     await tester.enterText(find.byType(TextField), '1.250');
-    expect(commands.updated, isEmpty);
     units.loaded.complete([kgUnit]);
     await tester.pumpAndSettle();
+    expect(commands.updated, isEmpty);
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
     expect(commands.updated.single.measuredQuantity, '1.250');
-    expect(commands.updated.single.quantity, isNull);
-    expect(find.text('Aplicar cantidad'), findsNothing);
+  });
+
+  testWidgets('fallo al confirmar no cierra ni reintenta automáticamente', (
+    tester,
+  ) async {
+    var closed = false;
+    final commands = EditingCommands()..failWith = StateError('fallo');
+    await pumpEditor(tester, commands: commands, onClose: () => closed = true);
+    await tester.enterText(find.byType(TextField), '7');
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    expect(closed, isFalse);
+    expect(commands.updated, hasLength(1));
+    expect(find.text('7'), findsOneWidget);
   });
 
   testWidgets('cero e inválidos no se guardan', (tester) async {
@@ -198,34 +157,28 @@ void main() {
     expect(find.text('Aplicar cantidad'), findsNothing);
   });
 
-  testWidgets('− hasta cero confirma en la fila; cancelar conserva cantidad', (
-    tester,
-  ) async {
-    final commands = await pumpEditor(tester);
+  testWidgets('− hasta cero elimina directamente y cierra', (tester) async {
+    var closed = false;
+    final commands = await pumpEditor(tester, onClose: () => closed = true);
     await tester.tap(find.byTooltip('Disminuir cantidad'));
     await tester.pumpAndSettle();
     expect(commands.updated.single.quantity, 1);
     await tester.tap(find.byTooltip('Disminuir cantidad'));
     await tester.pumpAndSettle();
-    expect(find.text('¿Eliminar artículo?'), findsOneWidget);
+    expect(commands.removed.single.saleItemId, piece.id);
     expect(find.byType(AlertDialog), findsNothing);
-    await tester.tap(find.text('Cancelar'));
-    await tester.pumpAndSettle();
-    expect(find.text('1'), findsOneWidget);
-    expect(commands.removed, isEmpty);
+    expect(closed, isTrue);
   });
 
-  testWidgets('papelera confirma y elimina con el comando existente', (
+  testWidgets('papelera elimina sin confirmar con el comando existente', (
     tester,
   ) async {
     var closed = false;
     final commands = await pumpEditor(tester, onClose: () => closed = true);
     await tester.tap(find.byTooltip('Eliminar artículo'));
-    await tester.pump();
-    expect(commands.removed, isEmpty);
-    await tester.tap(find.text('Eliminar'));
     await tester.pumpAndSettle();
     expect(commands.removed.single.saleItemId, piece.id);
+    expect(find.text('¿Eliminar artículo?'), findsNothing);
     expect(closed, isTrue);
   });
 
@@ -299,7 +252,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('edición y confirmación caben en 320 px con texto ampliado', (
+  testWidgets('edición y eliminación caben en 320 px con texto ampliado', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 800);
@@ -313,7 +266,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Eliminar artículo'));
     await tester.pump();
-    expect(find.text('¿Eliminar artículo?'), findsOneWidget);
+    expect(find.text('¿Eliminar artículo?'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

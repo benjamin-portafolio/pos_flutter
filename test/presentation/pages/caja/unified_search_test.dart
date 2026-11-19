@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/presentation/pages/articulos/article_search_screen.dart';
@@ -65,6 +66,68 @@ void main() {
     await settle(tester);
     expect(find.byType(ArticleSearchScreen), findsOneWidget);
   }
+
+  searchTest('Escape sale de resultados a Caja y permite escanear', (
+    tester,
+  ) async {
+    await pump(tester);
+    await open(tester);
+    await tester.enterText(find.byType(TextField), 'pan');
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(find.byType(ArticleSearchScreen), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+    expect(f.attempts, isEmpty);
+    await send(tester, '002');
+    await settle(tester);
+    expect(f.attempts.single.variantId, 'B');
+  });
+
+  searchTest('Escape espera lectura pendiente antes de volver a Caja', (
+    tester,
+  ) async {
+    await pump(tester);
+    await open(tester);
+    final gate = Completer<void>();
+    f.beforeSave = (_) => gate.future;
+    await send(tester, '001');
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byType(ArticleSearchScreen), findsOneWidget);
+    if (find.text('Reanudar pendientes').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Reanudar pendientes'));
+    }
+    gate.complete();
+    await settle(tester);
+    expect(find.byType(ArticleSearchScreen), findsNothing);
+    expect(f.attempts, hasLength(1));
+    expect(field(tester).focusNode!.hasFocus, isTrue);
+  });
+
+  searchTest(
+    'Escape en cantidad cierra solo el diálogo antes de salir de búsqueda',
+    (tester) async {
+      await pump(tester);
+      await open(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('M')),
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+      expect(find.byType(SaleQuantityDialog), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await settle(tester);
+      expect(find.byType(SaleQuantityDialog), findsNothing);
+      expect(find.byType(ArticleSearchScreen), findsOneWidget);
+      expect(f.attempts, isEmpty);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await settle(tester);
+      expect(find.byType(ArticleSearchScreen), findsNothing);
+      expect(field(tester).focusNode!.hasFocus, isTrue);
+    },
+  );
 
   searchTest(
     'campo único, foco sin navegación, nombre, selección y código con ceros',
@@ -312,7 +375,7 @@ void main() {
     },
   );
 
-  searchTest('agregado manual respeta pausa al cambiar de aplicación', (
+  searchTest('agregado manual recupera lector al volver a aplicación', (
     tester,
   ) async {
     await pump(tester);
@@ -330,20 +393,15 @@ void main() {
     await settle(tester);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await settle(tester);
-    expect(find.textContaining('Lector en pausa'), findsOneWidget);
-    expect(find.text('Reanudar lector'), findsOneWidget);
-    await send(tester, '002');
-    await settle(tester);
-    expect(f.attempts.map((c) => c.variantId), ['A']);
-    await tester.tap(find.text('Reanudar lector'));
-    await settle(tester);
+    expect(find.text('Reanudar lector'), findsNothing);
+    expect(field(tester).focusNode!.hasFocus, isTrue);
     await send(tester, '002');
     await settle(tester);
     expect(f.attempts.map((c) => c.variantId), ['A', 'B']);
   });
 
   searchTest(
-    'guardado en segundo plano espera reanudación explícita antes de regresar',
+    'guardado en segundo plano vuelve automáticamente al recuperar aplicación',
     (tester) async {
       await pump(tester);
       await open(tester);
@@ -358,14 +416,9 @@ void main() {
       expect(find.byType(ArticleSearchScreen), findsOneWidget);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await settle(tester);
-      expect(find.byType(ArticleSearchScreen), findsOneWidget);
-      await tester.tap(find.text('Reanudar lector'));
-      await settle(tester);
       expect(find.byType(ArticleSearchScreen), findsNothing);
       expect(f.attempts, hasLength(1));
-      expect(field(tester).focusNode!.hasFocus, isFalse);
-      await tester.tap(find.text('Reanudar lector'));
-      await settle(tester);
+      expect(find.text('Reanudar lector'), findsNothing);
       expect(field(tester).focusNode!.hasFocus, isTrue);
     },
   );

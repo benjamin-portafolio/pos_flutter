@@ -94,16 +94,14 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
   bool _appActive = true;
   bool _windowFocused = true;
   bool _closing = false;
-  bool _requiresExplicitResume = false;
+  bool _localActionPaused = false;
   bool _preparationRequested = false;
-  int? _restoringGeneration;
   bool _manualKeyboard = false;
   bool _searchScheduled = false;
   static final _letter = RegExp(r'\p{L}', unicode: true);
   String? _notice;
 
   bool get isEnabled => _session != null;
-  int get interruptionGeneration => _interruptionGeneration;
   bool get _available => _routeVisible && _appActive && _windowFocused;
 
   @override
@@ -113,7 +111,6 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _appActive =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-    _requiresExplicitResume = !_appActive;
     _manualKeyboard = widget.searchMode;
     _text.value = TextEditingValue(
       text: widget.initialText,
@@ -129,18 +126,21 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     super.didChangeDependencies();
     _routeVisible = ModalRoute.isCurrentOf(context) ?? true;
     if (!_routeVisible && _ownDialogDepth == 0 && _session != null) {
-      // Rutas ajenas requieren reanudación explícita al regresar.
+      // Pausar mientras otra ruta cubre Caja y recuperar al regresar.
       _interruptionGeneration++;
-      _requiresExplicitResume = true;
       pause();
     }
     _schedulePreparation();
+    _scheduleRecovery();
   }
 
   @override
   void didUpdateWidget(PhysicalBarcodeReader oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.interactionEnabled) _schedulePreparation();
+    if (!oldWidget.interactionEnabled && widget.interactionEnabled) {
+      _scheduleRecovery();
+    }
   }
 
   @override
@@ -148,6 +148,7 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _appActive = state == AppLifecycleState.resumed;
     if (!_appActive) _interrupt();
     _schedulePreparation();
+    _scheduleRecovery();
     if (mounted) setState(() {});
   }
 
@@ -157,12 +158,12 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _windowFocused = event.state == ViewFocusState.focused;
     if (!_windowFocused) _interrupt();
     _schedulePreparation();
+    _scheduleRecovery();
     if (mounted) setState(() {});
   }
 
   void _interrupt() {
     _interruptionGeneration++;
-    _requiresExplicitResume = true;
     _manualKeyboard = false;
     pause();
   }
@@ -174,14 +175,36 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _session?.pause();
   }
 
-  void enableReader({int? restoringGeneration}) {
-    if (!mounted || _closing || _session != null) return;
+  /// Suspende una operación local sin desmontar el campo si no hay lecturas.
+  /// Con trabajo pendiente el llamador debe usar la barrera normal de finish.
+  bool pauseIfIdle() {
+    final session = _session;
+    if (!mounted ||
+        _closing ||
+        !_available ||
+        _ownDialogDepth > 0 ||
+        session == null ||
+        session.isProcessing ||
+        session.pendingReadCount != 0 ||
+        session.error != null ||
+        session.isFinishing ||
+        session.isFinished) {
+      return false;
+    }
+    _localActionPaused = true;
+    pause();
+    return true;
+  }
+
+  void enableReader() {
+    if (!mounted || _closing) return;
+    if (_session != null) {
+      _scheduleRecovery();
+      return;
+    }
     _preparationRequested = true;
-    _restoringGeneration = restoringGeneration;
-    // La activación manual es explícita. Las restauraciones deben
-    // conservar cualquier interrupción ocurrida durante la ruta anterior.
-    if (restoringGeneration == null) _requiresExplicitResume = false;
     _schedulePreparation();
+    _scheduleRecovery();
   }
 
   void _schedulePreparation() {
@@ -232,18 +255,40 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     _session = session;
     _shownResult = null;
     _notice = null;
-    _requiresExplicitResume =
-        _requiresExplicitResume ||
-        (_restoringGeneration != null &&
-            _restoringGeneration != _interruptionGeneration);
-    _restoringGeneration = null;
+    _localActionPaused = false;
     session.addListener(_changed);
     session.activate();
-    if (_requiresExplicitResume) session.pause();
-    if (!_requiresExplicitResume) {
-      _requestFocus(session);
-    }
+    _requestFocus(session);
     setState(() {});
+  }
+
+  void _scheduleRecovery() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final session = _session;
+      if (!mounted ||
+          session == null ||
+          !_available ||
+          _closing ||
+          !widget.interactionEnabled ||
+          _ownDialogDepth > 0 ||
+          session.error != null ||
+          session.isFinished ||
+          session.isFinishing) {
+        return;
+      }
+      // Otro formulario conserva el foco hasta cerrarse.
+      final focused = FocusManager.instance.primaryFocus?.context;
+      if (focused != null &&
+          !_focus.hasFocus &&
+          (focused.widget is EditableText ||
+              focused.findAncestorWidgetOfExactType<EditableText>() != null)) {
+        return;
+      }
+      _localActionPaused = false;
+      session.resume();
+      _requestFocus(session);
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _requestFocus(PhysicalBarcodeReaderController session) {
@@ -252,8 +297,8 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
           identical(_session, session) &&
           !_closing &&
           widget.interactionEnabled &&
-          !_requiresExplicitResume &&
           session.isAccepting &&
+          _ownDialogDepth == 0 &&
           _available) {
         _focus.requestFocus();
       }
@@ -262,11 +307,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
 
   void _resume() {
     if (!_available || _closing || !widget.interactionEnabled) return;
-    if (!widget.searchMode &&
-        (_requiresExplicitResume || _session?.isPaused == true)) {
+    if (!widget.searchMode && (_session?.isPaused == true)) {
       _text.clear();
     }
-    _requiresExplicitResume = false;
     _session?.resume();
     _focus.requestFocus();
   }
@@ -315,7 +358,10 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
     if (session == null || _closing || _ownDialogDepth > 0) return;
     if (!_focus.hasFocus) {
       pause();
-    } else if (_available && !_requiresExplicitResume) {
+    } else if (_available &&
+        widget.interactionEnabled &&
+        !_localActionPaused &&
+        session.error == null) {
       session.resume();
     }
     if (mounted) setState(() {});
@@ -416,7 +462,6 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
             !session.isProcessing &&
             session.pendingReadCount == 0 &&
             !session.isPaused &&
-            !_requiresExplicitResume &&
             _available &&
             !_closing &&
             identical(session.lastResult, result)) {
@@ -432,10 +477,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
       );
 
   /// Mantiene la pausa propia durante toda la selección/confirmación, incluso
-  /// cuando usa rutas completas. Una ruta externa sigue requiriendo reanudar.
+  /// cuando usa rutas completas. Al regresar se recupera automáticamente.
   Future<T?> _showReaderInteraction<T>(Future<T?> Function() show) async {
     final session = _session;
-    final generation = _interruptionGeneration;
     if (!mounted || session == null || session.isFinished) return null;
     _ownDialogDepth++;
     final closed = Completer<void>();
@@ -454,8 +498,8 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
             _windowFocused &&
             !_closing &&
             session.error == null &&
-            generation == _interruptionGeneration) {
-          _requestFocus(session);
+            widget.interactionEnabled) {
+          _scheduleRecovery();
         }
       }
     }
@@ -570,9 +614,9 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
         !_closing;
     final status = _closing
         ? 'Finalizando lecturas…'
-        : !_available || _requiresExplicitResume
+        : !_available
         ? 'Lector en pausa'
-        : !widget.interactionEnabled
+        : !widget.interactionEnabled || _localActionPaused
         ? 'Procesando…'
         : session == null
         ? 'Preparando lector…'
@@ -679,6 +723,8 @@ class PhysicalBarcodeReaderState extends State<PhysicalBarcodeReader>
             else if (_notice != null)
               Semantics(liveRegion: true, child: Text(_notice!)),
             if (!ready &&
+                !_localActionPaused &&
+                widget.interactionEnabled &&
                 !_closing &&
                 _ownDialogDepth == 0 &&
                 (!widget.searchMode ||
