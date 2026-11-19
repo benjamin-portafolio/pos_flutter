@@ -11,6 +11,8 @@ class ActualizarArticuloVarianteCsvCommand {
     required this.precioVentaMinor,
     required this.precioCosteMinor,
     required this.codigoBarras,
+    this.seguimiento,
+    this.recursoInventarioId,
   });
 
   final String variantId;
@@ -19,4 +21,6 @@ class ActualizarArticuloVarianteCsvCommand {
   final CambioExplicito<int?> offerPrice;
   final int? precioCosteMinor;
   final String? codigoBarras;
+  final bool? seguimiento;
+  final String? recursoInventarioId;
 }

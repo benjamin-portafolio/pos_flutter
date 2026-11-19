@@ -29,8 +29,7 @@ class BulkImportReview extends StatelessWidget {
       'hay una variante.\n'
       'Oferta: precio_oferta establece el importe; vacío retira. Los formatos antiguos sin oferta conservan; accion_oferta mantiene su interpretación anterior. '
       'Eliminar: escribe si en eliminar_producto con product_id existente; elimina el producto completo y todas sus variantes. No mezcles eliminación y cambios. Quitar filas del archivo no elimina nada. '
-      'Las existencias de productos existentes son informativas: no ajustan '
-      'inventario. Se conservan las variantes omitidas, recetas y proveedores.';
+      'La columna existencias es informativa al actualizar.';
 
   @override
   Widget build(BuildContext context) => Column(
@@ -165,6 +164,14 @@ class _Diferencias extends StatelessWidget {
       );
     }
     final variantes = {for (final v in actual.variantes) v.id: v};
+    for (final retiro in producto.retiros.entries) {
+      final anterior = variantes[retiro.key]!;
+      campo(
+        'Variante ${anterior.nombre ?? 'única'} (${anterior.id}), línea ${retiro.value}',
+        'Activa',
+        'Dar de baja',
+      );
+    }
     for (final propuesta in producto.variantes) {
       final anterior = variantes[propuesta.id]!;
       final etiqueta =
@@ -195,6 +202,15 @@ class _Diferencias extends StatelessWidget {
               : _importe(propuesta.offerPrice.valor),
         );
       }
+      if (propuesta.seguimiento case final seguimiento?) {
+        campo(
+          '$etiqueta · Seguimiento directo',
+          anterior.seguimientoExistencias ? 'Activo' : 'Inactivo',
+          propuesta.recursoInventarioId == null
+              ? (seguimiento ? 'Activo' : 'Inactivo')
+              : 'Enlazar recurso ${propuesta.recursoInventarioId} con su saldo',
+        );
+      }
       campo(
         '$etiqueta · Código de barras',
         _texto(anterior.codigoBarras),
@@ -205,7 +221,7 @@ class _Diferencias extends StatelessWidget {
       key: ValueKey('bulk_import_diff_${producto.productId}'),
       title: Text(producto.nombre),
       subtitle: Text(
-        'Producto ${producto.productId} · ${producto.variantes.length} filas',
+        'Producto ${producto.productId} · ${producto.lineas.length} filas',
       ),
       childrenPadding: const EdgeInsets.all(12),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,

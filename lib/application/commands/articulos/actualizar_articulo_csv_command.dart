@@ -1,7 +1,7 @@
 import 'actualizar_articulo_variante_csv_command.dart';
 
 /// Edición comercial parcial sobre la base que se mostró al confirmar el CSV.
-/// No permite cambiar estructura, configuración de venta ni inventario.
+/// Admite retiros explícitos de variantes y cambios de seguimiento.
 class ActualizarArticuloCsvCommand {
   const ActualizarArticuloCsvCommand({
     required this.productId,
@@ -9,6 +9,7 @@ class ActualizarArticuloCsvCommand {
     required this.nombre,
     required this.categoriaId,
     required this.variantes,
+    this.retiros = const {},
   });
 
   final String productId;
@@ -16,4 +17,5 @@ class ActualizarArticuloCsvCommand {
   final String nombre;
   final String? categoriaId;
   final List<ActualizarArticuloVarianteCsvCommand> variantes;
+  final Map<String, int> retiros;
 }

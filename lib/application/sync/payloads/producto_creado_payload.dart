@@ -465,6 +465,25 @@ class ProductoCreadoVariante {
   final List<ProductoProveedorPrecio>? proveedores;
   final int orden;
 
+  ProductoCreadoVariante conOrden(int nuevoOrden) => nuevoOrden == orden
+      ? this
+      : ProductoCreadoVariante._(
+          id: id,
+          nombre: nombre,
+          nameKey: nameKey,
+          codigoBarras: codigoBarras,
+          precioVentaMenor: precioVentaMenor,
+          costoEstandarMenor: costoEstandarMenor,
+          inventoryItemId: inventoryItemId,
+          minimumStockAtomic: minimumStockAtomic,
+          offerPriceMinor: offerPriceMinor,
+          knowsOfferPrice: knowsOfferPrice,
+          knowsMinimumStock: knowsMinimumStock,
+          componentesReceta: componentesReceta,
+          proveedores: proveedores,
+          orden: nuevoOrden,
+        );
+
   factory ProductoCreadoVariante.fromJson(
     Map<String, Object?> json, {
     required String fieldName,

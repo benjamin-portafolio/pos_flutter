@@ -1,6 +1,6 @@
 import '../edicion_masiva/cambio_explicito.dart';
 
-/// Valores editables de una variante identificada. No admite inventario ni orden.
+/// Cambios de catálogo y seguimiento de una variante identificada.
 class ArticuloImportVarianteCambio {
   const ArticuloImportVarianteCambio({
     required this.id,
@@ -10,6 +10,8 @@ class ArticuloImportVarianteCambio {
     this.nombre,
     this.precioCosteMinor,
     this.codigoBarras,
+    this.seguimiento,
+    this.recursoInventarioId,
   });
   final String id;
   final int linea;
@@ -18,4 +20,6 @@ class ArticuloImportVarianteCambio {
   final CambioExplicito<int?> offerPrice;
   final int? precioCosteMinor;
   final String? codigoBarras;
+  final bool? seguimiento;
+  final String? recursoInventarioId;
 }

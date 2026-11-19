@@ -92,6 +92,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       catalogo,
       conIds: archivo.conIds,
       formatoNuevo: archivo.formatoNuevo,
+      conVariantes: archivo.conVariantes,
     );
   }
 
@@ -99,6 +100,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     List<List<String>> filas,
     bool conIds,
     bool formatoNuevo,
+    bool conVariantes,
     bool ambiguo,
     List<ArticuloImportError> errores,
   })
@@ -182,6 +184,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         filas: [],
         conIds: conIds,
         formatoNuevo: encabezado.contains('eliminar_producto'),
+        conVariantes: encabezado.contains('eliminar_variante'),
         ambiguo: true,
         errores: errores.isNotEmpty
             ? errores
@@ -223,6 +226,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       filas: errores.isEmpty ? filas.skip(1).toList(growable: false) : [],
       conIds: conIds,
       formatoNuevo: encabezado.contains('eliminar_producto'),
+      conVariantes: encabezado.contains('eliminar_variante'),
       ambiguo: false,
       errores: errores,
     );
@@ -235,7 +239,10 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     required bool conIds,
   }) {
     final columnas = conIds
-        ? (encabezado.contains('eliminar_producto')
+        ? (encabezado.contains('eliminar_variante') ||
+                  encabezado.contains('recurso_inventario_id')
+              ? ArticuloCsvContract.columnasConVariantes
+              : encabezado.contains('eliminar_producto')
               ? ArticuloCsvContract.columnas
               : encabezado.contains('precio_oferta') ||
                     encabezado.contains('accion_oferta')
@@ -299,6 +306,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     ArticuloImportCatalogo catalogo, {
     required bool conIds,
     required bool formatoNuevo,
+    required bool conVariantes,
   }) {
     final contexto = _Contexto(catalogo);
     final errores = <ArticuloImportError>[];
@@ -308,6 +316,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     final variantesVistas = <String, String>{};
     final nombresActualizados = <String>{};
     final borrar = <String, List<int>>{};
+    final retiros = <String, Map<String, int>>{};
+    final seguimientoPorVariante = <String, bool>{};
+    final recursos = <String, String>{};
 
     for (var indice = 0; indice < filas.length; indice++) {
       final linea = indice + 2;
@@ -319,7 +330,23 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       void error(String columna, String motivo) => errores.add(
         ArticuloImportError(linea: linea, columna: columna, motivo: motivo),
       );
-      final accion = formatoNuevo ? campos.last.trim().toLowerCase() : '';
+      final accion = formatoNuevo ? campos[13].trim().toLowerCase() : '';
+      final accionVariante = conVariantes
+          ? campos[14].trim().toLowerCase()
+          : '';
+      final recurso = conVariantes ? campos[15].trim() : '';
+      if (!{'', 'si', 'no'}.contains(accionVariante)) {
+        error('eliminar_variante', 'Escribe si, no o deja la celda vacía.');
+      }
+      if (accionVariante == 'si' && (accion == 'si' || recurso.isNotEmpty)) {
+        error(
+          'eliminar_variante',
+          'El retiro debe indicar solo una variante y no admite un recurso.',
+        );
+      }
+      if (!existente && (accionVariante == 'si' || recurso.isNotEmpty)) {
+        error('variant_id', 'Esta acción requiere una variante existente.');
+      }
       if (formatoNuevo && !{'', 'si', 'no'}.contains(accion)) {
         error('eliminar_producto', 'Escribe si, no o deja la celda vacía.');
       }
@@ -374,6 +401,36 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
             variantesVistas[variantId] = productId;
           }
         }
+        if (accionVariante == 'si') {
+          if (errores.length != antes) {
+            rechazados.add(productId);
+          } else {
+            retiros.putIfAbsent(productId, () => {})[variantId] = linea;
+            grupos.putIfAbsent(productId, () => []);
+          }
+          continue;
+        }
+        if (conVariantes) {
+          final seguimiento = campos[9].trim();
+          if (recurso.isNotEmpty && seguimiento != 'si') {
+            error(
+              'recurso_inventario_id',
+              'El recurso requiere seguimiento_existencias=si.',
+            );
+          }
+          if (seguimiento == 'si' &&
+              variante?.seguimientoExistencias == false &&
+              recurso.isEmpty) {
+            error(
+              'recurso_inventario_id',
+              'Indica el recurso existente que se enlazará.',
+            );
+          }
+          if (seguimiento == 'si' || seguimiento == 'no') {
+            seguimientoPorVariante[variantId] = seguimiento == 'si';
+          }
+          if (recurso.isNotEmpty) recursos[variantId] = recurso;
+        }
         if (campos.length > 3) nombresActualizados.add(_clave(campos[3]));
       }
       final fila = _revisarFila(
@@ -412,11 +469,13 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       if (rechazados.contains(entry.key)) continue;
       final actual = catalogo.productosPorId[entry.key]!;
       final grupo = entry.value;
-      final primera = grupo.first;
+      final bajas = retiros[entry.key] ?? const <String, int>{};
+      final primera = grupo.firstOrNull;
+      final lineaGrupo = primera?.linea ?? bajas.values.first;
       final inicio = errores.length;
-      void error(_Fila fila, String columna, String motivo) => errores.add(
+      void error(_Fila? fila, String columna, String motivo) => errores.add(
         ArticuloImportError(
-          linea: fila.linea,
+          linea: fila?.linea ?? lineaGrupo,
           columna: columna,
           motivo: motivo,
         ),
@@ -431,7 +490,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       }
       final propuestas = {for (final fila in grupo) fila.variantId!: fila};
       for (final fila in grupo) {
-        if (fila.nombre != primera.nombre ||
+        if (fila.nombre != primera!.nombre ||
             fila.categoriaId != primera.categoriaId ||
             fila.modoVenta != primera.modoVenta ||
             fila.unidadVenta?.id != primera.unidadVenta?.id) {
@@ -449,8 +508,11 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
             'El CSV no puede cambiar la configuración de venta.',
           );
         }
-        if (fila.seguimiento !=
-            catalogo.variantesPorId[fila.variantId]!.seguimientoExistencias) {
+        if (!conVariantes &&
+            fila.seguimiento !=
+                catalogo
+                    .variantesPorId[fila.variantId]!
+                    .seguimientoExistencias) {
           error(
             fila,
             'seguimiento_existencias',
@@ -458,7 +520,16 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
           );
         }
       }
-      final activas = actual.variantes.where((v) => v.activa).toList();
+      final activas = actual.variantes
+          .where((v) => v.activa && !bajas.containsKey(v.id))
+          .toList();
+      if (activas.isEmpty) {
+        error(
+          primera,
+          'eliminar_variante',
+          'El producto debe conservar al menos una variante activa.',
+        );
+      }
       final nombres = <String>{};
       for (final variante in activas) {
         final fila = propuestas[variante.id];
@@ -490,8 +561,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       if (errores.length != inicio) continue;
       final propuesta = ArticuloImportActualizacion(
         actual: actual,
-        nombre: primera.nombre,
-        categoriaId: primera.categoriaId,
+        nombre: primera?.nombre ?? actual.nombre,
+        categoriaId: primera == null ? actual.categoriaId : primera.categoriaId,
+        retiros: Map.unmodifiable(bajas),
         variantes: List.unmodifiable([
           for (final fila in grupo)
             ArticuloImportVarianteCambio(
@@ -502,15 +574,23 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
               precioVentaMinor: fila.precioVentaMinor,
               precioCosteMinor: fila.precioCosteMinor,
               codigoBarras: fila.codigoBarras,
+              seguimiento: seguimientoPorVariante[fila.variantId],
+              recursoInventarioId: recursos[fila.variantId],
             ),
         ]),
       );
       final cambia =
-          unorm.nfkc(actual.nombre).trim() != primera.nombre ||
-          actual.categoriaId != primera.categoriaId ||
+          bajas.isNotEmpty ||
+          (primera != null &&
+              (unorm.nfkc(actual.nombre).trim() != primera.nombre ||
+                  actual.categoriaId != primera.categoriaId)) ||
           grupo.any((fila) {
             final v = catalogo.variantesPorId[fila.variantId]!;
-            return NombreVariante.fromInput(v.nombre).value !=
+            final seguimiento = seguimientoPorVariante[fila.variantId];
+            return (seguimiento != null &&
+                    seguimiento != v.seguimientoExistencias) ||
+                recursos.containsKey(fila.variantId) ||
+                NombreVariante.fromInput(v.nombre).value !=
                     fila.nombreVariante ||
                 (fila.offerPrice.establecer &&
                     (v.offerPriceMinor != fila.offerPrice.valor ||
@@ -559,8 +639,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       for (final p in eliminaciones) ...p.lineas,
       for (final p in nuevos)
         for (final v in p.variantes) v.linea,
-      for (final p in [...cambiados, ...iguales])
-        for (final v in p.variantes) v.linea,
+      for (final p in [...cambiados, ...iguales]) ...p.lineas,
     };
     final excluidas = <String, List<int>>{};
     for (var i = 0; i < filas.length; i++) {

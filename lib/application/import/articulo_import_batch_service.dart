@@ -147,6 +147,7 @@ class ArticuloImportBatchService {
         (throw StateError('El artículo no tiene una base confirmada.')),
     nombre: producto.nombre,
     categoriaId: producto.categoriaId,
+    retiros: producto.retiros,
     variantes: [
       for (final variante in producto.variantes)
         ActualizarArticuloVarianteCsvCommand(
@@ -156,6 +157,8 @@ class ArticuloImportBatchService {
           precioVentaMinor: variante.precioVentaMinor,
           precioCosteMinor: variante.precioCosteMinor,
           codigoBarras: variante.codigoBarras,
+          seguimiento: variante.seguimiento,
+          recursoInventarioId: variante.recursoInventarioId,
         ),
     ],
   );
@@ -242,7 +245,6 @@ class _ProductoPendiente {
     if (eliminacion case final producto?) ...producto.lineas,
     if (alta case final producto?)
       for (final v in producto.variantes) v.linea,
-    if (actualizacion case final producto?)
-      for (final v in producto.variantes) v.linea,
+    if (actualizacion case final producto?) ...producto.lineas,
   ];
 }

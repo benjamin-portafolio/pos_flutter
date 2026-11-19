@@ -418,7 +418,14 @@ class _ReglasDelArchivo extends StatelessWidget {
               'obligatoria, y 0 es válido.\n'
               '• La categoría se busca por nombre y debe existir: no se crean '
               'al importar.\n'
-              '• Máximo 500 filas por archivo.',
+              '• Máximo 500 filas por archivo.\n'
+              '• Puedes agregar eliminar_variante y recurso_inventario_id como '
+              'columnas 15 y 16. En una variante existente, eliminar_variante=si '
+              'retira solo esa variante.\n'
+              '• En ese formato, seguimiento_existencias=si y el ID de un '
+              'recurso compatible activan el seguimiento directo y conservan '
+              'el saldo del recurso. Escribe no para desactivar el seguimiento '
+              'directo o deja la celda vacía para conservarlo.',
               style: TextStyle(height: 1.5, fontSize: 13),
             ),
           ],

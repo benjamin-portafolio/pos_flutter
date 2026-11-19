@@ -24,6 +24,11 @@ abstract final class ArticuloCsvContract {
     'precio_oferta',
     'accion_oferta',
   ];
+  static const columnasConVariantes = <String>[
+    ...columnas,
+    'eliminar_variante',
+    'recurso_inventario_id',
+  ];
   static const columnas = <String>[
     ...columnasConIdsAnteriores,
     'precio_oferta',

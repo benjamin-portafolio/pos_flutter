@@ -14,8 +14,37 @@ import 'package:pos_flutter/presentation/pages/pantalla_principal/home_screen.da
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final bootstrap = await setupDependencyInjection();
-  await startConfiguredRuntimeServices(bootstrap.appConfig);
+  final DependencyBootstrap bootstrap;
+  try {
+    bootstrap = await setupDependencyInjection();
+    await startConfiguredRuntimeServices(bootstrap.appConfig);
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        context: ErrorDescription('al iniciar el POS'),
+      ),
+    );
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'No se pudo iniciar el POS. Consulta el registro de arranque '
+                'para identificar el problema.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
   runApp(
     AppRestartScope(
       initialConfig: bootstrap.appConfig,

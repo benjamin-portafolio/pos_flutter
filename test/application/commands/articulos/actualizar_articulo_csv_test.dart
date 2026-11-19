@@ -23,6 +23,7 @@ import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 
 import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
 import 'package:pos_flutter/application/import/articulo_import_batch_service.dart';
+import 'package:pos_flutter/application/import/articulo_csv_contract.dart';
 import 'package:pos_flutter/data/local/export/articulo_catalog_csv.dart';
 import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
 import 'package:pos_flutter/data/local/import/drift_articulo_import_catalog_reader.dart';
@@ -36,8 +37,15 @@ void main() {
   for (final mode in AppMode.values) {
     group(mode.name, () {
       late ProductSupplierHarness h;
-      setUp(() => h = ProductSupplierHarness(mode: mode));
-      tearDown(() => h.dispose());
+      Directory? reopenedDatabaseDir;
+      setUp(() {
+        h = ProductSupplierHarness(mode: mode);
+        reopenedDatabaseDir = null;
+      });
+      tearDown(() async {
+        await h.dispose();
+        await reopenedDatabaseDir?.delete(recursive: true);
+      });
 
       for (final measured in [false, true]) {
         test('edición parcial conserva datos exactos (medido=$measured)', () async {
@@ -202,7 +210,7 @@ void main() {
 
       test('C43 exportar, editar, reabrir, repetir y revertir en disco', () async {
         final directory = await Directory.systemTemp.createTemp('csv-reopen-');
-        addTearDown(() => directory.delete(recursive: true));
+        reopenedDatabaseDir = directory;
         final file = File('${directory.path}/isolated.sqlite');
         await h.dispose();
         h = ProductSupplierHarness(
@@ -377,6 +385,111 @@ void main() {
         await reopen();
         expect(await _databaseState(h.db), committed);
       });
+
+      test(
+        'CSV retira mayoreo y enlaza a menudeo el mismo saldo medido',
+        () async {
+          await h.tracking.inventoryCommands.crearRecurso(
+            const CrearRecursoInventarioCommand(
+              nombre: 'Huevo',
+              defaultUnitId: InventoryUnitIds.kilogram,
+              quantityDeltaAtomic: 1978,
+            ),
+          );
+          final resource =
+              (await h.db.select(h.db.inventoryItems).get()).single.id;
+          CrearArticuloVarianteCommand variant(String name, String price) =>
+              CrearArticuloVarianteCommand(
+                nombre: name,
+                precioVenta: price,
+                costoEstandar: null,
+                recipeComponents: [
+                  CrearArticuloRecipeComponentCommand(
+                    inventoryItemId: resource,
+                    quantity: '1',
+                  ),
+                ],
+              );
+          final target = await _create(
+            h,
+            command: CrearArticuloCommand.conVariantes(
+              nombre: 'Huevo San Juan',
+              saleConfiguration: MeasuredSaleConfiguration(
+                saleUnitId: InventoryUnitIds.kilogram,
+                priceReferenceQuantityAtomic: 1000,
+              ),
+              variantes: [variant('mayoreo', '38'), variant('menudeo', '48')],
+            ),
+          );
+          final [wholesale, retail] = target.state.variantes;
+          final before = await _databaseState(h.db);
+          final csv = [
+            ArticuloCsvContract.columnasConVariantes,
+            [target.id, wholesale.id, ...List.filled(12, ''), 'si', ''],
+            [
+              target.id,
+              retail.id,
+              '',
+              'Huevo San Juan',
+              'fraccion',
+              'kg',
+              'menudeo',
+              '48.00',
+              '',
+              'si',
+              '',
+              '',
+              '38.00',
+              '',
+              '',
+              resource,
+            ],
+          ].map((row) => row.join(',')).join('\n');
+          final report = await ArticuloImportPreparationService(
+            parser: const ArticuloImportCsv(),
+            reader: DriftArticuloImportCatalogReader(h.db),
+          ).preparar(csv);
+          expect(report.errores, isEmpty);
+          expect(report.eliminaciones, isEmpty);
+          expect(report.filasConCambios, 2);
+          final result =
+              await ArticuloImportBatchService(
+                productoCommandService: h.commands,
+                unidadInventarioRepository: UnidadInventarioRepositoryImpl(
+                  unitDao: h.db.unitDao,
+                ),
+              ).importar(
+                report.productos,
+                actualizaciones: report.productosConCambios,
+                onProgress: (_) {},
+              );
+          expect(result.lotesFallidos, isEmpty);
+          expect(result.productosActualizados, 1);
+          final after = await h.tracking.products.snapshot(target.id);
+          expect(after.variantes.single.id, retail.id);
+          expect(after.variantes.single.orden, 0);
+          expect(after.variantes.single.offerPriceMinor, 3800);
+          expect(after.variantes.single.inventoryItemId, resource);
+          expect(after.variantes.single.componentesReceta, isEmpty);
+          final variants = await h.db.select(h.db.productVariants).get();
+          expect(
+            variants.singleWhere((v) => v.id == wholesale.id).active,
+            isFalse,
+          );
+          final state = await _databaseState(h.db);
+          for (final table in [
+            'inventory_items',
+            'inventory_balances',
+            'inventory_movements',
+          ]) {
+            expect(state[table], before[table], reason: table);
+          }
+          final payload = ProductoActualizadoPayload.fromJson(
+            h.appends.last.event.payload,
+          );
+          expect(payload.removedVariants.map((v) => v.id), [wholesale.id]);
+        },
+      );
 
       test('sameState normalizado no emite, ni cambia metadatos', () async {
         final target = await _create(h);

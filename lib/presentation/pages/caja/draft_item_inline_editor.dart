@@ -61,10 +61,13 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
   void initState() {
     super.initState();
     _committed = _original;
-    _controller = TextEditingController(
-      text: SaleDraftDisplay.quantityNumber(widget.item),
+    final text = SaleDraftDisplay.quantityNumber(widget.item);
+    _controller = TextEditingController.fromValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection(baseOffset: 0, extentOffset: text.length),
+      ),
     );
-    _controller.addListener(_onTextChanged);
     _validateInput();
     if (_measured) _resolveUnit();
   }
@@ -75,25 +78,24 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
     final previous =
         oldWidget.item.quantity ?? oldWidget.item.measuredQuantityAtomic;
     if (previous != _original) {
-      final hasLocalEdit = _parsed != _committed;
+      final canRefreshText =
+          !_saving &&
+          !_pendingEdit &&
+          previous == _committed &&
+          (_parsed == _committed || _waitingForUnit);
       _committed = _original;
-      // Una proyección del guardado anterior no debe borrar lo que se
-      // siguió escribiendo mientras terminaba el comando.
-      if (!hasLocalEdit) {
-        _controller.text = SaleDraftDisplay.quantityNumber(widget.item);
-        _validateInput();
+      // Confirmar un guardado no debe restablecer el texto ni el cursor.
+      if (canRefreshText && _parsed != _original) {
+        _replaceQuantityText(SaleDraftDisplay.quantityNumber(widget.item));
       }
     }
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     super.dispose();
   }
-
-  void _onTextChanged() => setState(_validateInput);
 
   void _validateInput() {
     _parseError = null;
@@ -148,7 +150,14 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
       }
       _validateInput();
     });
+    // El usuario pudo teclear mientras se cargaba la precisión de la unidad.
+    if (_pendingEdit && !_waitingForUnit) {
+      _pendingEdit = false;
+      _update();
+    }
   }
+
+  bool get _waitingForUnit => _measured && _unit == null;
 
   bool get _dirty => _parsed != null && _parsed != _committed;
 
@@ -192,17 +201,24 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
   }
 
   void _applyValue(int value) {
-    _controller.text = _measured
-        ? SaleDraftDisplay.measureNumber(value, widget.item.unitAtomicFactor!)
-        : '$value';
-    _controller.selection = TextSelection.collapsed(
-      offset: _controller.text.length,
+    _replaceQuantityText(
+      _measured
+          ? SaleDraftDisplay.measureNumber(value, widget.item.unitAtomicFactor!)
+          : '$value',
     );
-    setState(_validateInput);
   }
 
-  void _saveManualInput() {
-    if (_saving) {
+  void _replaceQuantityText(String text) {
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _validateInput();
+  }
+
+  void _onTextChanged(String _) {
+    setState(_validateInput);
+    if (_saving || _waitingForUnit) {
       _pendingEdit = true;
       return;
     }
@@ -317,12 +333,14 @@ class _DraftItemInlineEditorState extends State<DraftItemInlineEditor> {
               child: TextField(
                 key: const Key('draft_item_quantity_field'),
                 controller: _controller,
+                autofocus: true,
+                selectAllOnFocus: false,
                 // Conservar el foco y admitir el resto de la captura mientras
                 // se persiste una cantidad anterior.
                 enabled: !_deleting && (widget.enabled || _saving),
                 textAlign: TextAlign.center,
                 textInputAction: TextInputAction.done,
-                onChanged: (_) => _saveManualInput(),
+                onChanged: _onTextChanged,
                 onSubmitted: (_) => _update(),
                 keyboardType: TextInputType.numberWithOptions(
                   decimal: _measured,

@@ -276,12 +276,13 @@ class ProductoCommandService {
         product.lastEventId != command.baseEventId) {
       throw StateError('El artículo cambió. Vuelve a revisar el archivo.');
     }
-    if (command.variantes.isEmpty) {
+    if (command.variantes.isEmpty && command.retiros.isEmpty) {
       throw const FormatException('La actualización requiere variantes.');
     }
     final changes = <String, ActualizarArticuloVarianteCsvCommand>{};
     for (final change in command.variantes) {
-      if (changes.containsKey(change.variantId)) {
+      if (changes.containsKey(change.variantId) ||
+          command.retiros.containsKey(change.variantId)) {
         throw const FormatException('La variante está repetida.');
       }
       final variant = await _productoProjectionStore!.findVariantById(
@@ -301,39 +302,48 @@ class ProductoCommandService {
     final before = command.variantes.any((v) => v.offerPrice.establecer)
         ? current.withKnownOfferPrice()
         : current;
-    final variants = [
+    final activeIds = before.variantes.map((v) => v.id).toSet();
+    if (!activeIds.containsAll(command.retiros.keys)) {
+      throw StateError(
+        'La variante a retirar no pertenece al artículo activo.',
+      );
+    }
+    if (activeIds.length == command.retiros.length) {
+      throw const FormatException('El artículo debe conservar una variante.');
+    }
+    final variants = <ProductoCreadoVariante>[
       for (final v in before.variantes)
-        if (changes[v.id] case final change?)
-          ProductoCreadoVariante.create(
-            id: v.id,
-            nombre: change.nombre,
-            codigoBarras: change.codigoBarras,
-            precioVentaMenor: change.precioVentaMinor,
-            offerPriceMinor: change.offerPrice.establecer
-                ? change.offerPrice.valor
-                : v.offerPriceMinor,
-            knowsOfferPrice: before.knowsOfferPrice,
-            costoEstandarMenor: change.precioCosteMinor,
-            inventoryItemId: v.inventoryItemId,
-            minimumStockAtomic: v.minimumStockAtomic,
-            knowsMinimumStock: v.knowsMinimumStock,
-            componentesReceta: v.componentesReceta,
-            proveedores: v.proveedores,
-            orden: v.orden,
-          )
-        else
-          v,
+        if (!command.retiros.containsKey(v.id))
+          if (changes[v.id] case final change?)
+            await _aplicarCambioVarianteCsv(v, change, before.saleConfiguration)
+          else
+            v,
     ];
+    final inventoryIds = {
+      for (final v in variants) ...[
+        ?v.inventoryItemId,
+        for (final c in v.componentesReceta) c.inventoryItemId,
+      ],
+    };
     final categoriaId = _normalizeOptional(command.categoriaId);
     final after = ProductoCreadoPayload.create(
       nombre: command.nombre,
       categoriaId: categoriaId,
       saleConfiguration: before.saleConfiguration,
-      variantes: variants,
+      variantes: [
+        for (final (index, variant) in variants.indexed)
+          variant.conOrden(index),
+      ],
       dependenciaCategoria: categoriaId == null
           ? null
           : await _categoryDependency(categoriaId),
-      dependenciasInventario: await _currentInventoryDependencies(before),
+      dependenciasInventario: [
+        for (final id in inventoryIds)
+          ProductoCreadoInventarioDependencia(
+            refId: id,
+            dependsOnEventId: await _pendingCreationDependency(id),
+          ),
+      ],
       dependenciasProveedores: await _supplierDependencies(variants),
     );
     if (ProductoActualizadoPayload.sameState(before, after)) return null;
@@ -349,6 +359,78 @@ class ProductoCommandService {
         payload: after,
         updatePayload: payload,
       ),
+    );
+  }
+
+  Future<ProductoCreadoVariante> _aplicarCambioVarianteCsv(
+    ProductoCreadoVariante actual,
+    ActualizarArticuloVarianteCsvCommand cambio,
+    SaleConfiguration venta,
+  ) async {
+    final seleccionado = cambio.recursoInventarioId;
+    var recurso = actual.inventoryItemId;
+    var receta = actual.componentesReceta;
+    if (cambio.seguimiento == false) {
+      recurso = null;
+    } else if (cambio.seguimiento == true &&
+        (recurso == null || seleccionado != null)) {
+      if (seleccionado == null) {
+        throw const FormatException(
+          'Indica el recurso existente que se enlazará.',
+        );
+      }
+      final item = await _inventoryProjectionStore?.findItemById(seleccionado);
+      if (item == null) {
+        throw const FormatException('El recurso seleccionado no existe.');
+      }
+      final resolution = await _resolveResource(
+        variantId: actual.id,
+        currentInventoryItemId: recurso,
+        requiredUnitId: item.defaultUnitId,
+        saleConfiguration: venta,
+        selectedInventoryItemId: seleccionado,
+      );
+      if (resolution is! RecursoRecuperableResultado) {
+        final motivo = switch (resolution) {
+          RecursoNoDisponibleResultado(:final motivo) => motivo,
+          RecursoSeleccionRequeridaResultado(:final motivo) => motivo,
+          _ => 'El recurso indicado no está disponible.',
+        };
+        throw FormatException(motivo);
+      }
+      if (receta.isNotEmpty) {
+        final cantidadDirecta = switch (venta) {
+          UnitSaleConfiguration() => 1,
+          MeasuredSaleConfiguration(:final priceReferenceQuantityAtomic) =>
+            priceReferenceQuantityAtomic,
+        };
+        if (receta.length != 1 ||
+            receta.single.inventoryItemId != seleccionado ||
+            receta.single.quantityAtomic != cantidadDirecta) {
+          throw const FormatException(
+            'La receta no tiene un único recurso equivalente al seguimiento directo.',
+          );
+        }
+        receta = const [];
+      }
+      recurso = resolution.inventoryItemId;
+    }
+    return ProductoCreadoVariante.create(
+      id: actual.id,
+      nombre: cambio.nombre,
+      codigoBarras: cambio.codigoBarras,
+      precioVentaMenor: cambio.precioVentaMinor,
+      offerPriceMinor: cambio.offerPrice.establecer
+          ? cambio.offerPrice.valor
+          : actual.offerPriceMinor,
+      knowsOfferPrice: actual.knowsOfferPrice,
+      costoEstandarMenor: cambio.precioCosteMinor,
+      inventoryItemId: recurso,
+      minimumStockAtomic: recurso == null ? null : actual.minimumStockAtomic,
+      knowsMinimumStock: actual.knowsMinimumStock,
+      componentesReceta: receta,
+      proveedores: actual.proveedores,
+      orden: actual.orden,
     );
   }
 
@@ -1001,7 +1083,7 @@ class ProductoCommandService {
           : await _resolveResource(
               variantId: variantId,
               currentInventoryItemId: previous?.inventoryItemId,
-              inventory: inventory,
+              requiredUnitId: inventory.unit.id,
               saleConfiguration: saleConfiguration,
               selectedInventoryItemId:
                   normalizedVariants[index].existingInventoryItemId,
@@ -1064,7 +1146,7 @@ class ProductoCommandService {
   Future<RecursoRecuperacionResultado> _resolveResource({
     required String variantId,
     required String? currentInventoryItemId,
-    required _NormalizedInventory inventory,
+    required String requiredUnitId,
     required SaleConfiguration saleConfiguration,
     required String? selectedInventoryItemId,
   }) async {
@@ -1089,7 +1171,7 @@ class ProductoCommandService {
     return resolver.resolve(
       variantId: variantId,
       currentInventoryItemId: currentInventoryItemId,
-      requiredUnitId: inventory.unit.id,
+      requiredUnitId: requiredUnitId,
       saleConfiguration: saleConfiguration,
       selectedInventoryItemId: selectedInventoryItemId,
     );

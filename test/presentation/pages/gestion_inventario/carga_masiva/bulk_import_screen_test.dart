@@ -460,6 +460,7 @@ void main() {
     final servicio = _FakeBatchService();
     await revisar(tester, servicio, conError: true);
     final switchFinder = find.byKey(const Key('import_only_valid_switch'));
+    await tester.scrollUntilVisible(switchFinder, -100);
     await Scrollable.ensureVisible(
       tester.element(switchFinder),
       alignment: 0.5,

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/commands/ventas/actualizar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/eliminar_producto_borrador_command.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
+import 'package:pos_flutter/domain/inventario/unidad_inventario.dart';
 import 'package:pos_flutter/domain/ventas/sale_draft_item.dart';
 import 'package:pos_flutter/presentation/pages/caja/draft_item_inline_editor.dart';
 
@@ -17,6 +18,7 @@ void main() {
     WidgetTester tester, {
     SaleDraftItem? item,
     EditingCommands? commands,
+    FakeUnidadInventarioRepository? units,
     VoidCallback? onClose,
     ValueChanged<bool>? onSavingChanged,
   }) async {
@@ -29,7 +31,8 @@ void main() {
             child: DraftItemInlineEditor(
               item: item ?? piece,
               ventaBorradorCommandService: service,
-              unidadInventarioRepository: FakeUnidadInventarioRepository(),
+              unidadInventarioRepository:
+                  units ?? FakeUnidadInventarioRepository(),
               onClose: onClose ?? () {},
               onSavingChanged: onSavingChanged ?? (_) {},
             ),
@@ -83,6 +86,70 @@ void main() {
   });
 
   testWidgets(
+    'el primer dígito reemplaza la cantidad y el siguiente se agrega tras el guardado',
+    (tester) async {
+      SaleDraftItem projected(int quantity) => SaleDraftItem(
+        id: piece.id,
+        variantId: piece.variantId,
+        productName: piece.productName,
+        variantName: null,
+        quantity: quantity,
+        measuredQuantityAtomic: null,
+        unitPriceMinor: piece.unitPriceMinor,
+        priceReferenceQuantityAtomic: null,
+        unitCode: null,
+        unitSymbol: null,
+        unitAtomicFactor: null,
+        totalMinor: piece.unitPriceMinor * quantity,
+      );
+
+      final commands = await pumpEditor(tester);
+      final input = tester.widget<EditableText>(find.byType(EditableText));
+      expect(input.focusNode.hasFocus, isTrue);
+      expect(
+        input.controller.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+      );
+      expect(commands.updated, isEmpty);
+
+      void typeDigit(String digit) {
+        final value = input.controller.value;
+        final selection = value.selection;
+        tester.testTextInput.updateEditingValue(
+          TextEditingValue(
+            text: value.text.replaceRange(
+              selection.start,
+              selection.end,
+              digit,
+            ),
+            selection: TextSelection.collapsed(offset: selection.start + 1),
+          ),
+        );
+      }
+
+      typeDigit('7');
+      await tester.pumpAndSettle();
+      expect(commands.updated.single.quantity, 7);
+      await pumpEditor(tester, commands: commands, item: projected(7));
+      expect(input.focusNode.hasFocus, isTrue);
+      expect(
+        input.controller.selection,
+        const TextSelection.collapsed(offset: 1),
+      );
+
+      typeDigit('5');
+      await tester.pumpAndSettle();
+      await pumpEditor(tester, commands: commands, item: projected(75));
+      expect(input.controller.text, '75');
+      expect(commands.updated.map((command) => command.quantity), [7, 75]);
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.android,
+    }),
+  );
+
+  testWidgets(
     'permite seguir escribiendo durante el guardado sin perder foco',
     (tester) async {
       final gate = Completer<void>();
@@ -102,11 +169,18 @@ void main() {
     },
   );
 
-  testWidgets('cantidad por medida escrita se guarda sin confirmación', (
+  testWidgets('la cantidad escrita durante la carga de la unidad se guarda', (
     tester,
   ) async {
-    final commands = await pumpEditor(tester, item: measuredSaleItem);
+    final units = _DelayedUnits();
+    final commands = await pumpEditor(
+      tester,
+      item: measuredSaleItem,
+      units: units,
+    );
     await tester.enterText(find.byType(TextField), '1.250');
+    expect(commands.updated, isEmpty);
+    units.loaded.complete([kgUnit]);
     await tester.pumpAndSettle();
     expect(commands.updated.single.measuredQuantity, '1.250');
     expect(commands.updated.single.quantity, isNull);
@@ -242,6 +316,13 @@ void main() {
     expect(find.text('¿Eliminar artículo?'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+class _DelayedUnits extends FakeUnidadInventarioRepository {
+  final loaded = Completer<List<UnidadInventario>>();
+
+  @override
+  Future<List<UnidadInventario>> obtenerUnidadesActivas() => loaded.future;
 }
 
 class EditingCommands implements VentaBorradorCommandService {

@@ -176,7 +176,7 @@ class ArticuloImportReporte {
   );
 
   int get filasConCambios =>
-      productosConCambios.fold(0, (n, p) => n + p.variantes.length);
+      productosConCambios.fold(0, (n, p) => n + p.lineas.length);
   int get filasSinCambios =>
       productosSinCambios.fold(0, (n, p) => n + p.variantes.length);
   int get filasValidas =>

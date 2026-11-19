@@ -243,6 +243,12 @@ void main() {
       expect(find.byType(DraftItemInlineEditor), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
       expect(find.byTooltip('Editar artículo'), findsNWidgets(2));
+      final field = tester.widget<EditableText>(find.byType(EditableText));
+      expect(field.focusNode.hasFocus, isTrue);
+      expect(
+        field.controller.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+      );
       await tester.enterText(
         find.byKey(const Key('draft_item_quantity_field')),
         '8',

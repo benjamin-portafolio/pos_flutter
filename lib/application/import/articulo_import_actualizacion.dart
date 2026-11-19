@@ -9,6 +9,7 @@ class ArticuloImportActualizacion {
     required this.nombre,
     required this.categoriaId,
     required this.variantes,
+    this.retiros = const {},
   });
   final ArticuloImportProductoLocal actual;
   String get productId => actual.id;
@@ -16,4 +17,9 @@ class ArticuloImportActualizacion {
   final String nombre;
   final String? categoriaId;
   final List<ArticuloImportVarianteCambio> variantes;
+  final Map<String, int> retiros;
+  Iterable<int> get lineas => [
+    for (final v in variantes) v.linea,
+    ...retiros.values,
+  ];
 }
