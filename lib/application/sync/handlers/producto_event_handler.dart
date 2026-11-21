@@ -1,3 +1,4 @@
+import '../projections/replenishment_projection_store.dart';
 import '../projections/producto_proveedores_projection_store.dart';
 import '../projections/proveedor_projection_store.dart';
 import '../projections/variant_inventory_memory_store.dart';
@@ -101,6 +102,7 @@ class ProductoEventHandler {
           precioVentaMenor: variant.precioVentaMenor,
           costoEstandarMenor: variant.costoEstandarMenor,
           inventoryItemId: variant.inventoryItemId,
+          replenishment: variant.replenishment,
           minimumStockAtomic: variant.minimumStockAtomic,
           offerPriceMinor: variant.offerPriceMinor,
           knowsOfferPrice: variant.knowsOfferPrice,
@@ -120,6 +122,17 @@ class ProductoEventHandler {
         }
         await (store as ProductoProveedoresProjectionStore)
             .replaceVariantSuppliers(variant.id, suppliers);
+      }
+      if (variant.replenishment.hasSupplier ||
+          variant.replenishment.hasTarget) {
+        final store = _productoProjectionStore;
+        if (store is! ReplenishmentProjectionStore) {
+          throw StateError('Falta proyección de reposición.');
+        }
+        await (store as ReplenishmentProjectionStore).applyReplenishment(
+          variant.id,
+          variant.replenishment,
+        );
       }
       for (final component in variant.componentesReceta) {
         await _productoProjectionStore.insertRecipeComponent(
@@ -184,7 +197,7 @@ class ProductoEventHandler {
     await _validateSuppliers(payload.before);
     if (!payload.deleteProduct) {
       await _validateSuppliers(payload.after);
-      await _validateInventory(payload.after);
+      await _validateInventory(payload.after, previous: current);
     }
     await _productoProjectionStore.applyUpdate(
       event,
@@ -226,8 +239,41 @@ class ProductoEventHandler {
     }
   }
 
-  Future<void> _validateInventory(ProductoCreadoPayload payload) async {
+  Future<void> _validateInventory(
+    ProductoCreadoPayload payload, {
+    ProductoCreadoPayload? previous,
+  }) async {
     for (final variant in payload.variantes) {
+      final prior = previous?.variantes
+          .where((v) => v.id == variant.id)
+          .firstOrNull;
+      final patch = variant.replenishment;
+      if (patch.hasTarget &&
+          patch.targetAtomic != null &&
+          variant.inventoryItemId == null &&
+          patch.targetAtomic != prior?.replenishment.targetAtomic) {
+        throw const FormatException(
+          'Cambiar el objetivo requiere seguimiento directo.',
+        );
+      }
+      if (patch.hasSupplier && patch.supplierId != null) {
+        if (variant.proveedores != null &&
+            !variant.proveedores!.any(
+              (s) => s.supplierId == patch.supplierId,
+            )) {
+          throw const FormatException(
+            'El proveedor actual requiere relación cotizada.',
+          );
+        }
+        final supplier = await _proveedorProjectionStore?.findById(
+          patch.supplierId!,
+        );
+        if (supplier == null ||
+            (!supplier.active &&
+                patch.supplierId != prior?.replenishment.supplierId)) {
+          throw StateError('El proveedor actual no está disponible.');
+        }
+      }
       for (final component in variant.componentesReceta) {
         final inventoryStore = _inventoryProjectionStore;
         if (inventoryStore == null) {

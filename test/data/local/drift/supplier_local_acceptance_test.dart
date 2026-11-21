@@ -93,7 +93,7 @@ void main() {
           .single,
       1,
     );
-    expect(db.schemaVersion, 10);
+    expect(db.schemaVersion, 11);
     expect(await db.select(db.eventRefs).get(), isEmpty);
     expect(await db.eventDao.obtenerEventosPendientes(), isEmpty);
     final events = await db.select(db.events).get();
@@ -234,7 +234,7 @@ void main() {
               db: h.db,
               stateReader: DriftDatabaseStateReader(db: h.db),
             ).createSnapshot();
-            expect(snapshot!.schemaVersion, 10);
+            expect(snapshot!.schemaVersion, 11);
             expect(snapshot!.eventCount, populated ? 4 : 1);
             expect(snapshot!.lastLocalSequence, snapshot!.eventCount);
             expect(
@@ -429,7 +429,7 @@ void main() {
                 );
               } else {
                 raw.execute(
-                  'PRAGMA user_version = ${invalid == 'older-version' ? 7 : 11}',
+                  'PRAGMA user_version = ${invalid == 'older-version' ? 7 : 12}',
                 );
               }
             } finally {

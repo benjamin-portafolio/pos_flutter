@@ -14,6 +14,8 @@ class CrearArticuloVarianteCommand {
     this.recipeComponents = const [],
     this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStock = const CambioExplicito.conservar(),
+    this.currentSupplier = const CambioExplicito.conservar(),
+    this.targetStock = const CambioExplicito.conservar(),
   }) : proveedores = null;
 
   /// Variante con una captura completa e inmutable del conjunto de proveedores.
@@ -30,6 +32,8 @@ class CrearArticuloVarianteCommand {
     this.recipeComponents = const [],
     this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStock = const CambioExplicito.conservar(),
+    this.currentSupplier = const CambioExplicito.conservar(),
+    this.targetStock = const CambioExplicito.conservar(),
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
 
@@ -47,6 +51,8 @@ class CrearArticuloVarianteCommand {
   /// establecer(null) retira explícitamente el mínimo. Requiere vínculo activo
   /// para cambiarlo; quitar seguimiento conserva el umbral dormido.
   final CambioExplicito<String?> minimumStock;
+  final CambioExplicito<String?> currentSupplier;
+  final CambioExplicito<String?> targetStock;
   final String? inventoryUnitId;
   final String? initialStockQuantity;
 

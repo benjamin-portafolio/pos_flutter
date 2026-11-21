@@ -29,6 +29,7 @@ import 'drift_variant_inventory_memory_store.dart';
 class DriftDiarioEdicionMasiva implements DiarioEdicionMasiva {
   DriftDiarioEdicionMasiva({
     Future<void> Function()? requireOfferPricing,
+    Future<void> Function()? requireReplenishment,
     required AppDatabase db,
     required AppConfigController config,
     required LocalCommandContext context,
@@ -73,6 +74,7 @@ class DriftDiarioEdicionMasiva implements DiarioEdicionMasiva {
     );
     _products = ProductoCommandService(
       requireOfferPricing: requireOfferPricing,
+      requireReplenishment: requireReplenishment,
       eventStore: events,
       commandContext: context,
       categoriaProjectionStore: DriftCategoriaProjectionStore(

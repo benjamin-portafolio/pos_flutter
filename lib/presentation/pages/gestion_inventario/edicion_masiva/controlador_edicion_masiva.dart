@@ -1,3 +1,4 @@
+import '../../../../application/sync/payloads/supplier_replenishment_patch.dart';
 import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import 'package:flutter/widgets.dart';
 
@@ -84,6 +85,14 @@ class ControladorEdicionMasiva extends ChangeNotifier {
   bool get cancelacionSolicitada => _guardado?.cancelado ?? false;
   VistaEdicionMasiva get vista => borrador.vista;
   TareaEdicionMasiva get tarea => borrador.tarea;
+
+  Future<void> editarReposicion(
+    ClaveVariante clave,
+    SupplierReplenishmentPatch patch,
+  ) async {
+    await borrador.editarReposicion(clave, patch);
+    _notificarEstructura();
+  }
 
   Future<void> editarOferta(
     ClaveVariante clave,
@@ -268,6 +277,7 @@ class ControladorEdicionMasiva extends ChangeNotifier {
             ? CampoTextoEdicion.costo
             : switch (tarea) {
                 TareaEdicionMasiva.oferta => CampoTextoEdicion.venta,
+                TareaEdicionMasiva.reposicion => CampoTextoEdicion.venta,
                 TareaEdicionMasiva.venta => CampoTextoEdicion.venta,
                 TareaEdicionMasiva.costoProveedor => CampoTextoEdicion.costo,
                 TareaEdicionMasiva.agregarExistencias =>

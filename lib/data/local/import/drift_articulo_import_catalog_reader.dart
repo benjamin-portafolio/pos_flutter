@@ -1,3 +1,4 @@
+import '../../../domain/articulos/proveedor_variante.dart';
 import '../drift/drift_producto_projection_store.dart';
 import '../../../application/import/articulo_catalog_import_service.dart';
 import '../../../application/import/articulo_import_catalog_reader.dart';
@@ -61,6 +62,59 @@ class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
             }
           }
         }
+        final ids = {
+          ...delProducto.map((v) => v.id),
+          ...porIdentidad.map((v) => v.id),
+        };
+        final suppliers = <String, List<ProveedorVariante>>{};
+        for (var i = 0; i < ids.length; i += 400) {
+          final page = ids.skip(i).take(400).toList();
+          final rows = await (db.select(
+            db.variantSuppliers,
+          )..where((s) => s.variantId.isIn(page))).get();
+          for (final s in rows) {
+            suppliers
+                .putIfAbsent(s.variantId, () => [])
+                .add(
+                  ProveedorVariante(
+                    proveedorId: s.supplierId,
+                    precioInformadoMenor: s.quotedPriceMinor,
+                    fechaInformadaMs: s.quotedAtMs,
+                  ),
+                );
+          }
+        }
+        final itemIds = {
+          ...delProducto.map((v) => v.inventoryItemId),
+          ...porIdentidad.map((v) => v.inventoryItemId),
+        }.whereType<String>().toList();
+        final items = <String, InventoryItemRow>{};
+        for (var i = 0; i < itemIds.length; i += 400) {
+          final rows = await (db.select(
+            db.inventoryItems,
+          )..where((s) => s.id.isIn(itemIds.skip(i).take(400)))).get();
+          for (final item in rows) {
+            items[item.id] = item;
+          }
+        }
+        UnidadInventario? inventoryUnit(String? itemId) {
+          final unit = unidades
+              .where((u) => u.unitId == items[itemId]?.defaultUnitId)
+              .firstOrNull;
+          return unit == null
+              ? null
+              : UnidadInventario(
+                  id: unit.unitId,
+                  code: unit.code,
+                  nombre: unit.name,
+                  simbolo: unit.symbol,
+                  dimension: DimensionUnidad.fromCode(unit.dimension),
+                  factorAtomico: unit.atomicFactor,
+                  maximosDecimales: unit.maxFractionDigits,
+                  activa: unit.active,
+                );
+        }
+
         final variantes = {
           for (final v in [...delProducto, ...porIdentidad])
             v.id: ArticuloImportVarianteLocal(
@@ -70,6 +124,10 @@ class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
               sortOrder: v.sortOrder,
               nombre: v.name,
               precioVentaMinor: v.salePriceMinor,
+              currentSupplierId: v.currentSupplierId,
+              targetStockAtomic: v.targetStockAtomic,
+              inventoryUnit: inventoryUnit(v.inventoryItemId),
+              proveedores: List.unmodifiable(suppliers[v.id] ?? []),
               offerPriceMinor: v.offerPriceMinor,
               knowsOfferPrice:
                   known.contains(v.productId) || v.offerPriceMinor != null,

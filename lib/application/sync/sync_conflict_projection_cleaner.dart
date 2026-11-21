@@ -1,5 +1,7 @@
 import 'inventory_deletion_conflict_restorer.dart';
 import 'payloads/recurso_inventario_eliminado_payload.dart';
+import 'projections/supplier_order_projection_store.dart';
+import 'supplier_order_operation.dart';
 import 'sale_adjustment_sync_contract.dart';
 import 'proveedor_conflict_projection_restorer.dart';
 import 'payloads/proveedor_creado_payload.dart';
@@ -34,6 +36,7 @@ import 'projections/inventory_projection_store.dart';
 
 class SyncConflictProjectionCleaner {
   SyncConflictProjectionCleaner({
+    this.supplierOrderStore,
     this.clienteProjectionStore,
     this.proveedorProjectionStore,
     required EspacioProjectionStore espacioProjectionStore,
@@ -57,6 +60,7 @@ class SyncConflictProjectionCleaner {
        _categoriaEliminadaConflictProjectionRestorer =
            categoriaEliminadaConflictProjectionRestorer;
 
+  final SupplierOrderProjectionStore? supplierOrderStore;
   final ClienteProjectionStore? clienteProjectionStore;
   final ProveedorProjectionStore? proveedorProjectionStore;
   final EspacioProjectionStore _espacioProjectionStore;
@@ -71,6 +75,10 @@ class SyncConflictProjectionCleaner {
   _categoriaEliminadaConflictProjectionRestorer;
 
   Future<void> hideConflictProjection(SyncEvent event) async {
+    if (SupplierOrderOperation.eventTypes.contains(event.eventType)) {
+      await supplierOrderStore?.restore(event);
+      return;
+    }
     if (SaleAdjustmentSyncContract.supports(event.eventType)) {
       return; // Evidencia física inmutable.
     }

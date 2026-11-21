@@ -9,8 +9,10 @@ class ProveedorFormScreen extends StatefulWidget {
     required this.onSave,
     required this.config,
     this.proveedor,
+    this.onOrders,
     super.key,
   });
+  final VoidCallback? onOrders;
   final Proveedor? proveedor;
   final AppConfigController config;
   final Future<void> Function(ProveedorFormResult result) onSave;
@@ -84,6 +86,14 @@ class _ProveedorFormScreenState extends State<ProveedorFormScreen> {
         canPop: !_saving,
         child: Scaffold(
           appBar: AppBar(
+            actions: [
+              if (widget.onOrders != null)
+                IconButton(
+                  tooltip: "Preparar pedido / Ver pedidos",
+                  onPressed: widget.onOrders,
+                  icon: const Icon(Icons.shopping_cart_outlined),
+                ),
+            ],
             title: Text(
               widget.proveedor == null
                   ? 'Añadir proveedor'
@@ -183,9 +193,7 @@ class _ProveedorFormScreenState extends State<ProveedorFormScreen> {
                     ),
                   )
                 : const Center(
-                    child: Text(
-                      'No se pudo cargar la configuración.',
-                    ),
+                    child: Text('No se pudo cargar la configuración.'),
                   ),
           ),
         ),

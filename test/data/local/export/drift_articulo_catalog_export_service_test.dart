@@ -49,7 +49,7 @@ void main() {
   const encabezado =
       'product_id,variant_id,categoria,nombre_articulo,tipo_venta,unidad_venta,nombre_variante,'
       'precio_venta,precio_coste,seguimiento_existencias,existencias,'
-      'codigo_barras,precio_oferta,eliminar_producto';
+      'codigo_barras,precio_oferta,eliminar_producto,eliminar_variante,recurso_inventario_id,version_csv,current_supplier_id,accion_proveedor_actual,target_stock_atomic,unidad_objetivo_id,accion_objetivo';
 
   Future<List<String>> leerLineas(String ruta) async {
     final bytes = await File(ruta).readAsBytes();
@@ -82,7 +82,7 @@ void main() {
       expect(lineas.first, encabezado);
       final variante = (await db.select(db.productVariants).get()).single;
       expect(lineas[1].split(',').take(2), ['cafe', variante.id]);
-      expect(lineas[1].split(','), hasLength(14));
+      expect(lineas[1].split(','), hasLength(22));
       final revision = await ArticuloImportPreparationService(
         parser: const ArticuloImportCsv(),
         reader: DriftArticuloImportCatalogReader(db),
@@ -109,11 +109,11 @@ void main() {
       );
       final plantilla = await nuevo.exportarPlantilla();
       final lineas = await leerLineas(plantilla.ruta);
-      expect(lineas.first, ArticuloCsvContract.columnas.join(','));
+      expect(lineas.first, ArticuloCsvContract.columnasReposicion.join(','));
       expect(
         lineas
             .skip(1)
-            .every((l) => l.split(',').length == 14 && l.startsWith(',,')),
+            .every((l) => l.split(',').length == 22 && l.startsWith(',,')),
         isTrue,
       );
       expect(
@@ -125,7 +125,7 @@ void main() {
       expect(ArticuloCatalogCsv.productosPlantilla, 4);
       final notas = await nuevo.exportarNotasColumnas();
       final texto = await File(notas.ruta).readAsString();
-      expect((await leerLineas(notas.ruta)), hasLength(15));
+      expect((await leerLineas(notas.ruta)), hasLength(23));
       expect(texto, contains('variant_id'));
       expect(texto, contains('nunca ajusta el saldo'));
       expect(texto, contains('Vacío retira'));
@@ -193,6 +193,7 @@ void main() {
         '',
         '',
         '',
+        '', '', '2', '', 'retirar', '', '', 'retirar',
       ]);
       expect(archivo.productos, 1);
       expect(archivo.filas, 1);
@@ -387,7 +388,7 @@ void main() {
     // duplican: es la forma de que un separador dentro del nombre no corra la fila.
     expect(
       lineas[1],
-      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,,,',
+      'pan,variante-pan,"Panadería, Industrial","Pan ""Integral""",unidad,,,45.50,,no,0,,,,,,2,,retirar,,,retirar',
     );
   });
 
@@ -514,7 +515,7 @@ void main() {
     expect(archivo.ruta.endsWith('catalogo_columnas.csv'), isTrue);
     final lineas = await leerLineas(archivo.ruta);
     expect(lineas.first, 'columna,obligatoria,valores_permitidos,descripcion');
-    expect(lineas, hasLength(15));
+    expect(lineas, hasLength(23));
     expect(lineas[1].split(',').first, 'product_id');
     expect(lineas.last.split(',').first, 'eliminar_producto');
   });
@@ -531,7 +532,7 @@ void main() {
 
       for (final prohibido in [
         'last_event_id',
-        'version',
+        'base_version',
         'activo',
         'active',
       ]) {

@@ -26,7 +26,7 @@ abstract final class ArticuloCatalogCsv {
   static const bom = ArticuloCsvContract.bom;
 
   /// Orden de columnas del contrato. El importador exige coincidencia exacta.
-  static const columnas = ArticuloCsvContract.columnas;
+  static const columnas = ArticuloCsvContract.columnasReposicion;
   static const columnasAnteriores = ArticuloCsvContract.columnasAnteriores;
 
   static const _columnasNotas = <String>[
@@ -69,6 +69,20 @@ abstract final class ArticuloCatalogCsv {
                   ? ''
                   : _importe(row.variante!.offerPriceMinor!),
               '',
+              '',
+              '',
+              ArticuloCsvContract.versionReposicion,
+              row.variante!.currentSupplierId ?? '',
+              row.variante!.currentSupplierId == null
+                  ? 'retirar'
+                  : 'establecer',
+              row.variante!.targetStockAtomic?.toString() ?? '',
+              row.variante!.targetStockAtomic == null
+                  ? ''
+                  : row.unidadInventario?.unitId ?? '',
+              row.variante!.targetStockAtomic == null
+                  ? 'retirar'
+                  : 'establecer',
             ],
           ].map(_campo).join(separador),
         );
@@ -86,7 +100,18 @@ abstract final class ArticuloCatalogCsv {
         [
           if (incluirIds) ...['', ''],
           ...campos,
-          if (incluirIds) ...['', ''],
+          if (incluirIds) ...[
+            '',
+            '',
+            '',
+            '',
+            ArticuloCsvContract.versionReposicion,
+            '',
+            'conservar',
+            '',
+            '',
+            'conservar',
+          ],
         ].map(_campo).join(separador),
     ];
     return '${lineas.join('\n')}\n';
@@ -190,6 +215,23 @@ abstract final class ArticuloCatalogCsv {
               descripcion:
                   'Oferta <= precio de venta. Vacío retira la oferta. Sin columna de oferta (formatos antiguos) se conserva.',
             ),
+            const _NotaColumna(columna:'eliminar_variante',obligatoria:'no',valoresPermitidos:'si; no; vacío',descripcion:'Retira solo la variante identificada. Mantén otra variante activa; no mezcles con reposición.'),
+            const _NotaColumna(columna:'recurso_inventario_id',obligatoria:'condicional',valoresPermitidos:'UUID de recurso existente',descripcion:'Enlaza seguimiento a un recurso existente compatible; no cambia saldos.'),
+            for (final name in [
+              'version_csv',
+              'current_supplier_id',
+              'accion_proveedor_actual',
+              'target_stock_atomic',
+              'unidad_objetivo_id',
+              'accion_objetivo',
+            ])
+              _NotaColumna(
+                columna: name,
+                obligatoria: 'condicional',
+                valoresPermitidos: 'v2: conservar; establecer; retirar',
+                descripcion:
+                    'version_csv=2. Omisión legada o acción vacía/conservar conserva (valor vacío); retirar exige valor vacío; establecer exige UUID de proveedor asociado con precio/fecha, u objetivo entero atómico seguro >=0 y UUID de unidad del recurso. Cero válido. No crea relaciones ni inventa precios. Configuración dormida solo admite el mismo objetivo exportado sin unidad. Configurar valores requiere variante existente. La unidad debe coincidir exactamente; no se convierte.',
+              ),
             const _NotaColumna(
               columna: 'eliminar_producto',
               obligatoria: 'no',

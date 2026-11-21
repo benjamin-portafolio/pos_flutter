@@ -71,9 +71,15 @@ void main() {
   });
 
   Future<void> flush(WidgetTester tester) async {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 30)),
-    );
+    // Native SQLite I/O needs wall time even while the widget clock is fake.
+    // A fixed 30 ms delay starves pending saves under a concurrent full suite.
+    for (var attempt = 0; attempt < 200; attempt++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      if (find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
+    }
     await tester.pumpAndSettle();
   }
 
@@ -85,7 +91,7 @@ void main() {
       await tester.tap(target);
       await Future<void>.delayed(const Duration(milliseconds: 30));
     });
-    await tester.pumpAndSettle();
+    await flush(tester);
   }
 
   Future<void> inventory(WidgetTester tester) async {

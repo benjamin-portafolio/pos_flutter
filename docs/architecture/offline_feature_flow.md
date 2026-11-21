@@ -669,3 +669,93 @@ catálogo/balance observable. Se conservan CSV/masiva, undo exacto y la sincroni
 verificada con PostgreSQL/HTTP aislados en sesión 3. La sesión 5 acredita restore/informe
 en disco en ambos modos, manual macOS y 2567 pruebas incluidas 23 HTTP sin skips.
 A42 sigue parcial por hardware físico ausente; no hay cierre total. Ver [alcance, compatibilidad y evidencia](minimum_stock_contract.md).
+
+## Configuración de reposición de variantes (Pedidos S2)
+
+`SupplierReplenishmentPatch` conserva presencia por campo: omisión conserva,
+null explícito retira y UUID/entero establece. `producto_creado` y
+`producto_actualizado` transportan la configuración; los comandos, snapshots,
+proyecciones y undo la conservan también en ediciones comerciales, barcode,
+proveedores, recetas, seguimiento, masiva y CSV legado. La selección se aplica
+solo después de instalar las relaciones cotizadas, dentro de la transacción.
+Quitar seguimiento conserva el objetivo/proveedor dormidos y no genera stock.
+
+Editor de variante y tarea masiva «Reposición» capturan la unidad real con el
+codec existente. CSV v2 añade acciones explícitas, UUID de proveedor, objetivo
+atómico y unidad; formatos anteriores conservan. Exportar/reimportar el mismo
+catálogo no modifica la configuración. No se crean relaciones ni cotizaciones
+al importar. Consultar Contrato S2 del roadmap del vault para columnas y ejemplos.
+
+`SupplierReplenishmentAvailability` acredita `supplier_replenishment_v1` en el
+endpoint observado para captura offline en server_sync; push verifica otra vez
+antes de enviar configuración. Standalone omite capacidades/red y event_refs.
+Preflight pide pull ordenado cuando los snapshots de producto requieren catálogo
+de proveedores que una respuesta escasa no acredita. Recuperación lógica,
+bootstrap y sustitución de origen conservan estos campos y difieren la selección
+hasta insertar las parejas. Los documentos de pedidos se integran en S3 y sus recepciones en S4, descritas abajo. Sin cambios físicos adicionales S2.
+
+
+## Pedidos a proveedores (S3)
+
+`SupplierOrderCommandService` exige transacción local para cotejar base y guardar
+borrador/confirmar/cancelar con los contratos tipados S1. El handler y su puerto
+`SupplierOrderProjectionStore` aplican cabecera e hijos; el adaptador Drift no
+expone escritura a widgets. `SupplierOrderRepository` publica candidatos,
+configuración incompleta, resúmenes e intentos fallidos como modelos de dominio.
+Sugerencias usan saldo vigente menos pendientes de todos los proveedores; dos
+consultas agrupadas, sin N+1. Borrador no reserva; cancelado libera pendiente.
+Confirmar congela snapshots y estimación sin escribir balances o movimientos.
+
+La revisión coteja catálogo, unidad/referencia, cotización, objetivo, saldo,
+pendiente y base del pedido; conserva la intención hasta revisión explícita.
+Pedidos se abren desde Inventario, proveedor e informe al mismo módulo. Los
+intentos fallidos conservan evidencia y permiten recuperar en otro borrador con
+identidades nuevas, sin sobrescribir al ganador oficial.
+
+Server_sync exige capacidad `supplier_orders_v1`, espera bases y catálogo,
+envía cada pedido solo en su request y utiliza preflight/pull ordenado, eco,
+revalidación y restauración inversa de la cadena. Dos pedidos independientes
+pueden solaparse offline: se advierte tras conocerlos, sin cancelación automática.
+Standalone declara refs, mantiene not_required/cero event_refs y no usa servicios
+remotos. No se promueve historia standalone a pendiente.
+
+Recuperación lógica admite supplier_orders/supplier_order_items con validación
+semántica de historia, bases, estados, snapshots y procedencia. Publicación,
+bootstrap, comparación y binder conservan los documentos. S4 amplía también las familias de recepción, descritas abajo. S3 no publica
+recepción, cierre de faltantes, compartir o imprimir. Contrato, evidencia y continuidad:
+roadmap «Pedidos a proveedores» del vault de análisis.
+
+
+## Recepción de pedidos y cierre de faltantes (S4)
+
+`ConfirmSupplierReceiptCommand` / `CloseSupplierOrderCommand` se procesan en
+`SupplierOrderCommandService`, con payloads tipados v1 y un único evento del
+pedido por recepción. La captura omite cantidades cero; todo cero rechaza.
+Handler y proyección aplican en una transacción recibo/partidas, movimientos
+stock_receipt positivos, deltas al saldo vigente y estado/versión del pedido.
+Precio real permanece documental; el recurso conserva su versión de configuración,
+como al consumir en una venta. Pedido confirmado conserva todos sus snapshots.
+
+Se cotejan base del pedido, actividad, vínculo y unidad/referencia históricos;
+exceso requiere revisión explícita en el evento. Partial conserva remanente;
+received lo agota. Cerrar un partial acredita todos sus faltantes y libera
+pendientes sin inventario; después no recibe. El hash canónico y las identidades
+persistidas recuperan el mismo intento incluso tras cierre abrupto. Solo
+server_sync exige supplier_receipts_v1 y persiste refs. Standalone mantiene
+not_required, cero refs y ninguna actividad remota.
+
+Echo acredita recibo y movimientos sin repetir stock. Ante rechazo se restauran
+sucesores del pedido en orden inverso y se resta únicamente el delta perdedor
+sobre el saldo vigente, conservando ventas independientes. Los intentos fallidos
+son observables; una recepción rechazada no se copia a un borrador de compra.
+Recuperación lógica incluye parsers, tablas, referencias, validación contra
+historia/movimientos, publicación/bootstrap/binder; respaldo físico conserva
+los dos modos. Se verificaron SQLite, HTTP/PostgreSQL, 50 partidas, SIGKILL y
+la ida/vuelta comercial. Contrato y límites: «Contrato S4» y evidencia S4 del
+roadmap Pedidos a proveedores en el vault. S5 publica recepción/revisión, historial
+y tickets por snapshots, con reintentos e invalidación observable. S6 acredita
+el recorrido público con HTTP/PostgreSQL y restauración/reintento en ambos modos.
+La captura de recepción sin confirmar no es un borrador durable. La guía vigente
+y los límites de entrega están en «Pedidos a proveedores/Guia de uso y entrega»
+y la evidencia S6 del vault; hardware, consumo en dispositivos y regresión global
+conservan sus resultados explícitos, sin declarar cierre por un build.

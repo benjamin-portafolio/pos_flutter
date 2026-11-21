@@ -37,6 +37,10 @@ class ArticuloFormVarianteResult {
     this.offerPriceMinor,
     this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStockAtomic,
+    this.currentSupplierId,
+    this.targetStockAtomic,
+    this.currentSupplier = const CambioExplicito.conservar(),
+    this.targetStock = const CambioExplicito.conservar(),
     this.minimumStock = const CambioExplicito.conservar(),
   }) : proveedores = null;
 
@@ -53,6 +57,10 @@ class ArticuloFormVarianteResult {
     this.offerPriceMinor,
     this.offerPrice = const CambioExplicito.conservar(),
     this.minimumStockAtomic,
+    this.currentSupplierId,
+    this.targetStockAtomic,
+    this.currentSupplier = const CambioExplicito.conservar(),
+    this.targetStock = const CambioExplicito.conservar(),
     this.minimumStock = const CambioExplicito.conservar(),
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
@@ -74,6 +82,10 @@ class ArticuloFormVarianteResult {
   final int? offerPriceMinor;
   final CambioExplicito<String?> offerPrice;
   final int? minimumStockAtomic;
+  final String? currentSupplierId;
+  final int? targetStockAtomic;
+  final CambioExplicito<String?> currentSupplier;
+  final CambioExplicito<String?> targetStock;
 
   /// Conserva por defecto, incluso para formularios de contratos legados.
   final CambioExplicito<String?> minimumStock;
@@ -107,6 +119,8 @@ class ArticuloFormVarianteResult {
     List<ProveedorVariante>? proveedores,
     CambioExplicito<String?>? offerPrice,
     CambioExplicito<String?>? minimumStock,
+    CambioExplicito<String?>? currentSupplier,
+    CambioExplicito<String?>? targetStock,
   }) {
     return ArticuloFormVarianteResult.conProveedores(
       id: id,
@@ -131,6 +145,10 @@ class ArticuloFormVarianteResult {
       linkedInventoryItemId: linkedInventoryItemId,
       offerPriceMinor: offerPriceMinor,
       offerPrice: offerPrice ?? this.offerPrice,
+      currentSupplierId: currentSupplierId,
+      targetStockAtomic: targetStockAtomic,
+      currentSupplier: currentSupplier ?? this.currentSupplier,
+      targetStock: targetStock ?? this.targetStock,
       minimumStockAtomic: minimumStockAtomic,
       minimumStock: minimumStock ?? this.minimumStock,
     );

@@ -1,3 +1,4 @@
+import 'recovery_supplier_order_validator.dart';
 import '../sync/payloads/cotizacion_recuperada_payload.dart';
 import '../sync/payloads/cotizacion_guardada_payload.dart';
 import '../sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
@@ -407,6 +408,11 @@ class RecoveryDiagnostic {
         // Yield periodically without retaining rows; caller can cancel between them.
         await Future<void>.value();
       }
+    }
+    try {
+      RecoverySupplierOrderValidator.validate(snapshot);
+    } catch (e) {
+      d.block('supplier_order_projection_mismatch', '$e');
     }
     for (final balance in snapshot.rows('inventory_balances')) {
       var sum = BigInt.zero;

@@ -56,6 +56,15 @@ void main() {
           'foreign_keys': await pragma('foreign_key_list'),
           'indexes': indexes.map((row) => row.data).toList(),
           'index_details': indexDetails,
+          'triggers':
+              (await db
+                      .customSelect(
+                        "SELECT name, sql FROM sqlite_master WHERE type='trigger' AND tbl_name = ? ORDER BY name",
+                        variables: [Variable<String>(name)],
+                      )
+                      .get())
+                  .map((r) => r.data)
+                  .toList(),
         });
       }
       final encoded = const JsonEncoder.withIndent('  ').convert({

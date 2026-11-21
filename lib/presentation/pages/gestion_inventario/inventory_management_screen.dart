@@ -1,3 +1,5 @@
+import 'pedidos/supplier_orders_screen.dart';
+import '../../../domain/repositories/supplier_order_repository.dart';
 import '../../../application/commands/inventario/eliminar_recurso_inventario_command.dart';
 import '../../../application/config/app_config.dart';
 import '../../../application/config/app_config_controller.dart';
@@ -313,10 +315,33 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     );
   }
 
+  void _openOrders({String? supplierId}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SupplierOrdersScreen(
+          supplierId: supplierId,
+          onConfigure: (product, variant) async {
+            await _openArticlePreview(
+              context,
+              product,
+              initialVariantId: variant,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   List<Widget> _buildAppBarActions(bool showingSearch) {
     if (_selectedTab != 0) return const [];
     if (showingSearch) {
       return [
+        if (getIt.isRegistered<SupplierOrderRepository>())
+          IconButton(
+            tooltip: 'Pedidos a proveedores',
+            onPressed: () => _openOrders(),
+            icon: const Icon(Icons.shopping_cart_outlined),
+          ),
         IconButton(
           key: const Key('close_article_search_button'),
           onPressed: _closeSearch,
@@ -326,6 +351,12 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       ];
     }
     return [
+      if (getIt.isRegistered<SupplierOrderRepository>())
+        IconButton(
+          tooltip: 'Pedidos a proveedores',
+          onPressed: () => _openOrders(),
+          icon: const Icon(Icons.shopping_cart_outlined),
+        ),
       IconButton(
         key: const Key('open_article_search_button'),
         onPressed: _openSearch,
@@ -401,6 +432,11 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ProveedorFormScreen(
+          onOrders:
+              proveedor == null ||
+                  !getIt.isRegistered<SupplierOrderRepository>()
+              ? null
+              : () => _openOrders(supplierId: proveedor.id),
           config: config,
           proveedor: proveedor,
           onSave: (result) {

@@ -1,3 +1,8 @@
+import '../sync/payloads/supplier_receipt_confirmed_payload.dart';
+import '../sync/payloads/supplier_order_closed_payload.dart';
+import '../sync/payloads/supplier_order_draft_saved_payload.dart';
+import '../sync/payloads/supplier_order_confirmed_payload.dart';
+import '../sync/payloads/supplier_order_cancelled_payload.dart';
 import 'recovery_product_shape.dart';
 import '../sync/payloads/abono_cliente_registrado_payload.dart';
 import '../sync/payloads/caja_abierta_payload.dart';
@@ -64,6 +69,11 @@ class RecoveryEventContract {
 
   static bool supports(String type) => _aggregates.containsKey(type);
   static const _aggregates = <String, String>{
+    SupplierOrderDraftSavedPayload.eventType: 'supplier_order',
+    SupplierOrderConfirmedPayload.eventType: 'supplier_order',
+    SupplierOrderCancelledPayload.eventType: 'supplier_order',
+    SupplierReceiptConfirmedPayload.eventType: 'supplier_order',
+    SupplierOrderClosedPayload.eventType: 'supplier_order',
     AbonoClienteRegistradoPayload.eventType:
         AbonoClienteRegistradoPayload.aggregateType,
     CajaAbiertaPayload.eventType: CajaAbiertaPayload.aggregateType,
@@ -113,6 +123,26 @@ class RecoveryEventContract {
 
   static Iterable<String> dependencies(String type, Map<String, Object?> json) {
     switch (type) {
+      case SupplierOrderDraftSavedPayload.eventType:
+        final p = SupplierOrderDraftSavedPayload.fromJson(json);
+        _shape(json, p.toJson(), '', type);
+        return [if (p.baseEventId != null) p.baseEventId!];
+      case SupplierOrderConfirmedPayload.eventType:
+        final p = SupplierOrderConfirmedPayload.fromJson(json);
+        _shape(json, p.toJson(), '', type);
+        return [p.baseEventId!];
+      case SupplierReceiptConfirmedPayload.eventType:
+        final p = SupplierReceiptConfirmedPayload.fromJson(json);
+        _shape(json, p.toJson(), '', type);
+        return [p.baseEventId];
+      case SupplierOrderClosedPayload.eventType:
+        final p = SupplierOrderClosedPayload.fromJson(json);
+        _shape(json, p.toJson(), '', type);
+        return [p.baseEventId];
+      case SupplierOrderCancelledPayload.eventType:
+        final p = SupplierOrderCancelledPayload.fromJson(json);
+        _shape(json, p.toJson(), '', type);
+        return [p.baseEventId];
       case AbonoClienteRegistradoPayload.eventType:
         final p = AbonoClienteRegistradoPayload.fromJson(json);
         _shape(json, p.toJson(), '', type);

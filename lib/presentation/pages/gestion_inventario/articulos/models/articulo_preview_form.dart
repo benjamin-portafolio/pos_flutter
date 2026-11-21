@@ -35,6 +35,8 @@ class ArticuloPreviewForm {
                   : money(variant.costoEstandarMenor!),
               codigoBarras: variant.codigoBarras,
               offerPriceMinor: variant.offerPriceMinor,
+              currentSupplierId: variant.currentSupplierId,
+              targetStockAtomic: variant.targetStockAtomic,
               minimumStockAtomic: variant.minimumStockAtomic,
               inventoryUnitId: variant.inventoryItemId == null
                   ? null

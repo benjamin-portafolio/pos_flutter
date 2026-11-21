@@ -232,7 +232,7 @@ void main() {
             .split('\n')
             .map((r) => r.split(','))
             .toList();
-        expect(rows.every((r) => r.length == 14), isTrue);
+        expect(rows.every((r) => r.length == ArticuloCsvContract.columnasReposicion.length), isTrue);
         final header = rows.first;
         expect(header.take(2), ['product_id', 'variant_id']);
         final row = rows

@@ -14,6 +14,8 @@ class FilaCatalogoMasivo {
     required this.baseProducto,
     required this.nombreProducto,
     required this.nombreVariante,
+    this.currentSupplierId,
+    this.targetStockAtomic,
     this.ofertaMinor,
     required this.ventaMinor,
     required this.costoMinor,
@@ -30,6 +32,8 @@ class FilaCatalogoMasivo {
   final String? nombreVariante;
   final int ventaMinor;
   final int? ofertaMinor;
+  final String? currentSupplierId;
+  final int? targetStockAtomic;
   final int? costoMinor;
   final SaleConfiguration configuracionVenta;
   final UnidadInventario? unidadVenta;

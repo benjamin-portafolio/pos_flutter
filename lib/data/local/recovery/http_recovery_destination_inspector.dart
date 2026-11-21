@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../application/config/app_config.dart';
+import '../../../application/recovery/recovery_destination_policy.dart';
 import '../../../application/recovery/recovery_destination_inspector.dart';
 
-/// Canal independiente, TLS salvo loopback; no sigue redirecciones ni hace push.
+/// Canal independiente con política de transporte compartida; no sigue redirecciones ni hace push.
 class HttpRecoveryDestinationInspector implements RecoveryDestinationInspector {
   HttpRecoveryDestinationInspector({http.Client Function()? clientFactory})
     : _clientFactory = clientFactory ?? http.Client.new;
@@ -18,23 +19,8 @@ class HttpRecoveryDestinationInspector implements RecoveryDestinationInspector {
     _activeClient = null;
   }
 
-  static Uri parseDestination(String input) {
-    final uri = Uri.tryParse(input.trim());
-    if (uri == null ||
-        uri.host.isEmpty ||
-        uri.userInfo.isNotEmpty ||
-        uri.hasQuery ||
-        uri.hasFragment ||
-        (uri.path.isNotEmpty && uri.path != '/') ||
-        (uri.scheme != 'https' &&
-            !(uri.scheme == 'http' &&
-                {'localhost', '127.0.0.1', '::1'}.contains(uri.host)))) {
-      throw const FormatException(
-        'Usa una URL HTTPS completa, sin credenciales ni ruta.',
-      );
-    }
-    return uri.replace(path: '');
-  }
+  static Uri parseDestination(String input) =>
+      RecoveryDestinationPolicy.parse(input);
 
   @override
   Future<Map<String, Object?>> inspect({

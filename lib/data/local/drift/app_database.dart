@@ -1,3 +1,8 @@
+import 'supplier_order_schema.dart';
+import 'tables/supplier_orders.dart';
+import 'tables/supplier_order_items.dart';
+import 'tables/supplier_receipts.dart';
+import 'tables/supplier_receipt_items.dart';
 import 'tables/recovery_local_state.dart';
 import 'recovery_revision_schema.dart';
 import '../../../application/sync/applied_local_event_reader.dart';
@@ -134,6 +139,10 @@ const _preserveRestoredDatabaseFileName = '.pos_db_restored';
     SaleAdjustmentIntents,
     SaleDeliveryIncidents,
     SaleReconciliationEffects,
+    SupplierOrders,
+    SupplierOrderItems,
+    SupplierReceipts,
+    SupplierReceiptItems,
   ],
   daos: [
     SaleAdjustmentDao,
@@ -161,12 +170,15 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      for (final sql in supplierOrderTriggers) {
+        await customStatement(sql);
+      }
       await _seedInventoryUnits();
       await customStatement(
         'INSERT INTO recovery_local_state(singleton) VALUES (1)',

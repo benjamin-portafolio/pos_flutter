@@ -179,6 +179,8 @@ class SqliteBaselineBootstrapInstaller implements BaselineBootstrapInstaller {
           'recipe_components',
           'variant_suppliers',
           'variant_inventory_memory',
+          'supplier_orders',
+          'supplier_order_items',
           'sales',
           'sale_items',
           'sale_payments',
@@ -192,6 +194,8 @@ class SqliteBaselineBootstrapInstaller implements BaselineBootstrapInstaller {
           'sale_adjustment_lines',
           'sale_credit_reductions',
           'inventory_movements',
+          'supplier_receipts',
+          'supplier_receipt_items',
           'inventory_balances',
           'sale_reconciliation_effects',
           'cash_movements',
@@ -215,7 +219,10 @@ class SqliteBaselineBootstrapInstaller implements BaselineBootstrapInstaller {
                 jsonDecode(entry.read<String>('row_data')) as Map,
               );
               for (final mapped in await mapper.map(entity, row)) {
-                final local = mapped.values;
+                final local = Map<String, Object?>.of(mapped.values);
+                if (entity == 'product_variants') {
+                  local['current_supplier_id'] = null;
+                }
                 if (entity == 'units') {
                   final actual = await db
                       .customSelect(
@@ -240,6 +247,9 @@ class SqliteBaselineBootstrapInstaller implements BaselineBootstrapInstaller {
             }
           }
         }
+        await db.customStatement(
+          r"UPDATE product_variants SET current_supplier_id=(SELECT json_extract(row_data, '$.current_supplier_id') FROM bootstrap_rows WHERE entity='product_variants' AND json_extract(row_data, '$.variant_id')=product_variants.id)",
+        );
         final beforeAllocations = await db
             .customSelect(
               'SELECT * FROM credit_allocations ORDER BY payment_id,credit_id',

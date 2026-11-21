@@ -318,12 +318,39 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     String variantId,
     List<VariantSuppliersCompanion> values,
   ) async {
-    await (delete(
-      variantSuppliers,
-    )..where((s) => s.variantId.equals(variantId))).go();
-    for (final value in values) {
-      await into(variantSuppliers).insert(value);
-    }
+    await transaction(() async {
+      final variant = await (select(
+        productVariants,
+      )..where((v) => v.id.equals(variantId))).getSingle();
+      final selected = variant.currentSupplierId;
+      if (selected != null &&
+          !values.any(
+            (v) => v.supplierId.present && v.supplierId.value == selected,
+          )) {
+        throw StateError('Retire o sustituya primero el proveedor actual');
+      }
+      // Quitar selección solo dentro de la transacción; un fallo restaura todo.
+      if (selected != null) {
+        await (update(
+          productVariants,
+        )..where((v) => v.id.equals(variantId))).write(
+          const ProductVariantsCompanion(currentSupplierId: Value(null)),
+        );
+      }
+      await (delete(
+        variantSuppliers,
+      )..where((s) => s.variantId.equals(variantId))).go();
+      for (final value in values) {
+        await into(variantSuppliers).insert(value);
+      }
+      if (selected != null) {
+        await (update(
+          productVariants,
+        )..where((v) => v.id.equals(variantId))).write(
+          ProductVariantsCompanion(currentSupplierId: Value(selected)),
+        );
+      }
+    });
   }
 
   /// Conocimiento del campo declarado en snapshots registrados del producto.
@@ -419,6 +446,9 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<void> eliminarProductoPorId(String id) async {
+    await (update(productVariants)..where((v) => v.productId.equals(id))).write(
+      const ProductVariantsCompanion(currentSupplierId: Value(null)),
+    );
     await (delete(
       productVariants,
     )..where((variant) => variant.productId.equals(id))).go();
@@ -449,6 +479,9 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         return;
       }
     }
+    await (update(productVariants)
+          ..where((v) => v.createdEventId.equals(eventId)))
+        .write(const ProductVariantsCompanion(currentSupplierId: Value(null)));
     await (delete(
       productVariants,
     )..where((variant) => variant.createdEventId.equals(eventId))).go();
@@ -607,6 +640,12 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
       product.id,
       present.map((v) => v.id).toSet(),
     );
+    for (final v in present) {
+      await actualizarVariante(
+        v.id,
+        const ProductVariantsCompanion(currentSupplierId: Value(null)),
+      );
+    }
     for (final v in present.where((v) => !ids.contains(v.id))) {
       await _removeUnreferencedVariant(v.id);
     }
@@ -614,7 +653,12 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
       await into(productVariants).insertOnConflictUpdate(
         // El null del respaldo es explícito: DataClass.toColumns(true) lo
         // omitiría del UPDATE y conservaría indebidamente el mínimo optimista.
-        v.copyWith(lastServerSequence: Value(sequence)).toCompanion(false),
+        v
+            .copyWith(
+              currentSupplierId: const Value(null),
+              lastServerSequence: Value(sequence),
+            )
+            .toCompanion(false),
       );
     }
     for (final r in data['recipes'] as List) {
@@ -632,6 +676,12 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
           VariantSupplierRow.fromJson(Map<String, dynamic>.from(s as Map)),
         );
       }
+    }
+    for (final v in variants) {
+      await actualizarVariante(
+        v.id,
+        ProductVariantsCompanion(currentSupplierId: Value(v.currentSupplierId)),
+      );
     }
     // Restaurar también la ausencia previa, sin ocultar fallos de integridad.
     final affectedIds = {...ids, ...present.map((v) => v.id)};
@@ -670,6 +720,10 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         const ProductVariantsCompanion(active: Value(false)),
       );
     } else {
+      await actualizarVariante(
+        id,
+        const ProductVariantsCompanion(currentSupplierId: Value(null)),
+      );
       await (delete(productVariants)..where((v) => v.id.equals(id))).go();
     }
   }

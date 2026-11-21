@@ -94,25 +94,93 @@ void main() {
       );
       addTearDown(h.db.close);
       final frontier = int.parse(input['h'] as String);
-      final baselineAdjustments=(input['counts'] as Map)['sale_adjustments'] as int;
+      final baselineAdjustments =
+          (input['counts'] as Map)['sale_adjustments'] as int;
       expect(
         await h.db.syncCheckpointDao.obtenerLastFullPullServerSequence(),
         frontier,
       );
       expect(await h.db.select(h.db.sales).get(), hasLength(5));
-      expect(await h.db.select(h.db.saleAdjustments).get(), hasLength(baselineAdjustments));
+      if (Platform.environment['POS_SUPPLIER_S3'] == '1') {
+        final order = (await h.db.select(h.db.supplierOrders).get()).single;
+        expect(
+          order.status,
+          Platform.environment['POS_SUPPLIER_S4'] == '1'
+              ? 'closed'
+              : 'confirmed',
+        );
+        if (Platform.environment['POS_SUPPLIER_S4'] == '1') {
+          final receipt =
+              (await h.db.select(h.db.supplierReceipts).get()).single;
+          expect(receipt.id, ids['supplierReceipt']);
+          expect(receipt.totalMinor, 360);
+          expect(
+            (await h.db.select(h.db.supplierReceiptItems).get())
+                .single
+                .quantityAtomic,
+            3,
+          );
+          expect(
+            (await h.db.select(h.db.supplierOrderItems).get())
+                .single
+                .closedQuantityAtomic,
+            1,
+          );
+        }
+        expect(order.id, ids['supplierOrder']);
+        expect(
+          (await h.db.select(h.db.supplierOrderItems).get())
+              .single
+              .quantityAtomic,
+          4,
+        );
+      }
+      if (Platform.environment['POS_SUPPLIER_S2'] == '1') {
+        final configured = (await h.db.select(h.db.productVariants).get())
+            .where((v) => v.targetStockAtomic == 7)
+            .single;
+        expect(configured.currentSupplierId, isNotNull);
+        expect(
+          (await h.db.productoDao.obtenerProveedoresPorVariante(
+            configured.id,
+          )).any((s) => s.supplierId == configured.currentSupplierId),
+          isTrue,
+        );
+      }
+      expect(
+        await h.db.select(h.db.saleAdjustments).get(),
+        hasLength(baselineAdjustments),
+      );
       expect(await h.db.select(h.db.cashSessions).get(), hasLength(1));
       expect(
         (await h.db.select(h.db.cashSessions).get()).single.status,
         'closed',
       );
       expect(await h.history.pendingEvents(), isEmpty);
-      final bank=(await AccountBalanceBaselineRepositoryImpl(h.db).watchBaseline().first)!;
-      final transfers=TransferSummaryRepositoryImpl(h.db);
-      final initialTransfers=await transfers.watchTransferSummary(fromMs:0,toMs:9007199254740991).first;
-      expect(SaldoCuentaEstimado.fromMovements(baseline:bank,movements:initialTransfers.movements).estimatedMinor,BigInt.from(-1200));
-      expect((await CustomerAccountRepositoryImpl(h.db).watchAccount(ids['customer'] as String).first).balanceMinor,BigInt.from(300));
-      expect((await h.db.select(h.db.cashSessions).get()).single.expectedMinor,'250');
+      final bank = (await AccountBalanceBaselineRepositoryImpl(
+        h.db,
+      ).watchBaseline().first)!;
+      final transfers = TransferSummaryRepositoryImpl(h.db);
+      final initialTransfers = await transfers
+          .watchTransferSummary(fromMs: 0, toMs: 9007199254740991)
+          .first;
+      expect(
+        SaldoCuentaEstimado.fromMovements(
+          baseline: bank,
+          movements: initialTransfers.movements,
+        ).estimatedMinor,
+        BigInt.from(-1200),
+      );
+      expect(
+        (await CustomerAccountRepositoryImpl(
+          h.db,
+        ).watchAccount(ids['customer'] as String).first).balanceMinor,
+        BigInt.from(300),
+      );
+      expect(
+        (await h.db.select(h.db.cashSessions).get()).single.expectedMinor,
+        '250',
+      );
       final resource = ids['resource'] as String;
       final beforeStock = (await h.db.select(h.db.inventoryBalances).get())
           .firstWhere((b) => b.inventoryItemId == resource)
@@ -335,39 +403,229 @@ void main() {
       );
       expect(await h.db.select(h.db.sales).get(), hasLength(6));
       expect(await h.db.select(h.db.customerPayments).get(), hasLength(2));
-      expect(await h.db.select(h.db.saleAdjustments).get(), hasLength(baselineAdjustments+1));
+      expect(
+        await h.db.select(h.db.saleAdjustments).get(),
+        hasLength(baselineAdjustments + 1),
+      );
       // An admissible ORIGINAL physical losing branch, authored by the real
       // Flutter command before an independently accepted competing return.
-      final oldCredit=(await h.db.select(h.db.events).get()).firstWhere((e)=>e.eventType=='devolucion_venta_registrada'&&e.aggregateId==ids['creditSale']&&e.deliveryStatus=='delivered');
-      final losing=Map<String,Object?>.from(jsonDecode(oldCredit.payload) as Map);
-      (losing['settlement'] as Map)['cash_enabled']=true;
-      losing['operation_id']=const Uuid().v4();losing['event_id']=const Uuid().v4();losing['expected_revision']=1;losing['previous_adjustment_event_id']=oldCredit.eventId;
-      final lossTime=DateTime.now().toUtc();losing['occurred_at_ms']=lossTime.millisecondsSinceEpoch;losing['business_date']=lossTime.toIso8601String().substring(0,10);losing['dependency_event_ids']=[losing['confirmation_event_id'],oldCredit.eventId];
-      final losingLine=Map<String,Object?>.from((losing['lines'] as List).single as Map),losingStock=Map<String,Object?>.from((((losing['lines'] as List).single as Map)['stock'] as List).single as Map);losingStock['movement_id']=const Uuid().v4();losingLine['stock']=[losingStock];losing['lines']=[losingLine];
-      await h.adjustments.devolver(RegistrarDevolucionVentaCommand(payload:DevolucionVentaRegistradaPayload.fromJson(losing),userId:context.userId,deviceId:context.deviceId));
-      final opponentTransport=HttpBaselineBootstrapTransport(baseUri:uri,serverInstanceId:input['server_instance_id'] as String,generationId:input['generation_id'] as String,enrollmentToken:input['opponent_token'] as String);addTearDown(opponentTransport.close);
-      final opponentResult=await BaselineBootstrapService().installEmpty(mode:AppMode.serverSync,expectedServer:input['server_instance_id'] as String,expectedGeneration:input['generation_id'] as String,expectedDigest:input['digest'] as String,transport:opponentTransport,installer:SqliteBaselineBootstrapInstaller(Directory('${dir.path}/opponent')));
-      final opponent=Map<String,Object?>.from(opponentResult['binding'] as Map),winning=Map<String,Object?>.from(jsonDecode(jsonEncode(losing)) as Map);
-      winning['operation_id']=const Uuid().v4();winning['event_id']=const Uuid().v4();(((winning['lines'] as List).single as Map)['stock'] as List).single['movement_id']=const Uuid().v4();
-      final winnerRequest=await client.postUrl(uri.resolve('/sync/push'));
-      for(final entry in {'X-POS-Protocol':'2','X-POS-Server':opponent['server_instance_id'],'X-POS-Generation':opponent['generation_id'],'X-POS-Device':opponent['device_id'],'Authorization':'Bearer ${opponent['token']}'}.entries){winnerRequest.headers.set(entry.key,entry.value!);}
-      winnerRequest.headers.contentType=ContentType.json;winnerRequest.write(jsonEncode({'device_id':opponent['device_id'],'last_full_pull_server_sequence':frontier,'last_preflight_server_sequence':frontier,'events':[{'event_id':winning['event_id'],'aggregate_type':'sale','aggregate_id':ids['creditSale'],'event_type':'devolucion_venta_registrada','device_id':opponent['device_id'],'user_id':'fixture-opponent','local_sequence':1,'created_at_local':lossTime.toIso8601String(),'base_version':2,'base_server_sequence':oldCredit.serverSequence,'payload':winning}]}));
-      final winnerResponse=await winnerRequest.close(),winnerText=await utf8.decodeStream(winnerResponse);expect(winnerResponse.statusCode,inInclusiveRange(200,299),reason:winnerText);expect(((jsonDecode(winnerText) as Map)['results'] as List).single['status'],'accepted');
-      final boundClient=GuardedSyncClient(SyncNetworkGate(isServerSync:()=>true),http.Client(),installation:SyncInstallation({'phase':'active','endpoint':uri.toString(),'binding':binding},persist:(_)async{}));addTearDown(boundClient.close);
-      final conflict=await h.push(uri.toString(),client:boundClient).pushPendingEvents();expect(conflict.conflicts,1);
-      final wonPull=await request('/sync/pull?since=${pulled['next_cursor']}');
-      await store.applySyncedEvents((wonPull['events'] as List).map((e)=>SyncEvent.fromJson(Map<String,Object?>.from(e as Map))).toList(),applyEvent:processor.apply,acknowledgeEcho:echo.acknowledge,afterApply:()=>h.db.syncCheckpointDao.actualizarLastFullPullServerSequence(wonPull['next_cursor'] as int));
-      final incident=(await h.reconciliationStore.incident(losing['event_id'] as String))!;
-      final resolvedAt=DateTime.now().toUtc();
-      final resolution=OperacionVentaConciliadaPayload.fromJson({'schema_version':1,'operation_id':const Uuid().v4(),'event_id':const Uuid().v4(),'incident_id':incident.id,'sale_id':incident.saleId,'loser_event_id':incident.loser.eventId,'winner_event_id':incident.winnerEventId,'official_base_event_id':incident.officialBaseEventId,'expected_revision':incident.officialRevision,'occurred_at_ms':resolvedAt.millisecondsSinceEpoch,'utc_offset_minutes':0,'business_date':resolvedAt.toIso8601String().substring(0,10),'reason':'Evidencia original conservada y exceso recuperado','preserved_effects':incident.evidence.map((e)=>e.toJson()).toList(),'recovery_effects':incident.evidence.map((e)=>{...e.toJson(),'effect_id':const Uuid().v4(),'delta':-e.delta,'occurred_at_ms':resolvedAt.millisecondsSinceEpoch,'business_date':resolvedAt.toIso8601String().substring(0,10)}).toList()});
-      await h.reconciliations.conciliar(ConciliarOperacionVentaCommand(payload:resolution,userId:context.userId,deviceId:context.deviceId));
-      final resolved=await h.push(uri.toString(),client:boundClient).pushPendingEvents();expect(resolved.synced,1);
-      final resolutionPull=await request('/sync/pull?since=${wonPull['next_cursor']}');
-      await store.applySyncedEvents((resolutionPull['events'] as List).map((e)=>SyncEvent.fromJson(Map<String,Object?>.from(e as Map))).toList(),applyEvent:processor.apply,acknowledgeEcho:echo.acknowledge,afterApply:()=>h.db.syncCheckpointDao.actualizarLastFullPullServerSequence(resolutionPull['next_cursor'] as int));
-      expect(await h.history.pendingEvents(),isEmpty);expect((await h.db.select(h.db.saleDeliveryIncidents).get()).single.resolutionEventId,resolution.eventId);
-      final currentTransfers=await transfers.watchTransferSummary(fromMs:0,toMs:9007199254740991).first;
-      expect(SaldoCuentaEstimado.fromMovements(baseline:bank,movements:currentTransfers.movements).estimatedMinor,BigInt.from(-400));
-      expect((await CustomerAccountRepositoryImpl(h.db).watchAccount(ids['customer'] as String).first).balanceMinor,BigInt.from(1100));
+      final oldCredit = (await h.db.select(h.db.events).get()).firstWhere(
+        (e) =>
+            e.eventType == 'devolucion_venta_registrada' &&
+            e.aggregateId == ids['creditSale'] &&
+            e.deliveryStatus == 'delivered',
+      );
+      final losing = Map<String, Object?>.from(
+        jsonDecode(oldCredit.payload) as Map,
+      );
+      (losing['settlement'] as Map)['cash_enabled'] = true;
+      losing['operation_id'] = const Uuid().v4();
+      losing['event_id'] = const Uuid().v4();
+      losing['expected_revision'] = 1;
+      losing['previous_adjustment_event_id'] = oldCredit.eventId;
+      final lossTime = DateTime.now().toUtc();
+      losing['occurred_at_ms'] = lossTime.millisecondsSinceEpoch;
+      losing['business_date'] = lossTime.toIso8601String().substring(0, 10);
+      losing['dependency_event_ids'] = [
+        losing['confirmation_event_id'],
+        oldCredit.eventId,
+      ];
+      final losingLine = Map<String, Object?>.from(
+            (losing['lines'] as List).single as Map,
+          ),
+          losingStock = Map<String, Object?>.from(
+            (((losing['lines'] as List).single as Map)['stock'] as List).single
+                as Map,
+          );
+      losingStock['movement_id'] = const Uuid().v4();
+      losingLine['stock'] = [losingStock];
+      losing['lines'] = [losingLine];
+      await h.adjustments.devolver(
+        RegistrarDevolucionVentaCommand(
+          payload: DevolucionVentaRegistradaPayload.fromJson(losing),
+          userId: context.userId,
+          deviceId: context.deviceId,
+        ),
+      );
+      final opponentTransport = HttpBaselineBootstrapTransport(
+        baseUri: uri,
+        serverInstanceId: input['server_instance_id'] as String,
+        generationId: input['generation_id'] as String,
+        enrollmentToken: input['opponent_token'] as String,
+      );
+      addTearDown(opponentTransport.close);
+      final opponentResult = await BaselineBootstrapService().installEmpty(
+        mode: AppMode.serverSync,
+        expectedServer: input['server_instance_id'] as String,
+        expectedGeneration: input['generation_id'] as String,
+        expectedDigest: input['digest'] as String,
+        transport: opponentTransport,
+        installer: SqliteBaselineBootstrapInstaller(
+          Directory('${dir.path}/opponent'),
+        ),
+      );
+      final opponent = Map<String, Object?>.from(
+            opponentResult['binding'] as Map,
+          ),
+          winning = Map<String, Object?>.from(
+            jsonDecode(jsonEncode(losing)) as Map,
+          );
+      winning['operation_id'] = const Uuid().v4();
+      winning['event_id'] = const Uuid().v4();
+      (((winning['lines'] as List).single as Map)['stock'] as List)
+          .single['movement_id'] = const Uuid()
+          .v4();
+      final winnerRequest = await client.postUrl(uri.resolve('/sync/push'));
+      for (final entry in {
+        'X-POS-Protocol': '2',
+        'X-POS-Server': opponent['server_instance_id'],
+        'X-POS-Generation': opponent['generation_id'],
+        'X-POS-Device': opponent['device_id'],
+        'Authorization': 'Bearer ${opponent['token']}',
+      }.entries) {
+        winnerRequest.headers.set(entry.key, entry.value!);
+      }
+      winnerRequest.headers.contentType = ContentType.json;
+      winnerRequest.write(
+        jsonEncode({
+          'device_id': opponent['device_id'],
+          'last_full_pull_server_sequence': frontier,
+          'last_preflight_server_sequence': frontier,
+          'events': [
+            {
+              'event_id': winning['event_id'],
+              'aggregate_type': 'sale',
+              'aggregate_id': ids['creditSale'],
+              'event_type': 'devolucion_venta_registrada',
+              'device_id': opponent['device_id'],
+              'user_id': 'fixture-opponent',
+              'local_sequence': 1,
+              'created_at_local': lossTime.toIso8601String(),
+              'base_version': 2,
+              'base_server_sequence': oldCredit.serverSequence,
+              'payload': winning,
+            },
+          ],
+        }),
+      );
+      final winnerResponse = await winnerRequest.close(),
+          winnerText = await utf8.decodeStream(winnerResponse);
+      expect(
+        winnerResponse.statusCode,
+        inInclusiveRange(200, 299),
+        reason: winnerText,
+      );
+      expect(
+        ((jsonDecode(winnerText) as Map)['results'] as List).single['status'],
+        'accepted',
+      );
+      final boundClient = GuardedSyncClient(
+        SyncNetworkGate(isServerSync: () => true),
+        http.Client(),
+        installation: SyncInstallation({
+          'phase': 'active',
+          'endpoint': uri.toString(),
+          'binding': binding,
+        }, persist: (_) async {}),
+      );
+      addTearDown(boundClient.close);
+      final conflict = await h
+          .push(uri.toString(), client: boundClient)
+          .pushPendingEvents();
+      expect(conflict.conflicts, 1);
+      final wonPull = await request(
+        '/sync/pull?since=${pulled['next_cursor']}',
+      );
+      await store.applySyncedEvents(
+        (wonPull['events'] as List)
+            .map((e) => SyncEvent.fromJson(Map<String, Object?>.from(e as Map)))
+            .toList(),
+        applyEvent: processor.apply,
+        acknowledgeEcho: echo.acknowledge,
+        afterApply: () =>
+            h.db.syncCheckpointDao.actualizarLastFullPullServerSequence(
+              wonPull['next_cursor'] as int,
+            ),
+      );
+      final incident = (await h.reconciliationStore.incident(
+        losing['event_id'] as String,
+      ))!;
+      final resolvedAt = DateTime.now().toUtc();
+      final resolution = OperacionVentaConciliadaPayload.fromJson({
+        'schema_version': 1,
+        'operation_id': const Uuid().v4(),
+        'event_id': const Uuid().v4(),
+        'incident_id': incident.id,
+        'sale_id': incident.saleId,
+        'loser_event_id': incident.loser.eventId,
+        'winner_event_id': incident.winnerEventId,
+        'official_base_event_id': incident.officialBaseEventId,
+        'expected_revision': incident.officialRevision,
+        'occurred_at_ms': resolvedAt.millisecondsSinceEpoch,
+        'utc_offset_minutes': 0,
+        'business_date': resolvedAt.toIso8601String().substring(0, 10),
+        'reason': 'Evidencia original conservada y exceso recuperado',
+        'preserved_effects': incident.evidence.map((e) => e.toJson()).toList(),
+        'recovery_effects': incident.evidence
+            .map(
+              (e) => {
+                ...e.toJson(),
+                'effect_id': const Uuid().v4(),
+                'delta': -e.delta,
+                'occurred_at_ms': resolvedAt.millisecondsSinceEpoch,
+                'business_date': resolvedAt.toIso8601String().substring(0, 10),
+              },
+            )
+            .toList(),
+      });
+      await h.reconciliations.conciliar(
+        ConciliarOperacionVentaCommand(
+          payload: resolution,
+          userId: context.userId,
+          deviceId: context.deviceId,
+        ),
+      );
+      final resolved = await h
+          .push(uri.toString(), client: boundClient)
+          .pushPendingEvents();
+      expect(resolved.synced, 1);
+      final resolutionPull = await request(
+        '/sync/pull?since=${wonPull['next_cursor']}',
+      );
+      await store.applySyncedEvents(
+        (resolutionPull['events'] as List)
+            .map((e) => SyncEvent.fromJson(Map<String, Object?>.from(e as Map)))
+            .toList(),
+        applyEvent: processor.apply,
+        acknowledgeEcho: echo.acknowledge,
+        afterApply: () =>
+            h.db.syncCheckpointDao.actualizarLastFullPullServerSequence(
+              resolutionPull['next_cursor'] as int,
+            ),
+      );
+      expect(await h.history.pendingEvents(), isEmpty);
+      expect(
+        (await h.db.select(h.db.saleDeliveryIncidents).get())
+            .single
+            .resolutionEventId,
+        resolution.eventId,
+      );
+      final currentTransfers = await transfers
+          .watchTransferSummary(fromMs: 0, toMs: 9007199254740991)
+          .first;
+      expect(
+        SaldoCuentaEstimado.fromMovements(
+          baseline: bank,
+          movements: currentTransfers.movements,
+        ).estimatedMinor,
+        BigInt.from(-400),
+      );
+      expect(
+        (await CustomerAccountRepositoryImpl(
+          h.db,
+        ).watchAccount(ids['customer'] as String).first).balanceMinor,
+        BigInt.from(1100),
+      );
       final exportRoot = Directory('${File(inputPath).parent.path}/roundtrip');
       final cancellation = RecoveryCancellation();
       final snapshot = await DriftRecoverySnapshotSource(h.db).capture(

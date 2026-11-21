@@ -20,6 +20,8 @@ extension ArticuloFormCommand on ArticuloFormResult {
             initialStockQuantity: variant.existenciaInicial,
             offerPrice: variant.offerPrice,
             minimumStock: variant.minimumStock,
+            currentSupplier: variant.currentSupplier,
+            targetStock: variant.targetStock,
             recipeComponents: variant.recipeComponents
                 .map(
                   (component) => CrearArticuloRecipeComponentCommand(

@@ -80,7 +80,7 @@ class DriftRecoverySnapshotSource implements RecoverySnapshotSource {
           'mode': mode.storageValue,
           'device_id': deviceId,
           'app_revision': appRevision,
-          'schema_version': 10,
+          'schema_version': db.schemaVersion,
           'schema_fingerprint': sha256
               .convert(utf8.encode(recoveryCanonical(ddl)))
               .toString(),

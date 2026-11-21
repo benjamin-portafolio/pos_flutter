@@ -702,6 +702,16 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
               offerPrice:
                   _advancedVariants?.firstOrNull?.offerPrice ??
                   const CambioExplicito.conservar(),
+              currentSupplierId:
+                  _advancedVariants?.firstOrNull?.currentSupplierId,
+              targetStockAtomic:
+                  _advancedVariants?.firstOrNull?.targetStockAtomic,
+              currentSupplier:
+                  _advancedVariants?.firstOrNull?.currentSupplier ??
+                  const CambioExplicito.conservar(),
+              targetStock:
+                  _advancedVariants?.firstOrNull?.targetStock ??
+                  const CambioExplicito.conservar(),
               minimumStockAtomic:
                   _advancedVariants?.firstOrNull?.minimumStockAtomic,
               minimumStock:
@@ -869,6 +879,14 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           !listEquals(a.proveedores, b.proveedores) ||
           a.inventoryUnitId != b.inventoryUnitId ||
           a.existenciaInicial != b.existenciaInicial ||
+          a.currentSupplierId != b.currentSupplierId ||
+          a.targetStockAtomic != b.targetStockAtomic ||
+          a.currentSupplier.establecer != b.currentSupplier.establecer ||
+          (a.currentSupplier.establecer &&
+              a.currentSupplier.valor != b.currentSupplier.valor) ||
+          a.targetStock.establecer != b.targetStock.establecer ||
+          (a.targetStock.establecer &&
+              a.targetStock.valor != b.targetStock.valor) ||
           a.minimumStockAtomic != b.minimumStockAtomic ||
           a.minimumStock.establecer != b.minimumStock.establecer ||
           (a.minimumStock.establecer &&

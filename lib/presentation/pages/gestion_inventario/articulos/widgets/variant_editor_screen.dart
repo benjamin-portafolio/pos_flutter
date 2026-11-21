@@ -1,3 +1,4 @@
+import 'current_supplier_selector.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -96,6 +97,9 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
   late final TextEditingController _initialStockController;
   late final TextEditingController _minimumStockController;
   late final String _initialMinimumStockText;
+  late final TextEditingController _targetStockController;
+  late final String _initialTargetStockText;
+  String? _currentSupplierId;
   late bool _trackingInventory;
   late bool _recipeEnabled;
   late List<RecipeComponentFormResult> _recipeComponents;
@@ -138,6 +142,20 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _minimumStockController = TextEditingController(
       text: _initialMinimumStockText,
     );
+    _initialTargetStockText = initial?.targetStock.establecer == true
+        ? initial!.targetStock.valor ?? ''
+        : initial?.targetStockAtomic == null
+        ? ''
+        : _codec.formatAtomic(
+            initial!.targetStockAtomic!,
+            widget.inventoryUnit,
+          );
+    _targetStockController = TextEditingController(
+      text: _initialTargetStockText,
+    );
+    _currentSupplierId = initial?.currentSupplier.establecer == true
+        ? initial!.currentSupplier.valor
+        : initial?.currentSupplierId;
     _trackingInventory = initial?.seguimientoExistencias ?? false;
     _recipeComponents = List.of(initial?.recipeComponents ?? const []);
     _recipeEnabled = _recipeComponents.isNotEmpty;
@@ -181,6 +199,7 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
     _costController.dispose();
     _initialStockController.dispose();
     _minimumStockController.dispose();
+    _targetStockController.dispose();
     super.dispose();
   }
 
@@ -443,6 +462,24 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                           _buildInitialStockField(),
                         const SizedBox(height: 12),
                         _buildMinimumStockField(),
+                        TextFormField(
+                          key: const Key('variant_target_stock_field'),
+                          controller: _targetStockController,
+                          readOnly: widget.preview,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Existencia objetivo',
+                            suffixText: widget.inventoryUnit.simbolo,
+                            helperText:
+                                'Vacío desactiva la reposición. Cero es válido.',
+                          ),
+                          validator: _validateInitialStock,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        if (_targetBelowMinimum)
+                          const Text('El objetivo es menor que el mínimo.'),
                       ],
                     ],
                   ),
@@ -517,6 +554,14 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                   ),
                 ),
                 _buildSuppliers(),
+                CurrentSupplierSelector(
+                  value: _currentSupplierId,
+                  relations: _suppliers,
+                  repository: widget.proveedorRepository,
+                  onChanged: widget.preview
+                      ? null
+                      : (value) => setState(() => _currentSupplierId = value),
+                ),
               ],
             ),
           ),
@@ -545,6 +590,25 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       ),
       validator: _validateInitialStock,
     );
+  }
+
+  bool get _targetBelowMinimum {
+    try {
+      if (_targetStockController.text.trim().isEmpty ||
+          _minimumStockController.text.trim().isEmpty) {
+        return false;
+      }
+      return _codec.parseNonNegativeAtomic(
+            _targetStockController.text,
+            widget.inventoryUnit,
+          ) <
+          _codec.parseNonNegativeAtomic(
+            _minimumStockController.text,
+            widget.inventoryUnit,
+          );
+    } on FormatException {
+      return false;
+    }
   }
 
   Widget _buildMinimumStockField() => TextFormField(
@@ -802,6 +866,23 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       inventoryUnitId: _trackingInventory ? widget.inventoryUnit.id : null,
       offerPriceMinor: widget.initialValue?.offerPriceMinor,
       offerPrice: _offerChange,
+      currentSupplierId: widget.initialValue?.currentSupplierId,
+      targetStockAtomic: widget.initialValue?.targetStockAtomic,
+      currentSupplier:
+          _currentSupplierId == widget.initialValue?.currentSupplierId &&
+              widget.initialValue?.currentSupplier.establecer != true
+          ? const CambioExplicito.conservar()
+          : CambioExplicito.establecer(_currentSupplierId),
+      targetStock: !_trackingInventory
+          ? const CambioExplicito.conservar()
+          : _targetStockController.text == _initialTargetStockText
+          ? widget.initialValue?.targetStock ??
+                const CambioExplicito.conservar()
+          : CambioExplicito.establecer(
+              _targetStockController.text.trim().isEmpty
+                  ? null
+                  : _targetStockController.text.trim(),
+            ),
       minimumStockAtomic: widget.initialValue?.minimumStockAtomic,
       minimumStock: _minimumStockChange,
       existenciaInicial:
@@ -920,6 +1001,17 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
       ),
     );
     if (result == null || !mounted) {
+      return;
+    }
+    if (_currentSupplierId != null &&
+        !result.proveedores.any((s) => s.proveedorId == _currentSupplierId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Quita o sustituye explícitamente el proveedor actual antes de retirar su relación.',
+          ),
+        ),
+      );
       return;
     }
     setState(() => _suppliers = result.proveedores);

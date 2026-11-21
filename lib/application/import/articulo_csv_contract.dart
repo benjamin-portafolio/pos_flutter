@@ -1,5 +1,15 @@
 /// Contratos explícitos. El formato de diez columnas solo representa altas.
 abstract final class ArticuloCsvContract {
+  static const versionReposicion = '2';
+  static const columnasReposicion = <String>[
+    ...columnasConVariantes,
+    'version_csv',
+    'current_supplier_id',
+    'accion_proveedor_actual',
+    'target_stock_atomic',
+    'unidad_objetivo_id',
+    'accion_objetivo',
+  ];
   static const separador = ',';
   static const bom = '\uFEFF';
   static const columnasAnteriores = <String>[

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../application/config/app_config.dart';
 import '../../../application/recovery/recovery_cancellation.dart';
 import '../../../application/recovery/recovery_destination_inspector.dart';
+import '../../../application/recovery/recovery_destination_policy.dart';
 import '../../../application/recovery/recovery_readiness_service.dart';
 
 /// Acceso de preparación: no presenta publicación/vinculación como disponibles
@@ -303,7 +304,12 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
                   _checkedDestination = null;
                 }),
                 decoration: const InputDecoration(
-                  labelText: 'URL HTTPS del destino',
+                  labelText: RecoveryDestinationPolicy.allowLocalHttp
+                      ? 'URL del destino (HTTPS o HTTP local)'
+                      : 'URL HTTPS del destino',
+                  helperText: RecoveryDestinationPolicy.allowLocalHttp
+                      ? 'HTTP local habilitado: conexión sin cifrar.'
+                      : null,
                 ),
               ),
               const SizedBox(height: 12),

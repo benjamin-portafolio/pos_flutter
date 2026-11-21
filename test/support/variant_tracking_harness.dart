@@ -1,3 +1,6 @@
+import 'package:pos_flutter/data/local/drift/drift_supplier_order_store.dart';
+import 'package:pos_flutter/application/sync/supplier_order_operation.dart';
+import 'package:pos_flutter/application/sync/handlers/supplier_order_event_handler.dart';
 import 'package:pos_flutter/application/sync/handlers/tarifa_venta_borrador_cambiada_event_handler.dart';
 import 'package:pos_flutter/application/sync/payloads/tarifa_venta_borrador_cambiada_payload.dart';
 import 'package:pos_flutter/application/sync/sale_adjustment_availability.dart';
@@ -112,6 +115,7 @@ class VariantTrackingHarness {
     );
     processor = EventProcessor(
       handlers: {
+        for(final type in SupplierOrderOperation.eventTypes) type: SupplierOrderEventHandler(orders).apply,
         TarifaVentaBorradorCambiadaPayload.eventType:
             TarifaVentaBorradorCambiadaEventHandler(db.saleDao).apply,
         CajaAbiertaPayload.eventType: cashHandler.apply,
@@ -205,6 +209,7 @@ class VariantTrackingHarness {
       inventoryStore: inventory,
     );
     cleaner = SyncConflictProjectionCleaner(
+      supplierOrderStore: orders,
       proveedorProjectionStore: suppliers,
       espacioProjectionStore: DriftEspacioProjectionStore(
         espacioDao: EspacioDao(db),
@@ -228,6 +233,7 @@ class VariantTrackingHarness {
       eventStore: DriftSyncedEventStore(db: db),
       eventProcessor: processor,
       serverEchoAcknowledger: ServerEchoAcknowledger(
+      supplierOrderStore: orders,
         saleAdjustmentStore: adjustmentStore,
         saleReconciliationStore: reconciliationStore,
         cashProjectionStore: cashStore,
@@ -283,6 +289,7 @@ class VariantTrackingHarness {
   );
   final LocalCommandContext context;
   final AppDatabase db;
+  late final orders = DriftSupplierOrderStore(db);
   late final suppliers = DriftProveedorProjectionStore(db.proveedorDao);
   late final AppConfigController config;
   late final DriftInventoryProjectionStore inventory;
@@ -377,6 +384,7 @@ class VariantTrackingHarness {
     commandContext: context,
     remoteEventApplier: remote,
     pendingEventRevalidator: PendingEventRevalidator(
+      supplierOrderStore: orders,
       proveedorProjectionStore: suppliers,
       syncPersistence: history,
       syncedEventHistory: history,

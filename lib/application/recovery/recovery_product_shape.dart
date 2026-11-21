@@ -29,6 +29,8 @@ class RecoveryProductShape {
           'offer_price_minor',
           'standard_cost_minor',
           'minimum_stock_atomic',
+          'current_supplier_id',
+          'target_stock_atomic',
           'inventory_item_id',
           'inventory_configuration',
           'suppliers',

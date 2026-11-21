@@ -1,3 +1,4 @@
+import '../payloads/supplier_replenishment_patch.dart';
 import '../../../domain/articulos/sale_configuration.dart';
 import 'sync_projection.dart';
 import '../payloads/producto_creado_payload.dart';
@@ -78,6 +79,7 @@ class ProductoVarianteProjection extends SyncProjection {
     required this.precioVentaMenor,
     this.costoEstandarMenor,
     this.minimumStockAtomic,
+    this.replenishment = const SupplierReplenishmentPatch.preserve(),
     this.offerPriceMinor,
     this.knowsOfferPrice = false,
     this.knowsMinimumStock = false,
@@ -99,6 +101,7 @@ class ProductoVarianteProjection extends SyncProjection {
   final int? costoEstandarMenor;
 
   /// Umbral atómico y conocimiento del contrato, independiente de SQL null.
+  final SupplierReplenishmentPatch replenishment;
   final int? minimumStockAtomic;
   final int? offerPriceMinor;
   final bool knowsOfferPrice;

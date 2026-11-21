@@ -1,3 +1,5 @@
+import '../../../application/sync/projections/replenishment_projection_store.dart';
+import '../../../application/sync/payloads/supplier_replenishment_patch.dart';
 import 'dart:convert';
 import '../../../application/sync/payloads/producto_actualizado_payload.dart';
 import '../../../application/sync/payloads/producto_proveedor_precio.dart';
@@ -13,7 +15,10 @@ import '../../../application/sync/payloads/producto_creado_payload.dart';
 import '../../../application/sync/models/sync_event.dart';
 
 class DriftProductoProjectionStore
-    implements ProductoProjectionStore, ProductoProveedoresProjectionStore {
+    implements
+        ProductoProjectionStore,
+        ProductoProveedoresProjectionStore,
+        ReplenishmentProjectionStore {
   DriftProductoProjectionStore({required drift.ProductoDao productoDao})
     : _productoDao = productoDao;
 
@@ -57,6 +62,7 @@ class DriftProductoProjectionStore
           costoEstandarMenor: variant.costoEstandarMenor,
           codigoBarras: variant.codigoBarras,
           inventoryItemId: variant.inventoryItemId,
+          replenishment: variant.replenishment,
           minimumStockAtomic: variant.minimumStockAtomic,
           offerPriceMinor: variant.offerPriceMinor,
           knowsOfferPrice: variant.knowsOfferPrice,
@@ -290,6 +296,7 @@ class DriftProductoProjectionStore
             precioVentaMenor: v.precioVentaMenor,
             costoEstandarMenor: v.costoEstandarMenor,
             inventoryItemId: v.inventoryItemId,
+            replenishment: v.replenishment,
             minimumStockAtomic: v.minimumStockAtomic,
             offerPriceMinor: v.offerPriceMinor,
             knowsOfferPrice: v.knowsOfferPrice,
@@ -325,9 +332,16 @@ class DriftProductoProjectionStore
           ),
         );
       }
+      if (v.replenishment.hasSupplier) {
+        await applyReplenishment(
+          v.id,
+          SupplierReplenishmentPatch.fromJson({'current_supplier_id': null}),
+        );
+      }
       if (v.proveedores case final suppliers?) {
         await replaceVariantSuppliers(v.id, suppliers);
       }
+      await applyReplenishment(v.id, v.replenishment);
       for (final c in v.componentesReceta) {
         await insertRecipeComponent(
           ProductoRecetaComponenteProjection(
@@ -454,6 +468,25 @@ class DriftProductoProjectionStore
   ]);
 
   @override
+  Future<void> applyReplenishment(
+    String variantId,
+    SupplierReplenishmentPatch patch,
+  ) async {
+    if (!patch.hasSupplier && !patch.hasTarget) return;
+    await _productoDao.actualizarVariante(
+      variantId,
+      drift.ProductVariantsCompanion(
+        currentSupplierId: patch.hasSupplier
+            ? Value(patch.supplierId)
+            : const Value.absent(),
+        targetStockAtomic: patch.hasTarget
+            ? Value(patch.targetAtomic)
+            : const Value.absent(),
+      ),
+    );
+  }
+
+  @override
   Future<void> insertRecipeComponent(
     ProductoRecetaComponenteProjection projection,
   ) async {
@@ -546,6 +579,10 @@ class DriftProductoProjectionStore
       precioVentaMenor: row.salePriceMinor,
       costoEstandarMenor: row.standardCostMinor,
       inventoryItemId: row.inventoryItemId,
+      replenishment: SupplierReplenishmentPatch.values(
+        supplierId: row.currentSupplierId,
+        targetAtomic: row.targetStockAtomic,
+      ),
       minimumStockAtomic: row.minimumStockAtomic,
       offerPriceMinor: row.offerPriceMinor,
       knowsOfferPrice: offerKnown,

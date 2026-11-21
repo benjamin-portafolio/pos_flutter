@@ -1,4 +1,6 @@
 import 'payloads/recurso_inventario_eliminado_payload.dart';
+import 'projections/supplier_order_projection_store.dart';
+import 'supplier_order_operation.dart';
 import 'payloads/operacion_venta_conciliada_payload.dart';
 import 'projections/sale_reconciliation_store.dart';
 import 'projections/sale_adjustment_store.dart';
@@ -45,6 +47,7 @@ class ServerEchoAcknowledger {
     this.accountBalanceBaselineProjectionStore,
     this.confirmedSaleStore,
     this.customerCreditStore,
+    this.supplierOrderStore,
     this.clienteProjectionStore,
     this.proveedorProjectionStore,
     required CategoriaProjectionStore categoriaProjectionStore,
@@ -64,6 +67,7 @@ class ServerEchoAcknowledger {
   final CashProjectionStore? cashProjectionStore;
   final AccountBalanceBaselineProjectionStore?
   accountBalanceBaselineProjectionStore;
+  final SupplierOrderProjectionStore? supplierOrderStore;
   final ClienteProjectionStore? clienteProjectionStore;
   final ProveedorProjectionStore? proveedorProjectionStore;
   final ConfirmedSaleStore? confirmedSaleStore;
@@ -77,6 +81,11 @@ class ServerEchoAcknowledger {
   Future<void> acknowledge(SyncEvent event) async {
     final serverSequence = event.serverSequence;
     if (serverSequence == null) return;
+    if (SupplierOrderOperation.eventTypes.contains(event.eventType)) {
+      await supplierOrderStore?.acknowledge(event.aggregateId, serverSequence);
+      await supplierOrderStore?.acknowledgeEffects(event);
+      return;
+    }
     await cashProjectionStore?.acknowledge(event.eventId, serverSequence);
 
     switch (event.eventType) {

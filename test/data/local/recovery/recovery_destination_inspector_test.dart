@@ -46,7 +46,7 @@ void main() {
     expect(calls, 0);
   });
   for (final input in [
-    'http://192.168.1.10:3000',
+    'http://8.8.8.8:3000',
     'https://user:secret@destination.test',
     'https://destination.test/private',
     'https://destination.test?token=secret',

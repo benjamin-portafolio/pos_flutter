@@ -1,3 +1,5 @@
+import '../gestion_inventario/pedidos/supplier_orders_screen.dart';
+import '../../../domain/repositories/supplier_order_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../../application/commands/articulos/producto_command_service.dart';
@@ -81,7 +83,19 @@ class _RemainingStockScreenState extends State<RemainingStockScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Existencias restantes')),
+    appBar: AppBar(
+      title: const Text('Existencias restantes'),
+      actions: [
+        if (getIt.isRegistered<SupplierOrderRepository>())
+          IconButton(
+            tooltip: 'Crear pedido',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SupplierOrdersScreen()),
+            ),
+            icon: const Icon(Icons.shopping_cart_outlined),
+          ),
+      ],
+    ),
     body: SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

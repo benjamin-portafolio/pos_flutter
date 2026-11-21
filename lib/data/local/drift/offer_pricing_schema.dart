@@ -1,3 +1,6 @@
+import 'supplier_order_schema.dart';
+import 'recognized_schema_v10.dart';
+import 'recognized_schema_v11.dart';
 import 'recovery_revision_schema.dart';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -140,6 +143,81 @@ void _addOfferSchema(Database db) {
   }
 }
 
+/// Identificación completa de las dos rutas migradas y de creación Drift v11.
+Map<String, String>? _orderMigrated, _orderFresh;
+Map<String, String> _expectedOrders({required bool fresh}) {
+  final cached = fresh ? _orderFresh : _orderMigrated;
+  if (cached != null) return cached;
+  final db = sqlite3.openInMemory();
+  try {
+    for (final ddl in (fresh ? recognizedFreshV10Sql : recognizedSchemaV8Sql)) {
+      db.execute(ddl);
+    }
+    if (!fresh) {
+      _addOfferSchema(db);
+      db.execute(recoveryStateDdl);
+    } else {
+      for (final ddl in offerPricingTriggers) {
+        db.execute(ddl);
+      }
+    }
+    for (final ddl in recoveryRevisionTriggers) {
+      db.execute(ddl);
+    }
+    _addSupplierOrderSchema(db);
+    final result = _fingerprint(db);
+    if (fresh) {
+      _orderFresh = result;
+    } else {
+      _orderMigrated = result;
+    }
+    return result;
+  } finally {
+    db.close();
+  }
+}
+
+Map<String, String>? _orderCreated;
+Map<String, String> _expectedCreatedOrders() {
+  if (_orderCreated != null) return _orderCreated!;
+  final db = sqlite3.openInMemory();
+  try {
+    for (final ddl in [
+      ...recognizedFreshV11Sql,
+      ...offerPricingTriggers,
+      ...recoveryRevisionTriggers,
+      ...supplierOrderTriggers,
+    ]) {
+      db.execute(ddl);
+    }
+    return _orderCreated = _fingerprint(db);
+  } finally {
+    db.close();
+  }
+}
+
+bool hasRecognizedSupplierOrderSchema(Database db) {
+  if (db.select('PRAGMA user_version').single['user_version'] != 11) {
+    return false;
+  }
+  final actual = _fingerprint(db);
+  return _same(actual, _expectedOrders(fresh: false)) ||
+      _same(actual, _expectedOrders(fresh: true)) ||
+      _same(actual, _expectedCreatedOrders());
+}
+
+void _addSupplierOrderSchema(Database db) {
+  db.execute(
+    'ALTER TABLE product_variants ADD COLUMN current_supplier_id TEXT NULL',
+  );
+  db.execute(
+    "ALTER TABLE product_variants ADD COLUMN target_stock_atomic INTEGER NULL CHECK (target_stock_atomic IS NULL OR (typeof(target_stock_atomic) = 'integer' AND target_stock_atomic BETWEEN 0 AND 9007199254740991))",
+  );
+  for (final ddl in [...supplierOrderTables, ...supplierOrderTriggers]) {
+    db.execute(ddl);
+  }
+}
+
 /// Abre primero en solo lectura: desconocidos conservan incluso WAL/SHM.
 Future<void> prepareAppDatabase(
   File file, {
@@ -159,7 +237,9 @@ Future<void> prepareAppDatabase(
     }
     final inspection = sqlite3.open(probe.path, mode: OpenMode.readOnly);
     try {
-      current = hasRecognizedOfferSchema(inspection);
+      current =
+          hasRecognizedOfferSchema(inspection) ||
+          hasRecognizedSupplierOrderSchema(inspection);
       legacy =
           inspection.select('PRAGMA user_version').single['user_version'] ==
               8 &&
@@ -174,7 +254,7 @@ Future<void> prepareAppDatabase(
     final probe = sqlite3.open(file.path, mode: OpenMode.readOnly);
     final version = probe.select('PRAGMA user_version').single['user_version'];
     probe.close();
-    if (version == 10) return;
+    if (version == 11) return;
   }
   if (!legacy && !current) {
     throw StateError(
@@ -185,26 +265,31 @@ Future<void> prepareAppDatabase(
   try {
     db.execute('BEGIN IMMEDIATE');
     try {
-      if (!(hasRecognizedOfferSchema(db) ||
+      if (!(hasRecognizedSupplierOrderSchema(db) ||
+          hasRecognizedOfferSchema(db) ||
           (db.select('PRAGMA user_version').single['user_version'] == 8 &&
               _same(_fingerprint(db), recognizedSchemaV8)))) {
         throw StateError('El esquema cambió durante la apertura.');
       }
       _validate(db);
-      if (db.select('PRAGMA user_version').single['user_version'] == 10) {
+      final version = db.select('PRAGMA user_version').single['user_version'];
+      if (version == 11) {
         db.execute('COMMIT');
         return;
       }
-      if (legacy) _addOfferSchema(db);
-      afterAlterForTesting?.call(db);
-      db.execute(recoveryStateDdl);
-      db.execute('INSERT INTO recovery_local_state(singleton) VALUES (1)');
-      for (final ddl in recoveryRevisionTriggers) {
-        db.execute(ddl);
+      if (version == 8) _addOfferSchema(db);
+      if (version != 10) {
+        db.execute(recoveryStateDdl);
+        db.execute('INSERT INTO recovery_local_state(singleton) VALUES (1)');
+        for (final ddl in recoveryRevisionTriggers) {
+          db.execute(ddl);
+        }
       }
-      db.execute('PRAGMA user_version = 10');
+      _addSupplierOrderSchema(db);
+      afterAlterForTesting?.call(db);
+      db.execute('PRAGMA user_version = 11');
       _validate(db);
-      if (!hasRecognizedOfferSchema(db)) {
+      if (!hasRecognizedSupplierOrderSchema(db)) {
         throw StateError('Esquema migrado inesperado.');
       }
       db.execute('COMMIT');

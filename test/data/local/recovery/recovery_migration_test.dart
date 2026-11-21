@@ -8,7 +8,7 @@ import '../drift/offer_pricing_migration_test.dart' as legacy;
 void main() {
   for (final mode in ['not_required', 'pending']) {
     test(
-      'v9 reconocida -> v10 conserva todas las filas ($mode), revisión transaccional',
+      'v9 reconocida -> v11 conserva todas las filas ($mode), revisión transaccional',
       () async {
         final dir = await Directory.systemTemp.createTemp('recovery-v9-');
         addTearDown(() => dir.delete(recursive: true));
@@ -33,7 +33,18 @@ void main() {
         await prepareAppDatabase(f);
         final after = legacy.snapshot(f);
         for (final t in before.keys) {
-          expect(after[t], before[t], reason: t);
+          expect(
+            after[t]!
+                .map(
+                  (r) => {
+                    for (final k in before[t]!.firstOrNull?.keys ?? <String>[])
+                      k: r[k],
+                  },
+                )
+                .toList(),
+            before[t],
+            reason: t,
+          );
         }
         final current = sqlite3.open(f.path);
         expect(hasCurrentAppDatabaseSchema(current), true);

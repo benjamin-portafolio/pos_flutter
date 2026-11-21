@@ -122,6 +122,8 @@ class DriftCatalogoEdicionMasiva implements CatalogoEdicionMasiva {
           nombreProducto: r.read('product_name'),
           nombreVariante: r.readNullable('variant_name'),
           ventaMinor: r.read('sale_price_minor'),
+          currentSupplierId: r.readNullable('current_supplier_id'),
+          targetStockAtomic: r.readNullable('target_stock_atomic'),
           ofertaMinor: r.readNullable('offer_price_minor'),
           costoMinor: r.readNullable('standard_cost_minor'),
           configuracionVenta: r.read<String>('sale_mode') == 'unit'
@@ -185,7 +187,7 @@ class DriftCatalogoEdicionMasiva implements CatalogoEdicionMasiva {
 SELECT p.id product_id, p.name product_name, p.version product_version,
  p.last_event_id product_event, p.last_server_sequence product_sequence,
  p.sale_mode, p.sale_unit_id, p.price_reference_quantity_atomic,
- v.id variant_id, v.name variant_name, v.sale_price_minor, v.offer_price_minor, v.standard_cost_minor,
+ v.id variant_id, v.name variant_name, v.sale_price_minor, v.offer_price_minor, v.standard_cost_minor, v.current_supplier_id, v.target_stock_atomic,
  EXISTS(SELECT 1 FROM recipe_components c WHERE c.variant_id = v.id) has_recipe,
  i.id resource_id, i.active resource_active, i.version resource_version,
  i.last_event_id resource_event, i.last_server_sequence resource_sequence,

@@ -235,7 +235,7 @@ void main() {
               .split('\n')
               .map((r) => r.split(','))
               .toList();
-          expect(rows.last.sublist(12), ['15.00', '']);
+          expect(rows.last.sublist(12, 14), ['15.00', '']);
           final old = [
             rows.first.take(12).join(','),
             [
@@ -484,7 +484,7 @@ void main() {
             ('90071992547409.92', 'establecer', 'error'),
             ('', 'desconocida', 'error'),
           ]) {
-            final row = [...source.last];
+            final row = source.last.take(14).toList();
             row[12] = entry.$1;
             row[13] = entry.$2;
             final report = await preparation.preparar(

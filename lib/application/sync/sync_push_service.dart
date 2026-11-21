@@ -1,3 +1,4 @@
+import 'supplier_order_operation.dart';
 import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'sync_capability_store.dart';
 import 'sale_adjustment_sync_contract.dart';
@@ -54,6 +55,14 @@ class SyncPushService {
   Future<SyncPushReport> pushPendingEvents() async {
     final events = await _syncPersistence.pendingEvents();
     final pendingEventIds = events.map((event) => event.eventId).toSet();
+    final orderRefs =
+        events.any(
+          (e) => SupplierOrderOperation.eventTypes.contains(e.eventType),
+        )
+        ? await _syncPersistence.refsForEvents(
+            events.map((e) => e.eventId).toList(),
+          )
+        : <StoredEventRef>[];
     final causalConflicts = <SyncEvent>[];
     final eligibleEvents = <SyncEvent>[];
     final waitingEvents = <SyncEvent>[];
@@ -89,7 +98,27 @@ class SyncPushService {
       }
       final target =
           (eligibleEvents.length >= maxEventsPerPush ||
-              _dependsOnEventIds(event, pendingEventIds))
+              (eligibleEvents.isNotEmpty &&
+                  (SupplierOrderOperation.eventTypes.contains(
+                        event.eventType,
+                      ) ||
+                      eligibleEvents.any(
+                        (e) => SupplierOrderOperation.eventTypes.contains(
+                          e.eventType,
+                        ),
+                      ))) ||
+              _dependsOnEventIds(event, pendingEventIds) ||
+              (SupplierOrderOperation.eventTypes.contains(event.eventType) &&
+                  orderRefs.any(
+                    (ref) =>
+                        ref.eventId == event.eventId &&
+                        ref.relationship == 'uses' &&
+                        events.any(
+                          (dep) =>
+                              dep.aggregateType == ref.refType &&
+                              dep.aggregateId == ref.refId,
+                        ),
+                  )))
           ? waitingEvents
           : eligibleEvents;
       target.add(event);
@@ -149,6 +178,38 @@ class SyncPushService {
         );
       }
     }
+    final needsReplenishment = events.any((e) {
+      final states = switch (e.eventType) {
+        ProductoCreadoPayload.eventType => [
+          ProductoCreadoPayload.fromJson(e.payload),
+        ],
+        ProductoActualizadoPayload.eventType => [
+          ProductoActualizadoPayload.fromJson(e.payload).before,
+          ProductoActualizadoPayload.fromJson(e.payload).after,
+        ],
+        _ => <ProductoCreadoPayload>[],
+      };
+      return states
+          .expand((p) => p.variantes)
+          .any(
+            (v) =>
+                v.replenishment.supplierId != null ||
+                v.replenishment.targetAtomic != null,
+          );
+    });
+    if (needsReplenishment) {
+      final health = await SyncHealthService(
+        endpointConfig: _endpointConfig,
+        capabilityStore: _capabilityStore,
+        client: _client,
+      ).check();
+      if (!health.isAvailable ||
+          !health.capabilities.contains('supplier_replenishment_v1')) {
+        throw const SyncPushException(
+          'Actualiza el servidor para sincronizar reposición. Los cambios siguen pendientes.',
+        );
+      }
+    }
     final needsSuppliers = events.any(
       (e) => switch (e.eventType) {
         ProveedorCreadoPayload.eventType ||
@@ -190,6 +251,28 @@ class SyncPushService {
           !health.capabilities.contains('sale_reconciliations_v1')) {
         throw const SyncPushException(
           'Servidor incompatible con anulaciones y devoluciones v1. Las operaciones siguen pendientes.',
+        );
+      }
+    }
+    if (events.any(
+      (e) => SupplierOrderOperation.eventTypes.contains(e.eventType),
+    )) {
+      final health = await SyncHealthService(
+        endpointConfig: _endpointConfig,
+        capabilityStore: _capabilityStore,
+        client: _client,
+      ).check();
+      if (!health.isAvailable ||
+          !health.capabilities.contains('supplier_orders_v1') ||
+          (events.any(
+                (e) => {
+                  'supplier_receipt_confirmed',
+                  'supplier_order_closed',
+                }.contains(e.eventType),
+              ) &&
+              !health.capabilities.contains('supplier_receipts_v1'))) {
+        throw const SyncPushException(
+          'Actualiza el servidor para sincronizar pedidos. Se conservan pendientes.',
         );
       }
     }
@@ -244,6 +327,7 @@ class SyncPushService {
           rejected++;
           rejectedIds.add(event.eventId);
           if (event.eventType == RecursoInventarioEliminadoPayload.eventType ||
+              event.aggregateType == 'supplier_order' ||
               event.aggregateType == ProveedorCreadoPayload.aggregateType ||
               event.aggregateType == ProductoCreadoPayload.aggregateType ||
               event.eventType ==
@@ -329,6 +413,11 @@ class SyncPushService {
   }
 
   bool _dependsOnEventIds(SyncEvent event, Set<String> eventIds) {
+    if (SupplierOrderOperation.eventTypes.contains(event.eventType)) {
+      return eventIds.contains(
+        SupplierOrderOperation.decode(event).baseEventId,
+      );
+    }
     if (SaleAdjustmentSyncContract.supports(event.eventType)) {
       return SaleAdjustmentSyncContract.dependencies(
         event,

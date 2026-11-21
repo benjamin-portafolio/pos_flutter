@@ -1,3 +1,4 @@
+import '../../sync/payloads/supplier_replenishment_patch.dart';
 import '../../edicion_masiva/cambio_explicito.dart';
 
 /// Valores comerciales completos de una variante incluida en el CSV.
@@ -7,6 +8,8 @@ class ActualizarArticuloVarianteCsvCommand {
   const ActualizarArticuloVarianteCsvCommand({
     required this.variantId,
     required this.nombre,
+    this.replenishment = const SupplierReplenishmentPatch.preserve(),
+    this.targetUnitId,
     this.offerPrice = const CambioExplicito.conservar(),
     required this.precioVentaMinor,
     required this.precioCosteMinor,
@@ -18,6 +21,8 @@ class ActualizarArticuloVarianteCsvCommand {
   final String variantId;
   final String? nombre;
   final int precioVentaMinor;
+  final SupplierReplenishmentPatch replenishment;
+  final String? targetUnitId;
   final CambioExplicito<int?> offerPrice;
   final int? precioCosteMinor;
   final String? codigoBarras;

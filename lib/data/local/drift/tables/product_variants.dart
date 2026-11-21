@@ -57,6 +57,14 @@ class ProductVariants extends Table with CommonFields {
   /// inventario y no altera el saldo. Rango común seguro de Dart/JavaScript.
   IntColumn get minimumStockAtomic => integer().nullable()();
 
+  /// Proveedor elegido para reposición. Los triggers acreditan la pareja existente.
+  TextColumn get currentSupplierId => text().nullable()();
+
+  /// Objetivo independiente del mínimo, en átomos; null excluye sugerencias.
+  IntColumn get targetStockAtomic => integer().nullable().customConstraint(
+    "NULL CHECK (target_stock_atomic IS NULL OR (typeof(target_stock_atomic) = 'integer' AND target_stock_atomic BETWEEN 0 AND 9007199254740991))",
+  )();
+
   /// Posición consecutiva entre variantes activas; las inactivas conservan su posición histórica.
   IntColumn get sortOrder => integer()();
 

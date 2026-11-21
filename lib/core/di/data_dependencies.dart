@@ -1,3 +1,8 @@
+import '../../application/proveedores/supplier_order_reader.dart';
+import '../../application/sync/projections/supplier_order_projection_store.dart';
+import '../../data/local/drift/drift_supplier_order_store.dart';
+import '../../domain/repositories/supplier_order_repository.dart';
+import '../../data/repositories/drift_supplier_order_repository.dart';
 import '../../application/recovery/empty_device_enrollment.dart';
 import '../../application/sync/sync_network_gate.dart';
 import '../../data/local/recovery/drift_empty_device_enrollment.dart';
@@ -225,6 +230,15 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<ClienteDao>(
     () => getIt<AppDatabase>().clienteDao,
+  );
+  getIt.registerLazySingleton<SupplierOrderProjectionStore>(
+    () => DriftSupplierOrderStore(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<SupplierOrderReader>(
+    () => getIt<SupplierOrderRepository>() as SupplierOrderReader,
+  );
+  getIt.registerLazySingleton<SupplierOrderRepository>(
+    () => DriftSupplierOrderRepository(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<ClienteProjectionStore>(
     () => DriftClienteProjectionStore(getIt<ClienteDao>()),

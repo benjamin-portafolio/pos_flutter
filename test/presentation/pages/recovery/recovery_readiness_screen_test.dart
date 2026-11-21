@@ -8,6 +8,7 @@ import 'package:pos_flutter/application/config/app_config.dart';
 import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/recovery/recovery_cancellation.dart';
 import 'package:pos_flutter/application/recovery/recovery_destination_inspector.dart';
+import 'package:pos_flutter/application/recovery/recovery_destination_policy.dart';
 import 'package:pos_flutter/application/recovery/recovery_readiness_service.dart';
 import 'package:pos_flutter/application/recovery/recovery_snapshot_source.dart';
 import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
@@ -273,8 +274,15 @@ void main() {
         findsOneWidget,
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'URL HTTPS del destino'),
-        'https://destination.example',
+        find.widgetWithText(
+          TextField,
+          RecoveryDestinationPolicy.allowLocalHttp
+              ? 'URL del destino (HTTPS o HTTP local)'
+              : 'URL HTTPS del destino',
+        ),
+        RecoveryDestinationPolicy.allowLocalHttp
+            ? 'http://192.168.0.202:3000'
+            : 'https://destination.example',
       );
       expect(find.byType(TextField), findsOneWidget);
       await tester.tap(find.text('Comprobar destino'));

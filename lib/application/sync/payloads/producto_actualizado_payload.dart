@@ -30,6 +30,16 @@ class ProductoActualizadoPayload {
         'La edición debe conocer minimum_stock_atomic en before y after, o conservar ambos estados legados.',
       );
     }
+    for (final v in before.variantes) {
+      final next = after.variantes.where((a) => a.id == v.id).firstOrNull;
+      if (next != null &&
+          ((next.replenishment.hasSupplier && !v.replenishment.hasSupplier) ||
+              (next.replenishment.hasTarget && !v.replenishment.hasTarget))) {
+        throw const FormatException(
+          'Establecer reposición requiere el valor anterior explícito.',
+        );
+      }
+    }
     if (deleteProduct && !sameState(before, after)) {
       throw const FormatException(
         'El borrado debe conservar el estado anterior.',
@@ -77,8 +87,9 @@ class ProductoActualizadoPayload {
   /// Compara el estado de negocio sin depender del orden de componentes JSON.
   static bool sameState(
     ProductoCreadoPayload left,
-    ProductoCreadoPayload right,
-  ) {
+    ProductoCreadoPayload right, {
+    bool editingBase = false,
+  }) {
     if (left.nombre != right.nombre ||
         left.categoriaId != right.categoriaId ||
         left.saleConfiguration != right.saleConfiguration ||
@@ -96,6 +107,15 @@ class ProductoActualizadoPayload {
           v.costoEstandarMenor != other.costoEstandarMenor ||
           v.inventoryItemId != other.inventoryItemId ||
           v.minimumStockAtomic != other.minimumStockAtomic ||
+          ((!editingBase ||
+                  (v.replenishment.hasSupplier &&
+                      other.replenishment.hasSupplier)) &&
+              v.replenishment.supplierId != other.replenishment.supplierId) ||
+          ((!editingBase ||
+                  (v.replenishment.hasTarget &&
+                      other.replenishment.hasTarget)) &&
+              v.replenishment.targetAtomic !=
+                  other.replenishment.targetAtomic) ||
           v.offerPriceMinor != other.offerPriceMinor ||
           v.orden != other.orden ||
           !ProductoProveedorPrecio.sameList(v.proveedores, other.proveedores) ||
@@ -147,10 +167,14 @@ class ProductoActualizadoPayload {
     final normalized = !current.knowsMinimumStock && before.knowsMinimumStock
         ? current.withKnownMinimumStock()
         : current;
-    return sameState(normalized, before) ||
+    return sameState(normalized, before, editingBase: true) ||
         (normalized.variantes.first.proveedores == null &&
             before.variantes.first.proveedores != null &&
-            sameState(normalized.withKnownSuppliers(), before));
+            sameState(
+              normalized.withKnownSuppliers(),
+              before,
+              editingBase: true,
+            ));
   }
 
   Set<String> get dependencyEventIds => {

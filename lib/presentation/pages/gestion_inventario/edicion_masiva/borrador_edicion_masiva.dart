@@ -1,3 +1,5 @@
+import '../../../../domain/inventario/unidad_inventario.dart';
+import '../../../../application/sync/payloads/supplier_replenishment_patch.dart';
 import '../../../../application/edicion_masiva/base_revision_masiva.dart';
 import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import '../../../../application/edicion_masiva/cambio_variante_masiva.dart';
@@ -16,7 +18,13 @@ import 'revision_edicion_masiva.dart';
 
 enum VistaEdicionMasiva { porTarea, recepcionCompacta }
 
-enum TareaEdicionMasiva { oferta, venta, costoProveedor, agregarExistencias }
+enum TareaEdicionMasiva {
+  oferta,
+  venta,
+  costoProveedor,
+  agregarExistencias,
+  reposicion,
+}
 
 /// Único borrador de pantalla para ambas vistas; ninguna pulsación escribe.
 class BorradorEdicionMasiva {
@@ -60,6 +68,14 @@ class BorradorEdicionMasiva {
     limite: limite,
     desplazamiento: desplazamiento,
   );
+
+  Future<void> editarReposicion(
+    ClaveVariante clave,
+    SupplierReplenishmentPatch patch,
+  ) async {
+    await _asegurarFila(clave);
+    _filas[clave] = _filas[clave]!.copiar(replenishment: patch);
+  }
 
   Future<void> editarVenta(ClaveVariante clave, String texto) async {
     await _asegurarFila(clave);
@@ -162,6 +178,15 @@ class BorradorEdicionMasiva {
           'Una variante pendiente dejó de estar disponible. Cierra esa captura desde recuperación.',
         );
       }
+      if (cambio.replenishment.hasTarget &&
+          cambio.replenishment.targetAtomic != null &&
+          (actual.entrada == null ||
+              actual.entrada!.recurso.id != cambio.targetInventoryItemId ||
+              actual.entrada!.unidad.id != cambio.targetUnitId)) {
+        throw StateError(
+          'El recurso o unidad del objetivo cambió. Retira y recaptura la configuración.',
+        );
+      }
       final pareja = cambio.precioProveedor;
       final entrada = cambio.entrada;
       final original = FilaCatalogoMasivo(
@@ -170,6 +195,8 @@ class BorradorEdicionMasiva {
         nombreProducto: actual.nombreProducto,
         nombreVariante: actual.nombreVariante,
         ventaMinor: actual.ventaMinor,
+        currentSupplierId: actual.currentSupplierId,
+        targetStockAtomic: actual.targetStockAtomic,
         ofertaMinor: actual.ofertaMinor,
         costoMinor: actual.costoMinor,
         configuracionVenta: actual.configuracionVenta,
@@ -181,6 +208,7 @@ class BorradorEdicionMasiva {
       nuevas[cambio.clave] = FilaEdicionForm(
         original: original,
         baseProducto: cambio.baseProducto,
+        replenishment: cambio.replenishment,
         oferta: cambio.oferta.establecer
             ? CambioExplicito.establecer(
                 cambio.oferta.valor == null
@@ -231,6 +259,19 @@ class BorradorEdicionMasiva {
         );
       }
       final anterior = fila.original;
+      if (fila.replenishment.hasTarget &&
+          fila.replenishment.targetAtomic != null &&
+          (anterior.entrada == null ||
+              actual.entrada == null ||
+              anterior.entrada!.recurso.id != actual.entrada!.recurso.id ||
+              !_sameTargetUnit(
+                anterior.entrada!.unidad,
+                actual.entrada!.unidad,
+              ))) {
+        throw StateError(
+          'El recurso o unidad del objetivo cambió. Retira y recaptura la configuración.',
+        );
+      }
       // Un vínculo o unidad distintos necesitan retirar/recapturar la entrada;
       // adoptar su cantidad como si fuera la misma unidad sería una conversión.
       if (fila.cantidad != null &&
@@ -238,7 +279,10 @@ class BorradorEdicionMasiva {
           anterior.entrada != null &&
           (actual.entrada == null ||
               anterior.entrada!.recurso.id != actual.entrada!.recurso.id ||
-              anterior.entrada!.unidad != actual.entrada!.unidad)) {
+              !_sameTargetUnit(
+                anterior.entrada!.unidad,
+                actual.entrada!.unidad,
+              ))) {
         final vieja = anterior.entrada!.unidad;
         final nueva = actual.entrada?.unidad;
         if (actual.entrada == null ||
@@ -255,6 +299,7 @@ class BorradorEdicionMasiva {
       nuevas[actual.clave] = FilaEdicionForm(
         original: actual,
         baseProducto: actual.baseProducto,
+        replenishment: fila.replenishment,
         oferta: fila.oferta,
         venta: fila.venta,
         costo: fila.costo,
@@ -441,6 +486,31 @@ class BorradorEdicionMasiva {
         }
       }
     }
+    final patch = f.replenishment;
+    if (patch.hasSupplier &&
+        patch.supplierId != null &&
+        !f.original.proveedores.any((p) => p.proveedorId == patch.supplierId)) {
+      errores[CampoEdicionMasiva.proveedor] =
+          'Selecciona un proveedor asociado con precio y fecha válidos.';
+    }
+    if (patch.hasTarget &&
+        patch.targetAtomic != null &&
+        f.original.entrada == null) {
+      errores[CampoEdicionMasiva.cantidad] =
+          'El objetivo requiere seguimiento directo con unidad válida.';
+    }
+    if (patch.hasTarget &&
+        patch.targetAtomic != null &&
+        f.original.entrada != null &&
+        (actual?.entrada == null ||
+            f.original.entrada!.recurso.id != actual!.entrada!.recurso.id ||
+            !_sameTargetUnit(
+              f.original.entrada!.unidad,
+              actual.entrada!.unidad,
+            ))) {
+      errores[CampoEdicionMasiva.base] =
+          'El recurso o unidad del objetivo cambió. Retira y recaptura la configuración.';
+    }
     return FilaRevisionMasiva(
       captura: f,
       actual: actual,
@@ -450,6 +520,9 @@ class BorradorEdicionMasiva {
           : CambioVarianteMasiva(
               clave: f.original.clave,
               baseProducto: f.baseProducto,
+              replenishment: patch,
+              targetInventoryItemId: f.original.entrada?.recurso.id,
+              targetUnitId: f.original.entrada?.unidad.id,
               oferta: oferta,
               venta: venta,
               costo: costo,
@@ -458,6 +531,13 @@ class BorradorEdicionMasiva {
             ),
     );
   }
+
+  bool _sameTargetUnit(UnidadInventario a, UnidadInventario b) =>
+      a.id == b.id &&
+      a.dimension == b.dimension &&
+      a.factorAtomico == b.factorAtomico &&
+      a.maximosDecimales == b.maximosDecimales &&
+      a.activa == b.activa;
 
   String? _proveedor(String? id) {
     final value = id?.trim().toLowerCase();

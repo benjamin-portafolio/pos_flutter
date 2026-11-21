@@ -1,3 +1,4 @@
+import '../../sync/payloads/supplier_replenishment_patch.dart';
 import '../../edicion_masiva/cambio_explicito.dart';
 import '../../../domain/articulos/proveedor_variante.dart';
 import '../../sync/payloads/producto_proveedor_precio.dart';
@@ -50,6 +51,7 @@ import 'recurso_recuperacion_resultado.dart';
 class ProductoCommandService {
   ProductoCommandService({
     Future<void> Function()? requireOfferPricing,
+    Future<void> Function()? requireReplenishment,
     required LocalEventStore eventStore,
     required LocalCommandContext commandContext,
     required CategoriaProjectionStore categoriaProjectionStore,
@@ -60,7 +62,8 @@ class ProductoCommandService {
     ProveedorProjectionStore? proveedorProjectionStore,
     VariantInventoryMemoryStore? variantInventoryMemoryStore,
     VariantInventoryTrackingStore? variantInventoryTrackingStore,
-  }) : _requireOfferPricingCallback = requireOfferPricing,
+  }) : _requireReplenishment = requireReplenishment,
+       _requireOfferPricingCallback = requireOfferPricing,
        _proveedorProjectionStore = proveedorProjectionStore,
        _productoProjectionStore = productoProjectionStore,
        _eventStore = eventStore,
@@ -84,6 +87,20 @@ class ProductoCommandService {
     return _proveedorProjectionStore != null
         ? current.withKnownSuppliers()
         : current;
+  }
+
+  final Future<void> Function()? _requireReplenishment;
+  Future<void> _requireReplenishmentFor(
+    Iterable<ProductoCreadoVariante> variants,
+  ) async {
+    if (!_isStandalone &&
+        variants.any(
+          (v) =>
+              v.replenishment.supplierId != null ||
+              v.replenishment.targetAtomic != null,
+        )) {
+      await _requireReplenishment?.call();
+    }
   }
 
   final Future<void> Function()? _requireOfferPricingCallback;
@@ -187,6 +204,7 @@ class ProductoCommandService {
             knowsOfferPrice: v.knowsOfferPrice,
             costoEstandarMenor: v.costoEstandarMenor,
             inventoryItemId: v.inventoryItemId,
+            replenishment: v.replenishment,
             minimumStockAtomic: v.minimumStockAtomic,
             knowsMinimumStock: v.knowsMinimumStock,
             componentesReceta: v.componentesReceta,
@@ -415,6 +433,35 @@ class ProductoCommandService {
       }
       recurso = resolution.inventoryItemId;
     }
+    if (cambio.replenishment.hasTarget &&
+        cambio.replenishment.targetAtomic != null) {
+      final item = recurso == null
+          ? null
+          : await _inventoryProjectionStore!.findItemById(recurso);
+      if (item == null) {
+        if (cambio.replenishment.targetAtomic !=
+                actual.replenishment.targetAtomic ||
+            cambio.targetUnitId != null) {
+          throw const FormatException(
+            'El objetivo requiere seguimiento directo.',
+          );
+        }
+      } else {
+        if (item.defaultUnitId != cambio.targetUnitId) {
+          throw const FormatException('La unidad del objetivo cambió.');
+        }
+        final unit = await _unidadInventarioRepository.obtenerUnidadPorId(
+          item.defaultUnitId,
+        );
+        if (unit == null || !unit.activa) {
+          throw const FormatException('Unidad no disponible.');
+        }
+        _quantityCodec.parseNonNegativeAtomic(
+          _quantityCodec.formatAtomic(cambio.replenishment.targetAtomic!, unit),
+          unit,
+        );
+      }
+    }
     return ProductoCreadoVariante.create(
       id: actual.id,
       nombre: cambio.nombre,
@@ -426,6 +473,10 @@ class ProductoCommandService {
       knowsOfferPrice: actual.knowsOfferPrice,
       costoEstandarMenor: cambio.precioCosteMinor,
       inventoryItemId: recurso,
+      replenishment: SupplierReplenishmentPatch.fromJson({
+        ...actual.replenishment.toJson(),
+        ...cambio.replenishment.toJson(),
+      }),
       minimumStockAtomic: recurso == null ? null : actual.minimumStockAtomic,
       knowsMinimumStock: actual.knowsMinimumStock,
       componentesReceta: receta,
@@ -471,6 +522,22 @@ class ProductoCommandService {
       }
       if (cambio.precioProveedor case final pareja?) {
         await _validarProveedorIncorporado(pareja);
+      }
+      if (cambio.replenishment.hasTarget &&
+          cambio.replenishment.targetAtomic != null) {
+        final item = variant.inventoryItemId == null
+            ? null
+            : await _inventoryProjectionStore?.findItemById(
+                variant.inventoryItemId!,
+              );
+        if (item == null ||
+            !item.active ||
+            item.id != cambio.targetInventoryItemId ||
+            item.defaultUnitId != cambio.targetUnitId) {
+          throw const FormatException(
+            'El vínculo o unidad del objetivo cambió. Recaptura la configuración.',
+          );
+        }
       }
       changes[cambio.clave.variantId] = cambio;
     }
@@ -556,6 +623,10 @@ class ProductoCommandService {
           ? cambio.costo.valor
           : actual.costoEstandarMenor,
       inventoryItemId: actual.inventoryItemId,
+      replenishment: SupplierReplenishmentPatch.fromJson({
+        ...actual.replenishment.toJson(),
+        ...cambio.replenishment.toJson(),
+      }),
       minimumStockAtomic: actual.minimumStockAtomic,
       knowsMinimumStock: actual.knowsMinimumStock,
       componentesReceta: actual.componentesReceta,
@@ -832,6 +903,10 @@ class ProductoCommandService {
     String? eventId,
   }) async {
     if (payload.after.knowsOfferPrice) await _requireOfferPricing();
+    await _requireReplenishmentFor([
+      ...payload.before.variantes,
+      ...payload.after.variantes,
+    ]);
     return SyncEvent(
       eventId: eventId ?? _uuid.v4(),
       aggregateType: ProductoActualizadoPayload.aggregateType,
@@ -953,6 +1028,7 @@ class ProductoCommandService {
       dependenciaCategoria: dependency,
       dependenciasInventario: inventoryDependencies,
     );
+    await _requireReplenishmentFor(payload.variantes);
     return _PreparedArticulo(
       productId: productId,
       eventId: eventId,
@@ -1014,6 +1090,21 @@ class ProductoCommandService {
                       : PrecioVenta.fromInput(
                           captured.offerPrice.valor!,
                         ).unidadMenor,
+                )
+              : const CambioExplicito.conservar(),
+          currentSupplier: captured.currentSupplier,
+          targetStock: captured.targetStock.establecer
+              ? CambioExplicito.establecer(
+                  captured.targetStock.valor == null
+                      ? null
+                      : directInventory == null
+                      ? (throw const FormatException(
+                          'El objetivo requiere seguimiento directo.',
+                        ))
+                      : _quantityCodec.parseNonNegativeAtomic(
+                          captured.targetStock.valor!,
+                          directInventory.unit,
+                        ),
                 )
               : const CambioExplicito.conservar(),
           changesMinimumStock: captured.minimumStock.establecer,
@@ -1242,6 +1333,22 @@ class ProductoCommandService {
           precioVentaMenor: normalizedVariants[index].precioVentaMenor,
           costoEstandarMenor: normalizedVariants[index].costoEstandarMenor,
           codigoBarras: normalizedVariants[index].codigoBarras,
+          replenishment: SupplierReplenishmentPatch.values(
+            supplierId: normalizedVariants[index].currentSupplier.establecer
+                ? normalizedVariants[index].currentSupplier.valor
+                : before?.variantes
+                      .where((v) => v.id == variantIds[index])
+                      .firstOrNull
+                      ?.replenishment
+                      .supplierId,
+            targetAtomic: normalizedVariants[index].targetStock.establecer
+                ? normalizedVariants[index].targetStock.valor
+                : before?.variantes
+                      .where((v) => v.id == variantIds[index])
+                      .firstOrNull
+                      ?.replenishment
+                      .targetAtomic,
+          ),
           minimumStockAtomic: normalizedVariants[index].changesMinimumStock
               ? normalizedVariants[index].minimumStockAtomic
               : before?.variantes
@@ -1765,6 +1872,8 @@ class _NormalizedVariant {
     required this.inventory,
     required this.recipeComponents,
     required this.offerPrice,
+    required this.currentSupplier,
+    required this.targetStock,
     required this.changesMinimumStock,
     required this.minimumStockAtomic,
     this.existingInventoryItemId,
@@ -1777,6 +1886,8 @@ class _NormalizedVariant {
   final String? codigoBarras;
   final _NormalizedInventory? inventory;
   final CambioExplicito<int?> offerPrice;
+  final CambioExplicito<String?> currentSupplier;
+  final CambioExplicito<int?> targetStock;
   final bool changesMinimumStock;
   final int? minimumStockAtomic;
   final List<_NormalizedRecipeComponent> recipeComponents;

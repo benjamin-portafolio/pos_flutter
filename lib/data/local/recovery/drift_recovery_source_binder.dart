@@ -1,3 +1,4 @@
+import '../drift/supplier_order_schema.dart';
 import 'recovery_content_comparer.dart';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -199,9 +200,10 @@ class DriftRecoverySourceBinder implements RecoverySourceBinder {
         'La instalación ya tiene una vinculación. Se conserva su base.',
       );
     }
-    for (final table in recoveryRevisionTables.where(
-      (name) => name != 'units',
-    )) {
+    for (final table in [
+      ...recoveryRevisionTables,
+      ...supplierOrderTableNames,
+    ].where((name) => name != 'units')) {
       if ((await db.customSelect('SELECT 1 FROM "$table" LIMIT 1').get())
           .isNotEmpty) {
         throw StateError(
@@ -268,14 +270,40 @@ class DriftRecoverySourceBinder implements RecoverySourceBinder {
           await recheck();
           await beforeCopyForTesting?.call();
           await db.customStatement('PRAGMA defer_foreign_keys=ON');
-          for (final table in recoveryRevisionTables) {
+          await db.customStatement(
+            'UPDATE main.product_variants SET current_supplier_id=NULL',
+          );
+          for (final table in [
+            ...recoveryRevisionTables,
+            ...supplierOrderTableNames,
+          ]) {
             await db.customStatement('DELETE FROM main."$table"');
           }
-          for (final table in recoveryRevisionTables) {
-            await db.customStatement(
-              'INSERT INTO main."$table" SELECT * FROM recovery_baseline."$table"',
-            );
+          for (final table in [
+            ...recoveryRevisionTables,
+            ...supplierOrderTableNames,
+          ]) {
+            if (table == 'product_variants') {
+              final columns =
+                  (await db
+                          .customSelect(
+                            'PRAGMA main.table_info(product_variants)',
+                          )
+                          .get())
+                      .map((r) => r.read<String>('name'))
+                      .toList();
+              await db.customStatement(
+                'INSERT INTO main.product_variants (${columns.map((c) => '"$c"').join(',')}) SELECT ${columns.map((c) => c == 'current_supplier_id' ? 'NULL' : '"$c"').join(',')} FROM recovery_baseline.product_variants',
+              );
+            } else {
+              await db.customStatement(
+                'INSERT INTO main."$table" SELECT * FROM recovery_baseline."$table"',
+              );
+            }
           }
+          await db.customStatement(
+            'UPDATE main.product_variants SET current_supplier_id=(SELECT current_supplier_id FROM recovery_baseline.product_variants b WHERE b.id=main.product_variants.id)',
+          );
           await db.customStatement(
             'UPDATE recovery_local_state SET server_instance_id=?,generation_id=?,dataset_id=? WHERE singleton=1',
             [

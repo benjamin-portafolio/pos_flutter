@@ -1,3 +1,4 @@
+import '../../../application/sync/payloads/supplier_replenishment_patch.dart';
 import '../../../application/edicion_masiva/cambio_explicito.dart';
 import '../../../domain/articulos/importe_comercial_codec.dart';
 import 'dart:math' as math;
@@ -239,8 +240,10 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     required bool conIds,
   }) {
     final columnas = conIds
-        ? (encabezado.contains('eliminar_variante') ||
-                  encabezado.contains('recurso_inventario_id')
+        ? (encabezado.contains('version_csv')
+              ? ArticuloCsvContract.columnasReposicion
+              : encabezado.contains('eliminar_variante') ||
+                    encabezado.contains('recurso_inventario_id')
               ? ArticuloCsvContract.columnasConVariantes
               : encabezado.contains('eliminar_producto')
               ? ArticuloCsvContract.columnas
@@ -442,6 +445,107 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         formatoNuevo: formatoNuevo,
         variantId: existente ? variantId : null,
       );
+      if (fila != null &&
+          campos.length == ArticuloCsvContract.columnasReposicion.length) {
+        try {
+          if (campos[16].trim() != ArticuloCsvContract.versionReposicion) {
+            throw const FormatException('version_csv debe ser 2.');
+          }
+          Object? parseAction(
+            String text,
+            String action,
+            Object Function(String) parse,
+          ) {
+            final a = action.trim().isEmpty ? 'conservar' : action.trim();
+            if (a == 'conservar' || a == 'retirar') {
+              if (text.trim().isNotEmpty) {
+                throw const FormatException(
+                  'Conservar/retirar exige valor vacío.',
+                );
+              }
+              return null;
+            }
+            if (a != 'establecer') {
+              throw const FormatException(
+                'Acción inválida: conservar, establecer o retirar.',
+              );
+            }
+            return parse(text.trim());
+          }
+
+          final supplierAction = campos[18].trim();
+          final targetAction = campos[21].trim();
+          final supplier = parseAction(campos[17], supplierAction, (v) => v.toLowerCase());
+          final target = parseAction(campos[19], targetAction, (v) {
+            final n = int.tryParse(v);
+            if (n == null || !RegExp(r'^[0-9]+$').hasMatch(v)) {
+              throw const FormatException(
+                'Objetivo debe ser entero atómico no negativo.',
+              );
+            }
+            return n;
+          });
+          final patch = SupplierReplenishmentPatch.fromJson({
+            if (supplierAction.isNotEmpty && supplierAction != 'conservar')
+              'current_supplier_id': supplier,
+            if (targetAction.isNotEmpty && targetAction != 'conservar')
+              'target_stock_atomic': target,
+          });
+          final local = catalogo.variantesPorId[variantId];
+          if (patch.supplierId != null &&
+              (local == null ||
+                  !local.proveedores.any(
+                    (p) => p.proveedorId == patch.supplierId,
+                  ))) {
+            throw const FormatException(
+              'Falta relación variante/proveedor con precio y fecha válidos. Configúrala en el editor de proveedores.',
+            );
+          }
+          final unitId = campos[20].trim();
+          if (patch.hasTarget && patch.targetAtomic != null) {
+            final unit = local?.inventoryUnit;
+            if (unit == null) {
+              if (local == null ||
+                  patch.targetAtomic != local.targetStockAtomic ||
+                  unitId.isNotEmpty) {
+                throw const FormatException(
+                  'Falta seguimiento directo/unidad para establecer objetivo.',
+                );
+              }
+            } else {
+              if (unitId != unit.id) {
+                throw const FormatException(
+                  'unidad_objetivo_id no coincide con la unidad del recurso.',
+                );
+              }
+              const codec = InventoryQuantityCodec();
+              if (codec.parseNonNegativeAtomic(
+                    codec.formatAtomic(patch.targetAtomic!, unit),
+                    unit,
+                  ) !=
+                  patch.targetAtomic) {
+                throw const FormatException(
+                  'Cantidad incompatible con unidad.',
+                );
+              }
+            }
+          } else if (unitId.isNotEmpty) {
+            throw const FormatException(
+              'La unidad solo acompaña un objetivo establecido.',
+            );
+          }
+          if (!existente &&
+              (patch.supplierId != null || patch.targetAtomic != null)) {
+            throw const FormatException(
+              'Configura reposición sobre variantes existentes con relación y unidad acreditadas.',
+            );
+          }
+          fila.replenishment = patch;
+          fila.targetUnitId = unitId.isEmpty ? null : unitId;
+        } on FormatException catch (e) {
+          error('reposición', e.message);
+        }
+      }
       if (existente) {
         if (errores.length != antes) {
           rechazados.add(productId);
@@ -570,6 +674,8 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
               id: fila.variantId!,
               linea: fila.linea,
               nombre: fila.nombreVariante,
+              replenishment: fila.replenishment,
+              targetUnitId: fila.targetUnitId,
               offerPrice: fila.offerPrice,
               precioVentaMinor: fila.precioVentaMinor,
               precioCosteMinor: fila.precioCosteMinor,
@@ -587,7 +693,11 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
           grupo.any((fila) {
             final v = catalogo.variantesPorId[fila.variantId]!;
             final seguimiento = seguimientoPorVariante[fila.variantId];
-            return (seguimiento != null &&
+            return (fila.replenishment.hasSupplier &&
+                    fila.replenishment.supplierId != v.currentSupplierId) ||
+                (fila.replenishment.hasTarget &&
+                    fila.replenishment.targetAtomic != v.targetStockAtomic) ||
+                (seguimiento != null &&
                     seguimiento != v.seguimientoExistencias) ||
                 recursos.containsKey(fila.variantId) ||
                 NombreVariante.fromInput(v.nombre).value !=
@@ -1277,6 +1387,9 @@ class _Fila {
     this.variantId,
   });
 
+  SupplierReplenishmentPatch replenishment =
+      const SupplierReplenishmentPatch.preserve();
+  String? targetUnitId;
   CambioExplicito<int?> offerPrice;
   final String? variantId;
   final int linea;

@@ -153,6 +153,8 @@ class ArticuloImportBatchService {
         ActualizarArticuloVarianteCsvCommand(
           variantId: variante.id,
           nombre: variante.nombre,
+          replenishment: variante.replenishment,
+          targetUnitId: variante.targetUnitId,
           offerPrice: variante.offerPrice,
           precioVentaMinor: variante.precioVentaMinor,
           precioCosteMinor: variante.precioCosteMinor,

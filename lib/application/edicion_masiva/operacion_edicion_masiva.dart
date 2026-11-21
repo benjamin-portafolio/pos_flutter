@@ -1,3 +1,4 @@
+import '../sync/payloads/supplier_replenishment_patch.dart';
 import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
@@ -75,6 +76,12 @@ class OperacionEdicionMasiva {
         .map(
           (c) => {
             'product_id': c.clave.productId,
+            ...c.replenishment.toJson(),
+            if (c.replenishment.hasTarget &&
+                c.replenishment.targetAtomic != null) ...{
+              'target_inventory_item_id': c.targetInventoryItemId,
+              'target_unit_id': c.targetUnitId,
+            },
             'variant_id': c.clave.variantId,
             'product_base': _baseJson(c.baseProducto),
             if (c.oferta.establecer) 'offer_minor': c.oferta.valor,
@@ -107,6 +114,9 @@ class OperacionEdicionMasiva {
         final supplier = c['supplier'] as Map<String, dynamic>?;
         final receipt = c['receipt'] as Map<String, dynamic>?;
         return CambioVarianteMasiva(
+          replenishment: SupplierReplenishmentPatch.fromJson(c),
+          targetInventoryItemId: c['target_inventory_item_id'] as String?,
+          targetUnitId: c['target_unit_id'] as String?,
           clave: ClaveVariante(
             c['product_id'] as String,
             c['variant_id'] as String,

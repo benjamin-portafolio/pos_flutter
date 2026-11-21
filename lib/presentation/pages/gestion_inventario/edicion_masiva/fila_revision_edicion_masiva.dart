@@ -106,6 +106,26 @@ class FilaRevisionEdicionMasiva extends StatelessWidget {
 
   List<Widget> _cambios(CambioVarianteMasiva cambio) {
     final widgets = <Widget>[];
+    final original = fila.captura.original;
+    if (cambio.replenishment.hasSupplier) {
+      widgets.add(
+        Text(
+          'Proveedor actual: ${original.currentSupplierId ?? "sin selección"} → ${cambio.replenishment.supplierId ?? "sin selección"}',
+        ),
+      );
+    }
+    String targetText(int? value) => value == null
+        ? 'Desactivada'
+        : original.entrada == null
+        ? 'Conservada sin seguimiento'
+        : '${_cantidades.formatAtomic(value, original.entrada!.unidad)} ${original.entrada!.unidad.simbolo}';
+    if (cambio.replenishment.hasTarget) {
+      widgets.add(
+        Text(
+          'Existencia objetivo: ${targetText(original.targetStockAtomic)} → ${targetText(cambio.replenishment.targetAtomic)}',
+        ),
+      );
+    }
     if (cambio.oferta.establecer) {
       widgets.add(
         Text(

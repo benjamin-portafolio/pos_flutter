@@ -1,3 +1,4 @@
+import '../../../../domain/inventario/inventory_quantity_codec.dart';
 import 'package:flutter/material.dart';
 import 'package:unorm_dart/unorm_dart.dart' as unorm;
 
@@ -191,6 +192,28 @@ class _Diferencias extends StatelessWidget {
         _importe(anterior.precioCosteMinor),
         _importe(propuesta.precioCosteMinor),
       );
+      if (propuesta.replenishment.hasSupplier) {
+        campo(
+          '$etiqueta · Proveedor actual (UUID)',
+          anterior.currentSupplierId ?? 'Sin selección',
+          propuesta.replenishment.supplierId ?? 'Sin selección',
+        );
+      }
+      String objetivo(int? value) {
+        if (value == null) return 'Desactivada';
+        final unit = anterior.inventoryUnit;
+        return unit == null
+            ? 'Conservada sin seguimiento'
+            : '${const InventoryQuantityCodec().formatAtomic(value, unit)} ${unit.simbolo}';
+      }
+
+      if (propuesta.replenishment.hasTarget) {
+        campo(
+          '$etiqueta · Existencia objetivo',
+          objetivo(anterior.targetStockAtomic),
+          objetivo(propuesta.replenishment.targetAtomic),
+        );
+      }
       if (propuesta.offerPrice.establecer) {
         campo(
           '$etiqueta · Precio de oferta',

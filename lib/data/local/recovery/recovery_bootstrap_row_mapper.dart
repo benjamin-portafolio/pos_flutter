@@ -47,6 +47,9 @@ class RecoveryBootstrapRowMapper {
         ..._evidenceLines(p),
       ];
     }
+    if (entity == 'product_variants') {
+      row = {'current_supplier_id': null, 'target_stock_atomic': null, ...row};
+    }
     final columns = recoveryColumns[entity];
     if (columns == null ||
         columns.length != row.length ||

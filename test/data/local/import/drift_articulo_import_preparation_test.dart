@@ -117,7 +117,7 @@ void main() {
         audit.reset();
         final report = await service.preparar(_archivo(filas));
         expect(audit.writes, 0);
-        expect(audit.selects, hasLength(7));
+        expect(audit.selects, hasLength(8));
         expect(
           audit.selects.any(
             (s) =>
@@ -211,7 +211,7 @@ void main() {
       expect(r.productosConCambios, isEmpty);
       expect(r.productos, isEmpty);
       expect(audit.writes, 0);
-      expect(audit.selects, hasLength(7));
+      expect(audit.selects, hasLength(9));
       expect(
         r.productosSinCambios.every((p) => p.actual.variantes.length == 1),
         isTrue,

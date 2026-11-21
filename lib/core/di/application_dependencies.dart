@@ -1,3 +1,8 @@
+import '../../application/sync/projections/supplier_order_projection_store.dart';
+import '../../application/sync/handlers/supplier_order_event_handler.dart';
+import '../../application/sync/supplier_order_operation.dart';
+import '../../application/commands/proveedores/supplier_order_command_service.dart';
+import '../../application/sync/supplier_replenishment_availability.dart';
 import '../../application/sync/sync_installation.dart';
 import 'package:http/http.dart' as http;
 import '../../application/sync/sync_network_gate.dart';
@@ -248,6 +253,22 @@ void registerApplicationDependencies(
       eventStore: getIt<LocalEventStore>(),
       commandContext: getIt<LocalCommandContext>(),
       config: getIt<AppConfigController>(),
+    ),
+  );
+  getIt.registerLazySingleton<SupplierOrderEventHandler>(
+    () => SupplierOrderEventHandler(getIt<SupplierOrderProjectionStore>()),
+  );
+  getIt.registerLazySingleton<SupplierOrderCommandService>(
+    () => SupplierOrderCommandService(
+      store: getIt<SupplierOrderProjectionStore>(),
+      events: getIt<LocalEventStore>(),
+      context: getIt<LocalCommandContext>(),
+      requireCompatible: () => getIt<SupplierReplenishmentAvailability>()
+          .requireCompatible(capability: 'supplier_orders_v1'),
+      requireReceiptsCompatible: () =>
+          getIt<SupplierReplenishmentAvailability>().requireCompatible(
+            capability: 'supplier_receipts_v1',
+          ),
     ),
   );
   getIt.registerLazySingleton<ClienteEventHandler>(
@@ -531,6 +552,8 @@ void registerApplicationDependencies(
             getIt<AccountBalanceBaselineEventHandler>().apply,
         AbonoClienteRegistradoPayload.eventType:
             getIt<AbonoClienteEventHandler>().apply,
+        for (final type in SupplierOrderOperation.eventTypes)
+          type: getIt<SupplierOrderEventHandler>().apply,
         ClienteCreadoPayload.eventType: getIt<ClienteEventHandler>().apply,
         ClienteActualizadoPayload.eventType:
             getIt<ClienteEventHandler>().applyUpdate,
@@ -573,6 +596,7 @@ void registerApplicationDependencies(
       accountBalanceBaselineProjectionStore:
           getIt<AccountBalanceBaselineProjectionStore>(),
       customerCreditStore: getIt<CustomerCreditStore>(),
+      supplierOrderStore: getIt<SupplierOrderProjectionStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       confirmedSaleStore: getIt<ConfirmedSaleStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
@@ -620,6 +644,7 @@ void registerApplicationDependencies(
       cashProjectionStore: getIt<CashProjectionStore>(),
       accountBalanceBaselineProjectionStore:
           getIt<AccountBalanceBaselineProjectionStore>(),
+      supplierOrderStore: getIt<SupplierOrderProjectionStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       syncPersistence: getIt<SyncPersistence>(),
       syncedEventHistory: getIt<SyncedEventHistory>(),
@@ -641,6 +666,7 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<SyncConflictProjectionCleaner>(
     () => SyncConflictProjectionCleaner(
       proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
+      supplierOrderStore: getIt<SupplierOrderProjectionStore>(),
       clienteProjectionStore: getIt<ClienteProjectionStore>(),
       espacioProjectionStore: getIt<EspacioProjectionStore>(),
       categoriaProjectionStore: getIt<CategoriaProjectionStore>(),
@@ -789,6 +815,13 @@ void registerApplicationDependencies(
       productoProjectionStore: getIt<ProductoProjectionStore>(),
     ),
   );
+  getIt.registerLazySingleton<SupplierReplenishmentAvailability>(
+    () => SupplierReplenishmentAvailability(
+      config: getIt<AppConfigController>(),
+      endpoint: getIt<SyncEndpointConfig>(),
+      store: getIt<SyncCapabilityStore>(),
+    ),
+  );
   getIt.registerLazySingleton<OfferPricingAvailability>(
     () => OfferPricingAvailability(
       config: getIt<AppConfigController>(),
@@ -798,6 +831,8 @@ void registerApplicationDependencies(
   );
   getIt.registerLazySingleton<ProductoCommandService>(
     () => ProductoCommandService(
+      requireReplenishment: () =>
+          getIt<SupplierReplenishmentAvailability>().requireCompatible(),
       requireOfferPricing: () =>
           getIt<OfferPricingAvailability>().requireCompatible(),
       proveedorProjectionStore: getIt<ProveedorProjectionStore>(),
@@ -818,6 +853,8 @@ void registerApplicationDependencies(
   getIt.registerLazySingleton<EdicionMasivaCommandService>(
     () => EdicionMasivaCommandService(
       DriftDiarioEdicionMasiva(
+        requireReplenishment: () =>
+            getIt<SupplierReplenishmentAvailability>().requireCompatible(),
         requireOfferPricing: () =>
             getIt<OfferPricingAvailability>().requireCompatible(),
         db: getIt<AppDatabase>(),

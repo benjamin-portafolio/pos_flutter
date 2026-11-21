@@ -1,3 +1,4 @@
+import 'supplier_order_operation.dart';
 import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'payloads/proveedor_creado_payload.dart';
 import 'payloads/proveedor_actualizado_payload.dart';
@@ -36,6 +37,22 @@ class RemoteEventPreparer {
       pending.map((event) => event.eventId).toList(growable: false),
     );
 
+    if (SupplierOrderOperation.eventTypes.contains(officialEvent.eventType)) {
+      for (final local in pending.reversed) {
+        if (local.aggregateType != 'supplier_order' ||
+            local.aggregateId != officialEvent.aggregateId ||
+            local.eventId == officialEvent.eventId) {
+          continue;
+        }
+        await _conflictProjectionCleaner.hideConflictProjection(local);
+        await _syncPersistence.updateEventSyncStatus(
+          local.eventId,
+          'conflict',
+          rejectionReason:
+              'El pedido cambió oficialmente; revisa la intención local.',
+        );
+      }
+    }
     final officialResources = switch (officialEvent.eventType) {
       ProductoCreadoPayload.eventType => ProductoCreadoPayload.fromJson(
         officialEvent.payload,

@@ -1,3 +1,4 @@
+import '../../../../application/sync/payloads/supplier_replenishment_patch.dart';
 import '../../../../application/edicion_masiva/base_revision_masiva.dart';
 import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import '../../../../application/edicion_masiva/fila_catalogo_masivo.dart';
@@ -7,6 +8,7 @@ class FilaEdicionForm {
   const FilaEdicionForm({
     required this.original,
     required this.baseProducto,
+    this.replenishment = const SupplierReplenishmentPatch.preserve(),
     this.oferta = const CambioExplicito.conservar(),
     this.venta,
     this.costo,
@@ -18,6 +20,7 @@ class FilaEdicionForm {
 
   final FilaCatalogoMasivo original;
   final BaseRevisionMasiva baseProducto;
+  final SupplierReplenishmentPatch replenishment;
   final CambioExplicito<String?> oferta;
   final String? venta;
   final String? costo;
@@ -27,6 +30,7 @@ class FilaEdicionForm {
   final DateTime? fechaInformada;
 
   FilaEdicionForm copiar({
+    SupplierReplenishmentPatch? replenishment,
     CambioExplicito<String?>? oferta,
     CambioExplicito<String?> venta = const CambioExplicito.conservar(),
     CambioExplicito<String?> costo = const CambioExplicito.conservar(),
@@ -37,6 +41,7 @@ class FilaEdicionForm {
   }) => FilaEdicionForm(
     original: original,
     baseProducto: baseProducto,
+    replenishment: replenishment ?? this.replenishment,
     oferta: oferta ?? this.oferta,
     venta: venta.establecer ? venta.valor : this.venta,
     costo: costo.establecer ? costo.valor : this.costo,

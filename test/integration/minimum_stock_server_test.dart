@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/articulos/proveedor_variante.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -91,6 +92,7 @@ void main() {
     ProductSupplierHarness h, {
     bool measured = false,
     String? minimum = '5',
+    String? supplier,
   }) async {
     await h.commands.crearArticulo(
       CrearArticuloCommand.conVariantes(
@@ -103,7 +105,16 @@ void main() {
             : const UnitSaleConfiguration(),
         variantes: [
           for (var i = 0; i < 2; i++)
-            CrearArticuloVarianteCommand(
+            CrearArticuloVarianteCommand.conProveedores(
+              proveedores: supplier == null
+                  ? null
+                  : [
+                      ProveedorVariante(
+                        proveedorId: supplier,
+                        precioInformadoMenor: 0,
+                        fechaInformadaMs: 100,
+                      ),
+                    ],
               nombre: i == 0 ? 'Primera' : 'Segunda',
               precioVenta: '10',
               costoEstandar: null,
@@ -126,6 +137,8 @@ void main() {
     String id, {
     CambioExplicito<String?> minimum = const CambioExplicito.conservar(),
     String? name,
+    CambioExplicito<String?> target = const CambioExplicito.conservar(),
+    CambioExplicito<String?> selected = const CambioExplicito.conservar(),
     String? secondBarcode,
   }) async {
     final snapshot = await state(h, id);
@@ -149,6 +162,10 @@ void main() {
               inventoryUnitId: p.saleConfiguration is MeasuredSaleConfiguration
                   ? InventoryUnitIds.kilogram
                   : InventoryUnitIds.piece,
+              currentSupplier: i == 0
+                  ? selected
+                  : const CambioExplicito.conservar(),
+              targetStock: i == 0 ? target : const CambioExplicito.conservar(),
               minimumStock: i == 0
                   ? minimum
                   : const CambioExplicito.conservar(),
@@ -283,6 +300,71 @@ void main() {
     expect(result.exitCode, 0, reason: result.stderr.toString());
     return jsonDecode(result.stdout.toString());
   }
+
+  test(
+    'P03/P06/P07/P27 HTTP/PG: configuración, eco, replay, rechazo remoto, medidos y stock intacto',
+    () async {
+      final a = terminal('A');
+      final b = terminal('B');
+      final supplier = await a.supplier('Reposición $run');
+      final id = await create(a, supplier: supplier, measured: true);
+      await sync(a);
+      final stock = await a.db.select(a.db.inventoryBalances).get();
+      final moves = await a.db.select(a.db.inventoryMovements).get();
+      await save(
+        a,
+        id,
+        target: const CambioExplicito.establecer('1.5'),
+        selected: CambioExplicito.establecer(supplier),
+      );
+      await sync(a);
+      await converged(a, b, id);
+      var v = (await state(b, id)).variantes.first;
+      expect(v.replenishment.targetAtomic, 1500);
+      expect(v.replenishment.supplierId, supplier);
+      await save(a, id, name: 'Conservado $run', secondBarcode: '0002');
+      await sync(a);
+      await converged(a, b, id);
+      expect(
+        (await state(b, id)).variantes.first.replenishment.targetAtomic,
+        1500,
+      );
+      await save(a, id, target: const CambioExplicito.establecer('2'));
+      final failed = (await a.tracking.history.pendingEvents())
+          .where((e) => e.aggregateType == 'product')
+          .single;
+      final wire=Map<String,Object?>.from(failed.payload);
+      final altered=Map<String,Object?>.from(wire['after'] as Map);
+      final variants=(altered['variants'] as List).map((v)=>Map<String,Object?>.from(v as Map)).toList();
+      variants.first['target_stock_atomic']=-1;altered['variants']=variants;wire['after']=altered;
+      expect((await send(failed.copyWith(payload:wire)))['status'],'rejected');
+      final rejection = await a.tracking.push(url!).pushPendingEvents();
+      expect(rejection.rejected, 1);
+      expect(
+        (await state(a, id)).variantes.first.replenishment.targetAtomic,
+        1500,
+      );
+      expect(
+        (await state(a, id)).variantes.first.replenishment.supplierId,
+        supplier,
+      );
+      await a.tracking.pull(url).pullAvailableEvents();
+      await save(
+        a,
+        id,
+        target: const CambioExplicito.establecer('0'),
+        selected: const CambioExplicito.establecer(null),
+      );
+      await sync(a);
+      await converged(a, b, id);
+      v = (await state(b, id)).variantes.first;
+      expect(v.replenishment.targetAtomic, 0);
+      expect(v.replenishment.supplierId, isNull);
+      expect(await a.db.select(a.db.inventoryBalances).get(), stock);
+      expect(await a.db.select(a.db.inventoryMovements).get(), moves);
+    },
+    skip: skip,
+  );
 
   test(
     'A24/A27/A32/A33 HTTP: mínimo solo conserva inventario, ventas y clave; venta abierta confirma',

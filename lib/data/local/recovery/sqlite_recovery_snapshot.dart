@@ -1,3 +1,4 @@
+import '../drift/supplier_order_schema.dart';
 import '../../../application/recovery/recovery_physical_provenance.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -69,7 +70,10 @@ class SqliteRecoverySnapshot implements RecoverySnapshot {
   @override
   final Map<String, Object?> cut;
   @override
-  List<String> get tables => recoveryRevisionTables;
+  List<String> get tables => [
+    ...recoveryRevisionTables,
+    ...supplierOrderTableNames,
+  ];
   @override
   List<String> get duplicateOfficialSequences => _db
       .select(

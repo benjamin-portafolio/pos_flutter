@@ -1,3 +1,4 @@
+import '../drift/supplier_order_schema.dart';
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 import '../../../application/recovery/recovery_json.dart';
@@ -17,6 +18,7 @@ class RecoveryContentComparer {
       }
       for (final table in [
         ...recoveryRevisionTables,
+        ...supplierOrderTableNames,
         'recovery_local_state',
         'sqlite_sequence',
       ]) {

@@ -160,7 +160,7 @@ void main() {
           );
           expect(
             (await projection.snapshot('product_1')).toJson(),
-            before.toJson(),
+            before.withKnownReplenishment().toJson(),
           );
           expect(
             await eventDao.obtenerEventoPorId('rolled_back_delete'),
@@ -215,7 +215,7 @@ void main() {
             );
             expect(
               (await projection.snapshot('product_1')).toJson(),
-              before.toJson(),
+              before.withKnownReplenishment().toJson(),
             );
             await ProductoEventHandler(
               projection,
@@ -373,7 +373,7 @@ void main() {
             );
             expect(
               (await projection.snapshot('product_1')).toJson(),
-              renamed.toJson(),
+              renamed.withKnownReplenishment().toJson(),
             );
             expect(
               await productoDao.obtenerVariantesPorProducto('product_1'),

@@ -137,7 +137,12 @@ void main() {
                   r.entries.where(
                     (e) =>
                         !(offerPricingColumns[table]?.containsKey(e.key) ??
-                            false),
+                            false) &&
+                        !(table == 'product_variants' &&
+                            {
+                              'current_supplier_id',
+                              'target_stock_atomic',
+                            }.contains(e.key)),
                   ),
                 ),
               )
@@ -195,7 +200,12 @@ void main() {
                       row.entries.where(
                         (e) =>
                             !(offerPricingColumns[table]?.containsKey(e.key) ??
-                                false),
+                                false) &&
+                            !(table == 'product_variants' &&
+                                {
+                                  'current_supplier_id',
+                                  'target_stock_atomic',
+                                }.contains(e.key)),
                       ),
                     ),
                   )
@@ -298,7 +308,12 @@ void main() {
                     r.entries.where(
                       (e) =>
                           !(offerPricingColumns[table]?.containsKey(e.key) ??
-                              false),
+                              false) &&
+                          !(table == 'product_variants' &&
+                              {
+                                'current_supplier_id',
+                                'target_stock_atomic',
+                              }.contains(e.key)),
                     ),
                   ),
                 )
@@ -311,7 +326,7 @@ void main() {
           raw.select('SELECT name FROM products').single['name'],
           'Confirmado en WAL',
         );
-        expect(raw.select('PRAGMA user_version').single.values.single, 10);
+        expect(raw.select('PRAGMA user_version').single.values.single, 11);
       } finally {
         raw.close();
       }
@@ -371,7 +386,12 @@ void main() {
                     row.entries.where(
                       (e) =>
                           !(offerPricingColumns[table]?.containsKey(e.key) ??
-                              false),
+                              false) &&
+                          !(table == 'product_variants' &&
+                              {
+                                'current_supplier_id',
+                                'target_stock_atomic',
+                              }.contains(e.key)),
                     ),
                   ),
                 )

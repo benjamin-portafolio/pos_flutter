@@ -1,3 +1,6 @@
+import 'supplier_order_operation.dart';
+import 'payloads/producto_creado_payload.dart';
+import 'payloads/producto_actualizado_payload.dart';
 import 'sale_adjustment_sync_contract.dart';
 import 'synced_event_history.dart';
 import 'dart:convert';
@@ -80,6 +83,31 @@ class SyncPreflightService {
       maxEvents: maxEvents,
     );
 
+    // A sparse preflight does not establish the supplier catalog required by
+    // product snapshots. Pull the ordered history before projecting those states.
+    if (response.events.any((e) {
+      if (SupplierOrderOperation.eventTypes.contains(e.eventType)) return true;
+      if (e.eventType == ProductoCreadoPayload.eventType) {
+        return ProductoCreadoPayload.fromJson(e.payload).supplierIds.isNotEmpty;
+      }
+      if (e.eventType == ProductoActualizadoPayload.eventType) {
+        final p = ProductoActualizadoPayload.fromJson(e.payload);
+        return p.before.supplierIds.isNotEmpty ||
+            p.after.supplierIds.isNotEmpty;
+      }
+      return false;
+    })) {
+      return SyncPreflightReport(
+        skipped: false,
+        pendingCount: pendingEvents.length,
+        impactingEvents: 0,
+        preflightSequence: await _syncPersistence.lastPreflightServerSequence(),
+        hasMore: response.hasMore,
+        requiresFullPullBeforePush: true,
+        reason: 'product_supplier_causal_context',
+        localConflicts: 0,
+      );
+    }
     final available = <String>{};
     for (final e in response.events) {
       if (SaleAdjustmentSyncContract.supports(e.eventType)) {

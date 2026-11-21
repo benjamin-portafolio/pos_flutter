@@ -124,6 +124,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
           costoEstandarMenor: row.standardCostMinor,
           codigoBarras: row.barcode,
           inventoryItemId: row.inventoryItemId,
+          currentSupplierId: row.currentSupplierId,
+          targetStockAtomic: row.targetStockAtomic,
           minimumStockAtomic: row.minimumStockAtomic,
           knowsMinimumStock: knowsMinimumStock,
           componentesReceta: Map.unmodifiable({

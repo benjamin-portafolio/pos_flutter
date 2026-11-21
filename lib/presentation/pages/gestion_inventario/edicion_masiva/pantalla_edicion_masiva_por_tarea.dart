@@ -214,6 +214,10 @@ class _PantallaEdicionMasivaPorTareaState
                   ),
                   items: const [
                     DropdownMenuItem(
+                      value: TareaEdicionMasiva.reposicion,
+                      child: Text('Reposición'),
+                    ),
+                    DropdownMenuItem(
                       value: TareaEdicionMasiva.venta,
                       child: Text('Precio de venta'),
                     ),

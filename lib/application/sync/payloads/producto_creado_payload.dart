@@ -1,3 +1,4 @@
+import 'supplier_replenishment_patch.dart';
 import 'producto_proveedor_precio.dart';
 import 'producto_proveedor_dependencia.dart';
 import '../../../domain/articulos/codigo_barras.dart';
@@ -76,6 +77,19 @@ class ProductoCreadoPayload {
     return ProductoCreadoPayload.fromJson(json);
   }
 
+  ProductoCreadoPayload withKnownReplenishment() {
+    final json = toJson();
+    json['variants'] = [
+      for (final v in variantes)
+        <String, Object?>{
+          'current_supplier_id': null,
+          'target_stock_atomic': null,
+          ...v.toJson(),
+        },
+    ];
+    return ProductoCreadoPayload.fromJson(json);
+  }
+
   bool get knowsMinimumStock => variantes.first.knowsMinimumStock;
 
   static bool knowsMinimumStockJson(Map<String, Object?> json) {
@@ -115,6 +129,7 @@ class ProductoCreadoPayload {
           inventoryItemId: v.inventoryItemId,
           componentesReceta: v.componentesReceta,
           proveedores: v.proveedores,
+          replenishment: v.replenishment,
           minimumStockAtomic: v.minimumStockAtomic,
           offerPriceMinor: v.offerPriceMinor,
           knowsOfferPrice: v.knowsOfferPrice,
@@ -144,6 +159,7 @@ class ProductoCreadoPayload {
           inventoryItemId: v.inventoryItemId,
           componentesReceta: v.componentesReceta,
           proveedores: v.proveedores ?? const [],
+          replenishment: v.replenishment,
           minimumStockAtomic: v.minimumStockAtomic,
           offerPriceMinor: v.offerPriceMinor,
           knowsOfferPrice: v.knowsOfferPrice,
@@ -371,6 +387,7 @@ class ProductoCreadoVariante {
     required this.costoEstandarMenor,
     required this.inventoryItemId,
     required this.minimumStockAtomic,
+    required this.replenishment,
     required this.offerPriceMinor,
     required this.knowsOfferPrice,
     required this.knowsMinimumStock,
@@ -387,6 +404,8 @@ class ProductoCreadoVariante {
     String? codigoBarras,
     String? inventoryItemId,
     int? minimumStockAtomic,
+    SupplierReplenishmentPatch replenishment =
+        const SupplierReplenishmentPatch.preserve(),
     int? offerPriceMinor,
     bool knowsOfferPrice = false,
     bool knowsMinimumStock = false,
@@ -429,6 +448,9 @@ class ProductoCreadoVariante {
           ? null
           : CostoEstandar.fromUnidadMenor(costoEstandarMenor).unidadMenor,
       inventoryItemId: normalizedInventoryItemId,
+      replenishment: SupplierReplenishmentPatch.fromJson(
+        replenishment.toJson(),
+      ),
       minimumStockAtomic: minimumStockAtomic,
       offerPriceMinor: offerPriceMinor,
       knowsOfferPrice: knowsOfferPrice || offerPriceMinor != null,
@@ -452,6 +474,7 @@ class ProductoCreadoVariante {
 
   /// Átomos no negativos, null desactiva el aviso. En constructores anteriores
   /// el null por defecto conserva desconocimiento: no expresa una retirada.
+  final SupplierReplenishmentPatch replenishment;
   final int? minimumStockAtomic;
   final int? offerPriceMinor;
   final bool knowsOfferPrice;
@@ -475,6 +498,9 @@ class ProductoCreadoVariante {
           precioVentaMenor: precioVentaMenor,
           costoEstandarMenor: costoEstandarMenor,
           inventoryItemId: inventoryItemId,
+          replenishment: SupplierReplenishmentPatch.fromJson(
+            replenishment.toJson(),
+          ),
           minimumStockAtomic: minimumStockAtomic,
           offerPriceMinor: offerPriceMinor,
           knowsOfferPrice: knowsOfferPrice,
@@ -524,6 +550,7 @@ class ProductoCreadoVariante {
           json['minimum_stock_atomic'],
           '$fieldName.minimum_stock_atomic',
         ),
+        replenishment: SupplierReplenishmentPatch.fromJson(json),
         knowsMinimumStock: json.containsKey('minimum_stock_atomic'),
         offerPriceMinor: json['offer_price_minor'] == null
             ? null
@@ -549,6 +576,7 @@ class ProductoCreadoVariante {
   }
 
   Map<String, Object?> toJson() => {
+    ...replenishment.toJson(),
     'variant_id': id,
     'name': nombre,
     'sku': null,

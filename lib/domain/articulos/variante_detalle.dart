@@ -11,6 +11,8 @@ class VarianteDetalle {
     this.codigoBarras,
     this.offerPriceMinor,
     this.minimumStockAtomic,
+    this.currentSupplierId,
+    this.targetStockAtomic,
     this.knowsMinimumStock = false,
     List<ProveedorVariante>? proveedores,
   }) : proveedores = ProveedorVariante.canonical(proveedores);
@@ -24,6 +26,8 @@ class VarianteDetalle {
   final int? offerPriceMinor;
 
   /// Umbral atómico y conocimiento del contrato, independiente de SQL null.
+  final String? currentSupplierId;
+  final int? targetStockAtomic;
   final int? minimumStockAtomic;
   final bool knowsMinimumStock;
   final String? inventoryItemId;

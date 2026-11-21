@@ -1,3 +1,6 @@
+import 'projections/supplier_order_projection_store.dart';
+import 'supplier_order_operation.dart';
+import 'revalidation/supplier_order_pending_validator.dart';
 import 'projections/variant_inventory_tracking_store.dart';
 import 'payloads/recurso_inventario_eliminado_payload.dart';
 import 'payloads/operacion_venta_conciliada_payload.dart';
@@ -60,6 +63,7 @@ class PendingEventRevalidator {
     CashProjectionStore? cashProjectionStore,
     AccountBalanceBaselineProjectionStore?
     accountBalanceBaselineProjectionStore,
+    SupplierOrderProjectionStore? supplierOrderStore,
     ClienteProjectionStore? clienteProjectionStore,
     ProveedorProjectionStore? proveedorProjectionStore,
     required SyncPersistence syncPersistence,
@@ -140,6 +144,12 @@ class PendingEventRevalidator {
             AccountBalancePendingEventValidator(
               accountBalanceBaselineProjectionStore,
             ),
+      if (supplierOrderStore != null)
+        for (final type in SupplierOrderOperation.eventTypes)
+          type: SupplierOrderPendingValidator(
+            supplierOrderStore,
+            syncedEventHistory,
+          ),
       AbonoClienteRegistradoPayload.eventType: SalePendingEventValidator(
         syncedEventHistory,
       ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import '../../../application/recovery/baseline_bootstrap_transport.dart';
+import '../../../application/recovery/recovery_destination_policy.dart';
 
 /// Canal dedicado de enrolamiento. Nunca escribe endpoint/configuración de sync.
 class HttpBaselineBootstrapTransport implements BaselineBootstrapTransport {
@@ -10,16 +11,7 @@ class HttpBaselineBootstrapTransport implements BaselineBootstrapTransport {
     required this.generationId,
     required String enrollmentToken,
   }) : _token = enrollmentToken {
-    if (baseUri.scheme != 'https' &&
-        !(baseUri.scheme == 'http' &&
-            {'127.0.0.1', 'localhost', '::1'}.contains(baseUri.host))) {
-      throw ArgumentError('Bootstrap requiere TLS fuera de loopback.');
-    }
-    if (baseUri.userInfo.isNotEmpty ||
-        baseUri.hasQuery ||
-        baseUri.hasFragment) {
-      throw ArgumentError('Endpoint bootstrap inválido.');
-    }
+    RecoveryDestinationPolicy.parse(baseUri.toString());
   }
   final Uri baseUri;
   final String serverInstanceId;

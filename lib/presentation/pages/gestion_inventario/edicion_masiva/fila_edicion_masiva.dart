@@ -1,3 +1,5 @@
+import 'capturar_reposicion_masiva.dart';
+import '../../../../application/sync/payloads/supplier_replenishment_patch.dart';
 import 'capturar_oferta_masiva.dart';
 import '../../../../application/edicion_masiva/cambio_explicito.dart';
 import 'package:flutter/material.dart';
@@ -149,6 +151,36 @@ class _FilaEdicionMasivaState extends State<FilaEdicionMasiva> {
       return _compacta(context, capturada, estilo);
     }
     switch (widget.controller.tarea) {
+      case TareaEdicionMasiva.reposicion:
+        return [
+          Text(
+            'Proveedor actual: ${widget.fila.currentSupplierId ?? "Sin selección"}',
+          ),
+          Text(
+            'Existencia objetivo: ${widget.fila.targetStockAtomic == null
+                ? "Desactivada"
+                : widget.fila.entrada == null
+                ? "Conservada sin seguimiento"
+                : "${_cantidades.formatAtomic(widget.fila.targetStockAtomic!, widget.fila.entrada!.unidad)} ${widget.fila.entrada!.unidad.simbolo}"}',
+          ),
+          TextButton(
+            key: ValueKey('replenishment_edit_$_id'),
+            onPressed: widget.controller.guardando
+                ? null
+                : () async {
+                    final patch = await capturarReposicionMasiva(
+                      context,
+                      widget.fila,
+                      capturada?.replenishment ??
+                          const SupplierReplenishmentPatch.preserve(),
+                    );
+                    if (patch != null) {
+                      await widget.controller.editarReposicion(_clave, patch);
+                    }
+                  },
+            child: const Text('Configurar reposición'),
+          ),
+        ];
       case TareaEdicionMasiva.oferta:
         return [
           Text(
