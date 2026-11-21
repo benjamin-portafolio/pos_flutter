@@ -77,7 +77,7 @@ void main() {
           final exported = (await tester.runAsync(f.export))!;
           expect(
             exported,
-            startsWith(ArticuloCsvContract.columnasConIdsAnteriores.join(',')),
+            startsWith(ArticuloCsvContract.columnasSimplificadas.join(',')),
           );
           final lines = exported.trim().split('\n');
           final edited = <String>[];
@@ -88,9 +88,9 @@ void main() {
               fields[2] = ''; // Retira categoría.
               fields[3] = 'Producto editado';
               fields[7] = '31.25';
-              fields[8] = ''; // Costo desconocido.
-              fields[10] = '9999'; // Saldo exportado informativo.
-              fields[11] = fields[6] == 'Directa' ? '' : '000123';
+              fields[9] = ''; // Costo desconocido.
+              fields[11] = '9999'; // Saldo exportado informativo.
+              fields[13] = fields[6] == 'Directa' ? '' : '000123';
             }
             edited.add(fields.join(','));
           }
@@ -201,6 +201,27 @@ void main() {
             isNull,
           );
           expect(await tester.runAsync(f.state), after);
+        },
+      );
+
+      uiTest(
+        'revisión de proveedor simplificado muestra el nombre antes de guardar',
+        (tester) async {
+          final exported = (await tester.runAsync(f.export))!;
+          final rows = exported
+              .trim()
+              .split('\n')
+              .map((l) => l.split(','))
+              .toList();
+          final row = rows.skip(1).singleWhere((r) => r[1] == f.directId);
+          row[14] = 'Proveedor';
+          await open(tester, '${rows.first.join(',')}\n${row.join(',')}\n');
+          final diff = find.byKey(ValueKey('bulk_import_diff_${f.complexId}'));
+          await tester.ensureVisible(diff);
+          await tester.tap(diff);
+          await tester.pumpAndSettle();
+          expect(find.textContaining('Propuesta: Proveedor'), findsOneWidget);
+          expect(find.textContaining('Proveedor actual (UUID)'), findsNothing);
         },
       );
 

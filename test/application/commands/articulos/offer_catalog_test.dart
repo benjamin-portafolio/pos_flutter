@@ -235,25 +235,30 @@ void main() {
               .split('\n')
               .map((r) => r.split(','))
               .toList();
-          expect(rows.last.sublist(12, 14), ['15.00', '']);
+          expect(rows.last[8], '15.00');
           final old = [
-            rows.first.take(12).join(','),
+            [
+              ...rows.first.take(8),
+              ...rows.first.sublist(9, 12),
+              rows.first[13],
+            ].join(','),
             [
               ...rows.last.take(7),
               '21.00',
-              ...rows.last.sublist(8, 12),
+              ...rows.last.sublist(9, 12),
+              rows.last[13],
             ].join(','),
           ].join('\n');
           await run(old);
           expect(await offer(id), 1500);
           rows.last[7] = '21.00';
-          rows.last[12] = '13.00';
+          rows.last[8] = '13.00';
           await run(rows.map((r) => r.join(',')).join('\n'));
           expect(await offer(id), 1300);
           final count = (await h.tracking.storedEvents()).length;
           await run(rows.map((r) => r.join(',')).join('\n'));
           expect((await h.tracking.storedEvents()).length, count);
-          rows.last[12] = '';
+          rows.last[8] = '';
           await run(rows.map((r) => r.join(',')).join('\n'));
           expect(await offer(id), isNull);
         },
@@ -484,7 +489,13 @@ void main() {
             ('90071992547409.92', 'establecer', 'error'),
             ('', 'desconocida', 'error'),
           ]) {
-            final row = source.last.take(14).toList();
+            final row = [
+              ...source.last.take(8),
+              ...source.last.sublist(9, 12),
+              source.last[13],
+              source.last[8],
+              '',
+            ];
             row[12] = entry.$1;
             row[13] = entry.$2;
             final report = await preparation.preparar(

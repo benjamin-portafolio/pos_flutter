@@ -22,6 +22,7 @@ import 'package:pos_flutter/domain/articulos/proveedor_variante.dart';
 import 'package:pos_flutter/domain/articulos/sale_configuration.dart';
 import 'package:pos_flutter/domain/inventario/inventory_unit_ids.dart';
 import '../../../support/product_supplier_harness.dart';
+import '../../../support/catalogo_csv_v2_fixture.dart';
 
 void main() {
   for (final mode in AppMode.values) {
@@ -376,8 +377,10 @@ void main() {
         final h = ProductSupplierHarness(mode: mode);
         try {
           final supplier = await h.supplier('Proveedor');
-          await h.supplierCommands.crearProveedor(const CrearProveedorCommand(nombre:'Proveedor'));
-          final duplicateNameId=h.appends.last.event.aggregateId;
+          await h.supplierCommands.crearProveedor(
+            const CrearProveedorCommand(nombre: 'Proveedor'),
+          );
+          final duplicateNameId = h.appends.last.event.aggregateId;
 
           await h.commands.crearArticulo(
             CrearArticuloCommand.conVariantes(
@@ -402,7 +405,7 @@ void main() {
               ],
             ),
           );
-          final export = ArticuloCatalogCsv.catalogo(
+          final export = catalogoCsvV2Fixture(
             await h.db.productoDao.watchProductosListado().first,
           );
           final preparation = ArticuloImportPreparationService(
@@ -452,7 +455,7 @@ void main() {
                 .targetStockAtomic,
             7,
           );
-          final reexport = ArticuloCatalogCsv.catalogo(
+          final reexport = catalogoCsvV2Fixture(
             await h.db.productoDao.watchProductosListado().first,
           );
           expect(

@@ -5,6 +5,7 @@ class ProductoListadoRow {
   const ProductoListadoRow({
     required this.producto,
     this.eventoBase,
+    this.proveedorActual,
     this.hasMinimumStockValue = false,
     required this.categoria,
     required this.variante,
@@ -17,6 +18,7 @@ class ProductoListadoRow {
 
   final ProductRow producto;
   final EventRecord? eventoBase;
+  final SupplierRow? proveedorActual;
   final bool hasMinimumStockValue;
   final CategoryRow? categoria;
   final ProductVariantRow? variante;

@@ -9,13 +9,13 @@ import 'package:pos_flutter/application/import/articulo_import_batch_service.dar
 import 'package:pos_flutter/application/import/articulo_import_preparation_service.dart';
 import 'package:pos_flutter/application/import/articulo_catalog_import_service.dart';
 import 'package:pos_flutter/application/sync/payloads/producto_actualizado_payload.dart';
-import 'package:pos_flutter/data/local/export/articulo_catalog_csv.dart';
 import 'package:pos_flutter/data/local/import/articulo_import_csv.dart';
 import 'package:pos_flutter/data/local/import/csv_records_parser.dart';
 import 'package:pos_flutter/data/local/import/drift_articulo_import_catalog_reader.dart';
 import 'package:pos_flutter/data/repositories/unidad_inventario_repository_impl.dart';
 
 import '../../support/product_supplier_harness.dart';
+import '../../support/catalogo_csv_v2_fixture.dart';
 
 void main() {
   for (final mode in AppMode.values) {
@@ -55,7 +55,7 @@ void main() {
         );
       });
       tearDown(() => h.dispose());
-      Future<String> exportar() async => ArticuloCatalogCsv.catalogo(
+      Future<String> exportar() async => catalogoCsvV2Fixture(
         await h.db.productoDao.watchProductosListado().first,
       );
       Future<ArticuloImportReporte> revisarEliminacion({

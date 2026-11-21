@@ -1,5 +1,6 @@
 import '../edicion_masiva/cambio_explicito.dart';
 import 'articulo_import_actualizacion.dart';
+import 'articulo_import_proveedor.dart';
 import 'articulo_import_eliminacion.dart';
 import 'articulo_import_producto_error.dart';
 import 'articulo_import_producto_local.dart';
@@ -26,6 +27,7 @@ class ArticuloImportCategoria {
 /// No conoce Drift ni consulta historial o saldos.
 class ArticuloImportCatalogo {
   const ArticuloImportCatalogo({
+    this.proveedores = const <ArticuloImportProveedor>[],
     this.categorias = const <ArticuloImportCategoria>[],
     this.unidades = const <UnidadInventario>[],
     this.nombresArticulos = const <String>{},
@@ -33,6 +35,7 @@ class ArticuloImportCatalogo {
     this.variantesPorId = const {},
   });
 
+  final List<ArticuloImportProveedor> proveedores;
   final List<ArticuloImportCategoria> categorias;
   final List<UnidadInventario> unidades;
 
@@ -149,6 +152,7 @@ class ArticuloImportReporte {
     this.productosSinCambios = const [],
     this.productosConErrores = const [],
     this.categorias = const [],
+    this.proveedores = const [],
     this.delimitadorAmbiguo = false,
   });
 
@@ -163,6 +167,7 @@ class ArticuloImportReporte {
   final List<ArticuloImportError> errores;
   final List<ArticuloImportProductoError> productosConErrores;
   final List<ArticuloImportCategoria> categorias;
+  final List<ArticuloImportProveedor> proveedores;
 
   /// Reporte de un archivo que no se puede ni leer: sin filas válidas y con el
   /// error que lo impide.

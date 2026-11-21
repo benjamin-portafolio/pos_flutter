@@ -62,6 +62,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       );
     }
     return ArticuloImportSolicitud(
+      resolverNombresProveedores: archivo.simplificado,
       productIds: Set.unmodifiable({
         if (archivo.conIds)
           for (final fila in archivo.filas)
@@ -92,14 +93,16 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       archivo.filas,
       catalogo,
       conIds: archivo.conIds,
-      formatoNuevo: archivo.formatoNuevo,
-      conVariantes: archivo.conVariantes,
+      formatoNuevo: archivo.formatoNuevo || archivo.simplificado,
+      conVariantes: archivo.conVariantes || archivo.simplificado,
+      simplificado: archivo.simplificado,
     );
   }
 
   ({
     List<List<String>> filas,
     bool conIds,
+    bool simplificado,
     bool formatoNuevo,
     bool conVariantes,
     bool ambiguo,
@@ -184,6 +187,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       return (
         filas: [],
         conIds: conIds,
+        simplificado: encabezado.contains('existencias_objetivo'),
         formatoNuevo: encabezado.contains('eliminar_producto'),
         conVariantes: encabezado.contains('eliminar_variante'),
         ambiguo: true,
@@ -226,6 +230,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     return (
       filas: errores.isEmpty ? filas.skip(1).toList(growable: false) : [],
       conIds: conIds,
+      simplificado: encabezado.contains('existencias_objetivo'),
       formatoNuevo: encabezado.contains('eliminar_producto'),
       conVariantes: encabezado.contains('eliminar_variante'),
       ambiguo: false,
@@ -240,7 +245,10 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     required bool conIds,
   }) {
     final columnas = conIds
-        ? (encabezado.contains('version_csv')
+        ? (encabezado.contains('existencias_objetivo') ||
+                  encabezado.contains('proveedor_actual')
+              ? ArticuloCsvContract.columnasSimplificadas
+              : encabezado.contains('version_csv')
               ? ArticuloCsvContract.columnasReposicion
               : encabezado.contains('eliminar_variante') ||
                     encabezado.contains('recurso_inventario_id')
@@ -304,12 +312,107 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     return errores;
   }
 
+  /// Traduce solamente el formato público a la representación legada validada
+  /// abajo. Conserva el mismo flujo de comandos, bases y comprobación de unidad.
+  List<String> _normalizarSimplificada(
+    List<String> campos,
+    ArticuloImportCatalogo catalogo,
+    void Function(String, String) error,
+  ) {
+    final local = catalogo.variantesPorId[campos[1].trim()];
+    var supplier = '';
+    var supplierAction = 'conservar';
+    var target = '';
+    var unitId = '';
+    var targetAction = 'conservar';
+    final nombre = campos[14].trim();
+    final objetivo = campos[12].trim();
+    if (campos[15].trim().toLowerCase() == 'si' &&
+        (nombre.isNotEmpty || objetivo.isNotEmpty)) {
+      error(
+        'eliminar_variante',
+        'No mezcles retiro de variante con reposición.',
+      );
+    }
+    if (local != null &&
+        campos[15].trim().toLowerCase() != 'si' &&
+        campos[10].trim().toLowerCase() !=
+            (local.seguimientoExistencias ? 'si' : 'no')) {
+      error(
+        'seguimiento_existencias',
+        'El formato simplificado no activa ni desactiva seguimiento. Usa el editor de la aplicación.',
+      );
+    }
+    if (nombre.toUpperCase() == 'RETIRAR') {
+      supplierAction = 'retirar';
+    } else if (nombre.isNotEmpty) {
+      final literal = nombre.startsWith('=') ? nombre.substring(1) : nombre;
+      final coincidencias = catalogo.proveedores
+          .where((p) => _clave(p.nombre) == _clave(literal))
+          .toList();
+      // Un nombre igual al actual expresa conservación, incluso si hay otros
+      // proveedores homónimos. Nunca se reasigna a otro ID por coincidencia.
+      if (!coincidencias.any((p) => p.id == local?.currentSupplierId)) {
+        if (coincidencias.length != 1) {
+          error(
+            'proveedor_actual',
+            coincidencias.isEmpty
+                ? 'El proveedor no existe o está inactivo.'
+                : 'Nombre de proveedor ambiguo. Distingue los nombres en el editor de proveedores.',
+          );
+        } else {
+          supplier = coincidencias.single.id;
+          supplierAction = 'establecer';
+        }
+      }
+    }
+    if (objetivo.toUpperCase() == 'RETIRAR') {
+      targetAction = 'retirar';
+    } else if (objetivo.isNotEmpty) {
+      final unit = local?.inventoryUnit;
+      if (unit == null) {
+        error(
+          'existencias_objetivo',
+          'Configura el objetivo sobre una variante existente con seguimiento y unidad de inventario válida.',
+        );
+      } else {
+        try {
+          target = const InventoryQuantityCodec()
+              .parseNonNegativeAtomic(objetivo, unit)
+              .toString();
+          unitId = unit.id;
+          targetAction = 'establecer';
+        } on FormatException catch (e) {
+          error('existencias_objetivo', e.message);
+        }
+      }
+    }
+    return [
+      ...campos.take(8),
+      campos[9],
+      campos[10],
+      campos[11],
+      campos[13],
+      campos[8],
+      '',
+      campos[15],
+      '',
+      ArticuloCsvContract.versionReposicion,
+      supplier,
+      supplierAction,
+      target,
+      unitId,
+      targetAction,
+    ];
+  }
+
   ArticuloImportReporte _revisarFilas(
     List<List<String>> filas,
     ArticuloImportCatalogo catalogo, {
     required bool conIds,
     required bool formatoNuevo,
     required bool conVariantes,
+    required bool simplificado,
   }) {
     final contexto = _Contexto(catalogo);
     final errores = <ArticuloImportError>[];
@@ -325,7 +428,8 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
 
     for (var indice = 0; indice < filas.length; indice++) {
       final linea = indice + 2;
-      final campos = filas[indice];
+      final originales = filas[indice];
+      final campos = List<String>.of(originales);
       final productId = conIds && campos.isNotEmpty ? campos[0].trim() : '';
       final variantId = conIds && campos.length > 1 ? campos[1].trim() : '';
       final existente = productId.isNotEmpty || variantId.isNotEmpty;
@@ -333,6 +437,11 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       void error(String columna, String motivo) => errores.add(
         ArticuloImportError(linea: linea, columna: columna, motivo: motivo),
       );
+      if (simplificado) {
+        campos
+          ..clear()
+          ..addAll(_normalizarSimplificada(originales, catalogo, error));
+      }
       final accion = formatoNuevo ? campos[13].trim().toLowerCase() : '';
       final accionVariante = conVariantes
           ? campos[14].trim().toLowerCase()
@@ -444,6 +553,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
         existente: existente,
         formatoNuevo: formatoNuevo,
         variantId: existente ? variantId : null,
+        unidadInventarioExistente: simplificado
+            ? catalogo.variantesPorId[variantId]?.inventoryUnit
+            : null,
       );
       if (fila != null &&
           campos.length == ArticuloCsvContract.columnasReposicion.length) {
@@ -475,7 +587,11 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
 
           final supplierAction = campos[18].trim();
           final targetAction = campos[21].trim();
-          final supplier = parseAction(campos[17], supplierAction, (v) => v.toLowerCase());
+          final supplier = parseAction(
+            campos[17],
+            supplierAction,
+            (v) => v.toLowerCase(),
+          );
           final target = parseAction(campos[19], targetAction, (v) {
             final n = int.tryParse(v);
             if (n == null || !RegExp(r'^[0-9]+$').hasMatch(v)) {
@@ -772,6 +888,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       productosSinCambios: List.unmodifiable(iguales),
       errores: List.unmodifiable(errores),
       categorias: catalogo.categorias,
+      proveedores: catalogo.proveedores,
       productosConErrores: List.unmodifiable([
         for (final entry in excluidas.entries)
           ArticuloImportProductoError(
@@ -808,6 +925,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     bool existente = false,
     bool formatoNuevo = false,
     String? variantId,
+    UnidadInventario? unidadInventarioExistente,
   }) {
     final deFila = <ArticuloImportError>[];
 
@@ -827,6 +945,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       modoVenta,
       unidadVenta,
       existente: existente,
+      unidadInventarioExistente: unidadInventarioExistente,
     );
     final codigoBarras = _codigoBarras(campos[9], deFila);
     var offerPrice = const CambioExplicito<int?>.conservar();
@@ -1124,6 +1243,7 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
     SaleMode? modoVenta,
     UnidadInventario? unidadVenta, {
     bool existente = false,
+    UnidadInventario? unidadInventarioExistente,
   }) {
     final normalizado = valor.trim().replaceAll(',', '.');
     if (existente && normalizado.isEmpty) return 0;
@@ -1149,7 +1269,9 @@ class ArticuloImportCsv implements ArticuloCatalogImportService {
       );
       return null;
     }
-    final unidad = contexto.unidadInventario(modoVenta, unidadVenta);
+    final unidad =
+        unidadInventarioExistente ??
+        contexto.unidadInventario(modoVenta, unidadVenta);
     if (unidad == null) {
       errores.add(
         const ArticuloImportError(

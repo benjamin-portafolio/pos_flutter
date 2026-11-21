@@ -681,10 +681,18 @@ solo después de instalar las relaciones cotizadas, dentro de la transacción.
 Quitar seguimiento conserva el objetivo/proveedor dormidos y no genera stock.
 
 Editor de variante y tarea masiva «Reposición» capturan la unidad real con el
-codec existente. CSV v2 añade acciones explícitas, UUID de proveedor, objetivo
-atómico y unidad; formatos anteriores conservan. Exportar/reimportar el mismo
-catálogo no modifica la configuración. No se crean relaciones ni cotizaciones
-al importar. Consultar Contrato S2 del roadmap del vault para columnas y ejemplos.
+codec existente. La plantilla pública y el catálogo CSV usan el formato
+simplificado de 16 columnas: oferta entre venta y coste, `existencias_objetivo`
+en magnitud de la unidad real de inventario y `proveedor_actual` por nombre.
+Vacío conserva proveedor/objetivo, `RETIRAR` retira y cantidad/nombre establece.
+La unidad se captura y revalida internamente; los nombres ambiguos no reasignan
+identidades. El mismo nombre del proveedor actual conserva su ID. El formato
+nuevo conserva retiro de variantes y no ofrece eliminación completa ni enlace
+explícito de recursos. Los contratos históricos de 10/12/14/16 columnas y CSV v2
+(22 columnas con acciones, UUID y objetivo atómico) siguen admitidos con sus
+reglas originales. Exportar/reimportar el mismo catálogo no modifica la
+configuración. No se crean relaciones ni cotizaciones al importar.
+Ver [formato y verificación](../testing/csv_simplificado_verificacion.md).
 
 `SupplierReplenishmentAvailability` acredita `supplier_replenishment_v1` en el
 endpoint observado para captura offline en server_sync; push verifica otra vez

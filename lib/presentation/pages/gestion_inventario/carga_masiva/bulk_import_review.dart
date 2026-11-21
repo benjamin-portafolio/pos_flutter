@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:unorm_dart/unorm_dart.dart' as unorm;
 
 import '../../../../application/import/articulo_catalog_import_service.dart';
+import '../../../../application/import/articulo_import_proveedor.dart';
 import '../../../../application/import/articulo_import_actualizacion.dart';
 import '../../../../domain/articulos/nombre_variante.dart';
 
@@ -29,7 +30,8 @@ class BulkImportReview extends StatelessWidget {
       'venta son obligatorios; nombre de variante puede quedar vacío solo si '
       'hay una variante.\n'
       'Oferta: precio_oferta establece el importe; vacío retira. Los formatos antiguos sin oferta conservan; accion_oferta mantiene su interpretación anterior. '
-      'Eliminar: escribe si en eliminar_producto con product_id existente; elimina el producto completo y todas sus variantes. No mezcles eliminación y cambios. Quitar filas del archivo no elimina nada. '
+      'Reposición: proveedor_actual usa el nombre del proveedor asociado y existencias_objetivo la cantidad en la unidad de inventario. En ambas columnas vacío conserva y RETIRAR quita la configuración. '
+      'eliminar_variante=si retira solo esa variante y debe quedar otra activa; vacía proveedor y objetivo de esa fila. Quitar filas del archivo no elimina productos. '
       'La columna existencias es informativa al actualizar.';
 
   @override
@@ -82,7 +84,11 @@ class BulkImportReview extends StatelessWidget {
         const SizedBox(height: 12),
         const Text('Revisar diferencias actuales / propuestas'),
         for (final producto in reporte.productosConCambios)
-          _Diferencias(producto: producto, categorias: reporte.categorias),
+          _Diferencias(
+            producto: producto,
+            categorias: reporte.categorias,
+            proveedores: reporte.proveedores,
+          ),
       ],
       if (reporte.hayErrores) ...[
         const SizedBox(height: 12),
@@ -125,13 +131,21 @@ class BulkImportReview extends StatelessWidget {
 }
 
 class _Diferencias extends StatelessWidget {
-  const _Diferencias({required this.producto, required this.categorias});
+  const _Diferencias({
+    required this.producto,
+    required this.categorias,
+    required this.proveedores,
+  });
   final ArticuloImportActualizacion producto;
   final List<ArticuloImportCategoria> categorias;
+  final List<ArticuloImportProveedor> proveedores;
 
   String _categoria(String? id) => id == null
       ? 'Sin categoría'
       : categorias.where((c) => c.id == id).firstOrNull?.nombre ?? id;
+  String _proveedor(String? id) => id == null
+      ? 'Sin selección'
+      : proveedores.where((p) => p.id == id).firstOrNull?.nombre ?? id;
   String _importe(int? minor) => minor == null
       ? 'Desconocido'
       : '${minor ~/ 100}.${(minor % 100).toString().padLeft(2, '0')}';
@@ -194,9 +208,9 @@ class _Diferencias extends StatelessWidget {
       );
       if (propuesta.replenishment.hasSupplier) {
         campo(
-          '$etiqueta · Proveedor actual (UUID)',
-          anterior.currentSupplierId ?? 'Sin selección',
-          propuesta.replenishment.supplierId ?? 'Sin selección',
+          '$etiqueta · Proveedor actual',
+          _proveedor(anterior.currentSupplierId),
+          _proveedor(propuesta.replenishment.supplierId),
         );
       }
       String objetivo(int? value) {

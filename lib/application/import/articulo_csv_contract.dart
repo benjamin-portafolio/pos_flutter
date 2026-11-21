@@ -1,5 +1,25 @@
 /// Contratos explícitos. El formato de diez columnas solo representa altas.
 abstract final class ArticuloCsvContract {
+  /// Formato público simplificado. La firma exacta del encabezado identifica
+  /// el formato; no necesita una columna de versión por fila.
+  static const columnasSimplificadas = <String>[
+    'product_id',
+    'variant_id',
+    'categoria',
+    'nombre_articulo',
+    'tipo_venta',
+    'unidad_venta',
+    'nombre_variante',
+    'precio_venta',
+    'precio_oferta',
+    'precio_coste',
+    'seguimiento_existencias',
+    'existencias',
+    'existencias_objetivo',
+    'codigo_barras',
+    'proveedor_actual',
+    'eliminar_variante',
+  ];
   static const versionReposicion = '2';
   static const columnasReposicion = <String>[
     ...columnasConVariantes,

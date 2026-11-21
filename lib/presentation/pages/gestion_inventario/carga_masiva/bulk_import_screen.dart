@@ -404,8 +404,8 @@ class _ReglasDelArchivo extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              '• Es la plantilla que descargas, con las 14 columnas en el mismo '
-              'orden; también se admiten los formatos anteriores de 10, 12 y 14 columnas con accion_oferta. UTF-8 con o sin BOM, '
+              '• Es la plantilla que descargas, con las 16 columnas en el mismo '
+              'orden; también se admiten los formatos anteriores de 10, 12, 14, 16 y 22 columnas. UTF-8 con o sin BOM, '
               'separado por coma (",") o punto y coma (";").\n'
               '• Reemplaza o elimina las filas de ejemplo antes de cargar el '
               'archivo.\n'
@@ -419,13 +419,19 @@ class _ReglasDelArchivo extends StatelessWidget {
               '• La categoría se busca por nombre y debe existir: no se crean '
               'al importar.\n'
               '• Máximo 500 filas por archivo.\n'
-              '• Puedes agregar eliminar_variante y recurso_inventario_id como '
-              'columnas 15 y 16. En una variante existente, eliminar_variante=si '
-              'retira solo esa variante.\n'
-              '• En ese formato, seguimiento_existencias=si y el ID de un '
-              'recurso compatible activan el seguimiento directo y conservan '
-              'el saldo del recurso. Escribe no para desactivar el seguimiento '
-              'directo o deja la celda vacía para conservarlo.',
+              '• Proveedor actual: escribe el nombre de un proveedor ya asociado '
+              'a la variante con cotización válida. Los nombres ambiguos se '
+              'rechazan; el mismo nombre del actual conserva su asignación.\n'
+              '• Existencias objetivo: nivel deseado de reposición, en la misma '
+              'unidad de inventario que existencias. Ejemplo: 1.5 para 1.5 kg. '
+              'Cero es válido. No modifica el saldo.\n'
+              '• En proveedor_actual y existencias_objetivo, vacío conserva y '
+              'RETIRAR quita la configuración. Configurar requiere variante existente.\n'
+              '• eliminar_variante=si retira solo esa variante; debe quedar otra '
+              'activa. Vacía proveedor y objetivo de esa fila.\n'
+              '• Usa la aplicación para cambiar seguimiento, enlazar recursos '
+              'o eliminar productos completos. Quitar filas del archivo no elimina productos.',
+
               style: TextStyle(height: 1.5, fontSize: 13),
             ),
           ],

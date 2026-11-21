@@ -26,7 +26,7 @@ abstract final class ArticuloCatalogCsv {
   static const bom = ArticuloCsvContract.bom;
 
   /// Orden de columnas del contrato. El importador exige coincidencia exacta.
-  static const columnas = ArticuloCsvContract.columnasReposicion;
+  static const columnas = ArticuloCsvContract.columnasSimplificadas;
   static const columnasAnteriores = ArticuloCsvContract.columnasAnteriores;
 
   static const _columnasNotas = <String>[
@@ -61,30 +61,10 @@ abstract final class ArticuloCatalogCsv {
     for (final grupo in _agruparPorProducto(filasExportables(rows))) {
       for (final row in grupo) {
         lineas.add(
-          [
-            if (incluirIds) ...[row.producto.id, row.variante!.id],
-            ..._campos(row),
-            if (incluirIds) ...[
-              row.variante!.offerPriceMinor == null
-                  ? ''
-                  : _importe(row.variante!.offerPriceMinor!),
-              '',
-              '',
-              '',
-              ArticuloCsvContract.versionReposicion,
-              row.variante!.currentSupplierId ?? '',
-              row.variante!.currentSupplierId == null
-                  ? 'retirar'
-                  : 'establecer',
-              row.variante!.targetStockAtomic?.toString() ?? '',
-              row.variante!.targetStockAtomic == null
-                  ? ''
-                  : row.unidadInventario?.unitId ?? '',
-              row.variante!.targetStockAtomic == null
-                  ? 'retirar'
-                  : 'establecer',
-            ],
-          ].map(_campo).join(separador),
+          _camposExportados(
+            row,
+            incluirIds: incluirIds,
+          ).map(_campo).join(separador),
         );
       }
     }
@@ -97,22 +77,10 @@ abstract final class ArticuloCatalogCsv {
     final lineas = <String>[
       (incluirIds ? columnas : columnasAnteriores).join(separador),
       for (final campos in _ejemplosPlantilla)
-        [
-          if (incluirIds) ...['', ''],
-          ...campos,
-          if (incluirIds) ...[
-            '',
-            '',
-            '',
-            '',
-            ArticuloCsvContract.versionReposicion,
-            '',
-            'conservar',
-            '',
-            '',
-            'conservar',
-          ],
-        ].map(_campo).join(separador),
+        _camposPlantilla(
+          campos,
+          incluirIds: incluirIds,
+        ).map(_campo).join(separador),
     ];
     return '${lineas.join('\n')}\n';
   }
@@ -191,55 +159,53 @@ abstract final class ArticuloCatalogCsv {
   /// comentarios.
   static String notasColumnas({bool incluirIds = true}) {
     final lineas = <String>[_columnasNotas.join(separador)];
+    final notasPorNombre = {
+      for (final nota in _notas) nota.columna: _notaConIds(nota),
+      'product_id': const _NotaColumna(
+        columna: 'product_id',
+        obligatoria: 'condicional',
+        valoresPermitidos: 'ID exportado o vacío',
+        descripcion:
+            'Conserva ambos IDs exportados para editar. Ambos vacíos crean un producto; el formato anterior de diez columnas solo permite altas. No se identifica por nombre ni barcode. Quitar filas no elimina productos.',
+      ),
+      'variant_id': const _NotaColumna(
+        columna: 'variant_id',
+        obligatoria: 'condicional',
+        valoresPermitidos: 'ID exportado o vacío',
+        descripcion:
+            'Debe pertenecer al producto activo. Para actualizar conserva ambos IDs; no repetir variantes. Las variantes omitidas se conservan.',
+      ),
+      'precio_oferta': const _NotaColumna(
+        columna: 'precio_oferta',
+        obligatoria: 'no',
+        valoresPermitidos: 'decimal positivo con hasta dos decimales',
+        descripcion:
+            'Oferta <= precio de venta. Vacío retira la oferta. Sin columna de oferta (formatos antiguos) se conserva.',
+      ),
+      'eliminar_variante': const _NotaColumna(
+        columna: 'eliminar_variante',
+        obligatoria: 'no',
+        valoresPermitidos: 'si; no; vacío',
+        descripcion:
+            'Retira solo la variante identificada. Mantén otra variante activa; no mezcles con reposición.',
+      ),
+      'proveedor_actual': const _NotaColumna(
+        columna: 'proveedor_actual',
+        obligatoria: 'no',
+        valoresPermitidos: 'nombre de proveedor asociado; RETIRAR; vacío',
+        descripcion:
+            'Vacío conserva; RETIRAR quita la asignación; nombre establece un proveedor existente asociado con precio y fecha válidos. El mismo nombre del proveedor actual conserva su identidad; otros nombres repetidos se rechazan. No crea proveedores ni cotizaciones. Para un nombre literal RETIRAR o que comience con =, antepón =. Configurar requiere variante existente.',
+      ),
+      'existencias_objetivo': const _NotaColumna(
+        columna: 'existencias_objetivo',
+        obligatoria: 'no',
+        valoresPermitidos: 'cantidad no negativa; RETIRAR; vacío',
+        descripcion:
+            'Nivel deseado para reposición, en la misma unidad de inventario que existencias (no necesariamente la unidad de venta). Ejemplo: 1.5 para 1.5 kg; cero es válido. No ajusta saldos. Vacío conserva; RETIRAR quita el objetivo. Requiere variante existente con seguimiento directo y unidad válida. Si no hay unidad, el catálogo deja vacío y conserva la configuración dormida.',
+      ),
+    };
     final notas = incluirIds
-        ? [
-            const _NotaColumna(
-              columna: 'product_id',
-              obligatoria: 'condicional',
-              valoresPermitidos: 'ID exportado o vacío',
-              descripcion:
-                  'Para eliminar basta product_id existente y eliminar_producto=si; se ignoran campos comerciales. Conserva ambos IDs exportados para editar. Con variant_id identifica una actualización. Ambos vacíos crean un producto; el formato anterior de diez columnas solo permite altas. No se identifica por nombre ni barcode.',
-            ),
-            const _NotaColumna(
-              columna: 'variant_id',
-              obligatoria: 'condicional',
-              valoresPermitidos: 'ID exportado o vacío',
-              descripcion:
-                  'Debe pertenecer al producto activo. Para actualizar, no repetir ni informar solo uno de los IDs; para eliminar variant_id es opcional. Las variantes omitidas se conservan.',
-            ),
-            for (final nota in _notas) _notaConIds(nota),
-            const _NotaColumna(
-              columna: 'precio_oferta',
-              obligatoria: 'no',
-              valoresPermitidos: 'decimal positivo con hasta dos decimales',
-              descripcion:
-                  'Oferta <= precio de venta. Vacío retira la oferta. Sin columna de oferta (formatos antiguos) se conserva.',
-            ),
-            const _NotaColumna(columna:'eliminar_variante',obligatoria:'no',valoresPermitidos:'si; no; vacío',descripcion:'Retira solo la variante identificada. Mantén otra variante activa; no mezcles con reposición.'),
-            const _NotaColumna(columna:'recurso_inventario_id',obligatoria:'condicional',valoresPermitidos:'UUID de recurso existente',descripcion:'Enlaza seguimiento a un recurso existente compatible; no cambia saldos.'),
-            for (final name in [
-              'version_csv',
-              'current_supplier_id',
-              'accion_proveedor_actual',
-              'target_stock_atomic',
-              'unidad_objetivo_id',
-              'accion_objetivo',
-            ])
-              _NotaColumna(
-                columna: name,
-                obligatoria: 'condicional',
-                valoresPermitidos: 'v2: conservar; establecer; retirar',
-                descripcion:
-                    'version_csv=2. Omisión legada o acción vacía/conservar conserva (valor vacío); retirar exige valor vacío; establecer exige UUID de proveedor asociado con precio/fecha, u objetivo entero atómico seguro >=0 y UUID de unidad del recurso. Cero válido. No crea relaciones ni inventa precios. Configuración dormida solo admite el mismo objetivo exportado sin unidad. Configurar valores requiere variante existente. La unidad debe coincidir exactamente; no se convierte.',
-              ),
-            const _NotaColumna(
-              columna: 'eliminar_producto',
-              obligatoria: 'no',
-              valoresPermitidos: 'si; no; vacío',
-              descripcion:
-                  'si elimina el producto completo y sus variantes por product_id existente; variant_id es opcional y debe pertenecer al producto. no o vacío sigue el flujo normal. No mezclar eliminación y cambios. Quitar filas del archivo no elimina nada.',
-            ),
-          ]
+        ? [for (final nombre in columnas) notasPorNombre[nombre]!]
         : _notas;
     for (final nota in notas) {
       lineas.add(
@@ -268,7 +234,7 @@ abstract final class ArticuloCatalogCsv {
       'unidad_venta' =>
         'g, kg, ml o l para fraccion; vacía para unidad. En existentes no puede cambiar.',
       'seguimiento_existencias' =>
-        'si o no. En existentes debe coincidir; el CSV no activa ni desactiva seguimiento.',
+        'si o no. En existentes debe coincidir; el formato simplificado no activa ni desactiva seguimiento.',
       'existencias' =>
         'En altas es obligatoria con seguimiento. En existentes es informativa: vacía o cantidad válida, nunca ajusta el saldo ni se compara como cambio.',
       'codigo_barras' =>
@@ -324,6 +290,60 @@ abstract final class ArticuloCatalogCsv {
       variante.inventoryItemId == null ? 'no' : 'si',
       _existencias(row),
       variante.barcode ?? '',
+    ];
+  }
+
+  static List<String> _camposPlantilla(
+    List<String> campos, {
+    required bool incluirIds,
+  }) {
+    if (!incluirIds) return campos;
+    return [
+      '',
+      '',
+      ...campos.take(6),
+      '',
+      campos[6],
+      campos[7],
+      campos[8],
+      '',
+      campos[9],
+      '',
+      '',
+    ];
+  }
+
+  static List<String> _camposExportados(
+    ProductoListadoRow row, {
+    required bool incluirIds,
+  }) {
+    final campos = _campos(row);
+    if (!incluirIds) return campos;
+    final nombre = row.proveedorActual?.name ?? '';
+    final nombreLiteral =
+        nombre.toUpperCase() == 'RETIRAR' || nombre.startsWith('=')
+        ? '=$nombre'
+        : nombre;
+    final objetivo = row.variante!.targetStockAtomic;
+    return [
+      row.producto.id,
+      row.variante!.id,
+      ...campos.take(6),
+      row.variante!.offerPriceMinor == null
+          ? ''
+          : _importe(row.variante!.offerPriceMinor!),
+      campos[6],
+      campos[7],
+      campos[8],
+      objetivo == null || row.unidadInventario == null
+          ? ''
+          : const InventoryQuantityCodec().formatAtomic(
+              objetivo,
+              _unidad(row.unidadInventario!),
+            ),
+      campos[9],
+      nombreLiteral,
+      '',
     ];
   }
 

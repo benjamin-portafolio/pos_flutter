@@ -1,4 +1,5 @@
 import '../../../domain/articulos/proveedor_variante.dart';
+import '../../../application/import/articulo_import_proveedor.dart';
 import '../drift/drift_producto_projection_store.dart';
 import '../../../application/import/articulo_catalog_import_service.dart';
 import '../../../application/import/articulo_import_catalog_reader.dart';
@@ -10,7 +11,7 @@ import '../../../domain/inventario/dimension_unidad.dart';
 import '../../../domain/inventario/unidad_inventario.dart';
 import '../drift/app_database.dart';
 
-/// Foto de revisión por conjuntos, sin saldos, recetas, proveedores ni eventos.
+/// Foto de revisión por conjuntos, con proveedores para resolver nombres CSV.
 /// Incluye inactivos para distinguir una identidad retirada de una alta.
 class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
   const DriftArticuloImportCatalogReader(this.db);
@@ -27,6 +28,11 @@ class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
         final categorias = await (db.select(
           db.categories,
         )..where((t) => t.active.equals(true))).get();
+        final proveedores = solicitud.resolverNombresProveedores
+            ? await (db.select(
+                db.suppliers,
+              )..where((t) => t.active.equals(true))).get()
+            : <SupplierRow>[];
         final unidades = await (db.select(
           db.units,
         )..where((t) => t.active.equals(true))).get();
@@ -144,6 +150,11 @@ class DriftArticuloImportCatalogReader implements ArticuloImportCatalogReader {
           grupo.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
         }
         return ArticuloImportCatalogo(
+          proveedores: List.unmodifiable(
+            proveedores.map(
+              (p) => ArticuloImportProveedor(id: p.id, nombre: p.name),
+            ),
+          ),
           nombresArticulos: Set.unmodifiable(
             nombres.map((r) => r.read(db.products.name)!),
           ),

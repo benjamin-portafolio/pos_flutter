@@ -616,6 +616,10 @@ void main() {
   ) async {
     await pump(tester);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('bulk_import_rules')),
+      200,
+    );
     expect(find.byKey(const Key('bulk_import_rules')), findsOneWidget);
     expect(find.text('Reglas del archivo'), findsOneWidget);
     expect(

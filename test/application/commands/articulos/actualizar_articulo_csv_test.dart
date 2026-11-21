@@ -232,7 +232,12 @@ void main() {
             .split('\n')
             .map((r) => r.split(','))
             .toList();
-        expect(rows.every((r) => r.length == ArticuloCsvContract.columnasReposicion.length), isTrue);
+        expect(
+          rows.every(
+            (r) => r.length == ArticuloCsvContract.columnasSimplificadas.length,
+          ),
+          isTrue,
+        );
         final header = rows.first;
         expect(header.take(2), ['product_id', 'variant_id']);
         final row = rows
@@ -241,8 +246,8 @@ void main() {
             .toList();
         row[3] = 'Reabierto';
         row[7] = '31.50';
-        row[10] = '999';
-        row[11] = '0000123';
+        row[11] = '999';
+        row[13] = '0000123';
         final csv = '${header.join(',')}\n${row.join(',')}\n';
         final csvFile = File('${directory.path}/edited.csv');
         await csvFile.writeAsString(csv, flush: true);

@@ -68,6 +68,10 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
         productVariants.productId.equalsExp(products.id) &
             productVariants.active.equals(true),
       ),
+      leftOuterJoin(
+        db.suppliers,
+        db.suppliers.id.equalsExp(productVariants.currentSupplierId),
+      ),
       leftOuterJoin(saleUnit, saleUnit.unitId.equalsExp(products.saleUnitId)),
       leftOuterJoin(
         db.inventoryItems,
@@ -128,6 +132,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
             (row) => ProductoListadoRow(
               producto: row.readTable(products),
               eventoBase: row.readTableOrNull(baseEvent),
+              proveedorActual: row.readTableOrNull(db.suppliers),
               hasMinimumStockValue: row.read(hasMinimumStockValue) ?? false,
               categoria: row.readTableOrNull(categories),
               variante: row.readTableOrNull(productVariants),
