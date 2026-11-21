@@ -12,6 +12,7 @@ import '../../../../application/commands/proveedores/cancel_supplier_order_comma
 import '../../../../domain/inventario/inventory_quantity_codec.dart';
 import 'supplier_order_forms.dart';
 import 'supplier_order_line_dialog.dart';
+import 'supplier_order_quantity_editor.dart';
 
 class SupplierOrderEditorScreen extends StatefulWidget {
   const SupplierOrderEditorScreen({required this.orderId, super.key});
@@ -30,6 +31,7 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
   Map<String, String> basis = {};
   bool busy = false, dirty = false;
   String? error;
+  String? editingId;
   @override
   void initState() {
     super.initState();
@@ -86,7 +88,7 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
   }
 
   Future<void> _save({bool confirm = false, bool close = false}) async {
-    if (busy || order == null) return;
+    if (busy || order == null || editingId != null || items.isEmpty) return;
     setState(() => busy = true);
     try {
       final o = order!;
@@ -149,9 +151,16 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                     'Cambió la base conocida. Se conservan tus cantidades y precios. Revisa los datos vigentes antes de confirmar.',
                   ),
                 for (final l in items) ...[
+                  const Divider(),
                   Text(
-                    '${l.productNameSnapshot}: ${const InventoryQuantityCodec().formatAtomic(l.quantityAtomic, lineUnit(l))} ${l.unitSymbolSnapshot} · ${orderMoney(l.quotedPriceMinor)} por ${const InventoryQuantityCodec().formatAtomic(l.referenceQuantityAtomic, lineUnit(l))} ${l.unitSymbolSnapshot}',
+                    [
+                      l.productNameSnapshot,
+                      if (l.variantNameSnapshot != null) l.variantNameSnapshot!,
+                    ].join(' · '),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
+                  Text('${_quantity(l, l.quantityAtomic)} × ${_price(l)}'),
+                  Text('Importe: ${_money(l.totalMinor)}'),
                   ...catalog
                       .where(
                         (c) =>
@@ -159,14 +168,32 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                             c.supplierId == order!.document.supplierId,
                       )
                       .map(
-                        (c) => Text(
-                          'Vigente: saldo ${c.balanceAtomic}, pendiente ${c.pendingAtomic}, objetivo ${c.targetAtomic ?? 'sin objetivo'} átomos; cotización ${orderMoney(c.priceMinor)}; proveedor actual ${c.currentSupplierId ?? 'sin selección'}',
+                        (c) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Existencias: ${candidateQuantity(c, c.balanceAtomic)} ${c.unitSymbol} · Pendiente de recibir: ${candidateQuantity(c, c.pendingAtomic)} ${c.unitSymbol}',
+                            ),
+                            Text(
+                              'Objetivo: ${c.targetAtomic == null ? 'Sin objetivo' : '${candidateQuantity(c, c.targetAtomic!)} ${c.unitSymbol}'}',
+                            ),
+                            Text(
+                              'Precio vigente: ${_money(c.priceMinor)} por ${candidateQuantity(c, c.referenceAtomic)} ${c.unitSymbol}',
+                            ),
+                            if (!c.isCurrent)
+                              const Text(
+                                'Este proveedor ya no es el seleccionado para el producto.',
+                              ),
+                          ],
                         ),
                       ),
                 ],
+                const Divider(),
                 Text(
-                  'Estimado: ${orderMoney(orderTotal(items.map((l) => l.totalMinor)))} ${order!.document.currency}',
+                  'Total estimado: ${_money(orderTotal(items.map((l) => l.totalMinor)))} ${order!.document.currency}',
                 ),
+                if (items.any((l) => l.quotedPriceMinor == null))
+                  const Text('Estimado incompleto: hay productos sin precio.'),
                 const Text(
                   'Confirmar congela el documento. No cambia existencias.',
                 ),
@@ -231,6 +258,87 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
     }
   }
 
+  String _quantity(SupplierOrderLine line, int value) =>
+      '${const InventoryQuantityCodec().formatAtomic(value, lineUnit(line))} ${line.unitSymbolSnapshot}';
+  String _money(int? value) =>
+      value == null ? 'Sin precio' : '\$${orderMoney(value)}';
+  String _price(SupplierOrderLine line) => line.quotedPriceMinor == null
+      ? 'Sin precio'
+      : '${_money(line.quotedPriceMinor)} por ${_quantity(line, line.referenceQuantityAtomic)}';
+
+  Future<void> _editPrice(int index) async {
+    final line = await showDialog<SupplierOrderLine>(
+      context: context,
+      builder: (_) => SupplierOrderLineDialog(line: items[index]),
+    );
+    if (line != null && mounted) {
+      setState(() {
+        items[index] = line;
+        dirty = true;
+      });
+    }
+  }
+
+  void _deleteLine(int index) => setState(() {
+    items.removeAt(index);
+    editingId = null;
+    dirty = true;
+  });
+
+  void _changeQuantity(int index, int delta) {
+    final line = items[index];
+    final quantity = line.quantityAtomic + delta;
+    if (quantity == 0) {
+      _deleteLine(index);
+      return;
+    }
+    if (quantity < 0 || quantity > supplierOrderMaxInteger) return;
+    try {
+      final price = line.quotedPriceMinor;
+      final next = SupplierOrderLine.fromJson({
+        ...line.toJson(),
+        'quantity_atomic': quantity,
+        'total_minor': price == null
+            ? null
+            : orderAmount(price, quantity, line.referenceQuantityAtomic),
+      });
+      setState(() {
+        items[index] = next;
+        dirty = true;
+      });
+    } on FormatException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message.toString())));
+    }
+  }
+
+  Future<void> _leaveEmpty() async {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Salir sin guardar cambios'),
+        content: const Text(
+          'El pedido necesita al menos un producto para guardarse. Si sales, se conservará el último borrador guardado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Salir sin guardar'),
+          ),
+        ],
+      ),
+    );
+    if (discard != true || !mounted) return;
+    setState(() => dirty = false);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.pop(context);
+  }
+
   Future<void> _cancel() async {
     final yes = await showDialog<bool>(
       context: context,
@@ -276,18 +384,75 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
     final o = order;
     final editable = o?.status == 'draft';
     return PopScope(
-      canPop: !dirty && !busy,
+      canPop: !dirty && !busy && editingId == null,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !busy) _save(close: true);
+        if (!didPop && !busy) {
+          if (editingId != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Pulsa Listo para terminar de editar la cantidad.',
+                ),
+              ),
+            );
+          } else if (items.isEmpty) {
+            _leaveEmpty();
+          } else {
+            _save(close: true);
+          }
+        }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            o == null
-                ? 'Pedido'
-                : '${o.document.supplierNameSnapshot} · ${o.status}',
-          ),
+          title: Text(o == null ? 'Pedido' : o.document.supplierNameSnapshot),
         ),
+        bottomNavigationBar: o == null
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '${items.length} partidas · Total estimado: ${_money(orderTotal(items.map((l) => l.totalMinor)))} ${o.document.currency}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (items.any((l) => l.quotedPriceMinor == null))
+                        const Text(
+                          'Estimado incompleto: hay productos sin precio.',
+                        ),
+                      if (editable) ...[
+                        if (editingId != null)
+                          const Text(
+                            'Pulsa Listo para terminar de editar la cantidad.',
+                          ),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          children: [
+                            OutlinedButton(
+                              onPressed:
+                                  busy || editingId != null || items.isEmpty
+                                  ? null
+                                  : () => _save(),
+                              child: const Text('Guardar borrador'),
+                            ),
+                            FilledButton(
+                              onPressed:
+                                  busy || editingId != null || items.isEmpty
+                                  ? null
+                                  : _review,
+                              child: const Text('Revisar y confirmar'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
         body: o == null
             ? Center(child: Text(error ?? 'Cargando pedido…'))
             : ListView(
@@ -302,51 +467,148 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                     ),
                   if (error != null && editable)
                     TextButton(
-                      onPressed: busy ? null : _refreshBase,
+                      onPressed: busy || editingId != null || items.isEmpty
+                          ? null
+                          : _refreshBase,
                       child: const Text('Recuperar base y conservar captura'),
                     ),
-                  Text('Pedido ${o.id}'),
-                  Text(
-                    'Estimado: ${orderMoney(orderTotal(items.map((l) => l.totalMinor)))} ${o.document.currency}',
+                  Text(switch (o.status) {
+                    'draft' => 'Borrador',
+                    'confirmed' => 'Confirmado',
+                    'partial' => 'Recibido parcialmente',
+                    'received' => 'Recibido',
+                    'cancelled' => 'Cancelado',
+                    'closed' => 'Cerrado',
+                    _ => 'Pedido',
+                  }, style: Theme.of(context).textTheme.titleMedium),
+                  ExpansionTile(
+                    title: const Text('Información del pedido'),
+                    children: [SelectableText('Pedido ${o.id}')],
                   ),
+                  if (items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'El pedido está vacío. Agrega un producto para continuar.',
+                      ),
+                    ),
                   for (var i = 0; i < items.length; i++)
                     Card(
-                      child: ListTile(
-                        title: Text(
-                          '${items[i].productNameSnapshot} ${items[i].variantNameSnapshot ?? ''}',
-                        ),
-                        subtitle: Text(
-                          '${const InventoryQuantityCodec().formatAtomic(items[i].quantityAtomic, lineUnit(items[i]))} ${items[i].unitSymbolSnapshot}\nPrecio: ${orderMoney(items[i].quotedPriceMinor)} por ${const InventoryQuantityCodec().formatAtomic(items[i].referenceQuantityAtomic, lineUnit(items[i]))} ${items[i].unitSymbolSnapshot} · Importe: ${orderMoney(items[i].totalMinor)}',
-                        ),
-                        onTap: !editable || busy
-                            ? null
-                            : () async {
-                                final line =
-                                    await showDialog<SupplierOrderLine>(
-                                      context: context,
-                                      builder: (_) => SupplierOrderLineDialog(
-                                        line: items[i],
-                                      ),
-                                    );
-                                if (line != null && mounted) {
-                                  setState(() {
-                                    items[i] = line;
-                                    dirty = true;
-                                  });
-                                }
-                              },
-                        trailing: !editable
-                            ? null
-                            : IconButton(
-                                tooltip: 'Quitar partida',
-                                onPressed: busy || items.length == 1
-                                    ? null
-                                    : () => setState(() {
-                                        items.removeAt(i);
-                                        dirty = true;
-                                      }),
-                                icon: const Icon(Icons.delete_outline),
+                      key: ValueKey(items[i].id),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                items[i].productNameSnapshot,
+                                style: Theme.of(context).textTheme.titleMedium,
                               ),
+                              trailing: !editable
+                                  ? null
+                                  : IconButton(
+                                      tooltip: editingId == items[i].id
+                                          ? 'Cerrar edición'
+                                          : 'Editar artículo',
+                                      onPressed:
+                                          busy ||
+                                              (editingId != null &&
+                                                  editingId != items[i].id)
+                                          ? null
+                                          : () => setState(
+                                              () => editingId =
+                                                  editingId == items[i].id
+                                                  ? null
+                                                  : items[i].id,
+                                            ),
+                                      icon: Icon(
+                                        editingId == items[i].id
+                                            ? Icons.close
+                                            : Icons.edit,
+                                        size: 18,
+                                      ),
+                                    ),
+                              subtitle: items[i].variantNameSnapshot == null
+                                  ? null
+                                  : Text(items[i].variantNameSnapshot!),
+                              onTap:
+                                  !editable ||
+                                      busy ||
+                                      (editingId != null &&
+                                          editingId != items[i].id)
+                                  ? null
+                                  : () =>
+                                        setState(() => editingId = items[i].id),
+                            ),
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              spacing: 16,
+                              runSpacing: 8,
+                              children: [
+                                Text(
+                                  '${_quantity(items[i], items[i].quantityAtomic)} × ${_price(items[i])}',
+                                ),
+                                Text(
+                                  _money(items[i].totalMinor),
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                              ],
+                            ),
+                            if (editable && editingId == items[i].id)
+                              SupplierOrderQuantityEditor(
+                                key: ValueKey('quantity-${items[i].id}'),
+                                line: items[i],
+                                onChanged: (line) => setState(() {
+                                  items[i] = line;
+                                  dirty = true;
+                                }),
+                                onClose: () => setState(() => editingId = null),
+                                onDelete: () => _deleteLine(i),
+                              ),
+                            if (editable && editingId == null)
+                              Wrap(
+                                alignment: WrapAlignment.end,
+                                children: [
+                                  if (items[i].dimension == 'count') ...[
+                                    IconButton(
+                                      onPressed: busy
+                                          ? null
+                                          : () => _changeQuantity(i, -1),
+                                      tooltip: 'Disminuir cantidad',
+                                      icon: const Icon(Icons.remove),
+                                    ),
+                                    IconButton(
+                                      onPressed:
+                                          busy ||
+                                              items[i].quantityAtomic >=
+                                                  supplierOrderMaxInteger
+                                          ? null
+                                          : () => _changeQuantity(i, 1),
+                                      tooltip: 'Aumentar cantidad',
+                                      icon: const Icon(Icons.add),
+                                    ),
+                                  ],
+                                  IconButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _deleteLine(i),
+                                    tooltip: 'Eliminar artículo',
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                  TextButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _editPrice(i),
+                                    child: const Text('Editar precio'),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   TextField(
@@ -359,16 +621,10 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                   ),
                   if (editable) ...[
                     TextButton(
-                      onPressed: busy || items.length >= 50 ? null : _add,
+                      onPressed: busy || editingId != null || items.length >= 50
+                          ? null
+                          : _add,
                       child: const Text('Agregar variante'),
-                    ),
-                    FilledButton(
-                      onPressed: busy ? null : () => _save(),
-                      child: const Text('Guardar borrador'),
-                    ),
-                    FilledButton(
-                      onPressed: busy ? null : _review,
-                      child: const Text('Revisar y confirmar'),
                     ),
                   ],
                   if (!editable)
@@ -386,7 +642,7 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                     ),
                   if (o.status == 'draft')
                     TextButton(
-                      onPressed: busy ? null : _cancel,
+                      onPressed: busy || editingId != null ? null : _cancel,
                       child: const Text('Cancelar pedido'),
                     ),
                 ],

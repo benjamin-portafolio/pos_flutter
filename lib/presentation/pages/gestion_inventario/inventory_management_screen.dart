@@ -318,11 +318,11 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
   void _openOrders({String? supplierId}) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SupplierOrdersScreen(
+        builder: (ordersContext) => SupplierOrdersScreen(
           supplierId: supplierId,
           onConfigure: (product, variant) async {
             await _openArticlePreview(
-              context,
+              ordersContext,
               product,
               initialVariantId: variant,
             );

@@ -13,12 +13,6 @@ class SupplierOrderLineDialog extends StatefulWidget {
 }
 
 class _SupplierOrderLineDialogState extends State<SupplierOrderLineDialog> {
-  late final quantity = TextEditingController(
-    text: const InventoryQuantityCodec().formatAtomic(
-      widget.line.quantityAtomic,
-      lineUnit(widget.line),
-    ),
-  );
   late final price = TextEditingController(
     text: widget.line.quotedPriceMinor == null
         ? ''
@@ -27,17 +21,12 @@ class _SupplierOrderLineDialogState extends State<SupplierOrderLineDialog> {
   String? error;
   @override
   void dispose() {
-    quantity.dispose();
     price.dispose();
     super.dispose();
   }
 
   void save() {
     try {
-      final q = const InventoryQuantityCodec().parsePositiveAtomic(
-        quantity.text,
-        lineUnit(widget.line),
-      );
       final text = price.text.trim().replaceAll(',', '.');
       int? p;
       if (text.isNotEmpty) {
@@ -55,11 +44,15 @@ class _SupplierOrderLineDialogState extends State<SupplierOrderLineDialog> {
       }
       final line = SupplierOrderLine.fromJson({
         ...widget.line.toJson(),
-        'quantity_atomic': q,
+        'quantity_atomic': widget.line.quantityAtomic,
         'quoted_price_minor': p,
         'total_minor': p == null
             ? null
-            : orderAmount(p, q, widget.line.referenceQuantityAtomic),
+            : orderAmount(
+                p,
+                widget.line.quantityAtomic,
+                widget.line.referenceQuantityAtomic,
+              ),
       });
       Navigator.pop(context, line);
     } catch (e) {
@@ -69,24 +62,25 @@ class _SupplierOrderLineDialogState extends State<SupplierOrderLineDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.line.productNameSnapshot),
+    title: const Text('Editar precio de compra'),
     content: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: quantity,
-            decoration: InputDecoration(
-              labelText: 'Cantidad (${widget.line.unitSymbolSnapshot})',
-            ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          Text(
+            [
+              widget.line.productNameSnapshot,
+              if (widget.line.variantNameSnapshot != null)
+                widget.line.variantNameSnapshot!,
+            ].join(' · '),
           ),
           TextField(
             controller: price,
             decoration: InputDecoration(
               labelText:
                   'Precio por ${const InventoryQuantityCodec().formatAtomic(widget.line.referenceQuantityAtomic, lineUnit(widget.line))} ${widget.line.unitSymbolSnapshot}',
-              helperText: 'Vacío: desconocido; cero: precio explícito',
+              helperText: 'Deja vacío si aún no conoces el precio.',
+              prefixText: r'$ ',
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
