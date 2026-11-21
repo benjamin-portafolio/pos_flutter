@@ -295,6 +295,63 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                 ),
                 const SizedBox(height: 12),
                 _EditorCard(
+                  child: Row(
+                    key: const Key('variant_pricing_row'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _CompactMoneyField(
+                          columnKey: const Key('variant_sale_price_column'),
+                          fieldKey: const Key('variant_sale_price_field'),
+                          label: 'Precio de venta *',
+                          controller: _priceController,
+                          readOnly: widget.preview,
+                          textInputAction: TextInputAction.next,
+                          validator: _validatePrice,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactMoneyField(
+                          columnKey: const Key('variant_offer_price_column'),
+                          fieldKey: const Key('variant_offer_price_field'),
+                          label: 'Precio de oferta',
+                          inputFormatters: const [],
+                          hintText: 'Sin oferta',
+                          controller: _offerController,
+                          readOnly: widget.preview,
+                          textInputAction: TextInputAction.next,
+                          validator: _validateOffer,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactMoneyField(
+                          columnKey: const Key('variant_standard_cost_column'),
+                          fieldKey: const Key('variant_standard_cost_field'),
+                          label: 'Costo estándar',
+                          controller: _costController,
+                          readOnly: widget.preview,
+                          signed: true,
+                          textInputAction: TextInputAction.done,
+                          validator: _validateCost,
+                          onFieldSubmitted: (_) => _save(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactReadOnlyValue(
+                          key: const Key('variant_margin_column'),
+                          label: 'Margen estimado',
+                          value: _estimatedMargin,
+                          valueKey: const Key('variant_margin_value'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _EditorCard(
                   child: Column(
                     key: const Key('variant_barcode_card'),
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -366,65 +423,6 @@ class _VariantEditorScreenState extends State<VariantEditorScreen> {
                               ?.copyWith(color: colorScheme.error),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('variant_offer_price_field'),
-                  controller: _offerController,
-                  readOnly: widget.preview,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Precio de oferta (opcional)',
-                    hintText: 'Sin oferta',
-                    helperText:
-                        'Vaciar retira la oferta. No modifica el costo.',
-                  ),
-                  validator: _validateOffer,
-                ),
-                const SizedBox(height: 12),
-                _EditorCard(
-                  child: Row(
-                    key: const Key('variant_pricing_row'),
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _CompactMoneyField(
-                          columnKey: const Key('variant_sale_price_column'),
-                          fieldKey: const Key('variant_sale_price_field'),
-                          label: 'Precio de venta *',
-                          controller: _priceController,
-                          readOnly: widget.preview,
-                          textInputAction: TextInputAction.next,
-                          validator: _validatePrice,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _CompactMoneyField(
-                          columnKey: const Key('variant_standard_cost_column'),
-                          fieldKey: const Key('variant_standard_cost_field'),
-                          label: 'Costo estándar',
-                          controller: _costController,
-                          readOnly: widget.preview,
-                          signed: true,
-                          textInputAction: TextInputAction.done,
-                          validator: _validateCost,
-                          onFieldSubmitted: (_) => _save(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _CompactReadOnlyValue(
-                          key: const Key('variant_margin_column'),
-                          label: 'Margen estimado',
-                          value: _estimatedMargin,
-                          valueKey: const Key('variant_margin_value'),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1134,6 +1132,8 @@ class _CompactMoneyField extends StatelessWidget {
     required this.controller,
     required this.textInputAction,
     required this.validator,
+    this.hintText = '0.00',
+    this.inputFormatters = const [CurrencyInputFormatter()],
     this.signed = false,
     this.readOnly = false,
     this.onFieldSubmitted,
@@ -1145,6 +1145,8 @@ class _CompactMoneyField extends StatelessWidget {
   final TextEditingController controller;
   final TextInputAction textInputAction;
   final FormFieldValidator<String> validator;
+  final String hintText;
+  final List<TextInputFormatter> inputFormatters;
   final bool signed;
   final bool readOnly;
   final ValueChanged<String>? onFieldSubmitted;
@@ -1166,10 +1168,10 @@ class _CompactMoneyField extends StatelessWidget {
             decimal: true,
             signed: signed,
           ),
-          inputFormatters: const [CurrencyInputFormatter()],
+          inputFormatters: inputFormatters,
           textInputAction: textInputAction,
           decoration: InputDecoration(
-            hintText: '0.00',
+            hintText: hintText,
             isDense: true,
             filled: true,
             fillColor: colorScheme.surfaceContainerHighest,

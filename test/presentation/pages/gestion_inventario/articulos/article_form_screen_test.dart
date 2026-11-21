@@ -571,16 +571,28 @@ void main() {
       final saleColumn = tester.getRect(
         find.byKey(const Key('variant_sale_price_column')),
       );
+      final offerColumn = tester.getRect(
+        find.byKey(const Key('variant_offer_price_column')),
+      );
       final costColumn = tester.getRect(
         find.byKey(const Key('variant_standard_cost_column')),
       );
       final marginColumn = tester.getRect(
         find.byKey(const Key('variant_margin_column')),
       );
-      expect(saleColumn.top, closeTo(costColumn.top, 0.1));
+      expect(saleColumn.top, closeTo(offerColumn.top, 0.1));
+      expect(offerColumn.top, closeTo(costColumn.top, 0.1));
       expect(costColumn.top, closeTo(marginColumn.top, 0.1));
-      expect(saleColumn.right, lessThan(costColumn.left));
+      expect(saleColumn.right, lessThan(offerColumn.left));
+      expect(offerColumn.right, lessThan(costColumn.left));
       expect(costColumn.right, lessThan(marginColumn.left));
+      expect(
+        tester.getRect(find.byKey(const Key('variant_barcode_card'))).top,
+        greaterThan(
+          tester.getRect(find.byKey(const Key('variant_pricing_row'))).bottom,
+        ),
+      );
+      expect(find.text('Precio de oferta'), findsOneWidget);
       expect(find.text('Precio de venta *'), findsOneWidget);
       expect(find.text('Costo estándar'), findsOneWidget);
       expect(find.text('Margen estimado'), findsOneWidget);

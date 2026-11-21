@@ -110,9 +110,7 @@ class _VariantDraftCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final cost = _parsedCost(variant.costoEstandar);
     final hasCost = cost != null;
-    final costSemantics = hasCost
-        ? 'Costo estándar registrado'
-        : 'Sin costo estándar';
+    final hasBarcode = variant.codigoBarras?.trim().isNotEmpty ?? false;
     return Card(
       margin: EdgeInsets.zero,
       color: highlighted ? colorScheme.secondaryContainer : null,
@@ -138,16 +136,31 @@ class _VariantDraftCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  Tooltip(
-                    message: costSemantics,
-                    child: Semantics(
-                      label: costSemantics,
-                      child: Icon(
-                        Icons.payments_outlined,
-                        key: const Key('variant_standard_cost_icon'),
-                        color: hasCost ? colorScheme.primary : Colors.grey,
-                      ),
-                    ),
+                  _VariantIndicator(
+                    icon: Icons.payments_outlined,
+                    iconKey: const Key('variant_standard_cost_icon'),
+                    active: hasCost,
+                    label: hasCost
+                        ? 'Costo estándar registrado'
+                        : 'Sin costo estándar',
+                  ),
+                  const SizedBox(width: 8),
+                  _VariantIndicator(
+                    icon: Icons.barcode_reader,
+                    iconKey: const Key('variant_barcode_icon'),
+                    active: hasBarcode,
+                    label: hasBarcode
+                        ? 'Código de barras registrado'
+                        : 'Sin código de barras',
+                  ),
+                  const SizedBox(width: 8),
+                  _VariantIndicator(
+                    icon: Icons.inventory_2_outlined,
+                    iconKey: const Key('variant_inventory_tracking_icon'),
+                    active: variant.seguimientoExistencias,
+                    label: variant.seguimientoExistencias
+                        ? 'Seguimiento de existencias activado'
+                        : 'Sin seguimiento de existencias',
                   ),
                 ],
               ),
@@ -257,4 +270,31 @@ class _VariantMetric extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VariantIndicator extends StatelessWidget {
+  const _VariantIndicator({
+    required this.icon,
+    required this.iconKey,
+    required this.active,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Key iconKey;
+  final bool active;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: label,
+    child: Semantics(
+      label: label,
+      child: Icon(
+        icon,
+        key: iconKey,
+        color: active ? Theme.of(context).colorScheme.primary : Colors.grey,
+      ),
+    ),
+  );
 }
