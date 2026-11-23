@@ -569,6 +569,7 @@ class _FakeProductoRepository extends FakeProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     return Stream.value(const []);
   }

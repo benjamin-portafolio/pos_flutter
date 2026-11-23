@@ -29,7 +29,8 @@ class CambioVarianteMasiva {
   final CambioExplicito<int?> oferta;
   final CambioExplicito<int> costo;
 
-  /// Null conserva todas las parejas; un valor modifica solo esta pareja.
+  /// Null no solicita una cotización explícita; un valor modifica esta pareja.
+  /// Cambiar el costo actualiza además el precio del proveedor principal.
   final ProveedorVariante? precioProveedor;
   final EntradaMercanciaMasiva? entrada;
 

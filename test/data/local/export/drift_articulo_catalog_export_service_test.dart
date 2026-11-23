@@ -60,6 +60,31 @@ void main() {
         .toList(growable: false);
   }
 
+  test('CSV y PDF respetan proveedores y conservan el total sin filtros', () async {
+    await _articuloSinInventario(db, id: 'coffee', nombre: 'Café');
+    await _articuloSinInventario(db, id: 'tea', nombre: 'Té');
+    await db.into(db.suppliers).insert(
+      SuppliersCompanion.insert(id: 'supplier', name: 'Proveedor'),
+    );
+    await db.into(db.variantSuppliers).insert(
+      VariantSuppliersCompanion.insert(
+        variantId: 'variante-coffee', supplierId: 'supplier',
+        quotedPriceMinor: 100, quotedAtMs: 1,
+      ),
+    );
+    const filtro = ArticuloExportFiltro(proveedorIds: {'supplier'});
+    expect(filtro.hayFiltros, isTrue);
+    final csv = await service.exportarCatalogo(filtro);
+    expect(csv.productos, 1);
+    expect(csv.productosTotales, 2);
+    final lines = await leerLineas(csv.ruta);
+    expect(lines.join('\n'), contains('Café'));
+    expect(lines.join('\n'), isNot(contains('Té')));
+    final pdf = await service.exportarCatalogoPdf(filtro);
+    expect(pdf.productos, 1);
+    expect(pdf.productosTotales, 2);
+  });
+
   test(
     'C29 contrato con IDs preparado: catálogo real y round-trip sin cambios',
     () async {

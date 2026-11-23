@@ -456,7 +456,14 @@ void main() {
         await settle(tester);
         expect(find.byType(ClientesScreen), findsOneWidget);
         expect(find.byKey(inputKey), findsNothing);
-        await tester.pageBack();
+        expect(
+          tester
+              .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+              .currentIndex,
+          4,
+        );
+        expect(find.byType(BackButton), findsNothing);
+        await tester.tap(find.text('Caja'));
         await settle(tester);
         expect(field(tester).focusNode!.hasFocus, isTrue);
       }

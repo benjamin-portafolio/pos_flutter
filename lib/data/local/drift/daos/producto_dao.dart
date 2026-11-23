@@ -44,6 +44,7 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     final saleUnit = alias(db.units, 'sale_unit');
     final inventoryUnit = alias(db.units, 'inventory_unit');
@@ -117,6 +118,21 @@ class ProductoDao extends DatabaseAccessor<AppDatabase>
     }
     if (categoryPredicate != null) {
       query.where(categoryPredicate);
+    }
+
+    // Filtra productos completos por cualquiera de sus variantes activas.
+    // La subconsulta evita duplicar u ocultar variantes en las tarjetas.
+    if (proveedorIds.isNotEmpty) {
+      final matchingVariants = selectOnly(variantSuppliers)
+        ..addColumns([variantSuppliers.variantId])
+        ..where(variantSuppliers.supplierId.isIn(proveedorIds));
+      final matchingProducts = selectOnly(productVariants)
+        ..addColumns([productVariants.productId])
+        ..where(
+          productVariants.active.equals(true) &
+              productVariants.id.isInQuery(matchingVariants),
+        );
+      query.where(products.id.isInQuery(matchingProducts));
     }
 
     query.orderBy([

@@ -164,12 +164,14 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     return _productoDao
         .watchProductosListado(
           busqueda: busqueda,
           categoriaIds: categoriaIds,
           incluirSinCategoria: incluirSinCategoria,
+          proveedorIds: proveedorIds,
         )
         .map(_toDomain);
   }

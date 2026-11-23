@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../domain/categorias/categoria.dart';
+import '../../../../../domain/proveedores/proveedor.dart';
+import '../../../../../domain/repositories/proveedor_repository.dart';
 import '../../../../../domain/repositories/categoria_repository.dart';
 import '../../categorias/category_color_palette.dart';
 import '../models/filtro_articulos.dart';
@@ -9,16 +11,19 @@ class ArticleFiltersBottomSheet extends StatefulWidget {
   const ArticleFiltersBottomSheet({
     required this.categoriaRepository,
     required this.appliedFilter,
+    this.proveedorRepository,
     super.key,
   });
 
   final CategoriaRepository categoriaRepository;
+  final ProveedorRepository? proveedorRepository;
   final FiltroArticulos appliedFilter;
 
   static Future<FiltroArticulos?> show({
     required BuildContext context,
     required CategoriaRepository categoriaRepository,
     required FiltroArticulos appliedFilter,
+    ProveedorRepository? proveedorRepository,
   }) {
     return showModalBottomSheet<FiltroArticulos>(
       context: context,
@@ -28,6 +33,7 @@ class ArticleFiltersBottomSheet extends StatefulWidget {
       builder: (_) => ArticleFiltersBottomSheet(
         categoriaRepository: categoriaRepository,
         appliedFilter: appliedFilter,
+        proveedorRepository: proveedorRepository,
       ),
     );
   }
@@ -40,6 +46,7 @@ class ArticleFiltersBottomSheet extends StatefulWidget {
 class _ArticleFiltersBottomSheetState extends State<ArticleFiltersBottomSheet> {
   late FiltroArticulos _draft;
   late Stream<List<Categoria>> _categoriesStream;
+  Stream<List<Proveedor>>? _suppliersStream;
 
   @override
   void initState() {
@@ -47,8 +54,10 @@ class _ArticleFiltersBottomSheetState extends State<ArticleFiltersBottomSheet> {
     _draft = FiltroArticulos(
       categoryIds: Set.unmodifiable(widget.appliedFilter.categoryIds),
       includeUncategorized: widget.appliedFilter.includeUncategorized,
+      supplierIds: Set.unmodifiable(widget.appliedFilter.supplierIds),
     );
     _categoriesStream = widget.categoriaRepository.watchCategorias();
+    _suppliersStream = widget.proveedorRepository?.watchProveedores();
   }
 
   @override
@@ -174,6 +183,68 @@ class _ArticleFiltersBottomSheetState extends State<ArticleFiltersBottomSheet> {
                       );
                     },
                   ),
+                  if (widget.proveedorRepository != null) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'Proveedores',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    StreamBuilder<List<Proveedor>>(
+                      stream: _suppliersStream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'No se pudieron cargar los proveedores.',
+                              ),
+                              TextButton(
+                                onPressed: () => setState(() {
+                                  _suppliersStream = widget.proveedorRepository!
+                                      .watchProveedores();
+                                }),
+                                child: const Text('Reintentar'),
+                              ),
+                            ],
+                          );
+                        }
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final suppliers = snapshot.data!;
+                        if (suppliers.isEmpty) {
+                          return const Text('No hay proveedores.');
+                        }
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: suppliers
+                              .map(
+                                (supplier) => FilterChip(
+                                  key: ValueKey(
+                                    'article_filter_supplier_${supplier.id}',
+                                  ),
+                                  label: Text(supplier.nombre),
+                                  selected: _draft.supplierIds.contains(
+                                    supplier.id,
+                                  ),
+                                  onSelected: (selected) => setState(() {
+                                    _draft = _draft.withSupplier(
+                                      supplier.id,
+                                      selected: selected,
+                                    );
+                                  }),
+                                ),
+                              )
+                              .toList(growable: false),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -229,6 +229,7 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
       body: TabBarView(
         children: [
           InventoryArticlesTab(
+            proveedorRepository: widget.proveedorRepository,
             productoRepository: widget.productoRepository,
             categoriaRepository: widget.categoriaRepository,
             busqueda: _appliedSearch,

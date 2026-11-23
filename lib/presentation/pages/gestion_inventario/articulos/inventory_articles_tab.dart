@@ -6,6 +6,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../domain/articulos/articulo_listado.dart';
 import '../../../../domain/repositories/categoria_repository.dart';
 import '../../../../domain/repositories/producto_repository.dart';
+import '../../../../domain/repositories/proveedor_repository.dart';
 import 'models/filtro_articulos.dart';
 import 'widgets/article_filters_bottom_sheet.dart';
 import 'widgets/inventory_article_card.dart';
@@ -18,12 +19,14 @@ class InventoryArticlesTab extends StatefulWidget {
     required this.onClearSearch,
     required this.onAddArticle,
     this.onOpenArticle,
+    this.proveedorRepository,
     this.exportService,
     this.shareFile,
     super.key,
   });
 
   final ProductoRepository productoRepository;
+  final ProveedorRepository? proveedorRepository;
   final CategoriaRepository categoriaRepository;
   final String busqueda;
   final VoidCallback onClearSearch;
@@ -175,6 +178,7 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
       busqueda: widget.busqueda,
       categoriaIds: _appliedFilter.categoryIds,
       incluirSinCategoria: _appliedFilter.includeUncategorized,
+      proveedorIds: _appliedFilter.supplierIds,
     );
   }
 
@@ -183,6 +187,7 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
       context: context,
       categoriaRepository: widget.categoriaRepository,
       appliedFilter: _appliedFilter,
+      proveedorRepository: widget.proveedorRepository,
     );
     if (result == null || result == _appliedFilter || !mounted) return;
     setState(() {
@@ -221,6 +226,7 @@ class _InventoryArticlesTabState extends State<InventoryArticlesTab>
         busqueda: widget.busqueda,
         categoryIds: _appliedFilter.categoryIds,
         incluirSinCategoria: _appliedFilter.includeUncategorized,
+        proveedorIds: _appliedFilter.supplierIds,
       );
       final archivo = switch (formato) {
         _FormatoExportacion.csv => await servicio.exportarCatalogo(filtro),

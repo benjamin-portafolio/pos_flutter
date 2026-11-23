@@ -4,7 +4,8 @@ import '../../edicion_masiva/cambio_variante_masiva.dart';
 /// Intención comercial acotada por producto: identidad, base confirmada y
 /// cambios explícitos de variantes.
 ///
-/// Solo expresa venta, oferta, costo estándar y la pareja de proveedor solicitada.
+/// Expresa venta, oferta, costo estándar y la pareja de proveedor solicitada.
+/// Cambiar el costo también actualiza el precio del proveedor principal.
 /// `CambioVarianteMasiva.entrada` pertenece a la recepción (sesión 3) y este
 /// comando la ignora: una fila con solo entrada no emite `producto_actualizado`.
 class EditarArticuloComercialCommand {

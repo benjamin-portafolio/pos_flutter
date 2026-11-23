@@ -16,12 +16,14 @@ import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_
 class MenuLateral extends StatelessWidget {
   const MenuLateral({
     this.onOpenCaja,
+    this.onOpenClientes,
     this.beforeNavigate,
     this.afterNavigate,
     super.key,
   });
 
   final VoidCallback? onOpenCaja;
+  final VoidCallback? onOpenClientes;
   final Future<bool> Function()? beforeNavigate;
   final VoidCallback? afterNavigate;
 
@@ -114,12 +116,14 @@ class MenuLateral extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.people),
             title: Text("Gestión de clientes"),
-            onTap: () => _openMenuRoute<void>(
-              context,
-              beforeNavigate,
-              afterNavigate,
-              (_) => const ClientesScreen(),
-            ),
+            onTap:
+                onOpenClientes ??
+                () => _openMenuRoute<void>(
+                  context,
+                  beforeNavigate,
+                  afterNavigate,
+                  (_) => const ClientesScreen(),
+                ),
           ),
           ListTile(
             leading: Icon(Icons.table_chart),

@@ -23,6 +23,7 @@ class FakeReportsProductoRepository extends FakeProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     watchCalls++;
     return Stream.multi((sink) {

@@ -491,6 +491,7 @@ class _Products implements ProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const {},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     expect(busqueda, isEmpty);
     expect(categoriaIds, isEmpty);

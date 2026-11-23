@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const TodaySalesScreen(),
     CajaScreen(key: _caja, onOpenCaja: () => _onTabTapped(2)),
     ArticlesScreen(onOpenCaja: () => _onTabTapped(2)),
+    const ClientesScreen(embedded: true),
   ];
 
   Future<bool> _prepareNavigation() async {
@@ -45,16 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onTabTapped(int index) async {
-    final restore = _caja.currentState?.isReaderEnabled == true;
     if (index == _currentIndex || !await _prepareNavigation()) return;
     if (!mounted) return;
-    if (index == 4) {
-      await Navigator.of(
-        context,
-      ).push<void>(MaterialPageRoute(builder: (_) => const ClientesScreen()));
-      if (restore) _caja.currentState?.restoreReader();
-      return;
-    }
     setState(() => _currentIndex = index);
   }
 
@@ -128,7 +121,11 @@ class _HomeScreenState extends State<HomeScreen> {
     child: Scaffold(
       key: _scaffold,
       appBar: AppBar(
-        title: Text(_currentIndex == 3 ? 'Artículos' : 'PASTOR'),
+        title: Text(switch (_currentIndex) {
+          3 => 'Artículos',
+          4 => 'Gestión de clientes',
+          _ => 'PASTOR',
+        }),
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
           icon: const Icon(Icons.menu),
@@ -149,6 +146,11 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: MenuLateral(
         beforeNavigate: _beforeMenuNavigate,
         afterNavigate: _afterMenuNavigate,
+        onOpenClientes: () {
+          _restoreAfterMenu = false;
+          Navigator.of(context).pop();
+          unawaited(_onTabTapped(4));
+        },
         onOpenCaja: () {
           if (mounted) _onTabTapped(2);
         },

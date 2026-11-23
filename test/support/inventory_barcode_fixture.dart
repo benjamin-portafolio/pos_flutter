@@ -165,6 +165,7 @@ class _Products extends ProductoRepositoryImpl {
     String busqueda = '',
     Set<String> categoriaIds = const {},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) =>
       fixture.catalog?.call() ??
       super.watchArticulos(

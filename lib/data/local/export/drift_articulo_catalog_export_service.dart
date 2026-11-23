@@ -116,6 +116,7 @@ class DriftArticuloCatalogExportService
       busqueda: filtro.busqueda,
       categoriaIds: filtro.categoryIds,
       incluirSinCategoria: filtro.incluirSinCategoria,
+      proveedorIds: filtro.proveedorIds,
     );
     final totalSinFiltros = filtro.hayFiltros
         ? ArticuloCatalogCsv.productosDelArchivo(
@@ -137,12 +138,14 @@ class DriftArticuloCatalogExportService
     required String busqueda,
     required Set<String> categoriaIds,
     required bool incluirSinCategoria,
+    Set<String> proveedorIds = const <String>{},
   }) {
     return _productoDao
         .watchProductosListado(
           busqueda: busqueda,
           categoriaIds: categoriaIds,
           incluirSinCategoria: incluirSinCategoria,
+          proveedorIds: proveedorIds,
         )
         .first;
   }

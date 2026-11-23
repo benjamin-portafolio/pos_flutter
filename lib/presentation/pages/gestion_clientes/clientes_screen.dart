@@ -14,11 +14,13 @@ import 'widgets/cliente_resumen_card.dart';
 
 class ClientesScreen extends StatefulWidget {
   const ClientesScreen({
+    this.embedded = false,
     this.repository,
     this.commandService,
     this.resumenRepository,
     super.key,
   });
+  final bool embedded;
   final ClienteRepository? repository;
   final ClienteCommandService? commandService;
   final ClienteResumenRepository? resumenRepository;
@@ -36,13 +38,9 @@ class _ClientesScreenState extends State<ClientesScreen>
   @override
   void initState() {
     super.initState();
-    _resumen = (widget.resumenRepository ??
-            getIt<ClienteResumenRepository>())
+    _resumen = (widget.resumenRepository ?? getIt<ClienteResumenRepository>())
         .watchResumen();
-    _tabs = TabController(
-      length: ClienteResumenTab.values.length,
-      vsync: this,
-    );
+    _tabs = TabController(length: ClienteResumenTab.values.length, vsync: this);
   }
 
   @override
@@ -99,7 +97,9 @@ class _ClientesScreenState extends State<ClientesScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Gestión de clientes')),
+    appBar: widget.embedded
+        ? null
+        : AppBar(title: const Text('Gestión de clientes')),
     body: SafeArea(
       child: StreamBuilder<List<ClienteResumen>>(
         stream: _resumen,
@@ -169,11 +169,7 @@ class _ClientesScreenState extends State<ClientesScreen>
   );
 
   Widget _lista(List<ClienteResumen> clientes, ClienteResumenTab tab) {
-    final items = ClienteResumenQuery.apply(
-      clientes,
-      tab: tab,
-      search: _query,
-    );
+    final items = ClienteResumenQuery.apply(clientes, tab: tab, search: _query);
     if (items.isEmpty) return _emptyState(tab);
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),

@@ -23,6 +23,99 @@ void main() {
   });
 
   test(
+    'filtra por proveedores sin duplicar ni recortar variantes y reacciona a vínculos',
+    () async {
+      await _insertCategory(db, id: 'category', name: 'Bebidas', colorKey: 'blue');
+      for (final id in ['a', 'b']) {
+        await db
+            .into(db.suppliers)
+            .insert(SuppliersCompanion.insert(id: id, name: id));
+      }
+      await _insertSimpleArticle(
+        db,
+        id: 'coffee',
+        name: 'Café',
+        categoryId: 'category',
+      );
+      await _insertSimpleArticle(db, id: 'tea', name: 'Té');
+      await _insertSimpleArticle(db, id: 'other', name: 'Otro');
+      await _insertVariant(
+        db,
+        id: 'extra',
+        productId: 'coffee',
+        price: 100,
+        sortOrder: 1,
+      );
+      await _insertVariant(
+        db,
+        id: 'inactive',
+        productId: 'other',
+        price: 100,
+        sortOrder: 1,
+        active: false,
+      );
+      for (final pair in [
+        ('variant-coffee', 'a'),
+        ('variant-coffee', 'b'),
+        ('variant-tea', 'b'),
+        ('inactive', 'a'),
+      ]) {
+        await db
+            .into(db.variantSuppliers)
+            .insert(
+              VariantSuppliersCompanion.insert(
+                variantId: pair.$1,
+                supplierId: pair.$2,
+                quotedPriceMinor: 100,
+                quotedAtMs: 1,
+              ),
+            );
+      }
+      final articles = await repository
+          .watchArticulos(proveedorIds: {'a', 'b'})
+          .first;
+      expect(articles.map((a) => a.productoId), ['coffee', 'tea']);
+      expect(articles.first.variantesActivas, hasLength(2));
+      expect(
+        await repository
+            .watchArticulos(proveedorIds: {'a'}, busqueda: 'Té')
+            .first,
+        isEmpty,
+      );
+      expect(
+        (await repository
+                .watchArticulos(
+                  proveedorIds: {'a', 'b'},
+                  categoriaIds: {'category'},
+                )
+                .first)
+            .single
+            .productoId,
+        'coffee',
+      );
+      expect(
+        (await repository
+                .watchArticulos(proveedorIds: {'b'}, incluirSinCategoria: true)
+                .first)
+            .single
+            .productoId,
+        'tea',
+      );
+      final queue = StreamIterator(
+        repository.watchArticulos(proveedorIds: {'a'}),
+      );
+      expect(await queue.moveNext(), isTrue);
+      expect(queue.current.single.productoId, 'coffee');
+      await (db.delete(
+        db.variantSuppliers,
+      )..where((s) => s.supplierId.equals('a'))).go();
+      expect(await queue.moveNext(), isTrue);
+      expect(queue.current, isEmpty);
+      await queue.cancel();
+    },
+  );
+
+  test(
     'lee la fecha original sin usar ediciones ni confirmaciones posteriores',
     () async {
       await _insertSimpleArticle(db, id: 'coffee', name: 'Café');

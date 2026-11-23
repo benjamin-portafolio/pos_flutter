@@ -467,6 +467,7 @@ class _Products implements ProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const {},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) => Stream.value(const [
     ArticuloListado(
       productoId: 'product',

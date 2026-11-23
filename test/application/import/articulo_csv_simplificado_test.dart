@@ -130,7 +130,7 @@ void main() {
       );
 
       test(
-        'nombre resuelto y decimal convertido; conserva saldo, mínimo y cotizaciones',
+        'nombre resuelto y decimal convertido; actualiza cotización principal y conserva saldo y mínimo',
         () async {
           final balances = await h.db.select(h.db.inventoryBalances).get();
           final relations = await h.db.select(h.db.variantSuppliers).get();
@@ -151,7 +151,19 @@ void main() {
           expect(v.standardCostMinor, 600);
           expect(v.minimumStockAtomic, 1000);
           expect(await h.db.select(h.db.inventoryBalances).get(), balances);
-          expect(await h.db.select(h.db.variantSuppliers).get(), relations);
+          final updatedRelations = await h.db
+              .select(h.db.variantSuppliers)
+              .get();
+          expect(updatedRelations, hasLength(relations.length));
+          final principal = updatedRelations.singleWhere(
+            (r) => r.supplierId == other,
+          );
+          expect(principal.quotedPriceMinor, 600);
+          expect(principal.quotedAtMs, greaterThan(100));
+          expect(
+            updatedRelations.singleWhere((r) => r.supplierId == supplier),
+            relations.singleWhere((r) => r.supplierId == supplier),
+          );
           expect((await review({})).productosConCambios, isEmpty);
           final events = await h.db.select(h.db.events).get();
           expect(

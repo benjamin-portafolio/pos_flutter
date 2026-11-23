@@ -1045,6 +1045,7 @@ class _FakeProductoRepository extends FakeProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     queries.add(
       _ProductQuery(search: busqueda, categoryIds: Set.of(categoriaIds)),

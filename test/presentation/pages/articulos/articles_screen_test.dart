@@ -189,6 +189,7 @@ class _Products extends FakeProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const {},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) => stream;
 
   @override

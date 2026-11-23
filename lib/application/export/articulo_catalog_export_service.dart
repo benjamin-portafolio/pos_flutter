@@ -9,6 +9,7 @@ class ArticuloExportFiltro {
     this.busqueda = '',
     this.categoryIds = const <String>{},
     this.incluirSinCategoria = false,
+    this.proveedorIds = const <String>{},
   });
 
   /// Sin búsqueda ni categorías: sale todo el catálogo activo.
@@ -17,11 +18,13 @@ class ArticuloExportFiltro {
   final String busqueda;
   final Set<String> categoryIds;
   final bool incluirSinCategoria;
+  final Set<String> proveedorIds;
 
   bool get hayFiltros =>
       busqueda.trim().isNotEmpty ||
       categoryIds.isNotEmpty ||
-      incluirSinCategoria;
+      incluirSinCategoria ||
+      proveedorIds.isNotEmpty;
 }
 
 /// Archivo generado en el dispositivo, con las cifras que la pantalla necesita

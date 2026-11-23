@@ -1,6 +1,8 @@
 import '../../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
+import 'package:pos_flutter/domain/proveedores/proveedor.dart';
+import 'package:pos_flutter/domain/repositories/proveedor_repository.dart';
 
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +19,55 @@ import 'package:pos_flutter/domain/repositories/producto_repository.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/articulos/inventory_articles_tab.dart';
 
 void main() {
+  testWidgets(
+    'proveedores conserva borrador, combina categorías y exporta el filtro',
+    (tester) async {
+      final repository = _FakeProductoRepository(_articles);
+      final export = _FakeExportService();
+      await _pumpTab(
+        tester,
+        repository: repository,
+        proveedorRepository: _Suppliers(),
+        exportService: export,
+      );
+      await tester.tap(find.byKey(const Key('open_article_filters_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('article_filter_category_category-1')),
+      );
+      for (final id in ['a', 'b']) {
+        final chip = find.byKey(ValueKey('article_filter_supplier_$id'));
+        await tester.ensureVisible(chip);
+        await tester.tap(chip);
+        await tester.pump();
+      }
+      expect(repository.queries, hasLength(1));
+      await tester.tap(find.byKey(const Key('apply_article_filters_button')));
+      await tester.pumpAndSettle();
+      expect(repository.queries.last.supplierIds, {'a', 'b'});
+      expect(repository.queries.last.categoryIds, {'category-1'});
+      expect(
+        find.bySemanticsLabel('Filtrar artículos, 3 filtros aplicados'),
+        findsOneWidget,
+      );
+      for (final format in ['csv', 'pdf']) {
+        await tester.tap(find.byKey(Key('export_articles_${format}_button')));
+        await tester.pumpAndSettle();
+        expect(export.filtros.last.proveedorIds, {'a', 'b'});
+        expect(export.filtros.last.hayFiltros, isTrue);
+      }
+      await tester.tap(find.byKey(const Key('open_article_filters_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('reset_article_filters_button')));
+      await tester.tap(find.byKey(const Key('close_article_filters_button')));
+      await tester.pumpAndSettle();
+      expect(repository.queries.last.supplierIds, {'a', 'b'});
+      await tester.tap(find.byKey(const Key('all_articles_filter_chip')));
+      await tester.pumpAndSettle();
+      expect(repository.queries.last.supplierIds, isEmpty);
+    },
+  );
+
   testWidgets('muestra datos sin controles fuera del alcance', (tester) async {
     await _pumpTab(tester, repository: _FakeProductoRepository(_articles));
 
@@ -539,6 +590,7 @@ Future<void> _pumpTab(
   CategoriaRepository categoriaRepository = const _FakeCategoriaRepository(
     _categories,
   ),
+  ProveedorRepository? proveedorRepository,
   String search = '',
   VoidCallback? onClearSearch,
   ArticuloCatalogExportService? exportService,
@@ -550,6 +602,7 @@ Future<void> _pumpTab(
       home: Scaffold(
         body: InventoryArticlesTab(
           productoRepository: repository,
+          proveedorRepository: proveedorRepository,
           categoriaRepository: categoriaRepository,
           busqueda: search,
           onClearSearch: onClearSearch ?? () {},
@@ -612,11 +665,13 @@ class _FakeProductoRepository extends FakeProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     final query = _Query(
       search: busqueda,
       categoryIds: Set.of(categoriaIds),
       includeUncategorized: incluirSinCategoria,
+      supplierIds: Set.of(proveedorIds),
     );
     queries.add(query);
     final normalizedSearch = busqueda.trim().toLowerCase();
@@ -666,6 +721,7 @@ class _SequencedProductoRepository extends FakeProductoRepository {
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   }) {
     final index = subscriptions.clamp(0, streams.length - 1);
     subscriptions++;
@@ -741,11 +797,13 @@ class _Query {
     required this.search,
     required this.categoryIds,
     required this.includeUncategorized,
+    required this.supplierIds,
   });
 
   final String search;
   final Set<String> categoryIds;
   final bool includeUncategorized;
+  final Set<String> supplierIds;
 }
 
 class _FakeCategoriaRepository implements CategoriaRepository {
@@ -847,3 +905,18 @@ const _articles = [
     ],
   ),
 ];
+
+class _Suppliers implements ProveedorRepository {
+  @override
+  Stream<List<Proveedor>> watchProveedores() => Stream.value([
+    for (final id in ['a', 'b'])
+      Proveedor(
+        id: id,
+        nombre: 'Proveedor $id',
+        version: 1,
+        createdEventId: null,
+        lastEventId: null,
+        lastServerSequence: null,
+      ),
+  ]);
+}

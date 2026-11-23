@@ -480,7 +480,14 @@ class ProductoCommandService {
       minimumStockAtomic: recurso == null ? null : actual.minimumStockAtomic,
       knowsMinimumStock: actual.knowsMinimumStock,
       componentesReceta: receta,
-      proveedores: actual.proveedores,
+      proveedores: _actualizarPrecioProveedorPrincipal(
+        proveedores: actual.proveedores,
+        costoAnterior: actual.costoEstandarMenor,
+        costoNuevo: cambio.precioCosteMinor,
+        proveedorPrincipalId: cambio.replenishment.hasSupplier
+            ? cambio.replenishment.supplierId
+            : actual.replenishment.supplierId,
+      ),
       orden: actual.orden,
     );
   }
@@ -630,7 +637,16 @@ class ProductoCommandService {
       minimumStockAtomic: actual.minimumStockAtomic,
       knowsMinimumStock: actual.knowsMinimumStock,
       componentesReceta: actual.componentesReceta,
-      proveedores: proveedores,
+      proveedores: _actualizarPrecioProveedorPrincipal(
+        proveedores: proveedores,
+        costoAnterior: actual.costoEstandarMenor,
+        costoNuevo: cambio.costo.establecer
+            ? cambio.costo.valor
+            : actual.costoEstandarMenor,
+        proveedorPrincipalId: cambio.replenishment.hasSupplier
+            ? cambio.replenishment.supplierId
+            : actual.replenishment.supplierId,
+      ),
       orden: actual.orden,
     );
   }
@@ -1397,24 +1413,64 @@ class ProductoCommandService {
     ProductoCreadoVariante? previous,
   ) {
     final captured = variant.proveedores;
-    if (captured == null) {
-      return previous?.proveedores ??
-          (_proveedorProjectionStore != null ? const [] : null);
-    }
     final prior = {
       for (final s in previous?.proveedores ?? <ProductoProveedorPrecio>[])
         s.supplierId: s,
     };
+    final proveedores = captured == null
+        ? previous?.proveedores ??
+              (_proveedorProjectionStore != null
+                  ? <ProductoProveedorPrecio>[]
+                  : null)
+        : [
+            for (final s in captured)
+              ProductoProveedorPrecio(
+                supplierId: s.proveedorId,
+                quotedPriceMinor: s.precioInformadoMenor,
+                quotedAtMs:
+                    prior[s.proveedorId]?.quotedPriceMinor ==
+                        s.precioInformadoMenor
+                    ? prior[s.proveedorId]!.quotedAtMs
+                    : s.fechaInformadaMs,
+              ),
+          ];
+    if (previous == null) return proveedores;
+    return _actualizarPrecioProveedorPrincipal(
+      proveedores: proveedores,
+      costoAnterior: previous.costoEstandarMenor,
+      costoNuevo: variant.costoEstandarMenor,
+      proveedorPrincipalId: variant.currentSupplier.establecer
+          ? variant.currentSupplier.valor
+          : previous.replenishment.supplierId,
+    );
+  }
+
+  /// Un cambio de costo con importe actualiza también la cotización del
+  /// proveedor principal seleccionado al guardar. Retirar el costo conserva
+  /// cotizaciones: no existe un precio informado nulo en este contrato.
+  List<ProductoProveedorPrecio>? _actualizarPrecioProveedorPrincipal({
+    required List<ProductoProveedorPrecio>? proveedores,
+    required int? costoAnterior,
+    required int? costoNuevo,
+    required String? proveedorPrincipalId,
+  }) {
+    if (costoNuevo == null ||
+        costoNuevo == costoAnterior ||
+        proveedorPrincipalId == null ||
+        proveedores == null) {
+      return proveedores;
+    }
     return [
-      for (final s in captured)
-        ProductoProveedorPrecio(
-          supplierId: s.proveedorId,
-          quotedPriceMinor: s.precioInformadoMenor,
-          quotedAtMs:
-              prior[s.proveedorId]?.quotedPriceMinor == s.precioInformadoMenor
-              ? prior[s.proveedorId]!.quotedAtMs
-              : s.fechaInformadaMs,
-        ),
+      for (final proveedor in proveedores)
+        if (proveedor.supplierId == proveedorPrincipalId &&
+            proveedor.quotedPriceMinor != costoNuevo)
+          ProductoProveedorPrecio(
+            supplierId: proveedor.supplierId,
+            quotedPriceMinor: costoNuevo,
+            quotedAtMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+          )
+        else
+          proveedor,
     ];
   }
 

@@ -24,10 +24,13 @@ abstract interface class ProductoRepository {
     String categoriaId,
   );
 
+  /// Proveedores alternativos con OR, combinados con búsqueda y categorías
+  /// mediante AND. Incluye el producto completo si una variante activa coincide.
   Stream<List<ArticuloListado>> watchArticulos({
     String busqueda = '',
     Set<String> categoriaIds = const <String>{},
     bool incluirSinCategoria = false,
+    Set<String> proveedorIds = const <String>{},
   });
 
   /// Variantes activas de productos activos. Emite el conteo cada vez que el
