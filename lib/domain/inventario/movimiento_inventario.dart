@@ -1,6 +1,7 @@
 class MovimientoInventario {
   const MovimientoInventario({
     required this.id,
+    this.saleId,
     required this.inventoryItemId,
     required this.saleItemId,
     required this.eventId,
@@ -14,6 +15,9 @@ class MovimientoInventario {
   });
 
   final String id;
+
+  /// Venta de origen, resuelta desde el renglón cuando esté disponible.
+  final String? saleId;
   final String inventoryItemId;
   final String? saleItemId;
   final String eventId;

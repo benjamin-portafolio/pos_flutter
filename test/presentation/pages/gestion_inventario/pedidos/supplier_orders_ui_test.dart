@@ -6,6 +6,7 @@ import 'package:pos_flutter/data/repositories/drift_supplier_order_repository.da
 import 'package:pos_flutter/application/sync/projections/supplier_order_projection_store.dart';
 import 'package:pos_flutter/application/commands/proveedores/supplier_order_command_service.dart';
 import 'package:pos_flutter/presentation/pages/gestion_inventario/pedidos/supplier_orders_screen.dart';
+import 'package:pos_flutter/presentation/pages/gestion_inventario/pedidos/supplier_order_variant_search_screen.dart';
 import '../../../../support/product_supplier_harness.dart';
 import '../../../../support/supplier_order_harness.dart';
 import '../../../../application/commands/proveedores/supplier_order_local_test.dart'
@@ -151,12 +152,34 @@ void main() {
           await tester.ensureVisible(find.byKey(ValueKey(order.id)));
           await tester.tap(find.byKey(ValueKey(order.id)));
           await tester.pumpAndSettle();
+          await tester.ensureVisible(find.text('Agregar variante'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Agregar variante'));
+          await tester.pumpAndSettle();
+          expect(
+            find.text(
+              'No hay variantes disponibles para agregar de este proveedor.',
+            ),
+            findsOneWidget,
+          );
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+          expect(find.text('Café'), findsOneWidget);
+          await tester.ensureVisible(find.byTooltip('Eliminar artículo'));
+          await tester.pumpAndSettle();
           await tester.tap(find.byTooltip('Eliminar artículo'));
           await tester.pumpAndSettle();
           await tester.ensureVisible(find.text('Agregar variante'));
+          await tester.pumpAndSettle();
           await tester.tap(find.text('Agregar variante'));
           await tester.pumpAndSettle();
-          await tester.tap(find.byType(SimpleDialogOption).first);
+          expect(find.byType(SupplierOrderVariantSearchScreen), findsOneWidget);
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Buscar producto o variante'),
+            '  CAFÉ  ',
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.widgetWithText(ListTile, 'Café'));
           await tester.pumpAndSettle();
           // Restar la última unidad elimina la partida, como en Caja.
           await tester.tap(find.byTooltip('Editar artículo'));
@@ -171,9 +194,19 @@ void main() {
               findsOneWidget,
             );
             await tester.ensureVisible(find.text('Agregar variante'));
+            await tester.pumpAndSettle();
             await tester.tap(find.text('Agregar variante'));
             await tester.pumpAndSettle();
-            await tester.tap(find.byType(SimpleDialogOption).first);
+            expect(
+              find.byType(SupplierOrderVariantSearchScreen),
+              findsOneWidget,
+            );
+            await tester.enterText(
+              find.widgetWithText(TextField, 'Buscar producto o variante'),
+              '  CAFÉ  ',
+            );
+            await tester.pumpAndSettle();
+            await tester.tap(find.widgetWithText(ListTile, 'Café'));
             await tester.pumpAndSettle();
             await tester.tap(find.byTooltip('Editar artículo'));
             await tester.pumpAndSettle();

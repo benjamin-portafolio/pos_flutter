@@ -16,6 +16,48 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
     with _$InventoryDaoMixin {
   InventoryDao(super.db);
 
+  Stream<List<(InventoryMovementRow, String?)>> watchMovimientos(
+    String inventoryItemId, {
+    String? movementType,
+    DateTime? desde,
+    DateTime? hasta,
+    int limit = 20,
+  }) {
+    final query = select(inventoryMovements).join([
+      leftOuterJoin(
+        saleItems,
+        saleItems.id.equalsExp(inventoryMovements.saleItemId),
+      ),
+    ])..where(inventoryMovements.inventoryItemId.equals(inventoryItemId));
+    if (movementType != null) {
+      query.where(inventoryMovements.movementType.equals(movementType));
+    }
+    if (desde != null) {
+      query.where(
+        inventoryMovements.createdAtLocal.isBiggerOrEqualValue(desde),
+      );
+    }
+    if (hasta != null) {
+      query.where(inventoryMovements.createdAtLocal.isSmallerThanValue(hasta));
+    }
+    query
+      ..orderBy([
+        OrderingTerm.desc(inventoryMovements.createdAtLocal),
+        OrderingTerm.desc(inventoryMovements.movementId),
+      ])
+      ..limit(limit);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => (
+              row.readTable(inventoryMovements),
+              row.readTableOrNull(saleItems)?.saleId,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
   Stream<List<InventoryListingRow>> watchRecursos({
     String busqueda = '',
     String filtro = 'all',

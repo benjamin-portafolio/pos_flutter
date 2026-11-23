@@ -4,9 +4,11 @@ import '../../../../domain/inventario/nombre_recurso_inventario.dart';
 import '../../../../application/sync/projections/inventory_projection_store.dart';
 import '../../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../../domain/inventario/unidad_inventario.dart';
+import '../../../../domain/repositories/recurso_inventario_repository.dart';
 import 'models/inventory_resource_form_result.dart';
 import 'widgets/inventory_form_card.dart';
 import 'widgets/inventory_movement_section.dart';
+import 'widgets/inventory_movement_history.dart';
 import 'widgets/inventory_unit_picker.dart';
 
 class InventoryResourceFormScreen extends StatefulWidget {
@@ -15,15 +17,18 @@ class InventoryResourceFormScreen extends StatefulWidget {
     required this.onSave,
     super.key,
   }) : resource = null,
-       onDelete = null;
+       onDelete = null,
+       repository = null;
 
   const InventoryResourceFormScreen.edit({
     required this.resource,
+    required this.repository,
     required this.onSave,
     this.onDelete,
     super.key,
   }) : units = const [];
 
+  final RecursoInventarioRepository? repository;
   final List<UnidadInventario> units;
   final Future<void> Function(InventoryResourceFormResult result) onSave;
   final RecursoInventarioListado? resource;
@@ -156,6 +161,14 @@ class _InventoryResourceFormScreenState
                         widget.resource?.existenciaAtomica ?? 0,
                     busy: _saving,
                   ),
+                  if (_editing) ...[
+                    const SizedBox(height: 24),
+                    InventoryMovementHistory(
+                      repository: widget.repository!,
+                      inventoryItemId: widget.resource!.id,
+                      unit: widget.resource!.unidadPredeterminada,
+                    ),
+                  ],
                   if (_editing && widget.onDelete != null) ...[
                     const SizedBox(height: 32),
                     FilledButton.icon(

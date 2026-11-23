@@ -573,6 +573,9 @@ class _InventoryManagementBodyState extends State<_InventoryManagementBody> {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => InventoryResourceFormScreen.edit(
+          repository:
+              widget.recursoInventarioRepository ??
+              getIt<RecursoInventarioRepository>(),
           resource: resource,
           onSave: (result) => _editInventoryResource(resource, result),
           onDelete: () async {

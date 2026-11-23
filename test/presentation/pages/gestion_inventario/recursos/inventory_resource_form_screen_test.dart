@@ -1,3 +1,5 @@
+import 'package:pos_flutter/domain/repositories/recurso_inventario_repository.dart';
+import 'package:pos_flutter/domain/inventario/movimiento_inventario.dart';
 import 'package:pos_flutter/application/sync/projections/inventory_projection_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,6 +81,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: InventoryResourceFormScreen.edit(
+          repository: _HistoryRepository(),
           resource: resource,
           onSave: (result) async => saved = result,
         ),
@@ -118,6 +121,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: InventoryResourceFormScreen.edit(
+          repository: _HistoryRepository(),
           resource: resource,
           onSave: (result) async => saved = result,
         ),
@@ -142,6 +146,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: InventoryResourceFormScreen.edit(
+          repository: _HistoryRepository(),
           resource: resource,
           onSave: (result) async => saved = result,
         ),
@@ -174,6 +179,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: InventoryResourceFormScreen.edit(
+          repository: _HistoryRepository(),
           resource: resource,
           onSave: (result) async => saved = result,
         ),
@@ -218,6 +224,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: InventoryResourceFormScreen.edit(
+          repository: _HistoryRepository(),
           resource: resource,
           onSave: (_) async {
             saved++;
@@ -256,6 +263,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: InventoryResourceFormScreen.edit(
+          repository: _HistoryRepository(),
           resource: resource,
           onSave: (_) async {},
           onDelete: () async {
@@ -289,4 +297,18 @@ void main() {
       findsNothing,
     );
   });
+}
+
+class _HistoryRepository implements RecursoInventarioRepository {
+  @override
+  Stream<List<MovimientoInventario>> watchMovimientos(
+    String inventoryItemId, {
+    String? movementType,
+    DateTime? desde,
+    DateTime? hasta,
+    int limit = 20,
+  }) => Stream.value(const []);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

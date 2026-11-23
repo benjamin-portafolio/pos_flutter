@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/inventario/movimiento_inventario.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/domain/inventario/dimension_unidad.dart';
@@ -117,6 +118,15 @@ void main() {
 }
 
 class _FakeInventoryResourceRepository implements RecursoInventarioRepository {
+  @override
+  Stream<List<MovimientoInventario>> watchMovimientos(
+    String inventoryItemId, {
+    String? movementType,
+    DateTime? desde,
+    DateTime? hasta,
+    int limit = 20,
+  }) => Stream.value(const []);
+
   @override
   Stream<RecursoInventarioListado?> watchRecursoPorId(String id) =>
       Stream.value(

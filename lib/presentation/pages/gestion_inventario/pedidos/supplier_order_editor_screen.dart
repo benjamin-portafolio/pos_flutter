@@ -10,9 +10,11 @@ import '../../../../application/commands/proveedores/supplier_order_command_serv
 import '../../../../application/commands/proveedores/save_supplier_order_command.dart';
 import '../../../../application/commands/proveedores/cancel_supplier_order_command.dart';
 import '../../../../domain/inventario/inventory_quantity_codec.dart';
+import '../../../../domain/proveedores/replenishment_candidate.dart';
 import 'supplier_order_forms.dart';
 import 'supplier_order_line_dialog.dart';
 import 'supplier_order_quantity_editor.dart';
+import 'supplier_order_variant_search_screen.dart';
 
 class SupplierOrderEditorScreen extends StatefulWidget {
   const SupplierOrderEditorScreen({required this.orderId, super.key});
@@ -231,23 +233,15 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
           )
           .toList();
       if (!mounted) return;
-      final selected = await showDialog<int>(
-        context: context,
-        builder: (context) => SimpleDialog(
-          title: const Text('Agregar variante del proveedor'),
-          children: [
-            for (var i = 0; i < candidates.length; i++)
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, i),
-                child: Text(
-                  '${candidates[i].productName} ${candidates[i].variantName ?? ''}',
-                ),
-              ),
-          ],
+      final c = await Navigator.of(context).push<ReplenishmentCandidate>(
+        MaterialPageRoute(
+          builder: (_) => SupplierOrderVariantSearchScreen(
+            supplierName: order!.document.supplierNameSnapshot,
+            candidates: candidates,
+          ),
         ),
       );
-      if (selected == null) return;
-      final c = candidates[selected];
+      if (c == null || !mounted) return;
       setState(() {
         items.add(candidateLine(c, const Uuid().v4(), c.atomicFactor));
         basis[c.variantId] = c.basis;

@@ -1,3 +1,4 @@
+import '../../domain/inventario/movimiento_inventario.dart';
 import '../../domain/inventario/dimension_unidad.dart';
 import '../../domain/inventario/inventory_resource_filter.dart';
 import '../../domain/inventario/recurso_inventario_listado.dart';
@@ -10,6 +11,46 @@ class RecursoInventarioRepositoryImpl implements RecursoInventarioRepository {
     : _inventoryDao = inventoryDao;
 
   final InventoryDao _inventoryDao;
+
+  @override
+  Stream<List<MovimientoInventario>> watchMovimientos(
+    String inventoryItemId, {
+    String? movementType,
+    DateTime? desde,
+    DateTime? hasta,
+    int limit = 20,
+  }) {
+    if (limit <= 0) throw ArgumentError.value(limit, 'limit');
+    return _inventoryDao
+        .watchMovimientos(
+          inventoryItemId,
+          movementType: movementType,
+          desde: desde,
+          hasta: hasta,
+          limit: limit,
+        )
+        .map(
+          (rows) => rows
+              .map((entry) {
+                final row = entry.$1;
+                return MovimientoInventario(
+                  id: row.movementId,
+                  inventoryItemId: row.inventoryItemId,
+                  saleId: entry.$2,
+                  saleItemId: row.saleItemId,
+                  eventId: row.eventId,
+                  reversalOfMovementId: row.reversalOfMovementId,
+                  movementType: row.movementType,
+                  quantityDeltaAtomic: row.quantityDeltaAtomic,
+                  totalCostMinor: row.totalCostMinor,
+                  reason: row.reason,
+                  createdAtLocal: row.createdAtLocal,
+                  serverSequence: row.serverSequence,
+                );
+              })
+              .toList(growable: false),
+        );
+  }
 
   @override
   Stream<List<RecursoInventarioListado>> watchRecursos({

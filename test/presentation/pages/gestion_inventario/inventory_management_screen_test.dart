@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/inventario/movimiento_inventario.dart';
 import 'package:pos_flutter/application/commands/edicion_masiva/edicion_masiva_command_service.dart';
 import 'package:pos_flutter/application/edicion_masiva/catalogo_edicion_masiva.dart';
 import 'package:pos_flutter/core/di/injection.dart';
@@ -1073,6 +1074,15 @@ class _FakeProductoRepository extends FakeProductoRepository {
 }
 
 class _FakeInventoryResourceRepository implements RecursoInventarioRepository {
+  @override
+  Stream<List<MovimientoInventario>> watchMovimientos(
+    String inventoryItemId, {
+    String? movementType,
+    DateTime? desde,
+    DateTime? hasta,
+    int limit = 20,
+  }) => Stream.value(const []);
+
   const _FakeInventoryResourceRepository(this.resources);
 
   final List<RecursoInventarioListado> resources;

@@ -6,6 +6,7 @@ import '../../../../domain/inventario/recurso_inventario_listado.dart';
 import '../../../../domain/repositories/recurso_inventario_repository.dart';
 import 'models/inventory_movement_draft.dart';
 import 'widgets/inventory_form_card.dart';
+import 'widgets/inventory_movement_history.dart';
 import 'widgets/inventory_movement_section.dart';
 
 /// Registra un movimiento sobre un recurso ya vinculado, sin nombre ni unidad.
@@ -187,6 +188,14 @@ class _InventoryMovementScreenState extends State<InventoryMovementScreen> {
                     'si ocurren ventas u otros movimientos.',
                     key: const Key('inventory_movement_projection_note'),
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (resource != null) ...[
+                  const SizedBox(height: 24),
+                  InventoryMovementHistory(
+                    repository: widget.repository,
+                    inventoryItemId: widget.inventoryItemId,
+                    unit: resource.unidadPredeterminada,
                   ),
                 ],
                 if (_registerError != null) ...[

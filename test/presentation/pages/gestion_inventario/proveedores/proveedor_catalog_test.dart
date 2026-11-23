@@ -1,3 +1,4 @@
+import 'package:pos_flutter/domain/inventario/movimiento_inventario.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -490,6 +491,15 @@ class _Products implements ProductoRepository {
 }
 
 class _Resources implements RecursoInventarioRepository {
+  @override
+  Stream<List<MovimientoInventario>> watchMovimientos(
+    String inventoryItemId, {
+    String? movementType,
+    DateTime? desde,
+    DateTime? hasta,
+    int limit = 20,
+  }) => Stream.value(const []);
+
   @override
   Stream<List<RecursoInventarioListado>> watchRecursos({
     String busqueda = '',
