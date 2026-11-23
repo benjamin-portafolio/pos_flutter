@@ -63,24 +63,6 @@ class MenuLateral extends StatelessWidget {
                     Icon(Icons.edit, color: Colors.white),
                   ],
                 ),
-                SizedBox(height: 10),
-                Container(
-                  color: Colors.purple,
-                  padding: EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "PREMIUM\nUsted es nuestro Usuario Premium",
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                      ),
-                      Icon(Icons.expand_more, color: Colors.white),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -91,15 +73,6 @@ class MenuLateral extends StatelessWidget {
           _BankMenuTile(
             beforeNavigate: beforeNavigate,
             afterNavigate: afterNavigate,
-          ),
-          // Usuario
-          ListTile(
-            title: Text("BENJAMÍN ALVARADO GONZÁLEZ (staff)"),
-            subtitle: Text("orejonnar@gmail.com"),
-            trailing: Text(
-              "EDITAR PERFIL",
-              style: TextStyle(color: Colors.blue, fontSize: 12),
-            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

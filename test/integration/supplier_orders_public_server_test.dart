@@ -83,6 +83,8 @@ void main() {
         MaterialApp(home: SupplierOrdersScreen(supplierId: supplier)),
       );
       await t.pumpAndSettle();
+      await t.tap(find.byKey(PageStorageKey('supplier_suggestions_$supplier')));
+      await t.pumpAndSettle();
       await tap(t, 'Preparar pedido');
       final id = (await a.db.select(a.db.supplierOrders).get())
           .singleWhere((o) => o.supplierId == supplier && o.status == 'draft')
@@ -95,6 +97,7 @@ void main() {
       await t.pump();
       await t.pageBack();
       await t.pumpAndSettle();
+      await tap(t, 'Borradores');
       await t.ensureVisible(find.byKey(ValueKey(id)));
       await t.tap(find.byKey(ValueKey(id)));
       await t.pumpAndSettle();

@@ -54,7 +54,6 @@ class InventoryAddOptionsBottomSheet extends StatelessWidget {
         'Añadir categoría',
         onAddCategory,
       ),
-      _option(context, 'add_modifier_option', 'Añadir modificador', null),
       _option(
         context,
         'add_inventory_resource_option',

@@ -1,3 +1,5 @@
+import 'confirm_supplier_order_draft_deletion.dart';
+import '../../../../application/commands/proveedores/cancel_supplier_order_command.dart';
 import 'supplier_order_detail_screen.dart';
 import '../../../../application/commands/articulos/producto_command_service.dart';
 import '../../../../application/commands/inventario/inventory_command_service.dart';
@@ -71,6 +73,43 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
             : SupplierOrderEditorScreen(orderId: id),
       ),
     );
+  }
+
+  Future<void> _deleteDraft(SupplierOrderSummary summary) async {
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      final order = await getIt<SupplierOrderProjectionStore>().find(
+        summary.id,
+      );
+      if (!mounted) return;
+      if (order == null || order.status != 'draft') {
+        throw StateError('El pedido dejó de ser borrador. Revisa el listado.');
+      }
+      if (!await confirmSupplierOrderDraftDeletion(
+            context,
+            order.document.supplierNameSnapshot,
+          ) ||
+          !mounted) {
+        return;
+      }
+      await getIt<SupplierOrderCommandService>().cancel(
+        CancelSupplierOrderCommand(
+          eventId: const Uuid().v4(),
+          orderId: order.id,
+          baseEventId: order.lastEventId!,
+          occurredAtMs: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar el borrador: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Future<void> _recover(SupplierOrderFailedAttempt attempt) async {
@@ -168,18 +207,32 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 3,
+    length: 4,
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Pedidos a proveedores'),
-        bottom: const TabBar(
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: [
-            Tab(text: 'Sugerencias y borradores'),
-            Tab(text: 'Pendientes de recibir'),
-            Tab(text: 'Historial'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(kTextTabBarHeight),
+          child: StreamBuilder<List<SupplierOrderSummary>>(
+            stream: orders,
+            builder: (context, snapshot) => TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: [
+                const Tab(text: 'Sugerencias'),
+                _orderTab('Borradores', {'draft'}, snapshot.data),
+                _orderTab('Pendientes de recibir', {
+                  'confirmed',
+                  'partial',
+                }, snapshot.data),
+                _orderTab('Historial', {
+                  'cancelled',
+                  'closed',
+                  'received',
+                }, snapshot.data),
+              ],
+            ),
+          ),
         ),
       ),
       body: Column(
@@ -202,7 +255,7 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
                     const Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                        'Las sugerencias usan el saldo y pedidos conocidos en esta terminal. Los borradores no reservan cantidades.',
+                        'Las sugerencias usan el saldo y los pedidos conocidos en esta terminal.',
                       ),
                     ),
                     StreamBuilder<List<ReplenishmentCandidate>>(
@@ -235,13 +288,27 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
                           }
                           groups.putIfAbsent(c.supplierId, () => []).add(c);
                         }
+                        if (groups.isEmpty) {
+                          return ListTile(
+                            title: Text(
+                              search.isEmpty
+                                  ? 'No hay sugerencias disponibles.'
+                                  : 'No hay sugerencias para esta búsqueda.',
+                            ),
+                          );
+                        }
                         return Column(
                           children: groups.values
                               .map(
                                 (rows) => Card(
                                   child: ExpansionTile(
+                                    key: PageStorageKey(
+                                      'supplier_suggestions_${rows.first.supplierId}',
+                                    ),
                                     title: Text(rows.first.supplierName),
-                                    initiallyExpanded: true,
+                                    subtitle: Text(
+                                      '${rows.length} ${rows.length == 1 ? 'producto' : 'productos'} · ${rows.where((c) => c.suggestedAtomic > 0).length} por reponer',
+                                    ),
                                     children: [
                                       ...rows.map(
                                         (c) => ListTile(
@@ -271,15 +338,78 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
                         );
                       },
                     ),
+                    StreamBuilder<List<ReplenishmentIssue>>(
+                      stream: issues,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return const ListTile(
+                            title: Text('No se pudo revisar la configuración.'),
+                          );
+                        }
+                        final rows = snapshot.data ?? <ReplenishmentIssue>[];
+                        if (rows.isEmpty) return const SizedBox.shrink();
+                        return Card(
+                          child: ExpansionTile(
+                            key: const PageStorageKey(
+                              'supplier_configuration_issues',
+                            ),
+                            leading: const Icon(Icons.settings_outlined),
+                            title: Text(
+                              'Configuración por revisar (${rows.length})',
+                            ),
+                            subtitle: const Text(
+                              'Despliega para ver los avisos y corregirlos.',
+                            ),
+                            children: [
+                              for (final issue in rows)
+                                ListTile(
+                                  title: Text(issue.name),
+                                  subtitle: Text(issue.reason),
+                                  trailing: TextButton(
+                                    onPressed: () => _configure(
+                                      issue.productId,
+                                      issue.variantId,
+                                    ),
+                                    child: const Text('Corregir'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                ListView(
+                  children: [
                     const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text('Borradores guardados'),
+                      child: Text(
+                        'Continúa un pedido guardado. Los borradores no reservan cantidades.',
+                      ),
                     ),
-                    _orderList({'draft'}),
+                    _orderList(
+                      {'draft'},
+                      emptyMessage:
+                          'No tienes borradores guardados. Prepara un pedido desde Sugerencias.',
+                    ),
                     StreamBuilder<List<SupplierOrderFailedAttempt>>(
                       stream: failed,
                       builder: (context, snapshot) => Column(
                         children: [
+                          if (snapshot.hasError)
+                            const ListTile(
+                              title: Text(
+                                'No se pudieron cargar los intentos fallidos.',
+                              ),
+                            ),
+                          if (snapshot.hasData && snapshot.data!.isNotEmpty)
+                            const ListTile(
+                              title: Text('Intentos fallidos'),
+                              subtitle: Text(
+                                'Revisa los intentos que necesitan atención.',
+                              ),
+                            ),
                           for (final attempt
                               in snapshot.data ??
                                   <SupplierOrderFailedAttempt>[])
@@ -292,32 +422,6 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
                                   ? () => _recover(attempt)
                                   : null,
                               trailing: const Icon(Icons.restore),
-                            ),
-                        ],
-                      ),
-                    ),
-                    StreamBuilder<List<ReplenishmentIssue>>(
-                      stream: issues,
-                      builder: (context, snapshot) => Column(
-                        children: [
-                          if (snapshot.hasError)
-                            const ListTile(
-                              title: Text(
-                                'No se pudo revisar la configuración.',
-                              ),
-                            ),
-                          for (final issue
-                              in snapshot.data ?? <ReplenishmentIssue>[])
-                            ListTile(
-                              title: Text(issue.name),
-                              subtitle: Text(issue.reason),
-                              trailing: TextButton(
-                                onPressed: () => _configure(
-                                  issue.productId,
-                                  issue.variantId,
-                                ),
-                                child: const Text('Corregir'),
-                              ),
                             ),
                         ],
                       ),
@@ -337,9 +441,43 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
       ),
     ),
   );
-  Widget _orderList(
+  Widget _orderTab(
+    String label,
     Set<String> states,
-  ) => StreamBuilder<List<SupplierOrderSummary>>(
+    List<SupplierOrderSummary>? rows,
+  ) {
+    final count = rows
+        ?.where(
+          (o) =>
+              states.contains(o.status) &&
+              (widget.supplierId == null || o.supplierId == widget.supplierId),
+        )
+        .length;
+    return Tab(
+      key: ValueKey('supplier_orders_tab_${states.first}'),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count != null) ...[
+            const SizedBox(width: 8),
+            Badge(label: Text('$count')),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _savedDate(int milliseconds) {
+    final date = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(date.day)}/${two(date.month)}/${date.year} · ${two(date.hour)}:${two(date.minute)}';
+  }
+
+  Widget _orderList(
+    Set<String> states, {
+    String emptyMessage = 'No hay pedidos en esta sección.',
+  }) => StreamBuilder<List<SupplierOrderSummary>>(
     stream: orders,
     builder: (context, snapshot) {
       if (snapshot.hasError) {
@@ -347,12 +485,24 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
           title: Text('No se pudieron cargar los pedidos.'),
         );
       }
-      final rows = (snapshot.data ?? []).where(
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final rows = snapshot.data!.where(
         (o) =>
             states.contains(o.status) &&
             (widget.supplierId == null || o.supplierId == widget.supplierId) &&
             o.supplierName.toLowerCase().contains(search),
       );
+      if (rows.isEmpty) {
+        return ListTile(
+          title: Text(
+            search.isEmpty
+                ? emptyMessage
+                : 'No hay pedidos para esta búsqueda.',
+          ),
+        );
+      }
       return Column(
         children: rows
             .map(
@@ -360,10 +510,20 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
                 key: ValueKey(o.id),
                 title: Text(o.supplierName),
                 subtitle: Text(
-                  '${o.status} · ${o.deliveryStatus} · ${o.id}\n${orderMoney(o.totalMinor)}${o.overlaps ? '\nHay pedidos abiertos que se solapan. Revisa cantidades antes de comprar.' : ''}${o.issue == null ? '' : '\n${o.issue}'}',
+                  o.status == 'draft'
+                      ? 'Guardado el ${_savedDate(o.occurredAtMs)}\nTotal estimado: ${o.totalMinor == null ? 'Sin precio conocido' : '\$${orderMoney(o.totalMinor)} MXN'}${o.overlaps ? '\nHay pedidos abiertos que se solapan. Revisa cantidades antes de comprar.' : ''}${o.issue == null ? '' : '\n${o.issue}'}'
+                      : '${o.status} · ${o.deliveryStatus} · ${o.id}\n${orderMoney(o.totalMinor)}${o.overlaps ? '\nHay pedidos abiertos que se solapan. Revisa cantidades antes de comprar.' : ''}${o.issue == null ? '' : '\n${o.issue}'}',
                 ),
-                isThreeLine: true,
-                onTap: () => _open(o.id, detail: o.status != 'draft'),
+                trailing: o.status == 'draft'
+                    ? IconButton(
+                        tooltip: 'Eliminar borrador',
+                        onPressed: busy ? null : () => _deleteDraft(o),
+                        icon: const Icon(Icons.delete_outline),
+                      )
+                    : null,
+                onTap: busy
+                    ? null
+                    : () => _open(o.id, detail: o.status != 'draft'),
               ),
             )
             .toList(),

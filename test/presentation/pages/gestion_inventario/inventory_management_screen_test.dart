@@ -505,7 +505,7 @@ void main() {
 
     expect(find.text('Añadir artículo'), findsOneWidget);
     expect(find.text('Añadir categoría'), findsOneWidget);
-    expect(find.text('Añadir modificador'), findsOneWidget);
+    expect(find.text('Añadir modificador'), findsNothing);
     expect(find.text('Añadir recurso de inventario'), findsOneWidget);
     expect(find.text('Edición masiva'), findsOneWidget);
     expect(find.text('Carga masiva'), findsOneWidget);

@@ -48,6 +48,10 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          expect(find.text('1 producto · 1 por reponer'), findsOneWidget);
+          expect(find.textContaining('Sugerido:'), findsNothing);
+          await tester.tap(find.byType(ExpansionTile).first);
+          await tester.pumpAndSettle();
           expect(
             find.textContaining(
               measured ? 'Sugerido: 4 kg' : 'Sugerido: 4 pza',
@@ -55,6 +59,21 @@ void main() {
             findsOneWidget,
           );
           expect(tester.takeException(), isNull);
+          await tester.ensureVisible(find.text('Borradores'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Borradores'));
+          await tester.pumpAndSettle();
+          expect(
+            find.text(
+              'No tienes borradores guardados. Prepara un pedido desde Sugerencias.',
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Preparar pedido'), findsNothing);
+          await tester.ensureVisible(find.text('Sugerencias'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Sugerencias'));
+          await tester.pumpAndSettle();
           await tester.ensureVisible(find.text('Preparar pedido'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Preparar pedido'));
@@ -81,8 +100,46 @@ void main() {
           await tester.enterText(search, 'sin coincidencias');
           await tester.pumpAndSettle();
           expect((await h.tracking.orders.find(order.id))!.status, 'draft');
+          expect(
+            find.text('No hay sugerencias para esta búsqueda.'),
+            findsOneWidget,
+          );
           await tester.enterText(search, '');
           await tester.pumpAndSettle();
+          expect(find.byKey(ValueKey(order.id)), findsNothing);
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('supplier_orders_tab_draft')),
+              matching: find.text('1'),
+            ),
+            findsOneWidget,
+          );
+          await tester.ensureVisible(find.text('Borradores'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Borradores'));
+          await tester.pumpAndSettle();
+          await tester.enterText(search, 'sin coincidencias');
+          await tester.pumpAndSettle();
+          expect(find.byKey(ValueKey(order.id)), findsNothing);
+          expect(
+            find.text('No hay pedidos para esta búsqueda.'),
+            findsOneWidget,
+          );
+          await tester.enterText(search, '');
+          await tester.pumpAndSettle();
+          final summary = find.descendant(
+            of: find.byKey(ValueKey(order.id)),
+            matching: find.byType(Text),
+          );
+          expect(
+            summary.evaluate().map((e) => (e.widget as Text).data).join(' '),
+            allOf(
+              contains('Guardado el '),
+              contains('Total estimado: '),
+              isNot(contains(order.id)),
+              isNot(contains('not_required')),
+            ),
+          );
           await tester.ensureVisible(find.byKey(ValueKey(order.id)));
           await tester.pumpAndSettle();
           await tester.tap(find.byKey(ValueKey(order.id)));
@@ -254,6 +311,22 @@ void main() {
           await tester.tap(find.text('Confirmar pedido'));
           await tester.pumpAndSettle();
           expect((await h.tracking.orders.find(order.id))!.status, 'confirmed');
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('supplier_orders_tab_draft')),
+              matching: find.text('0'),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('supplier_orders_tab_confirmed')),
+              matching: find.text('1'),
+            ),
+            findsOneWidget,
+          );
           final confirmed = (await h.tracking.orders.find(order.id))!;
           expect(
             confirmed.document.items.single.quantityAtomic,

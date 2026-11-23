@@ -1,3 +1,4 @@
+import 'confirm_supplier_order_draft_deletion.dart';
 import 'supplier_order_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -333,41 +334,37 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
     if (mounted) Navigator.pop(context);
   }
 
-  Future<void> _cancel() async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancelar pedido'),
-        content: const Text(
-          'Se conservará en el historial y dejará de contar como pendiente.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancelar pedido'),
-          ),
-        ],
-      ),
-    );
-    if (yes != true) return;
+  Future<void> _deleteDraft() async {
+    final current = order;
+    if (busy || current == null || current.status != 'draft') return;
     setState(() => busy = true);
     try {
+      if (!await confirmSupplierOrderDraftDeletion(
+            context,
+            current.document.supplierNameSnapshot,
+          ) ||
+          !mounted) {
+        return;
+      }
       await service.cancel(
         CancelSupplierOrderCommand(
           eventId: const Uuid().v4(),
-          orderId: order!.id,
-          baseEventId: order!.lastEventId!,
+          orderId: current.id,
+          baseEventId: current.lastEventId!,
           occurredAtMs: DateTime.now().millisecondsSinceEpoch,
         ),
       );
-      await _load();
-      dirty = false;
+      if (!mounted) return;
+      setState(() {
+        dirty = false;
+        busy = false;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        setState(() => error = 'No se pudo eliminar el borrador: $e');
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -636,8 +633,10 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                     ),
                   if (o.status == 'draft')
                     TextButton(
-                      onPressed: busy || editingId != null ? null : _cancel,
-                      child: const Text('Cancelar pedido'),
+                      onPressed: busy || editingId != null
+                          ? null
+                          : _deleteDraft,
+                      child: const Text('Eliminar borrador'),
                     ),
                 ],
               ),

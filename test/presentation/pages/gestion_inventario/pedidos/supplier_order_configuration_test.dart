@@ -69,6 +69,11 @@ void main() {
           await tester.tap(find.byTooltip('Pedidos a proveedores'));
         }
         await tester.pumpAndSettle();
+        expect(find.text('Falta proveedor actual'), findsNothing);
+        await tester.tap(
+          find.byKey(const PageStorageKey('supplier_configuration_issues')),
+        );
+        await tester.pumpAndSettle();
         expect(find.text('Falta proveedor actual'), findsOneWidget);
         await tester.ensureVisible(find.text('Corregir'));
         await tester.tap(find.text('Corregir'));
