@@ -1,3 +1,4 @@
+import '../../../../application/sync/payloads/supplier_order_draft_saved_payload.dart';
 import 'confirm_supplier_order_draft_deletion.dart';
 import 'supplier_order_detail_screen.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +19,12 @@ import 'supplier_order_quantity_editor.dart';
 import 'supplier_order_variant_search_screen.dart';
 
 class SupplierOrderEditorScreen extends StatefulWidget {
-  const SupplierOrderEditorScreen({required this.orderId, super.key});
+  const SupplierOrderEditorScreen({
+    required this.orderId,
+    this.initialDocument,
+    super.key,
+  });
+  final SupplierOrderDraftSavedPayload? initialDocument;
   final String orderId;
   @override
   State<SupplierOrderEditorScreen> createState() =>
@@ -49,7 +55,17 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
 
   Future<void> _load() async {
     try {
-      final result = await store.find(widget.orderId);
+      final initial = widget.initialDocument;
+      final result = initial == null
+          ? await store.find(widget.orderId)
+          : SupplierOrderProjection(
+              document: initial,
+              status: 'draft',
+              version: 0,
+              createdEventId: null,
+              lastEventId: null,
+              lastServerSequence: null,
+            );
       final catalog = await store.candidates();
       if (!mounted) return;
       setState(() {
@@ -90,7 +106,7 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
     });
   }
 
-  Future<void> _save({bool confirm = false, bool close = false}) async {
+  Future<void> _save({bool confirm = false}) async {
     if (busy || order == null || editingId != null || items.isEmpty) return;
     setState(() => busy = true);
     try {
@@ -121,7 +137,6 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
         dirty = false;
         error = null;
       });
-      if (close) Navigator.pop(context);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
@@ -308,13 +323,15 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
     }
   }
 
-  Future<void> _leaveEmpty() async {
+  Future<void> _discardChanges() async {
     final discard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Salir sin guardar cambios'),
-        content: const Text(
-          'El pedido necesita al menos un producto para guardarse. Si sales, se conservará el último borrador guardado.',
+        content: Text(
+          order?.lastEventId == null
+              ? 'La preparación no se guardará y no se creará ningún borrador.'
+              : 'Se conservará el último pedido guardado; los cambios de esta captura se descartarán.',
         ),
         actions: [
           TextButton(
@@ -386,10 +403,8 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                 ),
               ),
             );
-          } else if (items.isEmpty) {
-            _leaveEmpty();
           } else {
-            _save(close: true);
+            _discardChanges();
           }
         }
       },
@@ -415,6 +430,10 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                           'Estimado incompleto: hay productos sin precio.',
                         ),
                       if (editable) ...[
+                        if (o.lastEventId == null)
+                          const Text(
+                            'Guarda el pedido antes de revisarlo y confirmarlo.',
+                          ),
                         if (editingId != null)
                           const Text(
                             'Pulsa Listo para terminar de editar la cantidad.',
@@ -428,11 +447,14 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                                   busy || editingId != null || items.isEmpty
                                   ? null
                                   : () => _save(),
-                              child: const Text('Guardar borrador'),
+                              child: const Text('Guardar pedido'),
                             ),
                             FilledButton(
                               onPressed:
-                                  busy || editingId != null || items.isEmpty
+                                  busy ||
+                                      editingId != null ||
+                                      items.isEmpty ||
+                                      o.lastEventId == null
                                   ? null
                                   : _review,
                               child: const Text('Revisar y confirmar'),
@@ -464,7 +486,8 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                       child: const Text('Recuperar base y conservar captura'),
                     ),
                   Text(switch (o.status) {
-                    'draft' => 'Borrador',
+                    'draft' =>
+                      o.lastEventId == null ? 'Pedido sin guardar' : 'Borrador',
                     'confirmed' => 'Confirmado',
                     'partial' => 'Recibido parcialmente',
                     'received' => 'Recibido',
@@ -631,7 +654,7 @@ class _SupplierOrderEditorScreenState extends State<SupplierOrderEditorScreen> {
                             ),
                       child: const Text('Ver detalle, recepciones y tickets'),
                     ),
-                  if (o.status == 'draft')
+                  if (o.status == 'draft' && o.lastEventId != null)
                     TextButton(
                       onPressed: busy || editingId != null
                           ? null

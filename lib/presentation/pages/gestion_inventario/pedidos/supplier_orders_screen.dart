@@ -21,7 +21,6 @@ import '../../../../domain/proveedores/replenishment_candidate.dart';
 import '../../../../domain/proveedores/replenishment_issue.dart';
 import '../../../../domain/proveedores/supplier_order_summary.dart';
 import '../../../../application/commands/proveedores/supplier_order_command_service.dart';
-import '../../../../application/commands/proveedores/save_supplier_order_command.dart';
 import 'supplier_order_forms.dart';
 import 'supplier_order_editor_screen.dart';
 
@@ -186,14 +185,14 @@ class _SupplierOrdersScreenState extends State<SupplierOrdersScreen> {
             .map((c) => candidateLine(c, const Uuid().v4(), c.suggestedAtomic))
             .toList(),
       );
-      await getIt<SupplierOrderCommandService>().save(
-        SaveSupplierOrderCommand(
-          eventId: const Uuid().v4(),
-          document: doc,
-          catalogBasis: const {},
-        ),
-      );
-      if (mounted) await _open(id);
+      if (mounted) {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) =>
+                SupplierOrderEditorScreen(orderId: id, initialDocument: doc),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

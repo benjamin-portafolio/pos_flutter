@@ -86,15 +86,16 @@ void main() {
       await t.tap(find.byKey(PageStorageKey('supplier_suggestions_$supplier')));
       await t.pumpAndSettle();
       await tap(t, 'Preparar pedido');
-      final id = (await a.db.select(a.db.supplierOrders).get())
-          .singleWhere((o) => o.supplierId == supplier && o.status == 'draft')
-          .id;
       await t.ensureVisible(find.widgetWithText(TextField, 'Notas'));
       await t.enterText(
         find.widgetWithText(TextField, 'Notas'),
         'Recorrido público HTTP S6',
       );
       await t.pump();
+      await tap(t, 'Guardar pedido');
+      final id = (await a.db.select(a.db.supplierOrders).get())
+          .singleWhere((o) => o.supplierId == supplier && o.status == 'draft')
+          .id;
       await t.pageBack();
       await t.pumpAndSettle();
       await tap(t, 'Borradores');

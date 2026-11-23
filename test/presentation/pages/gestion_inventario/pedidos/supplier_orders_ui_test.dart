@@ -78,7 +78,25 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(find.text('Preparar pedido'));
           await tester.pumpAndSettle();
-          final order = (await h.db.select(h.db.supplierOrders).get()).single;
+          expect(await h.db.select(h.db.supplierOrders).get(), isEmpty);
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+          expect(await h.db.select(h.db.supplierOrders).get(), isEmpty);
+          await tester.tap(find.text('Preparar pedido'));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.widgetWithText(TextField, 'Notas'));
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Notas'),
+            'Consulta sin guardar',
+          );
+          await tester.pump();
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Salir sin guardar'));
+          await tester.pumpAndSettle();
+          expect(await h.db.select(h.db.supplierOrders).get(), isEmpty);
+          await tester.tap(find.text('Preparar pedido'));
+          await tester.pumpAndSettle();
           await tester.ensureVisible(find.widgetWithText(TextField, 'Notas'));
           await tester.pumpAndSettle();
           await tester.enterText(
@@ -86,6 +104,9 @@ void main() {
             'Mi intención',
           );
           await tester.pump();
+          await tester.tap(find.text('Guardar pedido'));
+          await tester.pumpAndSettle();
+          final order = (await h.db.select(h.db.supplierOrders).get()).single;
           await tester.pageBack();
           await tester.pumpAndSettle();
           expect(
