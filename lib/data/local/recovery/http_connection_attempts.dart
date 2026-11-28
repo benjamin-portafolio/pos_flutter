@@ -10,14 +10,179 @@ import '../../../application/config/app_config.dart';
 import '../../../application/recovery/recovery_attempt_store.dart';
 import '../../../application/recovery/recovery_destination_inspector.dart';
 import 'http_recovery_destination_inspector.dart';
+import 'http_recovery_transport.dart';
 
 /// Keeps an attempt proof private and durable before making the first request.
 class HttpConnectionAttempts {
-  HttpConnectionAttempts(this.directory);
+  HttpConnectionAttempts(
+    this.directory, {
+    http.Client Function()? clientFactory,
+  }) : _clientFactory = clientFactory ?? http.Client.new;
+  final http.Client Function() _clientFactory;
   final Directory directory;
 
   Future<Map<String, Object?>> health(Uri destination) =>
       _request(destination.resolve('/sync/health'));
+
+  /// A bounded read validates the existing credential against the server's
+  /// installed dataset. No cursor or event is applied to the local database.
+  Future<void> verifyBinding(
+    Uri destination,
+    Map<String, Object?> installation,
+    Map<String, Object?> health,
+  ) async {
+    final binding = installation['binding'] as Map;
+    final cursor = '${health['baseline_high_watermark']}';
+    if (!RegExp(r'^(0|[1-9][0-9]*)$').hasMatch(cursor)) {
+      throw const FormatException('El servidor no informó un baseline válido.');
+    }
+    final result = await _request(
+      destination
+          .resolve('/sync/pull')
+          .replace(
+            queryParameters: {
+              'since': cursor,
+              'limit': '1',
+              'device_id': binding['device_id'] as String,
+            },
+          ),
+      headers: {
+        'X-POS-Protocol': '2',
+        'X-POS-Server': binding['server_instance_id'] as String,
+        'X-POS-Generation': binding['generation_id'] as String,
+        'X-POS-Device': binding['device_id'] as String,
+        'Authorization': 'Bearer ${binding['token']}',
+      },
+    );
+    if (result['events'] is! List ||
+        result['next_cursor'] is! int ||
+        result['has_more'] is! bool) {
+      throw const FormatException('Respuesta de vinculación incompatible.');
+    }
+  }
+
+  /// Reuse the original proof, never request approval as a new device/attempt.
+  Future<Map<String, Object?>> verifyRecoveryRelocation(
+    Map<String, Object?> journal,
+    Uri destination,
+  ) async {
+    final uri = HttpRecoveryDestinationInspector.parseDestination(
+      '$destination',
+    );
+    final status = await health(uri);
+    final server = journal['server_instance_id'] as String;
+    final generation = journal['generation_id'] as String;
+    if (status['sync_protocol'] != 2 ||
+        status['recovery_protocol'] != 1 ||
+        status['server_instance_id'] != server ||
+        status['generation_id'] != generation) {
+      throw StateError(
+        'La nueva dirección pertenece a otro servidor o generación. '
+        'Se conserva el intento y su destino.',
+      );
+    }
+    var token = journal['recovery_token'] as String;
+    final package = journal['prepared_source'] as Map?;
+    Map<String, Object?>? proof;
+    RecoveryAttemptStore? newStore;
+    if (journal['connection_request_id'] != null) {
+      if (package == null) throw StateError('Falta el corte del intento.');
+      final source = (package['cut'] as Map)['source'] as Map;
+      List<Object?> scope(String endpoint) => [
+        'recovery',
+        endpoint,
+        server,
+        generation,
+        package['package_id'],
+        package['manifest_digest'],
+        source['device_id'],
+      ];
+      final previous = HttpRecoveryDestinationInspector.parseDestination(
+        journal['destination'] as String,
+      );
+      proof = await _scopeStore(scope('$previous')).read();
+      if (proof == null ||
+          proof['request_id'] != journal['connection_request_id']) {
+        throw StateError(
+          'No se encontró la autorización original del intento.',
+        );
+      }
+      final approval = await _request(
+        uri.resolve('/recovery/connection-request'),
+        headers: _headers(server, generation, proof),
+        body: {
+          'request_id': proof['request_id'],
+          'package_id': package['package_id'],
+          'manifest_digest': package['manifest_digest'],
+          'source_device_id': source['device_id'],
+        },
+      );
+      if (approval['status'] != 'approved' || approval['token'] is! String) {
+        throw StateError(
+          'El destino no autorizó reanudar el intento original.',
+        );
+      }
+      token = approval['token'] as String;
+      newStore = _scopeStore(scope('$uri'));
+    }
+    final transport = HttpRecoveryTransport(
+      mode: AppMode.serverSync,
+      destination: uri,
+      server: server,
+      generation: generation,
+      token: token,
+      client: _clientFactory(),
+    );
+    try {
+      final id =
+          (journal['recovery_id'] ?? journal['connection_request_id'])
+              as String?;
+      Map<String, Object?> result;
+      var foundSession = id != null;
+      try {
+        result = await transport.request(
+          'GET',
+          id == null ? '/recovery/eligibility' : '/recovery/sessions/$id',
+        );
+      } on RecoveryTransportFailure catch (error) {
+        // A lost creation response may hide an already accepted session. Only
+        // an explicit 404 permits falling back to eligibility before creation.
+        if (id == null ||
+            journal['recovery_id'] != null ||
+            error.status != 404) {
+          rethrow;
+        }
+        foundSession = false;
+        result = await transport.request('GET', '/recovery/eligibility');
+      }
+      if (foundSession &&
+          (result['recovery_id'] != id ||
+              result['manifest_digest'] != journal['manifest_digest'])) {
+        throw const FormatException(
+          'La dirección no conserva la sesión y el paquete originales.',
+        );
+      }
+      if (!foundSession && result['eligible'] != true) {
+        throw StateError('El destino no admite continuar este intento.');
+      }
+    } finally {
+      transport.close();
+    }
+    if (newStore != null && proof != null) {
+      await newStore.withFileLock(() async {
+        final existing = await newStore!.read();
+        if (existing != null &&
+            (existing['request_id'] != proof!['request_id'] ||
+                existing['proof'] != proof['proof'])) {
+          throw StateError(
+            'La dirección ya tiene otra autorización conservada.',
+          );
+        }
+        await newStore.write(proof!);
+      });
+    }
+    return {'recovery_token': token};
+  }
 
   Future<Map<String, Object?>> bootstrap(
     Uri destination,
@@ -113,8 +278,7 @@ class HttpConnectionAttempts {
   }
 
   Future<Map<String, Object?>> _attempt(List<Object?> scope) async {
-    final key = sha256.convert(utf8.encode(jsonEncode(scope)));
-    final store = RecoveryAttemptStore(Directory('${directory.path}/$key'));
+    final store = _scopeStore(scope);
     return store.withFileLock(() async {
       final existing = await store.read();
       if (existing != null) return existing;
@@ -132,6 +296,11 @@ class HttpConnectionAttempts {
     });
   }
 
+  RecoveryAttemptStore _scopeStore(List<Object?> scope) {
+    final key = sha256.convert(utf8.encode(jsonEncode(scope)));
+    return RecoveryAttemptStore(Directory('${directory.path}/$key'));
+  }
+
   Map<String, String> _headers(
     String server,
     String generation,
@@ -147,7 +316,7 @@ class HttpConnectionAttempts {
     Map<String, String> headers = const {},
     Map<String, Object?>? body,
   }) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       final request = http.Request(body == null ? 'GET' : 'POST', uri)
         ..followRedirects = false

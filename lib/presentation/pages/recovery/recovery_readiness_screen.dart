@@ -38,6 +38,7 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
   Map<String, Object?>? _attempt;
   List<Map<String, Object?>> _history = [];
   bool _confirmPublication = false;
+  bool _confirmPreserve = false;
 
   @override
   void initState() {
@@ -53,6 +54,9 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
       if (mounted) {
         setState(() {
           _attempt = attempt;
+          if (attempt != null) {
+            _destination.text = attempt['destination'] as String;
+          }
           _package = package;
           _history = history;
         });
@@ -154,11 +158,32 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
         }
       });
 
-  Future<void> _archive() => _run(() async {
-    await widget.service.archiveAttempt();
+  Future<void> _relocate() => _run(() async {
+    await widget.service.relocateDestination(
+      _destination.text.trim(),
+      widget.mode,
+    );
+    await _restore();
+    if (mounted) {
+      setState(() {
+        _confirmPublication = false;
+        _confirmBinding = false;
+      });
+    }
+  });
+
+  Future<void> _archive({bool preserve = false}) => _run(() async {
+    if (preserve) {
+      await widget.service.preserveAttempt();
+    } else {
+      await widget.service.archiveAttempt();
+    }
     if (mounted) {
       setState(() {
         _attempt = null;
+        _confirmPreserve = false;
+        _confirmPublication = false;
+        _confirmBinding = false;
         _package = null;
         _source = null;
         _target = null;
@@ -359,6 +384,31 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
               ),
             if (_attempt != null) ...[
               Text('Destino del intento: ${_attempt!['destination']}'),
+              if (widget.mode == AppMode.serverSync)
+                ExpansionTile(
+                  title: const Text('Cambiar dirección del mismo servidor'),
+                  children: [
+                    const Text(
+                      'Si cambió la IP o la red, se verificará la identidad '
+                      'y la autorización del intento antes de guardar. '
+                      'Se conserva la sesión y el avance; esto no cambia el servidor habitual.',
+                    ),
+                    TextField(
+                      controller: _destination,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(
+                        labelText: 'Nueva URL del intento',
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: _busy ? null : _relocate,
+                      child: const Text(
+                        'Verificar y actualizar dirección del intento',
+                      ),
+                    ),
+                  ],
+                ),
               Text('Generación del intento: ${_attempt!['generation_id']}'),
               Text('Estado: ${_attempt!['state']}'),
               Text(
@@ -387,6 +437,35 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
                 OutlinedButton(
                   onPressed: _busy ? null : () => _transfer(abort: true),
                   child: const Text('Abortar antes de publicar'),
+                ),
+                ExpansionTile(
+                  title: const Text('Recuperar en otro servidor'),
+                  children: [
+                    const Text(
+                      'Conserva este intento en el historial para preparar otro destino. '
+                      'No aborta la sesión remota ni cambia la vinculación actual. '
+                      'El nuevo servidor requiere su propia comprobación y aprobación.',
+                    ),
+                    CheckboxListTile(
+                      value: _confirmPreserve,
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(
+                              () => _confirmPreserve = value ?? false,
+                            ),
+                      title: const Text(
+                        'Confirmo conservar el intento sin abortarlo y preparar otro destino.',
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: _busy || !_confirmPreserve
+                          ? null
+                          : () => _archive(preserve: true),
+                      child: const Text(
+                        'Conservar intento y preparar otro destino',
+                      ),
+                    ),
+                  ],
                 ),
               ],
               if (_attempt!['state'] == 'ready_to_commit') ...[

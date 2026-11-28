@@ -117,6 +117,22 @@ class _WorkflowService extends _Service {
       'reasons': [],
     },
   };
+  int relocations = 0, preserved = 0;
+  @override
+  Future<void> relocateDestination(String input, AppMode mode) async {
+    relocations++;
+    if (input.contains('wrong')) {
+      throw StateError('Identidad distinta; intento conservado.');
+    }
+    saved = {...saved!, 'destination': input};
+  }
+
+  @override
+  Future<void> preserveAttempt() async {
+    preserved++;
+    saved = null;
+  }
+
   int transfers = 0, publications = 0;
   Map<String, Object?>? saved;
   final package = <String, Object?>{
@@ -249,6 +265,83 @@ class _Orchestrator implements SyncOrchestrator {
 }
 
 void main() {
+  testWidgets(
+    'pending recovery changes URL explicitly and preserves another-destination attempt only after confirmation',
+    (tester) async {
+      final service = _WorkflowService()
+        ..saved = {
+          'state': 'receiving',
+          'destination': 'https://old.example',
+          'generation_id': 'generation-fixture',
+          'recovery_id': 'session-fixture',
+          'received_chunks': 2,
+          'total_chunks': 5,
+        };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RecoveryReadinessScreen(
+            mode: AppMode.serverSync,
+            service: service,
+            inspector: _Inspector(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Cambiar dirección del mismo servidor'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cambiar dirección del mismo servidor'));
+      await tester.pumpAndSettle();
+      final field = find.widgetWithText(TextField, 'Nueva URL del intento');
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'https://old.example',
+      );
+      await tester.enterText(field, 'https://wrong.example');
+      final update = find.text('Verificar y actualizar dirección del intento');
+      await tester.ensureVisible(update);
+      await tester.tap(update);
+      await tester.pumpAndSettle();
+      expect(service.saved!['destination'], 'https://old.example');
+      await tester.ensureVisible(field);
+      await tester.enterText(field, 'https://new.example');
+      await tester.ensureVisible(update);
+      await tester.tap(update);
+      await tester.pumpAndSettle();
+      expect(service.saved!['destination'], 'https://new.example');
+      expect(service.saved!['received_chunks'], 2);
+      expect(service.transfers, 0);
+      await tester.scrollUntilVisible(
+        find.text('Recuperar en otro servidor'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Recuperar en otro servidor'));
+      await tester.pumpAndSettle();
+      final preserve = find.widgetWithText(
+        OutlinedButton,
+        'Conservar intento y preparar otro destino',
+      );
+      expect(tester.widget<OutlinedButton>(preserve).onPressed, isNull);
+      final confirmation = find.text(
+        'Confirmo conservar el intento sin abortarlo y preparar otro destino.',
+      );
+      await tester.ensureVisible(confirmation);
+      await tester.pumpAndSettle();
+      await tester.tap(confirmation);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(preserve);
+      await tester.pumpAndSettle();
+      await tester.tap(preserve);
+      await tester.pumpAndSettle();
+      expect(service.preserved, 1);
+      expect(service.transfers, 0);
+      expect(find.text('Comprobar destino'), findsOneWidget);
+    },
+  );
+
   testWidgets(
     'recuperación completada abre alta del destino sin habilitarla automáticamente',
     (tester) async {

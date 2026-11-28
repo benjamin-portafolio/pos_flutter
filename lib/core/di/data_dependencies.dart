@@ -298,6 +298,7 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
   );
   getIt.registerLazySingleton<EmptyDeviceEnrollment>(
     () => DriftEmptyDeviceEnrollment(
+      runtimeInstallation: getIt<SyncInstallation>(),
       connections: connections,
       binder: getIt<DriftRecoverySourceBinder>(),
       network: getIt<SyncNetworkGate>(),
@@ -312,6 +313,7 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
       source: getIt<RecoverySnapshotSource>(),
       openSnapshot: SqliteRecoverySnapshot.open,
       sourceBinder: getIt<RecoverySourceBinder>(),
+      verifyRelocation: connections.verifyRecoveryRelocation,
       requestConnection: (destination, package, {server, generation}) =>
           connections.authorizeRecovery(
             destination,

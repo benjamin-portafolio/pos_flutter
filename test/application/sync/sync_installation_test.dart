@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -73,6 +74,44 @@ void main() {
       client.close();
     },
   );
+  test(
+    'activation and relocation serialize without restoring the old endpoint',
+    () async {
+      final firstWrite = Completer<void>();
+      final saved = <Map<String, Object?>>[];
+      final installation = SyncInstallation(
+        {
+          'endpoint': 'https://old.example',
+          'phase': 'needs_pull',
+          'binding': {'token': 'keep'},
+        },
+        persist: (value) async {
+          saved.add(value);
+          if (saved.length == 1) await firstWrite.future;
+        },
+      );
+      final activation = installation.activate();
+      await Future<void>.delayed(Duration.zero);
+      final relocation = installation.relocate('https://new.example');
+      expect(saved, hasLength(1));
+      firstWrite.complete();
+      await Future.wait([activation, relocation]);
+      expect(saved.last, {
+        'endpoint': 'https://new.example',
+        'phase': 'active',
+        'binding': {'token': 'keep'},
+      });
+      expect(
+        installation.allows(Uri.parse('https://old.example/sync/pull')),
+        false,
+      );
+      expect(
+        installation.allows(Uri.parse('https://new.example/sync/push')),
+        true,
+      );
+    },
+  );
+
   test('failed activation persistence retains the gate and binding', () async {
     final installation = SyncInstallation(
       {'phase': 'needs_pull', 'endpoint': 'https://new.example'},

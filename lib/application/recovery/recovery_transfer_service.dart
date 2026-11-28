@@ -13,14 +13,22 @@ class RecoveryTransferService {
   RecoveryTransferService(this.store);
   final RecoveryAttemptStore store;
   bool _busy = false;
-  Future<void> archive(Directory history) async {
+  Future<void> archive(
+    Directory history, {
+    bool preserveUnfinished = false,
+  }) async {
     if (_busy) throw StateError('Ya existe una operación en curso.');
     _busy = true;
     try {
       final current = await store.read();
       if (current == null ||
-          !['completed', 'aborted'].contains(current['state'])) {
+          (!preserveUnfinished &&
+              !['completed', 'aborted'].contains(current['state']))) {
         throw StateError('Solo se archivan intentos terminados.');
+      }
+      if (preserveUnfinished &&
+          !['completed', 'aborted'].contains(current['state'])) {
+        await store.write({...current, 'preserved_unfinished': true});
       }
       await history.create(recursive: true);
       await store.directory.rename(
@@ -41,8 +49,9 @@ class RecoveryTransferService {
       final archived = RecoveryAttemptStore(Directory('${history.path}/$key'));
       final record = await archived.read();
       if (record == null ||
-          !['completed', 'aborted'].contains(record['state'])) {
-        throw const FormatException('Historial no terminado o incompatible.');
+          (!['completed', 'aborted'].contains(record['state']) &&
+              record['preserved_unfinished'] != true)) {
+        throw const FormatException('Historial no conservado o incompatible.');
       }
       if (await store.read() != null) {
         throw StateError(
@@ -55,6 +64,26 @@ class RecoveryTransferService {
         );
       }
       await Directory('${history.path}/$key').rename(store.directory.path);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  Future<void> relocate(
+    Uri destination,
+    Future<Map<String, Object?>> Function(Map<String, Object?>, Uri) verify,
+  ) async {
+    if (_busy) throw StateError('Ya existe una operación en curso.');
+    _busy = true;
+    try {
+      final journal = await store.read();
+      if (journal == null) throw StateError('No hay intento guardado.');
+      final verified = await verify(Map.unmodifiable(journal), destination);
+      await store.write({
+        ...journal,
+        'destination': '$destination',
+        'recovery_token': verified['recovery_token'] as String,
+      });
     } finally {
       _busy = false;
     }

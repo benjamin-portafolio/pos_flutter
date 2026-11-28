@@ -4,6 +4,7 @@ import '../../../application/config/app_config.dart';
 import '../../../application/recovery/baseline_bootstrap_service.dart';
 import '../../../application/recovery/empty_device_enrollment.dart';
 import '../../../application/sync/sync_network_gate.dart';
+import '../../../application/sync/sync_installation.dart';
 import 'drift_recovery_source_binder.dart';
 import 'http_baseline_bootstrap_transport.dart';
 import 'http_connection_attempts.dart';
@@ -16,11 +17,13 @@ class DriftEmptyDeviceEnrollment implements EmptyDeviceEnrollment {
     required this.connections,
     required this.binder,
     required this.network,
+    this.runtimeInstallation,
   });
 
   final HttpConnectionAttempts connections;
   final DriftRecoverySourceBinder binder;
   final SyncNetworkGate network;
+  final SyncInstallation? runtimeInstallation;
   bool _busy = false;
 
   @override
@@ -36,30 +39,57 @@ class DriftEmptyDeviceEnrollment implements EmptyDeviceEnrollment {
     if (_busy) throw StateError('Ya hay una comprobación en curso.');
     _busy = true;
     try {
-      final uri = Uri.parse(endpoint);
-      final installation = await SyncInstallationFileStore(
-        binder.directory,
-      ).read();
-      if (installation != null &&
+      var uri = Uri.parse(endpoint);
+      final installationStore = SyncInstallationFileStore(binder.directory);
+      final installation = await installationStore.read();
+      final changingEndpoint =
+          installation != null &&
           Uri.parse(installation['endpoint'] as String).replace(path: '') !=
-              uri.replace(path: '')) {
-        throw StateError('La instalación ya está vinculada a otro servidor.');
+              uri.replace(path: '');
+      if (changingEndpoint) {
+        uri = HttpRecoveryDestinationInspector.parseDestination(endpoint);
       }
       final health = await connections.health(uri);
+      if (installation != null) {
+        final binding = installation['binding'] as Map;
+        if (health['sync_protocol'] != 2 ||
+            binding['server_instance_id'] != health['server_instance_id'] ||
+            binding['generation_id'] != health['generation_id']) {
+          throw StateError(
+            'El destino tiene otra identidad o generación. Usa Recuperar servidor '
+            'para preparar una recuperación explícita; se conserva la vinculación actual.',
+          );
+        }
+        if (health['status'] != 'ok' || health['server_mode'] != 'active') {
+          throw StateError(
+            'El servidor no está disponible para operar. Si hay una recuperación '
+            'en curso, cambia su dirección en Recuperar servidor.',
+          );
+        }
+        if (!changingEndpoint) {
+          return false;
+        }
+        final drained = network.pause();
+        var committed = false;
+        try {
+          await drained.timeout(const Duration(seconds: 20));
+          await connections.verifyBinding(uri, installation, health);
+          final runtime =
+              runtimeInstallation ??
+              SyncInstallation(installation, persist: installationStore.write);
+          await runtime.relocate('$uri');
+          committed = true;
+          // Both callers restart the runtime on true. Its endpoint, HTTP guards,
+          // sockets and credentials are rebuilt from the authoritative file.
+          return true;
+        } finally {
+          if (!committed) network.resume();
+        }
+      }
       if (health['status'] != 'ok' || health['server_mode'] == 'recovering') {
         throw const FormatException(
           'El servidor no está disponible para operar.',
         );
-      }
-      if (installation != null) {
-        final binding = installation['binding'] as Map;
-        if (binding['server_instance_id'] != health['server_instance_id'] ||
-            binding['generation_id'] != health['generation_id']) {
-          throw StateError(
-            'La identidad del servidor cambió. Se conserva la vinculación.',
-          );
-        }
-        return false;
       }
       final requiresBootstrap =
           health['baseline_bootstrap_required'] == true ||

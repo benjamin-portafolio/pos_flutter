@@ -11,6 +11,7 @@ import 'recovery_package_service.dart';
 import 'recovery_package_reader.dart';
 import 'recovery_attempt_store.dart';
 import 'recovery_transfer_service.dart';
+import 'recovery_destination_policy.dart';
 import 'recovery_transport.dart';
 
 /// Diagnóstico, preparación y transferencia explícita del corte conservado.
@@ -24,6 +25,7 @@ class RecoveryReadinessService {
     this.transportFactory,
     this.sourceBinder,
     this.requestConnection,
+    this.verifyRelocation,
   });
   final RecoverySnapshotSource source;
   final Future<Directory> Function() privateDirectory;
@@ -39,6 +41,19 @@ class RecoveryReadinessService {
     String? generation,
   })?
   requestConnection;
+
+  final Future<Map<String, Object?>> Function(Map<String, Object?>, Uri)?
+  verifyRelocation;
+
+  Future<void> relocateDestination(String input, AppMode mode) async {
+    if (mode != AppMode.serverSync) {
+      throw StateError('Standalone solo permite diagnóstico local.');
+    }
+    final verify = verifyRelocation;
+    if (verify == null) throw StateError('Cambio de dirección sin configurar.');
+    final destination = RecoveryDestinationPolicy.parse(input);
+    await (await _service()).relocate(destination, verify);
+  }
 
   Future<Map<String, Object?>> authorizeDestination(
     Uri destination,
@@ -139,9 +154,14 @@ class RecoveryReadinessService {
     return entries;
   }
 
-  Future<void> archiveAttempt() async {
+  Future<void> archiveAttempt() => _archiveAttempt(preserveUnfinished: false);
+
+  Future<void> preserveAttempt() => _archiveAttempt(preserveUnfinished: true);
+
+  Future<void> _archiveAttempt({required bool preserveUnfinished}) async {
     await (await _service()).archive(
       Directory('${(await privateDirectory()).path}/history'),
+      preserveUnfinished: preserveUnfinished,
     );
     final selected = File('${(await privateDirectory()).path}/prepared.json');
     if (await selected.exists()) await selected.delete();

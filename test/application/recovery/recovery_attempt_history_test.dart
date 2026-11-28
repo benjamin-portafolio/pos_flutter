@@ -5,6 +5,36 @@ import 'package:pos_flutter/application/recovery/recovery_transfer_service.dart'
 
 void main() {
   test(
+    'explicitly preserving an unfinished attempt retains evidence and permits reopening',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'pos-preserve-attempt-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final store = RecoveryAttemptStore(Directory('${root.path}/attempt'));
+      final service = RecoveryTransferService(store);
+      final history = Directory('${root.path}/history');
+      final journal = <String, Object?>{
+        'journal_version': 1,
+        'state': 'receiving',
+        'package_id': '10000000-0000-4000-8000-000000000001',
+        'destination': 'https://old.example',
+        'recovery_id': 'session-original',
+        'prepared_source': {'snapshot_path': '/private/snapshot.sqlite'},
+        'received_chunks': 9,
+      };
+      await store.write(journal);
+      await expectLater(service.archive(history), throwsStateError);
+      await service.archive(history, preserveUnfinished: true);
+      expect(await store.read(), null);
+      final entry = (await history.list().toList()).single;
+      final key = entry.uri.pathSegments.where((s) => s.isNotEmpty).last;
+      await service.reopen(history, key);
+      expect(await store.read(), {...journal, 'preserved_unfinished': true});
+    },
+  );
+
+  test(
     'invalid archived journal is rejected before moving the selected attempt',
     () async {
       final root = await Directory.systemTemp.createTemp(

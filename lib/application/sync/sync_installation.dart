@@ -30,11 +30,37 @@ class SyncInstallation {
     return !needsPull || ['/sync/health', '/sync/pull'].contains(uri.path);
   }
 
+  Future<void> _pending = Future.value();
+
+  // Activation can finish after the last HTTP response has drained. Serialize
+  // its persistence with relocation so it cannot restore the previous endpoint.
+  Future<void> _update(
+    Map<String, Object?> Function(Map<String, Object?>) change,
+  ) {
+    final operation = _pending.then((_) async {
+      final current = value;
+      if (current == null) throw StateError('No hay instalación vinculada.');
+      final next = change(current);
+      if (identical(next, current)) return;
+      await persist(next);
+      value = next;
+    });
+    _pending = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> relocate(String endpoint) =>
+      _update((current) => {...current, 'endpoint': endpoint});
+
   Future<void> activate() async {
-    final current = value;
-    if (current == null || !needsPull) return;
-    final active = <String, Object?>{...current, 'phase': 'active'};
-    await persist(active);
-    value = active;
+    if (value == null) return;
+    await _update(
+      (current) => current['phase'] == 'needs_pull'
+          ? {...current, 'phase': 'active'}
+          : current,
+    );
   }
 }
