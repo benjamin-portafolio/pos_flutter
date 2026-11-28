@@ -2,6 +2,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/application/config/app_config.dart';
 
 void main() {
+  test(
+    'initial sync marker survives restart and leaves existing installs alone',
+    () {
+      expect(AppConfig.fromJson(const {}).initialSyncPending, isFalse);
+      final pending = AppConfig.initial.copyWith(
+        mode: AppMode.serverSync,
+        initialSyncPending: true,
+      );
+      final reopened = AppConfig.fromJson(pending.toJson());
+      expect(reopened.initialSyncPending, isTrue);
+      expect(reopened.copyWith(cashEnabled: false).initialSyncPending, isTrue);
+      expect(
+        reopened.copyWith(initialSyncPending: false).initialSyncPending,
+        isFalse,
+      );
+      expect(
+        reopened.copyWith(mode: AppMode.standalone).initialSyncPending,
+        isFalse,
+      );
+    },
+  );
+
   test('lee PASTOR como nombre predeterminado y reemplaza el anterior', () {
     expect(AppConfig.initial.businessName, 'PASTOR');
     expect(AppConfig.fromJson(const {}).businessName, 'PASTOR');

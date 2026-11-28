@@ -51,65 +51,96 @@ class _Clients implements ClienteRepository {
 void main() {
   setUp(() => getIt.registerSingleton<ConfirmedSaleRepository>(_Repository()));
   tearDown(() => getIt.unregister<ConfirmedSaleRepository>());
-  for (final input in ['', '100', '200']) {
-    testWidgets('confirma $input después de commit y bloquea doble toque', (
-      tester,
-    ) async {
-      final service = _Service();
-      bool? result;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () async {
-                  result = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => PaymentMethodScreen(
-                        totalMinor: 10000,
-                        saleId: 'sale',
-                        expectedDraftEventId: 'draft-revision',
-                        commandService: service,
+  for (final scenario in [
+    for (final input in ['', '100', '200'])
+      for (final print in [false, true]) (input, print),
+  ]) {
+    final (input, print) = scenario;
+    final action = print ? 'Cobrar e imprimir ticket' : 'Recibido por efectivo';
+    testWidgets(
+      'confirma $input (ticket: $print) después de commit y bloquea doble toque',
+      (tester) async {
+        final service = _Service();
+        bool? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () async {
+                    result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => PaymentMethodScreen(
+                          totalMinor: 10000,
+                          saleId: 'sale',
+                          expectedDraftEventId: 'draft-revision',
+                          commandService: service,
+                        ),
                       ),
-                    ),
-                  );
-                },
-                child: const Text('Caja de prueba'),
+                    );
+                  },
+                  child: const Text('Caja de prueba'),
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.text('Caja de prueba'));
-      await tester.pumpAndSettle();
-      if (input.isNotEmpty) {
-        await tester.enterText(
-          find.byKey(const Key('cash_received_input')),
-          input,
         );
-      }
-      await tester.tap(find.text('Recibido por efectivo'));
-      await tester.pump();
-      expect(find.text('Registrando…'), findsOneWidget);
-      expect(find.byType(SaleReceiptScreen), findsNothing);
-      final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Registrando…'),
-      );
-      expect(button.onPressed, isNull);
-      expect(service.commands, hasLength(1));
-      expect(service.commands.single.saleId, 'sale');
-      expect(service.commands.single.expectedDraftEventId, 'draft-revision');
-      expect(
-        service.commands.single.receivedMinor,
-        input.isEmpty ? null : int.parse(input) * 100,
-      );
-      service.commit.complete('confirmed-event');
-      await tester.pumpAndSettle();
-      expect(find.byType(SaleReceiptScreen), findsNothing);
-      expect(find.byType(PaymentMethodScreen), findsNothing);
-      expect(find.text('Caja de prueba'), findsOneWidget);
-      expect(result, isTrue);
-    });
+        await tester.tap(find.text('Caja de prueba'));
+        await tester.pumpAndSettle();
+        if (input.isNotEmpty) {
+          await tester.enterText(
+            find.byKey(const Key('cash_received_input')),
+            input,
+          );
+        }
+        await tester.tap(print ? find.byTooltip(action) : find.text(action));
+        await tester.pump();
+        expect(find.text('Registrando…'), findsOneWidget);
+        expect(find.byType(SaleReceiptScreen), findsNothing);
+        final button = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Registrando…'),
+        );
+        expect(button.onPressed, isNull);
+        expect(
+          tester
+              .widget<IconButton>(
+                find.byWidgetPredicate(
+                  (widget) =>
+                      widget is IconButton &&
+                      widget.tooltip == 'Cobrar e imprimir ticket',
+                ),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(service.commands, hasLength(1));
+        expect(service.commands.single.saleId, 'sale');
+        expect(service.commands.single.expectedDraftEventId, 'draft-revision');
+        expect(
+          service.commands.single.receivedMinor,
+          input.isEmpty ? null : int.parse(input) * 100,
+        );
+        service.commit.complete('confirmed-event');
+        if (print) {
+          await pumpReceiptImage(tester);
+          expect(find.byType(SaleReceiptScreen), findsOneWidget);
+          expect(
+            tester
+                .widget<SaleReceiptScreen>(find.byType(SaleReceiptScreen))
+                .saleId,
+            'sale',
+          );
+          expect(find.byTooltip('Imprimir'), findsOneWidget);
+          expect(service.commands, hasLength(1));
+          await tester.tap(find.text('Nueva venta'));
+        }
+        await tester.pumpAndSettle();
+        expect(find.byType(SaleReceiptScreen), findsNothing);
+        expect(find.byType(PaymentMethodScreen), findsNothing);
+        expect(find.text('Caja de prueba'), findsOneWidget);
+        expect(result, isTrue);
+      },
+    );
   }
   for (final method in ['cash', 'transfer', 'credit']) {
     testWidgets('$method guarda y regresa a Caja con el recorrido esperado', (
@@ -201,44 +232,62 @@ void main() {
       expect(result, isTrue);
     });
   }
-  testWidgets(
-    'insuficiente no confirma; fallo conserva captura para revisión',
-    (tester) async {
-      final service = _Service();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: PaymentMethodScreen(
-            totalMinor: 10000,
-            saleId: 'sale',
-            expectedDraftEventId: 'draft',
-            commandService: service,
+  for (final action in ['Recibido por efectivo', 'Cobrar e imprimir ticket']) {
+    testWidgets(
+      '$action: insuficiente no confirma; fallo conserva captura para revisión',
+      (tester) async {
+        final service = _Service();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: PaymentMethodScreen(
+              totalMinor: 10000,
+              saleId: 'sale',
+              expectedDraftEventId: 'draft',
+              commandService: service,
+            ),
           ),
-        ),
-      );
-      await tester.enterText(
-        find.byKey(const Key('cash_received_input')),
-        '99',
-      );
-      await tester.pump();
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Recibido por efectivo'),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.enterText(
-        find.byKey(const Key('cash_received_input')),
-        '200',
-      );
-      await tester.pump();
-      await tester.tap(find.text('Recibido por efectivo'));
-      service.commit.completeError(StateError('El borrador cambió'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('El borrador cambió'), findsOneWidget);
-      expect(find.text('200'), findsOneWidget);
-      expect(find.byType(SaleReceiptScreen), findsNothing);
-    },
-  );
+        );
+        await tester.enterText(
+          find.byKey(const Key('cash_received_input')),
+          '99',
+        );
+        await tester.pump();
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Recibido por efectivo'),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(
+          tester
+              .widget<IconButton>(
+                find.byWidgetPredicate(
+                  (widget) =>
+                      widget is IconButton &&
+                      widget.tooltip == 'Cobrar e imprimir ticket',
+                ),
+              )
+              .onPressed,
+          isNull,
+        );
+        await tester.enterText(
+          find.byKey(const Key('cash_received_input')),
+          '200',
+        );
+        await tester.pump();
+        await tester.tap(
+          action == 'Cobrar e imprimir ticket'
+              ? find.byTooltip(action)
+              : find.text(action),
+        );
+        service.commit.completeError(StateError('El borrador cambió'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('El borrador cambió'), findsOneWidget);
+        expect(find.text('200'), findsOneWidget);
+        expect(find.byType(SaleReceiptScreen), findsNothing);
+      },
+    );
+  }
 }

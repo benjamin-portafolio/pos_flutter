@@ -110,7 +110,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (mounted && selected != null) setState(() => _cliente = selected);
   }
 
-  Future<void> _confirm(ConfirmarVentaCommand Function() command) async {
+  Future<void> _confirm(
+    ConfirmarVentaCommand Function() command, {
+    bool openReceipt = false,
+  }) async {
     if (_processing) return;
     final saleId = widget.saleId;
     if (saleId == null || widget.expectedDraftEventId == null) return;
@@ -120,7 +123,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         command(),
       );
       if (!mounted) return;
-      if (_tab == _PaymentTab.cash) {
+      if (_tab == _PaymentTab.cash && !openReceipt) {
         Navigator.pop(context, true);
         return;
       }
@@ -147,7 +150,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
   }
 
-  void _confirmCash(int? receivedMinor) {
+  void _confirmCash(int? receivedMinor, {bool openReceipt = false}) {
     if (_tab != _PaymentTab.cash) return;
     _confirm(
       () => ConfirmarVentaCommand(
@@ -158,6 +161,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         receivedMinor: receivedMinor,
         clienteId: _cliente?.id,
       ),
+      openReceipt: openReceipt,
     );
   }
 
@@ -285,6 +289,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         enabled: _canConfirmSale,
                         enterArmed: _enterArmed,
                         onConfirm: _confirmCash,
+                        onConfirmAndPrint: (receivedMinor) =>
+                            _confirmCash(receivedMinor, openReceipt: true),
                       ),
                     ),
                     Offstage(

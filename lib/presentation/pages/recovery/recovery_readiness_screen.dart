@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'server_administration_access.dart';
+import 'server_device_enrollment_screen.dart';
 import '../../app/app_restart_scope.dart';
 import 'package:flutter/material.dart';
 import '../../../application/config/app_config.dart';
@@ -412,6 +414,22 @@ class _RecoveryReadinessScreenState extends State<RecoveryReadinessScreen> {
                   child: const Text('Archivar intento conservando evidencia'),
                 ),
               if (_attempt!['state'] == 'completed') ...[
+                if (canAdministerServer(widget.mode))
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.devices),
+                    label: const Text('Permitir conectar otros dispositivos'),
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => ServerDeviceEnrollmentScreen(
+                                mode: widget.mode,
+                                initialDestination:
+                                    _attempt!['destination'] as String,
+                              ),
+                            ),
+                          ),
+                  ),
                 CheckboxListTile(
                   value: _confirmBinding,
                   onChanged: _busy

@@ -11,6 +11,7 @@ class CashPaymentContent extends StatefulWidget {
     required this.enabled,
     required this.enterArmed,
     required this.onConfirm,
+    required this.onConfirmAndPrint,
     super.key,
   });
 
@@ -25,6 +26,9 @@ class CashPaymentContent extends StatefulWidget {
 
   /// `null` representa pago exacto, como el campo vacío actual.
   final ValueChanged<int?> onConfirm;
+
+  /// Confirma el cobro y abre el recibo para imprimir el ticket guardado.
+  final ValueChanged<int?> onConfirmAndPrint;
 
   @override
   State<CashPaymentContent> createState() => CashPaymentContentState();
@@ -230,11 +234,27 @@ class CashPaymentContentState extends State<CashPaymentContent> {
         ),
         Padding(
           padding: const EdgeInsets.all(12),
-          child: FilledButton(
-            onPressed: _canConfirm ? _confirmFromButton : null,
-            child: Text(
-              widget.processing ? 'Registrando…' : 'Recibido por efectivo',
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _canConfirm ? _confirmFromButton : null,
+                  child: Text(
+                    widget.processing
+                        ? 'Registrando…'
+                        : 'Recibido por efectivo',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                tooltip: 'Cobrar e imprimir ticket',
+                onPressed: _canConfirm
+                    ? () => widget.onConfirmAndPrint(_receivedForCommand)
+                    : null,
+                icon: const Icon(Icons.print_outlined),
+              ),
+            ],
           ),
         ),
       ],

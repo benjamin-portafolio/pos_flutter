@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/config/app_config.dart';
+import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/core/di/injection.dart';
 import 'package:pos_flutter/application/commands/ventas/venta_borrador_command_service.dart';
@@ -11,6 +13,9 @@ import 'support/fake_venta_borrador_command_service.dart';
 
 void main() {
   setUp(() {
+    getIt.registerSingleton<AppConfigController>(
+      AppConfigController(AppConfig.initial.copyWith(setupCompleted: true)),
+    );
     getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository());
     getIt.registerSingleton<ProductoRepository>(FakeProductoRepository());
     getIt.registerSingleton<VentaBorradorCommandService>(

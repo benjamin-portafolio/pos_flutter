@@ -1073,6 +1073,71 @@ void main() {
     expect(find.byKey(const Key('variant_editor_screen')), findsOneWidget);
   });
 
+  for (final action in ['conservar', 'agregar', 'cambiar', 'retirar']) {
+    testWidgets('editar solo oferta permite $action sin cambiar el producto', (
+      tester,
+    ) async {
+      final initial = ArticuloFormResult(
+        nombre: 'Café',
+        categoriaId: null,
+        saleConfiguration: const UnitSaleConfiguration(),
+        variantes: [
+          ArticuloFormVarianteResult(
+            id: 'first',
+            nombre: 'Grande',
+            precioVenta: '10',
+            costoEstandar: null,
+            offerPriceMinor: action == 'agregar' ? null : 800,
+          ),
+        ],
+      );
+      ArticuloFormResult? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ArticleFormScreen(
+            categorias: const [],
+            unidadesVenta: _units,
+            initialValue: initial,
+            onSave: (value) async => saved = value,
+          ),
+        ),
+      );
+      final save = find.byKey(const Key('save_article_button'));
+      expect(save, findsNothing);
+      await tester.tap(find.byKey(const Key('article_variant_card_0')));
+      await tester.pumpAndSettle();
+      if (action != 'conservar') {
+        await tester.enterText(
+          find.byKey(const Key('variant_offer_price_field')),
+          action == 'retirar' ? '' : '7.50',
+        );
+      }
+      await tester.tap(find.byKey(const Key('save_variant_button')));
+      await tester.pumpAndSettle();
+      if (action == 'conservar') {
+        expect(save, findsNothing);
+        expect(saved, isNull);
+        return;
+      }
+      expect(save, findsOneWidget);
+      // Cerrar el artículo debe advertir del cambio aunque solo sea la oferta.
+      await tester.tap(find.byTooltip('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Descartar cambios'), findsOneWidget);
+      await tester.tap(find.text('CONTINUAR EDITANDO'));
+      await tester.pumpAndSettle();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(saved?.nombre, initial.nombre);
+      expect(saved?.categoriaId, initial.categoriaId);
+      final variant = saved!.variantes.single;
+      expect(variant.precioVenta, '10');
+      expect(variant.offerPrice.establecer, isTrue);
+      expect(variant.offerPrice.valor, action == 'retirar' ? null : '7.50');
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('TRAMPA 4: cambiar solo el código habilita guardar', (
     tester,
   ) async {

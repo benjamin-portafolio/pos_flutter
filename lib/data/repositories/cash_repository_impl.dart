@@ -19,6 +19,7 @@ class CashRepositoryImpl implements CashRepository {
           db.cashSessions,
           db.cashMovements,
           db.events,
+          db.salePayments,
           db.saleReconciliationEffects,
         },
       )
@@ -28,9 +29,9 @@ class CashRepositoryImpl implements CashRepository {
         for (final r in rows) {
           final items = await db
               .customSelect(
-                'SELECT m.*,e.delivery_status,e.rejection_reason FROM cash_movements m JOIN events e ON e.event_id=m.created_event_id WHERE m.session_id=? ORDER BY e.local_sequence,m.id',
+                'SELECT m.*,e.created_at_local,e.local_sequence,e.delivery_status,e.rejection_reason,p.sale_id FROM cash_movements m JOIN events e ON e.event_id=m.created_event_id LEFT JOIN sale_payments p ON p.id=m.sale_payment_id WHERE m.session_id=? ORDER BY e.local_sequence,m.id',
                 variables: [Variable(r.read<String>('id'))],
-                readsFrom: {db.cashMovements, db.events},
+                readsFrom: {db.cashMovements, db.events, db.salePayments},
               )
               .get();
           final regularizations = <CashRegularization>[];
@@ -70,9 +71,17 @@ class CashRepositoryImpl implements CashRepository {
             closedMovements = [];
             for (final m in close.movements) {
               final e = await db.eventDao.obtenerEventoPorId(m.eventId);
+              final payment = m.sourceType == 'sale_payment'
+                  ? await (db.select(
+                      db.salePayments,
+                    )..where((t) => t.id.equals(m.sourceId))).getSingleOrNull()
+                  : null;
               closedMovements.add(
                 CashMovement(
                   id: m.movementId,
+                  createdAt: e?.createdAtLocal,
+                  localSequence: e?.localSequence,
+                  saleId: payment?.saleId,
                   eventId: m.eventId,
                   direction: m.direction,
                   amountMinor: m.amountMinor,
@@ -110,6 +119,9 @@ class CashRepositoryImpl implements CashRepository {
                 items.map(
                   (m) => CashMovement(
                     id: m.read<String>('id'),
+                    createdAt: m.read<DateTime>('created_at_local'),
+                    localSequence: m.read<int>('local_sequence'),
+                    saleId: m.readNullable<String>('sale_id'),
                     eventId: m.read<String>('created_event_id'),
                     direction: m.read<String>('direction'),
                     amountMinor: m.read<int>('amount_minor'),

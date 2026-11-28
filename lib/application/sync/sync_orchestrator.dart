@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'exceptions/sync_pull_exception.dart';
 import 'models/sync_events_available_notice.dart';
 import 'models/sync_health_check.dart';
 import 'models/sync_pull_report.dart';
 import 'models/sync_push_report.dart';
 import 'sync_health_service.dart';
+import 'sync_activity.dart';
 import 'sync_preflight_service.dart';
 import 'sync_pull_service.dart';
 import 'sync_conflict_report_service.dart';
@@ -15,18 +15,21 @@ import 'sync_socket_listener.dart';
 class SyncOrchestrator {
   SyncOrchestrator({
     required SyncHealthService healthService,
+    SyncActivity? activity,
     required SyncPreflightService preflightService,
     required SyncConflictReportService conflictReportService,
     required SyncPullService pullService,
     required SyncPushService pushService,
     required SyncSocketListener socketListener,
-  }) : _healthService = healthService,
+  }) : _activity = activity ?? SyncActivity(),
+       _healthService = healthService,
        _preflightService = preflightService,
        _conflictReportService = conflictReportService,
        _pullService = pullService,
        _pushService = pushService,
        _socketListener = socketListener;
 
+  final SyncActivity _activity;
   final SyncHealthService _healthService;
   final SyncPreflightService _preflightService;
   final SyncConflictReportService _conflictReportService;
@@ -45,21 +48,25 @@ class SyncOrchestrator {
     return _healthService.check();
   }
 
-  Future<SyncPushReport> pushPendingEvents({int? latestServerSequence}) async {
+  Future<SyncPushReport> pushPendingEvents({int? latestServerSequence}) =>
+      _activity.run(
+        () => _pushPendingEvents(latestServerSequence: latestServerSequence),
+      );
+
+  Future<SyncPushReport> _pushPendingEvents({int? latestServerSequence}) async {
     final preflightReport = await _preflightService.preflightPendingEvents(
       latestServerSequence: latestServerSequence,
     );
 
     if (preflightReport.requiresFullPullBeforePush) {
-      await _pullService.pullAvailableEvents();
+      await pullAvailableEvents();
       await _preflightService.revalidatePendingEvents();
     }
 
     final conflictReport = await _conflictReportService.reportLocalConflicts();
     final pushReport = await _pushService.pushPendingEvents();
-    if (pushReport.total > 0) {
-      await _pullService.pullAvailableEvents();
-    }
+    // También verifica recepción si preflight dejó la cola vacía.
+    await pullAvailableEvents();
 
     if (conflictReport.total == 0) return pushReport;
 
@@ -73,11 +80,14 @@ class SyncOrchestrator {
   }
 
   Future<SyncPullReport> pullAvailableEvents() {
-    return _pullService.pullAvailableEvents();
+    return _activity.run(_pullService.pullAvailableEvents, verifies: true);
   }
 
   Future<SyncPullReport> pullIfBehind(int latestServerSequence) {
-    return _pullService.pullIfBehind(latestServerSequence);
+    return _activity.run(
+      () => _pullService.pullIfBehind(latestServerSequence),
+      verifies: true,
+    );
   }
 
   void startRealtimeListener() {
@@ -147,14 +157,14 @@ class SyncOrchestrator {
 
         if (pullAllAvailableEvents) {
           try {
-            await _pullService.pullAvailableEvents();
-          } on SyncPullException {
+            await pullAvailableEvents();
+          } catch (_) {
             _pullRequestedWhileBusy = false;
           }
         } else if (target != null) {
           try {
-            await _pullService.pullIfBehind(target);
-          } on SyncPullException {
+            await pullIfBehind(target);
+          } catch (_) {
             _pullRequestedWhileBusy = false;
           }
         }

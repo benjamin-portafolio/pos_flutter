@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,9 @@ import 'package:pos_flutter/application/sync/remote_event_applier.dart';
 import 'package:pos_flutter/application/sync/server_echo_acknowledger.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
+import 'package:pos_flutter/application/sync/sync_network_gate.dart';
+import 'package:pos_flutter/application/sync/exceptions/sync_pull_exception.dart';
+import 'package:pos_flutter/data/local/sync/guarded_sync_client.dart';
 import 'package:pos_flutter/data/local/drift/app_database.dart';
 import 'package:pos_flutter/data/local/drift/drift_categoria_projection_store.dart';
 import 'package:pos_flutter/data/local/drift/drift_espacio_projection_store.dart';
@@ -43,6 +47,54 @@ void main() {
   tearDown(() async {
     await db.close();
   });
+
+  test(
+    'silent pull aborts HTTP, preserves checkpoint and permits retry',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      var calls = 0;
+      server.listen((request) {
+        calls++;
+        if (calls == 1) return; // Connected server without a response.
+        request.response.write('{"events":[],"has_more":false}');
+        request.response.close();
+      });
+      final gate = SyncNetworkGate(isServerSync: () => true);
+      final client = GuardedSyncClient(gate, http.Client());
+      addTearDown(client.close);
+      final service = SyncPullService(
+        client: client,
+        requestTimeout: const Duration(milliseconds: 500),
+        syncPersistence: syncPersistence,
+        remoteEventApplier: RemoteEventApplier(
+          eventStore: DriftSyncedEventStore(db: db),
+          eventProcessor: EventProcessor(handlers: {}),
+          serverEchoAcknowledger: ServerEchoAcknowledger(
+            categoriaProjectionStore: DriftCategoriaProjectionStore(
+              categoriaDao: categoriaDao,
+            ),
+          ),
+        ),
+        endpointConfig: SyncEndpointConfig(
+          initialBaseUrl: 'http://127.0.0.1:${server.port}',
+        ),
+        commandContext: const LocalCommandContext(
+          deviceId: 'device',
+          userId: 'user',
+        ),
+      );
+      await expectLater(
+        service.pullAvailableEvents(),
+        throwsA(isA<SyncPullException>()),
+      );
+      expect(await checkpointDao.obtenerLastFullPullServerSequence(), 0);
+      await gate.pause().timeout(const Duration(seconds: 2));
+      gate.resume();
+      expect((await service.pullAvailableEvents()).total, 0);
+      expect(calls, 2);
+    },
+  );
 
   test('pullAvailableEvents aplica eventos y avanza checkpoint', () async {
     final categoriaProjectionStore = DriftCategoriaProjectionStore(

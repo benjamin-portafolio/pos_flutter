@@ -1,3 +1,6 @@
+import 'package:pos_flutter/application/recovery/recovery_admin_client.dart';
+import 'package:pos_flutter/data/local/recovery/http_recovery_admin_client.dart';
+import 'package:pos_flutter/presentation/pages/recovery/server_device_enrollment_screen.dart';
 import 'package:pos_flutter/application/config/app_config_store.dart';
 import 'package:pos_flutter/presentation/pages/recovery/recovery_access_tile.dart';
 import 'dart:async';
@@ -247,6 +250,54 @@ class _Orchestrator implements SyncOrchestrator {
 
 void main() {
   testWidgets(
+    'recuperación completada abre alta del destino sin habilitarla automáticamente',
+    (tester) async {
+      await getIt.reset();
+      getIt.registerSingleton<RecoveryAdminClient>(HttpRecoveryAdminClient());
+      addTearDown(getIt.reset);
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final service = _WorkflowService()
+        ..saved = {
+          'state': 'completed',
+          'destination': 'https://recovered.example',
+          'generation_id': 'generation-fixture',
+          'recovery_id': 'recovery-fixture',
+          'total_chunks': 4,
+          'received_chunks': 4,
+          'progress': {
+            'receipt': {'dataset_id': 'dataset-fixture'},
+          },
+        };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RecoveryReadinessScreen(
+            mode: AppMode.serverSync,
+            service: service,
+            inspector: _Inspector(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final link = find.text('Permitir conectar otros dispositivos');
+      await tester.ensureVisible(link);
+      await tester.tap(link);
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerDeviceEnrollmentScreen), findsOneWidget);
+      final destination = tester.widget<TextField>(
+        find.byKey(const ValueKey('server_admin_destination')),
+      );
+      expect(destination.controller!.text, 'https://recovered.example');
+      expect(find.byType(SwitchListTile), findsNothing);
+      expect(service.transfers, 0);
+      await tester.pumpWidget(const SizedBox());
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
     'prepared package transfers, resumes review and publishes only after explicit selection',
     (tester) async {
       tester.view.physicalSize = const Size(1200, 3000);
@@ -346,6 +397,10 @@ void main() {
       await tester.tap(find.text('Guardar y entrar'));
       await tester.pump();
       expect(store.saving.isCompleted, false);
+      expect(find.byType(RecoveryAccessTile), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      store.saving.complete();
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.byType(RecoveryAccessTile),
         -300,
@@ -355,9 +410,6 @@ void main() {
         of: find.byType(RecoveryAccessTile),
         matching: find.byType(ListTile),
       );
-      expect(tester.widget<ListTile>(tile).onTap, isNull);
-      store.saving.complete();
-      await tester.pumpAndSettle();
       expect(tester.widget<ListTile>(tile).onTap, isNotNull);
       expect(find.byType(RecoveryReadinessScreen), findsNothing);
       expect(endpoint.baseUrl, 'https://original.test');

@@ -1,3 +1,9 @@
+import 'package:pos_flutter/application/sync/sync_status_controller.dart';
+import 'package:pos_flutter/application/sync/sync_status_store.dart';
+import 'package:pos_flutter/application/sync/sync_activity.dart';
+import 'package:pos_flutter/application/sync/models/sync_local_status.dart';
+import 'package:pos_flutter/application/recovery/recovery_admin_client.dart';
+import 'package:pos_flutter/presentation/pages/recovery/server_administration_screen.dart';
 import '../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'package:pos_flutter/domain/articulos/articulo_detalle.dart';
@@ -11,6 +17,7 @@ import 'package:pos_flutter/application/config/app_config_store.dart';
 import 'package:pos_flutter/application/sync/projections/cash_projection_store.dart';
 import 'package:pos_flutter/application/sync/projections/cash_session_projection.dart';
 import 'package:pos_flutter/application/sync/sync_availability_monitor.dart';
+import 'package:pos_flutter/application/sync/models/sync_availability_snapshot.dart';
 import 'package:pos_flutter/application/sync/sync_detection_settings_store.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_config.dart';
 import 'package:pos_flutter/application/sync/sync_endpoint_store.dart';
@@ -59,6 +66,7 @@ void main() {
     getIt.registerSingleton<AppConfigController>(
       AppConfigController(appConfig),
     );
+    getIt.registerFactory<RecoveryAdminClient>(() => _UnusedAdminClient());
     getIt.registerSingleton<SyncEndpointConfig>(SyncEndpointConfig());
     getIt.registerSingleton<SyncEndpointStore>(_FakeSyncEndpointStore());
     getIt.registerSingleton<SyncDetectionSettingsStore>(detectionSettingsStore);
@@ -67,6 +75,14 @@ void main() {
       _FakeSyncAvailabilityMonitor(),
     );
     getIt.registerSingleton<SyncOrchestrator>(_FakeSyncOrchestrator());
+    getIt.registerSingleton<SyncStatusController>(
+      SyncStatusController(
+        store: _EmptySyncStatusStore(),
+        activity: SyncActivity(),
+        monitor: getIt<SyncAvailabilityMonitor>(),
+      ),
+      dispose: (controller) => controller.dispose(),
+    );
     getIt.registerSingleton<DatabaseStateReader>(_FakeDatabaseStateReader());
     getIt.registerSingleton<CategoriaRepository>(_FakeCategoriaRepository());
     getIt.registerSingleton<ProductoRepository>(productoRepository);
@@ -75,6 +91,55 @@ void main() {
   tearDown(() async {
     await getIt.reset();
   });
+
+  testWidgets(
+    'administración abre desde menú y respeta modo instalado',
+    (tester) async {
+      final key = GlobalKey<ScaffoldState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            key: key,
+            drawer: const MenuLateral(),
+            body: const SizedBox(),
+          ),
+        ),
+      );
+      key.currentState!.openDrawer();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Administración del servidor'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerAdministrationScreen), findsOneWidget);
+      expect(find.text('Panel de administración'), findsOneWidget);
+      expect(find.text('Consultar estado'), findsNothing);
+      await tester.tap(find.text('Entrar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Consultar estado'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Panel de administración'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      getIt<AppConfigController>().update(
+        getIt<AppConfigController>().config.copyWith(mode: AppMode.standalone),
+      );
+      key.currentState!.openDrawer();
+      await tester.pumpAndSettle();
+      expect(find.text('Administración del servidor'), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'administración no aparece en móvil',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: MenuLateral())),
+      );
+      expect(find.text('Administración del servidor'), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
 
   for (final mode in AppMode.values) {
     testWidgets('B09 Configuracion opens local Basculas in ${mode.name}', (
@@ -520,6 +585,13 @@ class _FakeSyncDetectionSettingsStore implements SyncDetectionSettingsStore {
 
 class _FakeSyncAvailabilityMonitor implements SyncAvailabilityMonitor {
   @override
+  SyncAvailabilitySnapshot get snapshot =>
+      const SyncAvailabilitySnapshot.unknown();
+
+  @override
+  Stream<SyncAvailabilitySnapshot> get snapshots => const Stream.empty();
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -576,4 +648,18 @@ class _FakeProductoRepository extends FakeProductoRepository {
 
   @override
   Stream<int> watchVariantesActivasCount() => varianteCounts.stream;
+}
+
+class _UnusedAdminClient implements RecoveryAdminClient {
+  @override
+  void cancel() {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw StateError('No remote call expected');
+}
+
+class _EmptySyncStatusStore implements SyncStatusStore {
+  @override
+  Stream<SyncLocalStatus> watch() =>
+      Stream.value(const SyncLocalStatus(pending: 0, problems: []));
 }

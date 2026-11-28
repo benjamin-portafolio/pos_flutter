@@ -945,6 +945,7 @@ class _AmountRow extends StatelessWidget {
           amount,
           textAlign: TextAlign.end,
           style: TextStyle(
+            fontSize: 32,
             fontWeight: bold ? FontWeight.bold : FontWeight.normal,
           ),
         ),

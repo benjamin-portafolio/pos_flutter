@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/sync/sync_activity.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -18,12 +19,15 @@ void main() {
   late _FakeSyncPullService pullService;
   late _FakeSyncSocketListener socketListener;
   late SyncOrchestrator orchestrator;
+  late SyncActivity activity;
 
   setUp(() {
     preflightService = _FakeSyncPreflightService();
     pullService = _FakeSyncPullService();
     socketListener = _FakeSyncSocketListener();
+    activity = SyncActivity();
     orchestrator = SyncOrchestrator(
+      activity: activity,
       healthService: _FakeSyncHealthService(),
       preflightService: preflightService,
       conflictReportService: _FakeSyncConflictReportService(),
@@ -36,6 +40,7 @@ void main() {
   tearDown(() async {
     orchestrator.stopRealtimeListener();
     await socketListener.dispose();
+    activity.dispose();
   });
 
   test('reconexion websocket dispara pull de eventos disponibles', () async {
@@ -59,10 +64,45 @@ void main() {
     expect(pullService.pullIfBehindTargets, [9]);
   });
 
+  test(
+    'pull completo vacío confirma verificación; un fallo la invalida',
+    () async {
+      expect(activity.hasVerification, isFalse);
+      await orchestrator.pullAvailableEvents();
+      expect(activity.hasVerification, isTrue);
+      pullService.failure = StateError('No se pudo aplicar');
+      await expectLater(orchestrator.pullAvailableEvents(), throwsStateError);
+      expect(activity.hasVerification, isFalse);
+      expect(activity.error, contains('No se pudo aplicar'));
+    },
+  );
+
+  test(
+    'fallo de aplicación en realtime se conserva sin escapar al stream',
+    () async {
+      pullService.failure = StateError('Evento incompatible');
+      final finished = Completer<void>();
+      activity.addListener(() {
+        if (!activity.isRunning &&
+            activity.error != null &&
+            !finished.isCompleted) {
+          finished.complete();
+        }
+      });
+      orchestrator.startRealtimeListener();
+      socketListener.emitConnectionEstablished();
+      await finished.future;
+      expect(activity.hasVerification, isFalse);
+      expect(activity.error, contains('Evento incompatible'));
+    },
+  );
+
   test('push de pendientes propaga latestServerSequence a preflight', () async {
     await orchestrator.pushPendingEvents(latestServerSequence: 9);
 
     expect(preflightService.latestServerSequences, [9]);
+    expect(pullService.pullAvailableCount, 1);
+    expect(activity.hasVerification, isTrue);
   });
 }
 
@@ -108,6 +148,7 @@ class _FakeSyncPreflightService implements SyncPreflightService {
 }
 
 class _FakeSyncPullService implements SyncPullService {
+  Object? failure;
   final pullIfBehindTargets = <int>[];
   var pullAvailableCount = 0;
   Completer<void> _nextPullAvailable = Completer<void>();
@@ -123,6 +164,7 @@ class _FakeSyncPullService implements SyncPullService {
   }) async {
     pullAvailableCount++;
     _completeAndResetPullAvailable();
+    if (failure != null) throw failure!;
     return const SyncPullReport(total: 0, lastCursor: 0, hasMore: false);
   }
 

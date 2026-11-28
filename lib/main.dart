@@ -1,3 +1,4 @@
+import 'package:pos_flutter/application/config/app_config_store.dart';
 import 'package:pos_flutter/application/sync/sync_installation.dart';
 import 'package:pos_flutter/application/sync/sync_pull_service.dart';
 import 'package:pos_flutter/presentation/pages/recovery/recovery_activation_screen.dart';
@@ -63,6 +64,8 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
+  AppConfig? _activatedConfig;
+
   @override
   void initState() {
     super.initState();
@@ -100,21 +103,35 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
 
   Widget _initialHome() {
     final config =
+        _activatedConfig ??
         widget.initialConfig ??
         (getIt.isRegistered<AppConfigController>()
             ? getIt<AppConfigController>().config
             : AppConfig.initial.copyWith(setupCompleted: true));
 
-    if (getIt.isRegistered<SyncInstallation>() &&
-        getIt<SyncInstallation>().needsPull) {
+    final initialSync = config.isServerSync && config.initialSyncPending;
+    if (initialSync ||
+        (getIt.isRegistered<SyncInstallation>() &&
+            getIt<SyncInstallation>().needsPull)) {
       return RecoveryActivationScreen(
+        initialSetup: initialSync,
         activate: () async {
           await getIt<SyncPullService>().pullAvailableEvents();
-          await getIt<SyncInstallation>().activate();
+          if (getIt.isRegistered<SyncInstallation>()) {
+            await getIt<SyncInstallation>().activate();
+          }
+          if (initialSync) {
+            final ready = getIt<AppConfigController>().config.copyWith(
+              initialSyncPending: false,
+            );
+            await getIt<AppConfigStore>().saveConfig(ready);
+            getIt<AppConfigController>().update(ready);
+          }
         },
         onActivated: () {
-          setState(() {});
-          unawaited(startConfiguredRuntimeServices(config));
+          final ready = config.copyWith(initialSyncPending: false);
+          setState(() => _activatedConfig = ready);
+          unawaited(startConfiguredRuntimeServices(ready));
         },
       );
     }

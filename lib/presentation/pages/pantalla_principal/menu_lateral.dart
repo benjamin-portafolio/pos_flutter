@@ -1,3 +1,5 @@
+import '../recovery/server_administration_access.dart';
+import '../recovery/server_administration_screen.dart';
 import '../../../application/commands/cotizaciones/recuperar_cotizacion_result.dart';
 import '../cotizaciones/quotations_screen.dart';
 import '../caja/cash_management_screen.dart';
@@ -12,6 +14,7 @@ import 'package:pos_flutter/presentation/pages/finanzas/ingresos_y_gastos_screen
 import 'package:pos_flutter/presentation/pages/gestion_inventario/inventory_management_screen.dart';
 import 'package:pos_flutter/presentation/pages/gestion_mesa/table_management.dart';
 import 'package:pos_flutter/presentation/pages/pantalla_principal/sync_settings_page.dart';
+import 'server_connection_indicator.dart';
 
 class MenuLateral extends StatelessWidget {
   const MenuLateral({
@@ -68,6 +71,7 @@ class MenuLateral extends StatelessWidget {
               ],
             ),
           ),
+          const ServerConnectionIndicator(),
           _CashMenuTile(
             beforeNavigate: beforeNavigate,
             afterNavigate: afterNavigate,
@@ -93,6 +97,25 @@ class MenuLateral extends StatelessWidget {
               afterNavigate,
               (_) => const SyncSettingsPage(),
             ),
+          ),
+          StreamBuilder<AppConfig>(
+            initialData: getIt<AppConfigController>().config,
+            stream: getIt<AppConfigController>().changes,
+            builder: (context, snapshot) {
+              if (!canAdministerServer(snapshot.data!.mode)) {
+                return const SizedBox.shrink();
+              }
+              return ListTile(
+                leading: const Icon(Icons.dns_outlined),
+                title: const Text('Administración del servidor'),
+                onTap: () => _openMenuRoute<void>(
+                  context,
+                  beforeNavigate,
+                  afterNavigate,
+                  (_) => const ServerAdministrationScreen(),
+                ),
+              );
+            },
           ),
           _QuotationsMenuTile(
             onOpenCaja: onOpenCaja,

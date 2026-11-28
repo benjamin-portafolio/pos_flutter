@@ -1,3 +1,5 @@
+import '../../application/recovery/recovery_admin_client.dart';
+import '../../data/local/recovery/http_recovery_admin_client.dart';
 import '../../application/proveedores/supplier_order_reader.dart';
 import '../../application/sync/projections/supplier_order_projection_store.dart';
 import '../../data/local/drift/drift_supplier_order_store.dart';
@@ -301,6 +303,7 @@ Future<DataDependencyBootstrap> registerDataDependencies(GetIt getIt) async {
       network: getIt<SyncNetworkGate>(),
     ),
   );
+  getIt.registerFactory<RecoveryAdminClient>(() => HttpRecoveryAdminClient());
   getIt.registerLazySingleton<RecoveryDestinationInspector>(
     () => HttpRecoveryDestinationInspector(),
   );

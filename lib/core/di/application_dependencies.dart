@@ -1,3 +1,6 @@
+import '../../application/sync/sync_activity.dart';
+import '../../application/sync/sync_status_controller.dart';
+import '../../data/local/drift/drift_sync_status_store.dart';
 import '../../application/sync/projections/supplier_order_projection_store.dart';
 import '../../application/sync/handlers/supplier_order_event_handler.dart';
 import '../../application/sync/supplier_order_operation.dart';
@@ -764,8 +767,18 @@ void registerApplicationDependencies(
       syncPersistence: getIt<SyncPersistence>(),
     ),
   );
+  getIt.registerLazySingleton<SyncActivity>(() => SyncActivity());
+  getIt.registerLazySingleton<SyncStatusController>(
+    () => SyncStatusController(
+      store: DriftSyncStatusStore(getIt<AppDatabase>()),
+      activity: getIt<SyncActivity>(),
+      monitor: getIt<SyncAvailabilityMonitor>(),
+    ),
+    dispose: (controller) => controller.dispose(),
+  );
   getIt.registerLazySingleton<SyncOrchestrator>(
     () => SyncOrchestrator(
+      activity: getIt<SyncActivity>(),
       healthService: getIt<SyncHealthService>(),
       preflightService: getIt<SyncPreflightService>(),
       conflictReportService: getIt<SyncConflictReportService>(),

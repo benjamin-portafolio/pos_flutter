@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -17,6 +18,7 @@ class SyncPullService {
     required SyncEndpointConfig endpointConfig,
     required LocalCommandContext commandContext,
     http.Client? client,
+    this.requestTimeout = const Duration(seconds: 30),
   }) : _syncPersistence = syncPersistence,
        _remoteEventApplier = remoteEventApplier,
        _endpointConfig = endpointConfig,
@@ -30,6 +32,7 @@ class SyncPullService {
   final SyncEndpointConfig _endpointConfig;
   final LocalCommandContext _commandContext;
   final http.Client _client;
+  final Duration requestTimeout;
 
   Future<SyncPullReport> pullIfBehind(int latestServerSequence) async {
     final currentCursor = await _syncPersistence.lastFullPullServerSequence();
@@ -79,10 +82,16 @@ class SyncPullService {
       },
     );
 
+    final abort = Completer<void>();
+    final timer = Timer(requestTimeout, abort.complete);
     try {
-      final response = await _client.get(
+      final request = http.AbortableRequest(
+        'GET',
         uri,
-        headers: const {'Accept': 'application/json'},
+        abortTrigger: abort.future,
+      )..headers['Accept'] = 'application/json';
+      final response = await http.Response.fromStream(
+        await _client.send(request),
       );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -96,6 +105,8 @@ class SyncPullService {
       rethrow;
     } catch (error) {
       throw SyncPullException('Error descargando eventos: $error');
+    } finally {
+      timer.cancel();
     }
   }
 

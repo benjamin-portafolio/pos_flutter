@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/caja/cash_session.dart';
 import '../finanzas/widgets/financial_delivery_status_chip.dart';
 import 'cash_money.dart';
+import 'sale_receipt_screen.dart';
 
 class CashSessionContent extends StatelessWidget {
   const CashSessionContent({super.key, required this.session});
@@ -9,7 +10,17 @@ class CashSessionContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = session;
-    final movements = s.closedMovements ?? s.movements;
+    final movements = [...(s.closedMovements ?? s.movements)]
+      ..sort((a, b) {
+        final byDate = (b.createdAt?.millisecondsSinceEpoch ?? -1).compareTo(
+          a.createdAt?.millisecondsSinceEpoch ?? -1,
+        );
+        if (byDate != 0) return byDate;
+        final bySequence = (b.localSequence ?? -1).compareTo(
+          a.localSequence ?? -1,
+        );
+        return bySequence != 0 ? bySequence : b.id.compareTo(a.id);
+      });
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -72,6 +83,7 @@ class CashSessionContent extends StatelessWidget {
         for (final m in movements)
           Card(
             child: ExpansionTile(
+              key: ValueKey('cash-movement-${m.id}'),
               title: Text(
                 '${m.direction == 'in' ? 'Entrada' : 'Salida'} · ${switch (m.sourceType) {
                   'sale_payment' => 'Cobro de venta',
@@ -82,6 +94,7 @@ class CashSessionContent extends StatelessWidget {
                 }}',
               ),
               subtitle: Text(
+                '${_movementDate(m.createdAt)} · '
                 '${cashMoney(BigInt.from(m.amountMinor))} · ${m.deliveryStatus == "not_required"
                     ? "Local"
                     : m.deliveryStatus == "delivered"
@@ -96,6 +109,19 @@ class CashSessionContent extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (m.saleId != null)
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => SaleReceiptScreen(
+                                saleId: m.saleId!,
+                                returnButtonLabel: 'Volver al corte',
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('Ver ticket'),
+                        ),
                       SelectableText('Origen: ${m.sourceId}'),
                       SelectableText('Evento: ${m.eventId}'),
                       SelectableText('Movimiento: ${m.id}'),
@@ -132,6 +158,14 @@ class CashSessionContent extends StatelessWidget {
         if (s.isClosed) SelectableText('Corte: ${s.lastEventId}'),
       ],
     );
+  }
+
+  String _movementDate(DateTime? value) {
+    if (value == null) return 'Fecha no disponible';
+    final date = value.toLocal();
+    String pad(int n) => n.toString().padLeft(2, '0');
+    return '${pad(date.day)}/${pad(date.month)}/${date.year} '
+        '${pad(date.hour)}:${pad(date.minute)}:${pad(date.second)}';
   }
 
   Widget _total(String label, BigInt amount) => SizedBox(

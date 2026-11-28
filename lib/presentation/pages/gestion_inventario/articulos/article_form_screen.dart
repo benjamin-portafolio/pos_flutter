@@ -876,6 +876,9 @@ class _ArticleFormScreenState extends State<ArticleFormScreen> {
           a.precioVenta != b.precioVenta ||
           a.costoEstandar != b.costoEstandar ||
           a.codigoBarras != b.codigoBarras ||
+          a.offerPrice.establecer != b.offerPrice.establecer ||
+          (a.offerPrice.establecer &&
+              a.offerPrice.valor != b.offerPrice.valor) ||
           !listEquals(a.proveedores, b.proveedores) ||
           a.inventoryUnitId != b.inventoryUnitId ||
           a.existenciaInicial != b.existenciaInicial ||

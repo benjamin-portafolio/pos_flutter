@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/config/app_config.dart';
+import 'package:pos_flutter/application/config/app_config_controller.dart';
 import '../../../support/fake_producto_repository.dart';
 import 'package:pos_flutter/domain/articulos/variante_por_codigo_barras.dart';
 import 'dart:async';
@@ -38,6 +40,9 @@ void main() {
       getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository());
       getIt.registerSingleton<VentaBorradorCommandService>(
         FakeVentaBorradorCommandService(),
+      );
+      getIt.registerSingleton<AppConfigController>(
+        AppConfigController(AppConfig.initial),
       );
       addTearDown(getIt.reset);
 

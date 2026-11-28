@@ -24,6 +24,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
   bool _downloading = false;
   AppMode _mode = AppMode.standalone;
   bool _isSaving = false;
+  bool _connectionFailed = false;
   bool _cashEnabled = AppConfig.initial.cashEnabled;
   bool _bankEnabled = AppConfig.initial.bankEnabled;
 
@@ -42,6 +43,28 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isSaving && _mode == AppMode.serverSync) {
+      return PopScope(
+        canPop: false,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Sincronización inicial')),
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                Text(
+                  _downloading
+                      ? 'Descargando y verificando la base inicial…'
+                      : 'Preparando tus datos…',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Configuracion inicial')),
       body: SafeArea(
@@ -50,8 +73,6 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (_downloading)
-                const Text('Descargando y verificando la base inicial…'),
               RecoveryAccessTile(enabled: !_isSaving),
               const SizedBox(height: 16),
               Text(
@@ -185,6 +206,8 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
                 label: Text(
                   _mode == AppMode.standalone
                       ? 'Conectar Drive y entrar'
+                      : _connectionFailed
+                      ? 'Reintentar'
                       : 'Guardar y entrar',
                 ),
               ),
@@ -209,12 +232,16 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
   Future<void> _guardarConfiguracion() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _connectionFailed = false;
+    });
 
     try {
       final config = AppConfig.initial.copyWith(
         mode: _mode,
         setupCompleted: true,
+        initialSyncPending: _mode == AppMode.serverSync,
         businessName: AppConfig.defaultBusinessName,
         userId: AppConfig.defaultUserId,
         userName: AppConfig.defaultUserName,
@@ -266,6 +293,7 @@ class _FirstRunSetupScreenState extends State<FirstRunSetupScreen> {
       await AppRestartScope.restart(context);
     } catch (error) {
       if (!mounted) return;
+      setState(() => _connectionFailed = _mode == AppMode.serverSync);
       final message = switch (error) {
         FormatException() => error.message,
         StateError() => error.message.toString(),

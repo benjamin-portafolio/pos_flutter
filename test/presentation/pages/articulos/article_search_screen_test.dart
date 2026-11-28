@@ -1,3 +1,5 @@
+import 'package:pos_flutter/application/config/app_config.dart';
+import 'package:pos_flutter/application/config/app_config_controller.dart';
 import 'package:pos_flutter/application/commands/ventas/sale_capture_conditions.dart';
 import 'package:pos_flutter/application/sync/payloads/sale_item_snapshot.dart';
 import 'package:pos_flutter/domain/ventas/measured_sale_conditions.dart';
@@ -29,10 +31,12 @@ import '../../../support/fake_sale_draft_repository.dart';
 import '../../../support/sale_draft_fixtures.dart';
 
 void main() {
-  setUp(
-    () =>
-        getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository()),
-  );
+  setUp(() {
+    getIt.registerSingleton<AppConfigController>(
+      AppConfigController(AppConfig.initial),
+    );
+    getIt.registerSingleton<SaleDraftRepository>(FakeSaleDraftRepository());
+  });
   tearDown(() => getIt.reset());
   testWidgets(
     'observa cantidades, conserva el botón al filtrar y lo retira al limpiar',

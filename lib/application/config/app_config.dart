@@ -68,6 +68,7 @@ class AppConfig {
     this.businessPhone,
     this.cashEnabled = true,
     this.bankEnabled = true,
+    this.initialSyncPending = false,
   });
 
   static const defaultBusinessName = 'PASTOR';
@@ -91,6 +92,9 @@ class AppConfig {
 
   final AppMode mode;
   final bool setupCompleted;
+
+  /// Preparación inicial pendiente; persiste entre reinicios, solo en servidor.
+  final bool initialSyncPending;
   final String businessName;
   final String userId;
   final String userName;
@@ -150,6 +154,7 @@ class AppConfig {
   AppConfig copyWith({
     AppMode? mode,
     bool? setupCompleted,
+    bool? initialSyncPending,
     String? businessName,
     String? userId,
     String? userName,
@@ -179,6 +184,9 @@ class AppConfig {
     return AppConfig(
       mode: nextMode,
       setupCompleted: setupCompleted ?? this.setupCompleted,
+      initialSyncPending:
+          nextMode == AppMode.serverSync &&
+          (initialSyncPending ?? this.initialSyncPending),
       businessName: businessName ?? this.businessName,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
@@ -222,6 +230,7 @@ class AppConfig {
     return {
       'mode': mode.storageValue,
       'setup_completed': setupCompleted,
+      'initial_sync_pending': initialSyncPending,
       'business_name': businessName,
       'user_id': userId,
       'user_name': userName,
@@ -257,6 +266,8 @@ class AppConfig {
     return AppConfig(
       mode: mode,
       setupCompleted: json['setup_completed'] == true,
+      initialSyncPending:
+          mode == AppMode.serverSync && json['initial_sync_pending'] == true,
       // Las instalaciones existentes guardaron el nombre predeterminado
       // anterior. Actualizarlo también al leerlo para los catálogos y reportes.
       businessName:

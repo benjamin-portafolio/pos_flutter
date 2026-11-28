@@ -1,3 +1,4 @@
+import 'server_connection_indicator.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 2;
   bool _navigating = false;
   bool _restoreAfterMenu = false;
+  bool _restoreAfterSyncDetails = false;
   bool _restoreAfterMenuRoute = false;
   final _caja = GlobalKey<CajaScreenState>();
   final _scaffold = GlobalKey<ScaffoldState>();
@@ -57,6 +59,20 @@ class _HomeScreenState extends State<HomeScreen> {
       _restoreAfterMenu = restore;
       _scaffold.currentState?.openDrawer();
     }
+  }
+
+  Future<bool> _prepareSyncDetails() async {
+    final restore = _caja.currentState?.isReaderEnabled == true;
+    final allowed = await _prepareNavigation();
+    if (allowed) _restoreAfterSyncDetails = restore;
+    return allowed;
+  }
+
+  void _closeSyncDetails() {
+    if (_restoreAfterSyncDetails && mounted) {
+      _caja.currentState?.restoreReader();
+    }
+    _restoreAfterSyncDetails = false;
   }
 
   Future<void> _openFinancialEntries() async {
@@ -132,6 +148,11 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: _openMenu,
         ),
         actions: [
+          ServerConnectionIndicator(
+            compact: true,
+            onOpen: _prepareSyncDetails,
+            onClose: _closeSyncDetails,
+          ),
           IconButton(icon: const Icon(Icons.person_add), onPressed: () {}),
           IconButton(
             tooltip: 'Ingresos y gastos',
